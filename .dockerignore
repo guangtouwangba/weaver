@@ -1,46 +1,47 @@
-# Git
+# Docker ignore file to reduce build context and image size
+
+# ===== VERSION CONTROL =====
 .git
 .gitignore
+.github/
 
-# Python
+# ===== PYTHON =====
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
+dist/
+build/
 *.egg
 
-# Virtual environments
-.env
-.venv
-env/
+# ===== VIRTUAL ENVIRONMENTS =====
 venv/
+env/
 ENV/
-env.bak/
-venv.bak/
+.venv/
+.env/
 
-# IDE
+# ===== DEVELOPMENT FILES =====
+.pytest_cache/
+.coverage
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# ===== IDEs =====
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# ===== OS FILES =====
 .DS_Store
 .DS_Store?
 ._*
@@ -49,37 +50,58 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Project specific
-data/vector_db/*
-logs/*
+# ===== DOCUMENTATION =====
+*.md
+docs/
+examples/
+demo_data/
+test_data/
+
+# ===== LOGS & DATA =====
+logs/
 *.log
-.coverage
-htmlcov/
-.pytest_cache/
-.mypy_cache/
-
-# Documentation
-docs/_build/
-docs/_static/
-docs/_templates/
-
-# Backups
+data/vector_db/
 backups/
-*.bak
-*.backup
 
-# Testing
-.tox/
-.nox/
-coverage.xml
-*.cover
-.hypothesis/
+# ===== STREAMLIT SPECIFIC (not needed for API) =====
+.streamlit/
 
-# Jupyter
-.ipynb_checkpoints
+# ===== DEVELOPMENT SCRIPTS =====
+test_*.py
+demo_*.py
+validate_*.py
+*_test.py
+*_demo.py
 
-# Temporary files
-*.tmp
-*.temp
+# ===== DOCKER FILES (avoid recursion) =====
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# ===== CONFIGURATION EXAMPLES =====
+.env.example
+config.example.*
+
+# ===== JUPYTER NOTEBOOKS =====
+*.ipynb
+.jupyter/
+
+# ===== TEMPORARY FILES =====
 tmp/
 temp/
+*.tmp
+*.temp
+
+# ===== LARGE DEPENDENCIES (will be installed in container) =====
+node_modules/
+*.tar.gz
+*.zip
+
+# ===== KEEP ONLY ESSENTIAL FILES =====
+# The following files ARE included:
+# - *.py (application code)
+# - requirements.serverless.txt
+# - .env (if exists)
+# - config.py
+# - pyproject.toml (if using Poetry)
+# - poetry.lock (if using Poetry)

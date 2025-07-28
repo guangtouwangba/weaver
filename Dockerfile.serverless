@@ -1,0 +1,98 @@
+# Optimized Dockerfile for serverless deployment
+# Multi-stage build to minimize image size and improve cold start times
+
+# ===============================
+# Stage 1: Dependencies Builder
+# ===============================
+FROM python:3.11-slim as deps-builder
+
+# Set environment variables for Python
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=100
+
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements
+COPY requirements.serverless.txt /tmp/requirements.txt
+
+# Install Python dependencies
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -r /tmp/requirements.txt
+
+# ===============================
+# Stage 2: Production Image
+# ===============================
+FROM python:3.11-slim as production
+
+# Set environment variables for production
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    # FastAPI/Uvicorn settings
+    HOST=0.0.0.0 \
+    PORT=8000 \
+    WORKERS=1 \
+    # Performance tuning
+    MALLOC_TRIM_THRESHOLD_=100000 \
+    MALLOC_MMAP_THRESHOLD_=100000 \
+    # Disable unnecessary features for serverless
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy virtual environment from builder
+COPY --from=deps-builder /opt/venv /opt/venv
+
+# Copy application code (use .dockerignore to exclude unnecessary files)
+COPY --chown=appuser:appuser . .
+
+# Create necessary directories and set permissions
+RUN mkdir -p /app/data/vector_db /app/logs /tmp/cache && \
+    chown -R appuser:appuser /app /tmp/cache
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check optimized for serverless (quick and lightweight)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=2 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Default command for serverless deployment
+CMD ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+
+# ===============================
+# Labels for metadata
+# ===============================
+LABEL maintainer="Research Agent RAG Team" \
+      version="1.0.0" \
+      description="Multi-agent research paper analysis system - Serverless optimized" \
+      org.opencontainers.image.source="https://github.com/your-org/research-agent-rag" \
+      org.opencontainers.image.title="Research Agent RAG API" \
+      org.opencontainers.image.description="FastAPI server for multi-agent research analysis"

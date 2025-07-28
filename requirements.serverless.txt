@@ -1,0 +1,42 @@
+# Optimized requirements for serverless deployment
+# Only essential dependencies to minimize image size and improve cold start
+
+# ===== CORE API DEPENDENCIES =====
+fastapi>=0.104.0,<1.0.0
+uvicorn[standard]>=0.24.0,<1.0.0
+pydantic>=2.0.0,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+
+# ===== AI CLIENT DEPENDENCIES =====
+openai>=1.0.0,<2.0.0
+anthropic>=0.25.0,<1.0.0
+httpx>=0.25.0,<1.0.0  # Used by AI clients
+aiohttp>=3.9.0,<4.0.0
+
+# ===== RESEARCH & RETRIEVAL =====
+arxiv>=2.0.0,<3.0.0
+beautifulsoup4>=4.12.0,<5.0.0
+requests>=2.31.0,<3.0.0
+
+# ===== VECTOR DATABASE & EMBEDDINGS =====
+chromadb>=0.4.0,<1.0.0
+sentence-transformers>=2.2.0,<3.0.0
+
+# ===== DATA PROCESSING (minimal) =====
+numpy>=1.24.0,<2.0.0
+pandas>=2.0.0,<3.0.0
+
+# ===== OPTIONAL LANGCHAIN (lightweight version) =====
+# Only include if specifically needed - these add significant size
+# langchain-core>=0.1.0,<1.0.0
+# langchain-openai>=0.0.5,<1.0.0
+# langchain-anthropic>=0.1.0,<1.0.0
+
+# ===== PERFORMANCE & MONITORING =====
+psutil>=5.9.0,<6.0.0  # For system monitoring
+
+# ===== EXCLUDE HEAVY DEPENDENCIES =====
+# streamlit - Not needed for API deployment
+# jupyter - Not needed for serverless
+# matplotlib/plotly - Not needed for API-only deployment
+# pytorch - Will be installed as dependency of sentence-transformers if needed
