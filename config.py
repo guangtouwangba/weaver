@@ -3,7 +3,8 @@ from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 import json
 
-load_dotenv()
+# Load .env file if it exists (optional for production deployments)
+load_dotenv(override=False)
 
 class Config:
     """Configuration class for the research agent RAG system"""

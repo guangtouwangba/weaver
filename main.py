@@ -29,10 +29,13 @@ logger = logging.getLogger(__name__)
 def setup_environment():
     """Setup environment and validate requirements"""
     try:
-        # Check for .env file
+        # Check for .env file (optional for production deployments)
         env_file = ".env"
         if not os.path.exists(env_file):
-            logger.warning(f"{env_file} not found. Copy .env.example to .env and configure it.")
+            logger.info(f"{env_file} not found. Using environment variables only.")
+            logger.info("For local development, copy .env.example to .env and configure it.")
+        else:
+            logger.info(f"Found {env_file} file")
         
         # Validate Python version
         if sys.version_info < (3, 8):
