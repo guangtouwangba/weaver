@@ -157,15 +157,108 @@ docker-build: ## Build Docker images
 	docker build -f $(INFRA_DIR)/docker/Dockerfile -t research-agent-rag:latest .
 	@echo "$(GREEN)✓ Docker images built$(NC)"
 
-docker-run: ## Run with Docker Compose
+docker-run: ## Run with Docker Compose (all services)
 	@echo "$(BLUE)Starting with Docker Compose...$(NC)"
-	docker-compose -f $(INFRA_DIR)/docker/docker-compose.yml up -d
+	cd $(INFRA_DIR)/docker && docker-compose up -d
 	@echo "$(GREEN)✓ Application started with Docker$(NC)"
+
+docker-run-dev: ## Run with Docker Compose (development mode)
+	@echo "$(BLUE)Starting with Docker Compose (development)...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+	@echo "$(GREEN)✓ Development environment started with Docker$(NC)"
+
+docker-run-frontend: ## Run frontend only with Docker
+	@echo "$(BLUE)Starting frontend with Docker...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose up -d research-agent-frontend
+	@echo "$(GREEN)✓ Frontend started with Docker$(NC)"
+
+docker-run-backend: ## Run backend only with Docker
+	@echo "$(BLUE)Starting backend with Docker...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose up -d research-agent-backend
+	@echo "$(GREEN)✓ Backend started with Docker$(NC)"
+
+docker-run-admin: ## Run with Docker Compose (with admin tools)
+	@echo "$(BLUE)Starting with Docker Compose (with admin tools)...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --profile admin up -d
+	@echo "$(GREEN)✓ Application with admin tools started$(NC)"
+
+docker-run-monitoring: ## Run with Docker Compose (with monitoring)
+	@echo "$(BLUE)Starting with Docker Compose (with monitoring)...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --profile monitoring up -d
+	@echo "$(GREEN)✓ Application with monitoring started$(NC)"
 
 docker-stop: ## Stop Docker containers
 	@echo "$(BLUE)Stopping Docker containers...$(NC)"
-	docker-compose -f $(INFRA_DIR)/docker/docker-compose.yml down
+	cd $(INFRA_DIR)/docker && docker-compose down
 	@echo "$(GREEN)✓ Docker containers stopped$(NC)"
+
+docker-logs: ## Show Docker logs
+	@echo "$(BLUE)Showing Docker logs...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose logs -f
+
+docker-logs-api: ## Show API service logs
+	@echo "$(BLUE)Showing API logs...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose logs -f research-agent-api
+
+docker-logs-db: ## Show database logs
+	@echo "$(BLUE)Showing database logs...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose logs -f postgres weaviate redis
+
+docker-shell: ## Access API container shell
+	@echo "$(BLUE)Accessing API container shell...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose exec research-agent-api bash
+
+docker-db-shell: ## Access PostgreSQL shell
+	@echo "$(BLUE)Accessing PostgreSQL shell...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose exec postgres psql -U research_user -d research_agent
+
+docker-redis-shell: ## Access Redis shell
+	@echo "$(BLUE)Accessing Redis shell...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose exec redis redis-cli -a redis_password
+
+docker-health: ## Check service health
+	@echo "$(BLUE)Checking service health...$(NC)"
+	@echo "$(CYAN)Backend API Health:$(NC)"
+	@curl -s http://localhost:8000/health || echo "$(RED)Backend API not responding$(NC)"
+	@echo "$(CYAN)Frontend Health:$(NC)"
+	@curl -s http://localhost:3000/api/health || echo "$(RED)Frontend not responding$(NC)"
+	@echo "$(CYAN)PostgreSQL Health:$(NC)"
+	@cd $(INFRA_DIR)/docker && docker-compose exec -T postgres pg_isready -U research_user || echo "$(RED)PostgreSQL not ready$(NC)"
+	@echo "$(CYAN)Weaviate Health:$(NC)"
+	@curl -s http://localhost:8080/v1/.well-known/ready || echo "$(RED)Weaviate not responding$(NC)"
+	@echo "$(CYAN)Redis Health:$(NC)"
+	@cd $(INFRA_DIR)/docker && docker-compose exec -T redis redis-cli -a redis_password ping || echo "$(RED)Redis not responding$(NC)"
+
+docker-test: ## Run comprehensive docker tests
+	@echo "$(BLUE)Running Docker setup tests...$(NC)"
+	@cd $(INFRA_DIR)/docker && python test-docker-setup.py
+
+docker-deploy: ## Deploy with Docker (development mode)
+	@echo "$(BLUE)Deploying with Docker...$(NC)"
+	@cd $(INFRA_DIR)/docker && ./deploy.sh
+
+docker-deploy-prod: ## Deploy with Docker (production mode)
+	@echo "$(BLUE)Deploying with Docker (production)...$(NC)"
+	@cd $(INFRA_DIR)/docker && ./deploy.sh production
+
+docker-deploy-admin: ## Deploy with Docker (admin tools)
+	@echo "$(BLUE)Deploying with Docker (admin tools)...$(NC)"
+	@cd $(INFRA_DIR)/docker && ./deploy.sh admin
+
+docker-deploy-monitoring: ## Deploy with Docker (monitoring)
+	@echo "$(BLUE)Deploying with Docker (monitoring)...$(NC)"
+	@cd $(INFRA_DIR)/docker && ./deploy.sh monitoring
+
+docker-backup: ## Backup PostgreSQL database
+	@echo "$(BLUE)Backing up PostgreSQL database...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose exec -T postgres pg_dump -U research_user research_agent > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	@echo "$(GREEN)✓ Database backup created$(NC)"
+
+docker-restore: ## Restore PostgreSQL database (requires backup file)
+	@echo "$(BLUE)Restoring PostgreSQL database...$(NC)"
+	@read -p "Enter backup file name: " backup_file; \
+	cd $(INFRA_DIR)/docker && docker-compose exec -T postgres psql -U research_user research_agent < $$backup_file
+	@echo "$(GREEN)✓ Database restored$(NC)"
 
 # Infrastructure
 deploy-k8s: ## Deploy to Kubernetes

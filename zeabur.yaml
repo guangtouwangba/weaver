@@ -1,0 +1,133 @@
+name: research-agent-rag
+description: A comprehensive research agent RAG system with cronjob management capabilities
+tags:
+  - ai
+  - research
+  - rag
+  - cronjob
+  - vector-database
+icon: https://cdn-icons-png.flaticon.com/512/2920/2920277.png
+readme: |
+  # Research Agent RAG System
+
+  A powerful research agent system with RAG capabilities and automated cronjob management for paper processing.
+
+  ## Features
+
+  - **Multi-Agent Research System**: Specialized agents for different research tasks
+  - **Vector Database Integration**: Support for ChromaDB, Pinecone, Qdrant, and Weaviate
+  - **Embedding Models**: OpenAI, Anthropic, HuggingFace, and DeepSeek support
+  - **Cronjob Management**: Automated paper fetching and processing
+  - **Modern Frontend**: Next.js with shadcn/ui components
+  - **FastAPI Backend**: High-performance API with SQLAlchemy
+
+  ## Services
+
+  - **Backend**: FastAPI server on port 8000
+  - **Frontend**: Next.js application on port 3000
+  - **Database**: PostgreSQL for job management
+  - **Vector DB**: ChromaDB for embeddings (can be configured for other providers)
+
+  ## Usage
+
+  1. Configure your environment variables (API keys, database settings)
+  2. Access the dashboard at your frontend URL
+  3. Create and manage cronjobs for automated paper processing
+  4. Query the research agents through the API or chat interface
+
+variables:
+  OPENAI_API_KEY:
+    type: string
+    name: OpenAI API Key
+    description: Your OpenAI API key for embeddings and completions
+  DATABASE_URL:
+    type: string
+    name: Database URL
+    description: PostgreSQL connection string (auto-generated if using Zeabur PostgreSQL)
+    default: postgresql://user:password@postgres:5432/research_agent_db
+  VECTOR_DB_TYPE:
+    type: string
+    name: Vector Database Type
+    description: Type of vector database to use
+    default: chroma
+  EMBEDDING_MODEL_TYPE:
+    type: string
+    name: Embedding Model Type
+    description: Type of embedding model to use
+    default: openai
+  FRONTEND_URL:
+    type: domain
+    name: Frontend Domain
+    description: Domain for the frontend application
+
+spec:
+  services:
+    postgres:
+      icon: https://cdn.worldvectorlogo.com/logos/postgresql.svg
+      type: image
+      spec:
+        image: postgres:15
+        env:
+          POSTGRES_DB: research_agent_db
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+        volumes:
+          - path: /var/lib/postgresql/data
+            size: 10Gi
+        ports:
+          - id: postgres
+            port: 5432
+            type: tcp
+
+    backend:
+      icon: https://cdn.worldvectorlogo.com/logos/fastapi.svg
+      type: git
+      spec:
+        source:
+          type: github
+          repo: research-agent-rag
+          branch: main
+        dockerfile: infra/docker/Dockerfile.backend
+        env:
+          DATABASE_URL: ${DATABASE_URL}
+          OPENAI_API_KEY: ${OPENAI_API_KEY}
+          VECTOR_DB_TYPE: ${VECTOR_DB_TYPE}
+          EMBEDDING_MODEL_TYPE: ${EMBEDDING_MODEL_TYPE}
+          PORT: 8000
+        ports:
+          - id: api
+            port: 8000
+            type: http
+        dependencies:
+          - postgres
+        instructions:
+          - type: text
+            title: API Endpoint
+            content: Your backend API is available at https://{{ZEABUR_WEB_URL}}/api
+
+    frontend:
+      icon: https://cdn.worldvectorlogo.com/logos/nextjs-2.svg
+      type: git
+      domainKey: FRONTEND_URL
+      spec:
+        source:
+          type: github
+          repo: research-agent-rag
+          branch: main
+        dockerfile: infra/docker/Dockerfile.frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://{{backend.ZEABUR_WEB_URL}}
+          PORT: 3000
+        ports:
+          - id: web
+            port: 3000
+            type: http
+        dependencies:
+          - backend
+        instructions:
+          - type: text
+            title: Dashboard Access
+            content: Access your research agent dashboard at https://{{ZEABUR_WEB_URL}}
+          - type: text
+            title: Admin Credentials
+            content: Use the API to create your first admin user and cronjobs

@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # ===== DEVELOPMENT BACKEND =====
+  research-agent-backend-dev:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: research-agent-backend-dev
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "uvicorn", "api.simple_server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - WORKERS=1
+      - LOG_LEVEL=DEBUG
+      # Database configuration
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=research_agent
+      - POSTGRES_USER=research_user
+      - POSTGRES_PASSWORD=research_password
+      # Vector database configuration
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_PORT=8080
+      - WEAVIATE_SCHEME=http
+      # Redis configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_password
+      - REDIS_DB=0
+    env_file:
+      - .env
+    volumes:
+      # Mount source code for hot reload
+      - ../../backend:/app
+      # Mount data directory
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - research-network
+
+  # ===== DEVELOPMENT FRONTEND =====
+  research-agent-frontend-dev:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+    container_name: research-agent-frontend-dev
+    ports:
+      - "3000:3000"
+    command: ["npm", "run", "dev"]
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - API_BASE_URL=http://research-agent-backend-dev:8000
+    volumes:
+      # Mount source code for hot reload
+      - ../../frontend:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+    depends_on:
+      research-agent-backend-dev:
+        condition: service_healthy
+    networks:
+      - research-network
+
+  # ===== DEVELOPMENT TOOLS =====
+  # Database admin tools for development
+  pgadmin-dev:
+    image: dpage/pgadmin4:latest
+    container_name: research-agent-pgadmin-dev
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@research-agent.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data_dev:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - research-network
+
+  redis-commander-dev:
+    image: rediscommander/redis-commander:latest
+    container_name: research-agent-redis-commander-dev
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:redis_password
+    depends_on:
+      - redis
+    networks:
+      - research-network
+
+  # ===== DEVELOPMENT MONITORING =====
+  prometheus-dev:
+    image: prom/prometheus:latest
+    container_name: research-agent-prometheus-dev
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.dev.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - research-network
+
+  grafana-dev:
+    image: grafana/grafana:latest
+    container_name: research-agent-grafana-dev
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data_dev:/var/lib/grafana
+    depends_on:
+      - prometheus-dev
+    networks:
+      - research-network
+
+volumes:
+  pgadmin_data_dev:
+    driver: local
+  grafana_data_dev:
+    driver: local 
