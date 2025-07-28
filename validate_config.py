@@ -20,12 +20,13 @@ def validate_configuration():
     print("🔧 Research Agent RAG System - Configuration Validation")
     print("=" * 65)
     
-    # Check if .env file exists
+    # Check if .env file exists (optional for production deployments)
     env_file = os.path.join(os.path.dirname(__file__), '.env')
     if os.path.exists(env_file):
         print("✅ .env file found")
     else:
-        print("⚠️  .env file not found - using environment variables only")
+        print("ℹ️  .env file not found - using environment variables only")
+        print("   (This is normal for production deployments)")
     
     print("\n📋 Configuration Check:")
     print("-" * 30)

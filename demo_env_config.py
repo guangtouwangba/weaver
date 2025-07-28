@@ -120,11 +120,12 @@ def demo_env_file_examples():
 def main():
     """Run the configuration demo"""
     
-    # Check if .env file exists
+    # Check if .env file exists (optional for production deployments)
     env_file = os.path.join(os.path.dirname(__file__), '.env')
     if not os.path.exists(env_file):
-        print("⚠️  No .env file found!")
-        print("Please copy .env.example to .env and configure your API keys.")
+        print("ℹ️  No .env file found!")
+        print("   (This is normal for production deployments)")
+        print("   For local development, copy .env.example to .env and configure your API keys.")
         print()
         demo_env_file_examples()
         return
