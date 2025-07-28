@@ -1,313 +1,292 @@
-# 🔬 Research Agent RAG System
+# Research Agent RAG System
 
-A multi-agent research system that combines RAG (Retrieval-Augmented Generation) with specialized AI agents to analyze academic papers and generate insights from multiple expert perspectives.
+一个基于多智能体的研究论文分析和讨论系统，支持多种 LLM 提供商（OpenAI、DeepSeek、Anthropic）。
 
-## 🌟 Features
-
-### Multi-Agent Analysis
-- **Google Engineer Agent**: Focuses on scalability, production systems, and engineering challenges
-- **MIT Researcher Agent**: Provides theoretical analysis, mathematical rigor, and academic insights  
-- **Industry Expert Agent**: Evaluates commercial viability, market potential, and business applications
-- **Paper Analyst Agent**: Conducts critical analysis and identifies breaking points
-
-### Core Capabilities
-- **Paper Retrieval**: Automatically fetch papers from arXiv based on research topics
-- **Vector Storage**: Store and semantically search papers using ChromaDB
-- **Multi-Agent Coordination**: Orchestrate multiple agents for comprehensive analysis
-- **Interactive Chat**: Discuss papers and get insights through a conversational interface
-- **Research Sessions**: Manage complex research workflows and track progress
-
-### User Interfaces
-- **Web Interface**: Streamlit-based chat interface for easy interaction
-- **CLI Mode**: Command-line interface for programmatic usage
-- **Python API**: Direct integration in your own applications
-- **Demo Mode**: Comprehensive demonstration of all features
-
-## 🚀 Quick Start
-
-### 1. Prerequisites
-
-- Python 3.9+ (excluding 3.9.7)
-- [Poetry](https://python-poetry.org/docs/#installation) for dependency management
-
-### 2. Installation & Setup
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd research-agent-rag
-
-# Complete setup (installs dependencies, creates .env, sets up git hooks)
-make setup
-
-# Or step by step:
-make install-dev    # Install dependencies
-make setup-env      # Create .env file
-```
-
-### 3. Configuration
-
-```bash
-# Edit .env and add your API keys
-# Required: OPENAI_API_KEY
-# Optional: ANTHROPIC_API_KEY
-```
-
-### 4. Quick Start
-
-```bash
-# Run complete demonstration
-make run-demo
-
-# Launch web interface
-make run-web
-
-# Or start CLI mode
-make run-cli
-```
-
-### 🐳 Docker Quick Start
-
-```bash
-# Build and run with Docker
-make docker-build
-make docker-run
-```
-
-## 🎯 Usage Examples
-
-### Web Interface
-1. Open the Streamlit interface
-2. Enter your API key in the sidebar
-3. Start a research session on any topic
-4. Chat with the papers and get multi-agent insights
-
-### Command Line
-```bash
-# Start CLI mode
-make run-cli
-
-# Available commands:
-> research transformer attention mechanisms
-> chat What are the main challenges with attention?
-> status
-> quit
-```
-
-### Python API
-```python
-import asyncio
-from agents.orchestrator import ResearchOrchestrator
-
-# Initialize the orchestrator
-orchestrator = ResearchOrchestrator(
-    openai_api_key="your-api-key"
-)
-
-# Start a research session
-async def research_example():
-    session = await orchestrator.research_topic(
-        topic="large language models",
-        max_papers=20
-    )
-    
-    # Get comprehensive insights
-    for agent_name, analyses in session.agent_analyses.items():
-        print(f"{agent_name}: {len(analyses)} analyses")
-
-# Chat with papers
-response = orchestrator.chat_with_papers(
-    "What are the scaling laws for transformer models?"
-)
-print(response['response'])
-```
-
-## 🏗️ Architecture
+## 🏗️ 项目结构
 
 ```
 research-agent-rag/
-├── agents/                 # AI research agents
-│   ├── base_agent.py      # Base agent class
-│   ├── google_engineer_agent.py
-│   ├── mit_researcher_agent.py
-│   ├── industry_expert_agent.py
-│   ├── paper_analyst_agent.py
-│   └── orchestrator.py    # Multi-agent coordinator
-├── retrieval/             # Paper retrieval system
-│   └── arxiv_client.py    # arXiv API integration
-├── database/              # Vector database
-│   └── vector_store.py    # ChromaDB integration
-├── chat/                  # Chat interfaces
-│   └── chat_interface.py  # Streamlit web interface
-├── examples/              # Examples and demos
-│   └── demo.py           # Comprehensive demo
-├── config.py             # Configuration management
-├── main.py              # Main entry point
-└── requirements.txt     # Dependencies
+├── backend/                    # 后端代码
+│   ├── api/                   # API 服务器
+│   ├── agents/                # AI 代理
+│   ├── chat/                  # 聊天接口
+│   ├── database/              # 数据库相关
+│   ├── retrieval/             # 论文检索
+│   ├── utils/                 # 工具函数
+│   ├── config.py              # 配置
+│   ├── main.py                # 主入口
+│   └── requirements.txt       # 依赖
+├── frontend/                  # 前端代码
+│   └── ... (Next.js 应用)
+├── infra/                     # 基础设施
+│   ├── docker/                # Docker 配置
+│   ├── k8s/                   # Kubernetes 配置
+│   ├── nginx/                 # Nginx 配置
+│   └── scripts/               # 部署脚本
+├── docs/                      # 文档
+├── tests/                     # 测试
+└── Makefile                   # 构建脚本
 ```
 
-## 🤖 Agent Specializations
+## 🚀 快速开始
 
-### Google Engineer Agent
-- **Focus**: Large-scale systems, performance, production deployment
-- **Expertise**: Distributed systems, ML infrastructure, scalability engineering
-- **Output**: Infrastructure requirements, performance bottlenecks, implementation complexity
+### 1. 安装依赖
 
-### MIT Researcher Agent  
-- **Focus**: Theoretical foundations, mathematical rigor, novel research
-- **Expertise**: Algorithms, theoretical CS, academic methodology
-- **Output**: Theoretical contributions, research gaps, experimental validation
-
-### Industry Expert Agent
-- **Focus**: Commercial applications, market viability, business models
-- **Expertise**: Technology commercialization, competitive analysis, market adoption
-- **Output**: Market potential, business opportunities, adoption barriers
-
-### Paper Analyst Agent
-- **Focus**: Critical evaluation, breaking point identification, methodology assessment
-- **Expertise**: Research quality assessment, reproducibility, cross-paper synthesis
-- **Output**: Methodological strengths/weaknesses, breaking points, improvement suggestions
-
-## 📊 Features in Detail
-
-### Paper Retrieval & Storage
-- Automated arXiv search with configurable parameters
-- Semantic chunking and embedding generation
-- Vector similarity search for relevant paper discovery
-- Metadata extraction and categorization
-
-### Multi-Agent Analysis
-- Parallel processing for faster analysis
-- Specialized prompts for each agent perspective
-- Confidence scoring and consensus analysis
-- Cross-agent insight synthesis
-
-### Research Session Management
-- Session tracking and progress monitoring
-- Historical analysis storage and retrieval
-- Research workflow orchestration
-- Real-time status updates
-
-### Interactive Chat
-- Natural language queries about papers
-- Context-aware responses using vector search
-- Multi-agent consultation for complex questions
-- Paper recommendation and discovery
-
-## ⚙️ Configuration
-
-### Environment Variables (.env)
 ```bash
-# API Keys
+# 完整设置（推荐）
+make setup
+
+# 或者分步安装
+make install-dev
+make setup-env
+```
+
+### 2. 配置 API 密钥
+
+编辑 `.env` 文件，添加您的 API 密钥：
+
+```bash
+# OpenAI
 OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key  # Optional
 
-# Database Settings
+# DeepSeek
+DEEPSEEK_API_KEY=your_deepseek_key
+
+# Anthropic
+ANTHROPIC_API_KEY=your_anthropic_key
+```
+
+### 3. 运行应用
+
+```bash
+# 运行演示
+make run-demo
+
+# 运行 Web 界面
+make run-web
+
+# 运行现代 UI
+make run-frontend
+
+# 运行完整栈（后端 + 前端）
+make run-fullstack
+```
+
+## 🛠️ 开发
+
+### 代码质量
+
+```bash
+# 格式化代码
+make format
+
+# 代码检查
+make lint
+
+# 运行测试
+make test
+```
+
+### 构建和部署
+
+```bash
+# 构建所有组件
+make build
+
+# Docker 部署
+make docker-build
+make docker-run
+
+# Kubernetes 部署
+make deploy-k8s
+```
+
+## 📚 功能特性
+
+### 🤖 多智能体系统
+
+- **Google Engineer Agent**: 工程实践和实现建议
+- **MIT Researcher Agent**: 学术研究和理论分析
+- **Industry Expert Agent**: 行业应用和商业价值
+- **Paper Analyst Agent**: 论文深度分析
+
+### 🔍 智能检索
+
+- **ArXiv API 集成**: 实时论文检索
+- **向量数据库**: 语义相似性搜索
+- **查询扩展**: 智能查询优化
+- **分页支持**: 大规模数据检索
+
+### 💬 多提供商支持
+
+- **OpenAI**: GPT-4, GPT-3.5-turbo
+- **DeepSeek**: DeepSeek-V3, DeepSeek-Coder
+- **Anthropic**: Claude-3, Claude-2
+
+### 🎨 现代化 UI
+
+- **Streamlit**: 快速原型界面
+- **Next.js**: 现代 React 应用
+- **Tailwind CSS**: 响应式设计
+- **实时更新**: 动态数据展示
+
+## 🏗️ 架构设计
+
+### 后端架构
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   FastAPI       │    │   Research      │    │   Vector        │
+│   Server        │◄──►│   Orchestrator  │◄──►│   Database      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Multi-Agent   │    │   ArXiv Client  │    │   Embedding     │
+│   System        │    │   & Retrieval   │    │   Models        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### 前端架构
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Next.js       │    │   API Client    │    │   Backend       │
+│   Frontend      │◄──►│   & Hooks       │◄──►│   FastAPI       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Tailwind CSS  │    │   SWR Data      │    │   Multi-LLM     │
+│   & Components  │    │   Fetching      │    │   Integration   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## 🔧 配置选项
+
+### 环境变量
+
+```bash
+# API 密钥
+OPENAI_API_KEY=your_key
+DEEPSEEK_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
+
+# 默认提供商
+DEFAULT_PROVIDER=deepseek
+
+# 数据库配置
 VECTOR_DB_PATH=./data/vector_db
-MAX_PAPERS_PER_QUERY=50
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
 
-# Agent Settings
-DEFAULT_MODEL=gpt-4o-mini
-RESEARCH_TOPICS_CACHE_TTL=3600
-
-# Logging
-LOG_LEVEL=INFO
+# 服务器配置
+HOST=0.0.0.0
+PORT=8000
 ```
 
-### Customization
-- **Agent Prompts**: Modify agent behavior by editing prompts in agent classes
-- **Vector Database**: Switch to Pinecone, Weaviate, or other vector DBs
-- **Paper Sources**: Extend beyond arXiv to other academic databases
-- **Analysis Pipeline**: Add custom processing steps or filters
+### 智能体配置
 
-## 🧪 Testing & Development
+每个智能体可以独立配置：
 
-### Available Make Commands
+```python
+# 在 config.py 中
+AGENT_CONFIGS = {
+    "google_engineer": {
+        "provider": "openai",
+        "model": "gpt-4",
+        "temperature": 0.7
+    },
+    "mit_researcher": {
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "temperature": 0.8
+    }
+}
+```
+
+## 🐳 Docker 支持
+
+### 开发环境
 
 ```bash
-# See all available commands
-make help
+# 构建镜像
+make docker-build
 
-# Development workflow
-make dev           # Setup development environment
-make format        # Format code with black and isort
-make lint          # Run linting tools
-make test          # Run tests
-make test-cov      # Run tests with coverage
-make qa            # Run all quality assurance checks
+# 运行容器
+make docker-run
 
-# Running the application
-make run-web       # Launch web interface
-make run-cli       # Start CLI mode  
-make run-demo      # Run demonstration
-make run-debug     # Run with debug logging
-
-# Database management
-make db-reset      # Reset vector database
-make db-backup     # Backup vector database
-
-# Docker support
-make docker-build  # Build Docker image
-make docker-run    # Run Docker container
-make docker-dev    # Development container
-
-# Maintenance
-make clean         # Clean build artifacts
-make update-deps   # Update dependencies
-make security-check # Run security checks
+# 停止容器
+make docker-stop
 ```
 
-### Development Workflow
+### 生产部署
+
 ```bash
-# Quick development setup
-make dev
+# 使用 Docker Compose
+docker-compose -f infra/docker/docker-compose.yml up -d
 
-# Before committing
-make pre-commit
-
-# Continuous development
-make run-web      # In one terminal
-make logs         # In another terminal to monitor
+# 使用 Kubernetes
+make deploy-k8s
 ```
 
-## 🤝 Contributing
+## 📊 监控和日志
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```bash
+# 查看日志
+make logs
 
-### Development Guidelines
-- Follow the existing code structure and naming conventions
-- Add docstrings for new classes and methods
-- Test new features with the demo script
-- Update README for significant changes
+# 检查状态
+make status
 
-## 📝 License
+# 健康检查
+curl http://localhost:8000/health
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 🧪 测试
 
-## 🙏 Acknowledgments
+```bash
+# 运行所有测试
+make test
 
-- **arXiv**: For providing access to research papers
-- **OpenAI**: For powerful language models
-- **ChromaDB**: For vector database capabilities
-- **Streamlit**: For the web interface framework
-- **Research Community**: For inspiring this multi-agent approach
+# 运行测试并生成覆盖率报告
+make test-cov
 
-## 🔮 Future Roadmap
+# 运行特定测试
+cd backend && poetry run pytest tests/test_specific.py
+```
 
-- [ ] **Additional Paper Sources**: Google Scholar, Semantic Scholar, PubMed
-- [ ] **More Agent Types**: Domain-specific agents (Biology, Physics, etc.)
-- [ ] **API Server**: RESTful API for external integrations
-- [ ] **Advanced Analytics**: Research trend analysis, citation networks
-- [ ] **Collaborative Features**: Multi-user research sessions
-- [ ] **Export Capabilities**: PDF reports, research summaries
-- [ ] **Integration**: Zotero, Mendeley, and other research tools
+## 📖 API 文档
+
+启动服务器后，访问：
+- API 文档: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## 🤝 贡献
+
+1. Fork 项目
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 打开 Pull Request
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 🙏 致谢
+
+- [ArXiv API](https://arxiv.org/help/api) - 论文检索
+- [ChromaDB](https://www.trychroma.com/) - 向量数据库
+- [FastAPI](https://fastapi.tiangolo.com/) - Web 框架
+- [Next.js](https://nextjs.org/) - React 框架
+- [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
+
+## 📞 支持
+
+如果您遇到问题或有建议，请：
+1. 查看 [Issues](../../issues)
+2. 创建新的 Issue
+3. 联系维护者
 
 ---
 
-**Built with ❤️ for the research community**
+**Happy Researching! 🚀**

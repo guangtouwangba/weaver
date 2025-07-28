@@ -5525,3 +5525,70 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 16:01:12,888 - __main__ - INFO - Starting orchestrator initialization
 2025-07-28 16:01:12,888 - __main__ - INFO - Orchestrator already initialized
 2025-07-28 16:01:12,890 - __main__ - DEBUG - Getting database stats...
+2025-07-28 19:26:33,272 - __main__ - INFO - Starting orchestrator initialization
+2025-07-28 19:26:33,272 - __main__ - INFO - Initializing research orchestrator with provider: deepseek
+2025-07-28 19:26:33,272 - __main__ - INFO - Agent configs: {'google_engineer': {'provider': 'deepseek', 'model': 'deepseek-chat', 'api_key': 'sk-e522840d73e44f9d99e40cd3f9507944'}, 'mit_researcher': {'provider': 'deepseek', 'model': 'deepseek-chat', 'api_key': 'sk-e522840d73e44f9d99e40cd3f9507944'}, 'industry_expert': {'provider': 'deepseek', 'model': 'deepseek-chat', 'api_key': 'sk-e522840d73e44f9d99e40cd3f9507944'}, 'paper_analyst': {'provider': 'deepseek', 'model': 'deepseek-chat', 'api_key': 'sk-e522840d73e44f9d99e40cd3f9507944'}}
+2025-07-28 19:26:33,382 - chromadb.config - DEBUG - Starting component System
+2025-07-28 19:26:33,382 - chromadb.config - DEBUG - Starting component Posthog
+2025-07-28 19:26:33,382 - chromadb.config - DEBUG - Starting component OpenTelemetryClient
+2025-07-28 19:26:33,382 - chromadb.config - DEBUG - Starting component SimpleAssignmentPolicy
+2025-07-28 19:26:33,382 - chromadb.config - DEBUG - Starting component SqliteDB
+2025-07-28 19:26:33,389 - chromadb.config - DEBUG - Starting component QuotaEnforcer
+2025-07-28 19:26:33,389 - chromadb.config - DEBUG - Starting component LocalSegmentManager
+2025-07-28 19:26:33,389 - chromadb.config - DEBUG - Starting component SegmentAPI
+2025-07-28 19:26:33,390 - chromadb.telemetry.product.posthog - ERROR - Failed to send telemetry event ClientStartEvent: capture() takes 1 positional argument but 3 were given
+2025-07-28 19:26:33,390 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-07-28 19:26:33,502 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-07-28 19:26:34,074 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json HTTP/1.1" 307 0
+2025-07-28 19:26:34,171 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/modules.json HTTP/1.1" 200 0
+2025-07-28 19:26:34,429 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json HTTP/1.1" 307 0
+2025-07-28 19:26:34,594 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/config_sentence_transformers.json HTTP/1.1" 200 0
+2025-07-28 19:26:34,958 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md HTTP/1.1" 307 0
+2025-07-28 19:26:35,119 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/README.md HTTP/1.1" 200 0
+2025-07-28 19:26:35,417 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json HTTP/1.1" 307 0
+2025-07-28 19:26:35,522 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/modules.json HTTP/1.1" 200 0
+2025-07-28 19:26:35,851 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json HTTP/1.1" 307 0
+2025-07-28 19:26:35,952 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/sentence_bert_config.json HTTP/1.1" 200 0
+2025-07-28 19:26:36,208 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json HTTP/1.1" 307 0
+2025-07-28 19:26:36,289 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/config.json HTTP/1.1" 200 0
+2025-07-28 19:26:37,202 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json HTTP/1.1" 307 0
+2025-07-28 19:26:37,283 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/tokenizer_config.json HTTP/1.1" 200 0
+2025-07-28 19:26:37,542 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=False&expand=False HTTP/1.1" 404 64
+2025-07-28 19:26:37,971 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
+2025-07-28 19:26:38,014 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
+2025-07-28 19:26:38,240 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
+2025-07-28 19:26:38,243 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 19:26:38,243 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,244 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,248 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,248 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,251 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,251 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,255 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,255 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,258 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,258 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,261 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,261 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,265 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,265 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,268 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,268 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,271 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,271 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,274 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,274 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,277 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,277 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,280 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,280 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,283 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,283 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,287 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,287 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,290 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-07-28 19:26:38,290 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-07-28 19:26:38,293 - agents.orchestrator - INFO - Initialized 4 agents with deepseek provider
+2025-07-28 19:26:38,293 - __main__ - INFO - Research orchestrator initialized successfully
+2025-07-28 19:26:38,295 - __main__ - DEBUG - Getting database stats...
+2025-07-28 19:26:38,304 - chromadb.telemetry.product.posthog - ERROR - Failed to send telemetry event CollectionGetEvent: capture() takes 1 positional argument but 3 were given
