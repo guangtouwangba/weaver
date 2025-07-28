@@ -1,8 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output for Docker
+  output: 'standalone',
+  
   env: {
     API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:8000',
   },
+  
   async rewrites() {
     return [
       {
@@ -11,6 +15,14 @@ const nextConfig = {
       },
     ]
   },
+  
+  // Optimize for production
+  experimental: {
+    outputFileTracingRoot: undefined,
+  },
+  
+  // Disable telemetry
+  telemetry: false,
 }
 
 module.exports = nextConfig

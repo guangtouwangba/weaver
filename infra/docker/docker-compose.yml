@@ -1,12 +1,77 @@
 version: '3.8'
 
 services:
-  # ===== MAIN API SERVICE =====
-  research-agent-api:
+  # ===== DATABASE: POSTGRESQL =====
+  postgres:
+    image: postgres:15-alpine
+    container_name: research-agent-postgres
+    environment:
+      POSTGRES_DB: research_agent
+      POSTGRES_USER: research_user
+      POSTGRES_PASSWORD: research_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U research_user -d research_agent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - research-network
+
+  # ===== VECTOR DATABASE: WEAVIATE =====
+  weaviate:
+    image: semitechnologies/weaviate:1.22.4
+    container_name: research-agent-weaviate
+    ports:
+      - "8080:8080"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: 'text2vec-openai,text2vec-cohere,text2vec-huggingface,ref2vec-centroid,generative-openai,qna-openai'
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - research-network
+
+  # ===== CACHE: REDIS =====
+  redis:
+    image: redis:7-alpine
+    container_name: research-agent-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redis_password
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - research-network
+
+  # ===== BACKEND API SERVICE =====
+  research-agent-backend:
     build:
-      context: .
-      dockerfile: Dockerfile.serverless
-    container_name: research-agent-api
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: research-agent-backend
     ports:
       - "8000:8000"
     environment:
@@ -14,6 +79,21 @@ services:
       - PORT=8000
       - WORKERS=1
       - LOG_LEVEL=INFO
+      # Database configuration
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=research_agent
+      - POSTGRES_USER=research_user
+      - POSTGRES_PASSWORD=research_password
+      # Vector database configuration
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_PORT=8080
+      - WEAVIATE_SCHEME=http
+      # Redis configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_password
+      - REDIS_DB=0
     env_file:
       - .env
     volumes:
@@ -22,8 +102,40 @@ services:
       # Mount logs directory
       - ./logs:/app/logs
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - research-network
+
+  # ===== FRONTEND SERVICE =====
+  research-agent-frontend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+    container_name: research-agent-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - API_BASE_URL=http://research-agent-backend:8000
+    restart: unless-stopped
+    depends_on:
+      research-agent-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -34,26 +146,48 @@ services:
   # ===== DEVELOPMENT SERVICE (with hot reload) =====
   research-agent-dev:
     build:
-      context: .
-      dockerfile: Dockerfile.serverless
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
     container_name: research-agent-dev
     ports:
       - "8001:8000"
-    command: ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["python", "-m", "uvicorn", "api.simple_server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment:
       - HOST=0.0.0.0
       - PORT=8000
       - WORKERS=1
       - LOG_LEVEL=DEBUG
+      # Database configuration
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=research_agent
+      - POSTGRES_USER=research_user
+      - POSTGRES_PASSWORD=research_password
+      # Vector database configuration
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_PORT=8080
+      - WEAVIATE_SCHEME=http
+      # Redis configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_password
+      - REDIS_DB=0
     env_file:
       - .env
     volumes:
       # Mount source code for hot reload
-      - .:/app
+      - ../../backend:/app
       # Mount data directory
       - ./data:/app/data
       - ./logs:/app/logs
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - research-network
     profiles:
@@ -86,17 +220,64 @@ services:
     volumes:
       - ./deployment/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
-      - research-agent-api
+      - research-agent-backend
+      - research-agent-frontend
     networks:
       - research-network
     profiles:
       - loadbalancer
+
+  # ===== DATABASE ADMIN TOOL (optional) =====
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: research-agent-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@research-agent.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - research-network
+    profiles:
+      - admin
+
+  # ===== REDIS ADMIN TOOL (optional) =====
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: research-agent-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:redis_password
+    depends_on:
+      - redis
+    networks:
+      - research-network
+    profiles:
+      - admin
 
 networks:
   research-network:
     driver: bridge
 
 volumes:
+  # PostgreSQL data
+  postgres_data:
+    driver: local
+  # Weaviate data
+  weaviate_data:
+    driver: local
+  # Redis data
+  redis_data:
+    driver: local
+  # PgAdmin data
+  pgadmin_data:
+    driver: local
   # Persistent volume for vector database
   vector_db_data:
     driver: local
