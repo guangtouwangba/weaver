@@ -1,0 +1,34 @@
+# This file is maintained for backwards compatibility
+# Please use Poetry for dependency management: poetry install
+# 
+# To generate requirements.txt from Poetry:
+# poetry export -f requirements.txt --output requirements.txt --without-hashes
+
+# Core dependencies
+openai>=1.0.0
+anthropic>=0.25.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+aiohttp>=3.9.0
+
+# arXiv and paper processing
+arxiv>=2.0.0
+beautifulsoup4>=4.12.0
+
+# Vector database and embeddings
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# Data processing
+numpy>=1.24.0
+pandas>=2.0.0
+
+# LangChain ecosystem
+langchain>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.5
+langchain-anthropic>=0.1.0
+
+# Web interface
+streamlit>=1.29.0
