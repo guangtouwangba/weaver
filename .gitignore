@@ -1,0 +1,516 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# Snowpack dependency directory
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Vector database files
+data/vector_db/
+*.bin
+*.index
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Docker
+.dockerignore
+
+# Kubernetes
+*.yaml.bak
+*.yml.bak
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Local development
+.local/
+local/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Test files
+test_*.py
+*_test.py
+tests/tmp/
+
+# Documentation build
+docs/build/
+docs/_build/
+
+# API documentation
+api_docs/
+
+# Monitoring and metrics
+metrics/
+monitoring/
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+
+# SSH keys
+id_rsa
+id_rsa.pub
+*.ppk
+
+# GPG keys
+*.gpg
+*.asc
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Large files
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.model
+*.weights
+
+# Model files
+models/
+*.pt
+*.pth
+*.onnx
+*.tflite
+
+# Data files
+data/raw/
+data/processed/
+*.csv
+*.json
+*.xml
+*.parquet
+*.feather
+
+# Jupyter notebooks
+*.ipynb
+
+# R files
+*.R
+*.r
+
+# MATLAB files
+*.mat
+*.m
+
+# Julia files
+*.jl
+
+# Go files
+*.go
+go.sum
+go.mod
+
+# Rust files
+Cargo.lock
+target/
+
+# Java files
+*.class
+*.jar
+*.war
+*.ear
+
+# Scala files
+*.scala
+
+# Kotlin files
+*.kt
+*.kts
+
+# C/C++ files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Assembly files
+*.s
+*.asm
+
+# Fortran files
+*.f
+*.f90
+*.f95
+
+# Haskell files
+*.hs
+*.lhs
+
+# Erlang files
+*.erl
+*.hrl
+
+# Elixir files
+*.ex
+*.exs
+
+# Clojure files
+*.clj
+*.cljs
+
+# Lisp files
+*.lisp
+*.lsp
+
+# Scheme files
+*.scm
+
+# Prolog files
+*.pl
+
+# Perl files
+*.pl
+*.pm
+
+# Ruby files
+*.rb
+*.erb
+Gemfile.lock
+
+# PHP files
+*.php
+composer.lock
+
+# C# files
+*.cs
+*.csproj
+*.sln
+
+# F# files
+*.fs
+*.fsx
+
+# Visual Basic files
+*.vb
+*.vbs
+
+# PowerShell files
+*.ps1
+*.psm1
+
+# Batch files
+*.bat
+*.cmd
+
+# Shell scripts
+*.sh
+
+# Makefiles
+Makefile.bak
+
+# Configuration files
+config.local.*
+settings.local.*
+
+# Cache directories
+.cache/
+cache/
+tmp/
+temp/
+
+# Build artifacts
+build/
+dist/
+out/
+target/
+
+# Package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml 
