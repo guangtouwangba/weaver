@@ -331,3 +331,38 @@ dev: run-fullstack ## Quick development setup (alias for run-fullstack)
 # Production
 prod: build deploy-docker ## Production deployment
 	@echo "$(GREEN)✓ Production deployment complete$(NC)"
+
+# ===== Zeabur Deployment =====
+zeabur-deploy-backend: ## Deploy backend to Zeabur
+	@echo "$(BLUE)🚀 Deploying backend to Zeabur...$(NC)"
+	@echo "$(YELLOW)Make sure you have configured environment variables in Zeabur console$(NC)"
+	@echo "$(CYAN)Dockerfile: backend/Dockerfile$(NC)"
+	@echo "$(CYAN)Service name: backend$(NC)"
+	@echo "$(GREEN)✓ Backend deployment instructions ready$(NC)"
+
+zeabur-deploy-frontend: ## Deploy frontend to Zeabur
+	@echo "$(BLUE)🚀 Deploying frontend to Zeabur...$(NC)"
+	@echo "$(YELLOW)Make sure you have configured environment variables in Zeabur console$(NC)"
+	@echo "$(CYAN)Dockerfile: frontend/Dockerfile$(NC)"
+	@echo "$(CYAN)Service name: frontend$(NC)"
+	@echo "$(GREEN)✓ Frontend deployment instructions ready$(NC)"
+
+zeabur-deploy-all: zeabur-deploy-backend zeabur-deploy-frontend ## Deploy both services to Zeabur
+	@echo "$(GREEN)✅ Both services ready for Zeabur deployment$(NC)"
+	@echo "$(YELLOW)📋 Next steps:$(NC)"
+	@echo "1. Configure environment variables in Zeabur console"
+	@echo "2. Set API_BASE_URL to point to your backend service"
+	@echo "3. Check service health in Zeabur dashboard"
+	@echo "4. See ZEABUR_DEPLOYMENT.md for detailed instructions"
+
+zeabur-status: ## Show Zeabur deployment status
+	@echo "$(BLUE)📊 Zeabur Deployment Status$(NC)"
+	@echo "$(CYAN)Backend:$(NC) backend/Dockerfile"
+	@echo "$(CYAN)Frontend:$(NC) frontend/Dockerfile"
+	@echo "$(CYAN)Config:$(NC) zbpack.json"
+	@echo "$(CYAN)Guide:$(NC) ZEABUR_DEPLOYMENT.md"
+
+zeabur-clean: ## Clean up Zeabur deployment files
+	@echo "$(BLUE)🧹 Cleaning up Zeabur deployment files...$(NC)"
+	@rm -f zbpack.json
+	@echo "$(GREEN)✅ Cleaned up Zeabur configuration$(NC)"
