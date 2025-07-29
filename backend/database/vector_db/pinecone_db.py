@@ -6,7 +6,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 try:
-    import pinecone
     from pinecone import Pinecone, ServerlessSpec
     PINECONE_AVAILABLE = True
 except ImportError:
@@ -22,7 +21,7 @@ class PineconeVectorDB(BaseVectorDB):
     
     def __init__(self, config: Dict[str, Any]):
         if not PINECONE_AVAILABLE:
-            raise ImportError("Pinecone is not installed. Install with: pip install pinecone-client")
+            raise ImportError("Pinecone is not installed. Install with: pip install pinecone")
         
         super().__init__(config)
         
@@ -317,4 +316,4 @@ class PineconeVectorDB(BaseVectorDB):
 if PINECONE_AVAILABLE:
     VectorDBFactory.register_provider('pinecone', PineconeVectorDB)
 else:
-    logger.warning("Pinecone client not available. Install with: pip install pinecone-client")
+    logger.warning("Pinecone client not available. Install with: pip install pinecone")

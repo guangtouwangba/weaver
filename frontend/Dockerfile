@@ -6,7 +6,7 @@
 # ===============================
 # Stage 1: Dependencies Builder
 # ===============================
-FROM node:18-alpine as deps-builder
+FROM node:18-alpine AS deps-builder
 
 # Set working directory
 WORKDIR /app
@@ -20,7 +20,7 @@ RUN npm ci --only=production && npm cache clean --force
 # ===============================
 # Stage 2: Build Stage
 # ===============================
-FROM node:18-alpine as builder
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -40,7 +40,7 @@ RUN npm run build
 # ===============================
 # Stage 3: Production Image
 # ===============================
-FROM node:18-alpine as production
+FROM node:18-alpine AS production
 
 # Set environment variables
 ENV NODE_ENV=production \
@@ -62,6 +62,7 @@ WORKDIR /app
 # Copy built application from builder
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy public directory (create empty one if it doesn't exist)
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Switch to non-root user
