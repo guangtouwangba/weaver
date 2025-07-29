@@ -87,7 +87,6 @@ spec:
           type: github
           repo: research-agent-rag
           branch: main
-        dockerfile: infra/docker/Dockerfile.backend
         env:
           DATABASE_URL: ${DATABASE_URL}
           OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -114,7 +113,6 @@ spec:
           type: github
           repo: research-agent-rag
           branch: main
-        dockerfile: infra/docker/Dockerfile.frontend
         env:
           NEXT_PUBLIC_API_URL: https://{{backend.ZEABUR_WEB_URL}}
           PORT: 3000
