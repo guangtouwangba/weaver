@@ -14,8 +14,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (use npm install if no package-lock.json)
+RUN if [ -f package-lock.json ]; then npm ci --only=production; else npm install --only=production; fi && npm cache clean --force
 
 # ===============================
 # Stage 2: Build Stage
@@ -29,7 +29,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies)
-RUN npm ci
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Copy source code
 COPY . .
@@ -86,4 +86,4 @@ LABEL maintainer="Research Agent RAG Team" \
       description="Multi-agent research paper analysis system - Frontend for Zeabur" \
       org.opencontainers.image.source="https://github.com/your-org/research-agent-rag" \
       org.opencontainers.image.title="Research Agent RAG Frontend" \
-      org.opencontainers.image.description="Next.js frontend for research agent dashboard" 
+      org.opencontainers.image.description="Next.js frontend for research agent dashboard"
