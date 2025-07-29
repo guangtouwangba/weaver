@@ -6,7 +6,7 @@
 # ===============================
 # Stage 1: Dependencies Builder
 # ===============================
-FROM python:3.11-slim as deps-builder
+FROM python:3.11-slim AS deps-builder
 
 # Set environment variables for Python
 ENV PYTHONUNBUFFERED=1 \
@@ -22,25 +22,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-RUN pip install poetry
-
 # Set work directory
 WORKDIR /app
 
-# Copy poetry files
-COPY pyproject.toml poetry.lock* ./
+# Copy requirements file
+COPY requirements.txt ./
 
-# Configure poetry
-RUN poetry config virtualenvs.create false
-
-# Install dependencies
-RUN poetry install --only=main --extras=all
+# Install dependencies using pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ===============================
 # Stage 2: Production Image
 # ===============================
-FROM python:3.11-slim as production
+FROM python:3.11-slim AS production
 
 # Set environment variables for production
 ENV PYTHONUNBUFFERED=1 \
@@ -89,7 +83,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Default command for API server
-CMD ["python", "-m", "uvicorn", "api.simple_server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 
 # ===============================
 # Labels for metadata
