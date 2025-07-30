@@ -109,7 +109,7 @@ CREATE INDEX IF NOT EXISTS idx_embedding_configs_default ON embedding_configs(is
 
 -- Insert default configurations
 INSERT INTO vector_db_configs (name, provider, config, is_default) VALUES 
-('Default ChromaDB', 'chroma', '{"db_path": "./data/vector_db", "collection_name": "research_papers"}', true)
+('Default ChromaDB', 'chroma', '{"db_path": "./data/vector_db", "collection_name": "research-papers"}', true)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO embedding_configs (name, provider, model_name, config, is_default) VALUES 

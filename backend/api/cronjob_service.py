@@ -105,7 +105,7 @@ class CronJobService:
         )
         
         logger.info(f"Triggered cronjob: {job.name} ({job.id}), run ID: {job_run.id}")
-        return job_run.id
+        return str(job_run.id)
     
     async def _execute_job(self, job_run_id: str, force_reprocess: bool = False):
         """Execute a cronjob (background task)"""

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/layout/header"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,6 +15,7 @@ import { DataTable } from "@/components/data-table/data-table"
 import { columns, type CronjobData } from "@/components/data-table/columns"
 import { CreateJobForm } from "@/components/forms/create-job-form"
 import { useCronJobs, useCronJobMutations, useAvailableProviders } from "@/lib/hooks/api-hooks"
+import { apiClient } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "sonner"
 
@@ -40,11 +41,61 @@ function transformJobToTableData(job: any): CronjobData {
 export default function JobsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isCreatingJob, setIsCreatingJob] = useState(false)
   
   // Fetch data using SWR hooks
   const { data: jobs, error: jobsError, isLoading: jobsLoading, mutate: refreshJobs } = useCronJobs()
   const { data: providers, error: providersError } = useAvailableProviders()
-  const { createCronJob } = useCronJobMutations()
+  const { createCronJob, deleteCronJob, triggerCronJob, toggleCronJob } = useCronJobMutations()
+
+  // Debug logging
+  console.log('Jobs page state:', {
+    jobs: jobs?.length || 0,
+    jobsError: jobsError,
+    jobsLoading,
+    providers: providers,
+    providersError
+  })
+
+  // Log detailed error information
+  if (jobsError) {
+    console.error('Jobs error details:', {
+      message: jobsError.message,
+      stack: jobsError.stack,
+      name: jobsError.name
+    })
+  }
+
+  // Make API functions available to DataTable
+  useEffect(() => {
+    console.log("Setting up window functions:", {
+      deleteCronJob: !!deleteCronJob,
+      triggerCronJob: !!triggerCronJob,
+      toggleCronJob: !!toggleCronJob,
+      refreshJobs: !!refreshJobs
+    })
+    
+    // @ts-ignore
+    window.deleteCronJob = deleteCronJob
+    // @ts-ignore
+    window.triggerCronJob = triggerCronJob
+    // @ts-ignore
+    window.toggleCronJob = toggleCronJob
+    // @ts-ignore
+    window.refreshJobs = refreshJobs
+
+    return () => {
+      console.log("Cleaning up window functions")
+      // @ts-ignore
+      delete window.deleteCronJob
+      // @ts-ignore
+      delete window.triggerCronJob
+      // @ts-ignore
+      delete window.toggleCronJob
+      // @ts-ignore
+      delete window.refreshJobs
+    }
+  }, [deleteCronJob, triggerCronJob, toggleCronJob, refreshJobs])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -56,6 +107,9 @@ export default function JobsPage() {
   }
 
   const handleCreateJob = async (values: any) => {
+    if (isCreatingJob) return // Prevent duplicate submissions
+    
+    setIsCreatingJob(true)
     try {
       // Map form values to API format
       const jobData = {
@@ -71,7 +125,8 @@ export default function JobsPage() {
             values.schedule === 'weekly' ? { interval_hours: 168 } :
             values.schedule === 'bi-weekly' ? { interval_hours: 336 } :
             values.schedule === 'monthly' ? { interval_hours: 720 } :
-            { cron_expression: values.schedule }) // Custom cron
+            values.schedule === 'custom' ? { cron_expression: values.customCron } :
+            { interval_hours: 24 }) // Default to daily if no schedule selected
       }
 
       await createCronJob(jobData)
@@ -80,6 +135,8 @@ export default function JobsPage() {
     } catch (error: any) {
       console.error("Failed to create job:", error)
       toast.error(error.message || "Failed to create cronjob")
+    } finally {
+      setIsCreatingJob(false)
     }
   }
 
@@ -181,7 +238,7 @@ export default function JobsPage() {
         }
       />
       
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-6 overflow-auto">
         <DataTable columns={columns} data={tableData} />
       </div>
     </div>

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class VectorStore:
     """Vector database for storing and retrieving research papers"""
     
-    def __init__(self, db_path: str = "./data/vector_db", collection_name: str = "research_papers"):
+    def __init__(self, db_path: str = "./data/vector_db", collection_name: str = "research-papers"):
         self.db_path = Path(db_path)
         self.db_path.mkdir(parents=True, exist_ok=True)
         self.collection_name = collection_name

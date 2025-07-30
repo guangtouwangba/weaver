@@ -45,7 +45,7 @@
 2025-07-28 10:08:43,466 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 10:08:43,500 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 10:08:43,526 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/sentence_bert_config.json HTTP/1.1" 200 0
-2025-07-28 10:08:43,826 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:08:43,826 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:08:43,827 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:08:43,827 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json HTTP/1.1" 307 0
 2025-07-28 10:08:43,828 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
@@ -77,7 +77,7 @@
 2025-07-28 10:08:44,634 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=False&expand=False HTTP/1.1" 404 64
 2025-07-28 10:08:44,946 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 10:08:44,949 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
-2025-07-28 10:08:45,014 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:08:45,014 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:08:45,014 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:08:45,014 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:08:45,018 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -162,7 +162,7 @@ ValueError: signal only works in main thread of the main interpreter
 2025-07-28 10:19:56,151 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 10:19:56,290 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json HTTP/1.1" 307 0
 2025-07-28 10:19:56,376 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/sentence_bert_config.json HTTP/1.1" 200 0
-2025-07-28 10:19:56,393 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:19:56,393 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:19:56,393 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:19:56,394 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:19:56,397 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -194,7 +194,7 @@ ValueError: signal only works in main thread of the main interpreter
 2025-07-28 10:19:57,404 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=False&expand=False HTTP/1.1" 404 64
 2025-07-28 10:19:57,730 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 10:19:57,739 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
-2025-07-28 10:19:57,818 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:19:57,818 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:19:57,819 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:19:57,819 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:19:57,823 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -339,7 +339,7 @@ Traceback (most recent call last):
   File "/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1348, in convert
     raise NotImplementedError(
 NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.nn.Module.to_empty() instead of torch.nn.Module.to() when moving module from meta to a different device.
-2025-07-28 10:23:29,348 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:23:29,348 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:23:29,348 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:23:29,349 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:23:29,352 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -556,7 +556,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 10:31:09,609 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 10:31:09,664 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 10:31:09,992 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 10:31:10,011 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:31:10,011 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:31:10,016 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:31:10,016 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:31:10,032 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -599,7 +599,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 10:31:14,001 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 10:31:14,003 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 10:31:14,071 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 10:31:14,072 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:31:14,072 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:31:14,072 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:31:14,072 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:31:14,076 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -685,7 +685,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 10:36:29,489 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 10:36:29,549 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=False&expand=False HTTP/1.1" 404 64
 2025-07-28 10:36:29,861 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 10:36:29,865 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:36:29,865 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:36:29,865 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:36:29,865 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:36:29,870 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -713,7 +713,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 10:36:29,909 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:36:29,909 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:36:30,059 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 10:36:30,060 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:36:30,060 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:36:30,060 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:36:30,060 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:36:30,063 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -804,7 +804,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 10:44:32,321 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 10:44:32,349 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 10:44:32,614 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 10:44:32,615 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:44:32,615 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:44:32,616 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:44:32,616 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 10:44:32,620 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -1025,8 +1025,8 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 10:49:36,558 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 10:49:36,658 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
 2025-07-28 10:49:36,659 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 10:49:36,660 - database.vector_store - INFO - Loaded existing collection: research_papers
-2025-07-28 10:49:36,660 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 10:49:36,660 - database.vector_store - INFO - Loaded existing collection: research-papers
+2025-07-28 10:49:36,660 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 10:49:36,661 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:49:36,661 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 10:49:36,661 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
@@ -1447,7 +1447,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 11:13:30,617 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 11:13:30,663 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 11:13:30,926 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 11:13:30,928 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 11:13:30,928 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 11:13:30,928 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 11:13:30,929 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 11:13:30,933 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -2110,7 +2110,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 14:26:54,330 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 14:26:54,381 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 14:26:54,522 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 14:26:54,525 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 14:26:54,525 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 14:26:54,525 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 14:26:54,526 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 14:26:54,529 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -2180,7 +2180,7 @@ NotImplementedError: Cannot copy out of meta tensor; no data! Please use torch.n
 2025-07-28 14:31:34,433 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 14:31:34,463 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 14:31:35,512 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 14:31:35,514 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 14:31:35,514 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 14:31:35,516 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 14:31:35,516 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 14:31:35,522 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -3660,7 +3660,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 15:18:40,510 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 15:18:40,541 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 15:18:40,805 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 15:18:40,807 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 15:18:40,807 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 15:18:40,808 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 15:18:40,808 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 15:18:40,812 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -4028,7 +4028,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 15:25:28,610 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 15:25:28,637 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 15:25:28,815 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 15:25:28,817 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 15:25:28,817 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 15:25:28,818 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 15:25:28,818 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 15:25:28,823 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -4087,7 +4087,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 15:25:46,458 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 15:25:46,460 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 15:25:46,693 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 15:25:46,695 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 15:25:46,695 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 15:25:46,695 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 15:25:46,696 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 15:25:46,699 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -4495,7 +4495,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 15:35:18,870 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 15:35:18,901 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 15:35:19,270 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 15:35:19,271 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 15:35:19,271 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 15:35:19,272 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 15:35:19,273 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 15:35:19,277 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -4554,7 +4554,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 15:35:32,852 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 15:35:32,854 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 15:35:33,043 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 15:35:33,043 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 15:35:33,043 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 15:35:33,044 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 15:35:33,044 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 15:35:33,047 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -4945,7 +4945,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 15:51:07,571 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 15:51:07,591 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 15:51:07,880 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 15:51:07,890 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 15:51:07,890 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 15:51:07,892 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 15:51:07,894 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 15:51:07,901 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
@@ -5557,7 +5557,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-07-28 19:26:37,971 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-MiniLM-L6-v2/revision/main HTTP/1.1" 200 6849
 2025-07-28 19:26:38,014 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: mps
 2025-07-28 19:26:38,240 - database.vector_store - INFO - Successfully initialized SentenceTransformer on CPU
-2025-07-28 19:26:38,243 - database.vector_store - INFO - Loaded existing collection: research_papers
+2025-07-28 19:26:38,243 - database.vector_store - INFO - Loaded existing collection: research-papers
 2025-07-28 19:26:38,243 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
 2025-07-28 19:26:38,244 - httpx - DEBUG - load_verify_locations cafile='/Users/siqiuchen/Library/Caches/pypoetry/virtualenvs/research-agent-rag-xZKpq8ky-py3.12/lib/python3.12/site-packages/certifi/cacert.pem'
 2025-07-28 19:26:38,248 - httpx - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False

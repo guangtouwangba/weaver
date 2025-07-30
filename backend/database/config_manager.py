@@ -95,7 +95,7 @@ class ConfigManager:
             provider="chroma",
             config={
                 "db_path": os.getenv("VECTOR_DB_PATH", "./data/vector_db"),
-                "collection_name": os.getenv("VECTOR_DB_COLLECTION", "research_papers"),
+                "collection_name": os.getenv("VECTOR_DB_COLLECTION", "research-papers"),
                 "host": os.getenv("CHROMA_HOST"),
                 "port": int(os.getenv("CHROMA_PORT", 8000)) if os.getenv("CHROMA_PORT") else None
             },

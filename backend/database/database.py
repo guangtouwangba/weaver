@@ -10,6 +10,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from database.models import Base
 
+from config import Config
+
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
@@ -17,10 +19,7 @@ class DatabaseManager:
     
     def __init__(self, database_url: str = None):
         # Get database URL from environment or parameter
-        self.database_url = database_url or os.getenv(
-            'DATABASE_URL', 
-            'postgresql://user:password@localhost:5432/research_agent'
-        )
+        self.database_url = database_url or Config.get_postgres_url()
         
         # Handle SQLite for local development
         if self.database_url.startswith('sqlite'):

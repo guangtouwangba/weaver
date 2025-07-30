@@ -4,6 +4,8 @@ import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { CreateJobForm } from "@/components/forms/create-job-form"
 import { 
   Clock, 
   CheckCircle, 
@@ -16,25 +18,71 @@ import {
   AlertTriangle
 } from "lucide-react"
 import { formatNumber } from "@/lib/utils"
-import { useDashboardStats, useHealthStatus, useCronJobs, useRefreshDashboard } from "@/lib/hooks/api-hooks"
+import { useDashboardStats, useHealthStatus, useCronJobs, useCronJobMutations, useAvailableProviders } from "@/lib/hooks/api-hooks"
 import { formatDistanceToNow } from "date-fns"
 import { useState } from "react"
 
 export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const refreshDashboard = useRefreshDashboard()
+  const [isCreateJobOpen, setIsCreateJobOpen] = useState(false)
   
   // Fetch data using SWR hooks
-  const { data: stats, error: statsError, isLoading: statsLoading } = useDashboardStats()
-  const { data: health, error: healthError, isLoading: healthLoading } = useHealthStatus()
-  const { data: jobs, error: jobsError, isLoading: jobsLoading } = useCronJobs(0, 10) // Get first 10 jobs for recent jobs
+  const { data: stats, error: statsError, isLoading: statsLoading, mutate: mutateStats } = useDashboardStats()
+  const { data: health, error: healthError, isLoading: healthLoading, mutate: mutateHealth } = useHealthStatus()
+  const { data: jobs, error: jobsError, isLoading: jobsLoading, mutate: mutateCronJobs } = useCronJobs(0, 10) // Get first 10 jobs for recent jobs
+  const { data: providers } = useAvailableProviders()
+  const { createCronJob } = useCronJobMutations()
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await refreshDashboard()
+      await Promise.all([
+        mutateStats(),
+        mutateHealth(),
+        mutateCronJobs()
+      ])
     } finally {
       setIsRefreshing(false)
+    }
+  }
+
+  const [isCreatingJob, setIsCreatingJob] = useState(false)
+
+  const handleCreateJob = async (values: any) => {
+    if (isCreatingJob) return // Prevent duplicate submissions
+    
+    setIsCreatingJob(true)
+    try {
+      // Transform form values to match API schema
+      const jobData = {
+        name: values.name,
+        keywords: values.keywords,
+        cron_expression: values.schedule === 'daily' ? '0 0 * * *' : 
+                        values.schedule === 'weekly' ? '0 0 * * 0' :
+                        values.schedule === 'bi-weekly' ? '0 0 */14 * *' :
+                        values.schedule === 'monthly' ? '0 0 1 * *' :
+                        values.schedule === 'custom' ? values.customCron : undefined,
+        interval_hours: values.schedule === 'daily' ? 24 : 
+                       values.schedule === 'weekly' ? 168 :
+                       values.schedule === 'bi-weekly' ? 336 :
+                       values.schedule === 'monthly' ? 720 : 
+                       values.schedule === 'custom' ? undefined : undefined,
+        enabled: true,
+        max_papers_per_run: values.maxPapers,
+        embedding_provider: values.embeddingModel?.split('-')[0] || 'openai',
+        embedding_model: values.embeddingModel || 'text-embedding-3-small',
+        vector_db_provider: values.vectorDb || 'chroma',
+        vector_db_config: {}
+      }
+
+      await createCronJob(jobData)
+      await mutateCronJobs() // Refresh the jobs list
+      setIsCreateJobOpen(false)
+    } catch (error) {
+      console.error('Failed to create job:', error)
+      // You might want to show a toast notification here
+    } finally {
+      setIsCreatingJob(false)
     }
   }
 
@@ -61,7 +109,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="h-8 bg-muted animate-pulse rounded mb-2" />
-                  <div className="h-3 bg-muted animate-pulse rounded" />
+                  <div className="h-4 bg-muted animate-pulse rounded" />
                 </CardContent>
               </Card>
             ))}
@@ -119,7 +167,7 @@ export default function DashboardPage() {
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button>
+            <Button onClick={() => setIsCreateJobOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New Job
             </Button>
@@ -127,7 +175,7 @@ export default function DashboardPage() {
         }
       />
       
-      <div className="flex-1 p-6 space-y-6">
+      <div className="flex-1 p-6 space-y-6 overflow-auto">
         {/* Statistics Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -209,85 +257,51 @@ export default function DashboardPage() {
                         {job.keywords.length > 3 && ` +${job.keywords.length - 3} more`}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Updated: {formatDistanceToNow(new Date(job.updated_at), { addSuffix: true })}
+                        Created {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="ghost">
-                        View Details
+                      <Button variant="outline" size="sm">
+                        <Play className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-sm text-muted-foreground">
-                No jobs found. Create your first job to get started.
+              <div className="text-center py-8">
+                <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No jobs created yet</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => setIsCreateJobOpen(true)}
+                >
+                  Create your first job
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* System Status */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>System Health</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">API Server</span>
-                  <Badge variant={health?.status === 'healthy' ? 'default' : 'destructive'}>
-                    {health?.status === 'healthy' ? 'Online' : 'Offline'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Database</span>
-                  <Badge variant={health?.database_status === 'healthy' ? 'default' : 'destructive'}>
-                    {health?.database_status === 'healthy' ? 'Connected' : 'Disconnected'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Available Agents</span>
-                  <span className="text-sm font-medium">{health?.agents_available?.length || 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Uptime</span>
-                  <span className="text-sm font-medium">
-                    {health?.uptime_seconds 
-                      ? `${Math.floor(health.uptime_seconds / 3600)}h ${Math.floor((health.uptime_seconds % 3600) / 60)}m`
-                      : 'Unknown'
-                    }
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Button className="w-full justify-start" variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create New Job
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <Play className="mr-2 h-4 w-4" />
-                  Run All Jobs
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <FileText className="mr-2 h-4 w-4" />
-                  View Reports
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
+
+      {/* Create Job Dialog */}
+      <Dialog open={isCreateJobOpen} onOpenChange={setIsCreateJobOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Cronjob</DialogTitle>
+            <DialogDescription>
+              Set up an automated job to collect research papers based on your keywords.
+            </DialogDescription>
+          </DialogHeader>
+          <CreateJobForm 
+            onSubmit={handleCreateJob}
+            onCancel={() => setIsCreateJobOpen(false)}
+            providers={providers}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

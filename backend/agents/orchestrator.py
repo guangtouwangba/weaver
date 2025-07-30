@@ -6,7 +6,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from retrieval.arxiv_client import ArxivClient, Paper
-from database.vector_store import VectorStore
+from database.vector_store_adapter import VectorStoreAdapter
 from utils.query_expansion import QueryExpander
 from utils.ai_client import ChatMessage
 from .google_engineer_agent import GoogleEngineerAgent
@@ -69,7 +69,9 @@ class ResearchOrchestrator:
         
         # Initialize components
         self.arxiv_client = ArxivClient()
-        self.vector_store = VectorStore(db_path)
+        
+        # Initialize vector database adapter (maintains backward compatibility)
+        self.vector_store = VectorStoreAdapter(db_path)
         
         # Initialize query expander with appropriate API key
         query_expander_key = openai_api_key or deepseek_api_key

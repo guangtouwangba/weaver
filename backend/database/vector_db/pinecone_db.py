@@ -6,10 +6,18 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 try:
-    from pinecone import Pinecone, ServerlessSpec
+    from pinecone import Pinecone
+    from pinecone import ServerlessSpec
     PINECONE_AVAILABLE = True
 except ImportError:
-    PINECONE_AVAILABLE = False
+    try:
+        # Fallback for older versions
+        import pinecone as pc
+        Pinecone = pc.Pinecone if hasattr(pc, 'Pinecone') else pc
+        ServerlessSpec = pc.ServerlessSpec if hasattr(pc, 'ServerlessSpec') else None
+        PINECONE_AVAILABLE = True
+    except ImportError:
+        PINECONE_AVAILABLE = False
 
 from .base import BaseVectorDB, VectorSearchResult, VectorDBStats, VectorDBFactory
 from retrieval.arxiv_client import Paper
@@ -315,5 +323,6 @@ class PineconeVectorDB(BaseVectorDB):
 # Register Pinecone provider if available
 if PINECONE_AVAILABLE:
     VectorDBFactory.register_provider('pinecone', PineconeVectorDB)
+    logger.info("✅ Pinecone provider registered successfully")
 else:
-    logger.warning("Pinecone client not available. Install with: pip install pinecone")
+    logger.warning("❌ Pinecone client not available. Install with: pip install pinecone-client")

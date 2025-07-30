@@ -19,7 +19,7 @@ beautifulsoup4>=4.12.0
 # Vector database and embeddings
 chromadb>=0.4.0
 sentence-transformers>=2.2.0
-pinecone>=5.0.0
+pinecone>=3.0.0
 weaviate-client>=4.0.0
 qdrant-client>=1.7.0
 
@@ -33,8 +33,8 @@ langchain-community>=0.0.20
 langchain-openai>=0.0.5
 langchain-anthropic>=0.1.0
 
-# Web interface
-streamlit>=1.29.0
+# Web interface (removed - now using React frontend)
+# streamlit>=1.29.0
 
 # FastAPI and server dependencies
 fastapi>=0.104.0

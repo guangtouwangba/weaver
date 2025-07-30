@@ -37,7 +37,7 @@ class TestBasicFunctionality:
         test_db_path = "./test_data/vector_db"
         store = VectorStore(db_path=test_db_path)
         assert store.db_path.name == "vector_db"
-        assert store.collection_name == "research_papers"
+        assert store.collection_name == "research-papers"
 
     @pytest.mark.integration
     def test_arxiv_search_basic(self):

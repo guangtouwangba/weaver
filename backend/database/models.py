@@ -20,7 +20,7 @@ class CronJob(Base):
     __tablename__ = 'cronjobs'
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, unique=True)
     keywords = Column(ARRAY(String), nullable=False)
     cron_expression = Column(String(100), nullable=True)
     interval_hours = Column(Integer, nullable=True)
