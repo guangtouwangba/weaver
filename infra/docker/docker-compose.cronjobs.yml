@@ -74,7 +74,7 @@ services:
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
       - VECTOR_DB_PATH=/app/data/vector_db
-      - VECTOR_DB_COLLECTION=research_papers
+      - VECTOR_DB_COLLECTION=research-papers
       
       # Embedding configuration
       - EMBEDDING_PROVIDER=huggingface

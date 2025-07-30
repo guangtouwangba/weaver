@@ -29,15 +29,13 @@ const formSchema = z.object({
   name: z.string().min(2, {
     message: "Job name must be at least 2 characters.",
   }),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters.",
-  }),
   keywords: z.array(z.string()).min(1, {
     message: "At least one keyword is required.",
   }),
   schedule: z.string().min(1, {
     message: "Please select a schedule.",
   }),
+  customCron: z.string().optional(),
   vectorDb: z.string().min(1, {
     message: "Please select a vector database.",
   }),
@@ -47,6 +45,14 @@ const formSchema = z.object({
   maxPapers: z.number().min(1).max(1000, {
     message: "Max papers must be between 1 and 1000.",
   }),
+}).refine((data) => {
+  if (data.schedule === 'custom' && !data.customCron?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Custom cron expression is required when Custom Cron is selected.",
+  path: ["customCron"],
 })
 
 interface CreateJobFormProps {
@@ -59,15 +65,16 @@ interface CreateJobFormProps {
 }
 
 export function CreateJobForm({ onSubmit, onCancel, providers }: CreateJobFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [keywordInput, setKeywordInput] = useState("")
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      description: "",
       keywords: [],
       schedule: "",
+      customCron: "",
       vectorDb: "",
       embeddingModel: "",
       maxPapers: 100,
@@ -75,6 +82,7 @@ export function CreateJobForm({ onSubmit, onCancel, providers }: CreateJobFormPr
   })
 
   const keywords = form.watch("keywords")
+  const schedule = form.watch("schedule")
 
   const addKeyword = () => {
     if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
@@ -94,9 +102,20 @@ export function CreateJobForm({ onSubmit, onCancel, providers }: CreateJobFormPr
     }
   }
 
+  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (isSubmitting) return // Prevent duplicate submissions
+    
+    setIsSubmitting(true)
+    try {
+      await onSubmit(values)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="name"
@@ -108,23 +127,6 @@ export function CreateJobForm({ onSubmit, onCancel, providers }: CreateJobFormPr
               </FormControl>
               <FormDescription>
                 A descriptive name for your cronjob.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Input placeholder="Daily collection of AI and machine learning research papers" {...field} />
-              </FormControl>
-              <FormDescription>
-                Detailed description of what this job collects.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -198,6 +200,30 @@ export function CreateJobForm({ onSubmit, onCancel, providers }: CreateJobFormPr
             </FormItem>
           )}
         />
+
+        {schedule === 'custom' && (
+          <FormField
+            control={form.control}
+            name="customCron"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Custom Cron Expression</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="0 0 * * * (e.g., every day at midnight)" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormDescription>
+                  Enter a valid cron expression. Format: minute hour day month weekday
+                  <br />
+                  Examples: "0 0 * * *" (daily), "0 8 * * 1" (every Monday at 8am)
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -289,10 +315,12 @@ export function CreateJobForm({ onSubmit, onCancel, providers }: CreateJobFormPr
         />
 
         <div className="flex justify-end space-x-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit">Create Job</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Creating..." : "Create Job"}
+          </Button>
         </div>
       </form>
     </Form>

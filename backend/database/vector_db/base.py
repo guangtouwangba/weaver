@@ -29,7 +29,7 @@ class BaseVectorDB(ABC):
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.provider = config.get('provider', 'unknown')
-        self.collection_name = config.get('collection_name', 'research_papers')
+        self.collection_name = config.get('collection_name', 'research-papers')
         
     @abstractmethod
     def add_papers(self, papers: List[Paper], embeddings: List[List[float]]) -> List[str]:

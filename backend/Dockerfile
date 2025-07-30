@@ -13,7 +13,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_DEFAULT_TIMEOUT=100
+    PIP_DEFAULT_TIMEOUT=300 \
+    PIP_RETRIES=3
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,8 +29,11 @@ WORKDIR /app
 # Copy requirements file
 COPY requirements.txt ./
 
-# Install dependencies using pip
-RUN pip install --no-cache-dir -r requirements.txt
+# Configure pip to use mirrors and install dependencies
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip config set install.trusted-host pypi.tuna.tsinghua.edu.cn && \
+    pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
 # ===============================
 # Stage 2: Production Image

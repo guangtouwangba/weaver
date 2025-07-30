@@ -1,0 +1,29 @@
+# Ultra minimal requirements for fast development builds
+# Only the absolute essentials to get the API running
+
+# Core API
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.3
+python-dotenv==1.0.0
+
+# Basic HTTP client
+requests==2.31.0
+
+# Database essentials
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+
+# LLM APIs (minimal versions)
+openai==1.6.1
+
+# Basic scheduling
+croniter==2.0.1
+
+# Remove all heavy ML/AI dependencies:
+# - No chromadb
+# - No sentence-transformers  
+# - No numpy/pandas
+# - No langchain
+# - No vector databases
+# - No paper processing

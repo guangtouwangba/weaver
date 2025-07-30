@@ -3,10 +3,9 @@
 Research Agent RAG System - Main Entry Point
 
 This script provides multiple ways to run the system:
-1. Interactive chat interface (Streamlit)
+1. FastAPI server (Default)
 2. Command-line interface 
 3. Demo mode
-4. API server mode
 """
 
 import argparse
@@ -43,7 +42,8 @@ def setup_environment():
         
         # Try importing key dependencies
         try:
-            import streamlit
+            import fastapi
+            import uvicorn
             import openai
             import chromadb
             import arxiv
@@ -57,23 +57,29 @@ def setup_environment():
         logger.error(f"Environment setup failed: {e}")
         return False
 
-def run_streamlit_app():
-    """Launch the Streamlit web interface"""
+def run_api_server(host="0.0.0.0", port=8000, workers=1, reload=False):
+    """Run FastAPI server"""
     try:
-        import streamlit.web.cli as stcli
-        import sys
+        print(f"🚀 Starting FastAPI server on {host}:{port}...")
         
-        # Path to the chat interface
-        app_path = os.path.join(os.path.dirname(__file__), "chat", "chat_interface.py")
+        # Import uvicorn and the FastAPI app
+        import uvicorn
+        from api.server import app
         
-        # Set up Streamlit arguments
-        sys.argv = ["streamlit", "run", app_path, "--server.headless", "true"]
-        stcli.main()
+        # Run the server
+        uvicorn.run(
+            "api.server:app",
+            host=host,
+            port=port,
+            workers=workers,
+            reload=reload,
+            log_level="info"
+        )
         
     except Exception as e:
-        logger.error(f"Failed to launch Streamlit app: {e}")
-        print("\nAlternatively, run manually:")
-        print("streamlit run chat/chat_interface.py")
+        logger.error(f"FastAPI server failed: {e}")
+        print(f"❌ Failed to start FastAPI server: {e}")
+        sys.exit(1)
 
 def run_cli_mode():
     """Run in command-line interface mode"""
@@ -168,21 +174,6 @@ async def run_demo_mode():
         logger.error(f"Demo mode failed: {e}")
         print(f"❌ Demo mode failed: {e}")
 
-def run_api_server():
-    """Run as API server (FastAPI)"""
-    try:
-        print("🚀 Starting API server...")
-        print("Note: API server implementation is a planned feature.")
-        print("For now, use the Streamlit interface or CLI mode.")
-        
-        # Future: FastAPI implementation
-        # import uvicorn
-        # from api.server import app
-        # uvicorn.run(app, host="0.0.0.0", port=8000)
-        
-    except Exception as e:
-        logger.error(f"API server failed: {e}")
-        print(f"❌ Failed to start API server: {e}")
 
 def main():
     """Main entry point"""
@@ -191,23 +182,51 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py                    # Launch Streamlit web interface
+  python main.py                    # Start FastAPI server (default)
+  python main.py --port 3001        # Start API server on port 3001
   python main.py --mode cli         # Command-line interface
   python main.py --mode demo        # Run demonstration
-  python main.py --mode api         # Start API server (future)
+  python main.py --reload           # Start with auto-reload for development
   
 For first-time setup:
   1. Copy .env.example to .env
-  2. Add your OpenAI API key to .env
-  3. Run: python main.py --mode demo
+  2. Add your API keys to .env
+  3. Run: python main.py
         """
     )
     
     parser.add_argument(
         "--mode",
-        choices=["web", "cli", "demo", "api"],
-        default="web",
-        help="Run mode (default: web)"
+        choices=["api", "cli", "demo"],
+        default="api",
+        help="Run mode (default: api)"
+    )
+    
+    # FastAPI server arguments
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)"
+    )
+    
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind to (default: 8000)"
+    )
+    
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of workers (default: 1)"
+    )
+    
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload for development"
     )
     
     parser.add_argument(
@@ -229,16 +248,18 @@ For first-time setup:
     
     # Run appropriate mode
     try:
-        if args.mode == "web":
-            print("🌐 Launching web interface...")
-            run_streamlit_app()
+        if args.mode == "api":
+            run_api_server(
+                host=args.host,
+                port=args.port,
+                workers=args.workers,
+                reload=args.reload
+            )
         elif args.mode == "cli":
             run_cli_mode()
         elif args.mode == "demo":
             print("🎭 Running demonstration...")
             asyncio.run(run_demo_mode())
-        elif args.mode == "api":
-            run_api_server()
         else:
             parser.print_help()
             

@@ -1,0 +1,46 @@
+# ===============================
+# Ultra-fast development build (API only)
+# ===============================
+
+FROM python:3.11-slim
+
+# Minimal environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH="/app"
+
+# Install only essential system packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Use Chinese mirrors for faster pip installs
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip config set install.trusted-host pypi.tuna.tsinghua.edu.cn
+
+# Copy ultra-minimal requirements
+COPY requirements-ultra-minimal.txt ./requirements.txt
+
+# Install minimal dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create directories
+RUN mkdir -p /app/data /app/logs
+
+# Expose port
+EXPOSE 8000
+
+# Simple health check
+HEALTHCHECK --interval=30s --timeout=5s --retries=2 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Start FastAPI with basic configuration
+CMD ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]

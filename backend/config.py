@@ -40,9 +40,67 @@ class Config:
     INDUSTRY_EXPERT_MODEL: str = os.getenv("INDUSTRY_EXPERT_MODEL", "")
     PAPER_ANALYST_PROVIDER: str = os.getenv("PAPER_ANALYST_PROVIDER", "")
     PAPER_ANALYST_MODEL: str = os.getenv("PAPER_ANALYST_MODEL", "")
+
+    print(os.getenv("POSTGRES_PORT"))
+    # ===== DATABASE CONFIGURATION =====
+    # PostgreSQL Configuration
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "research_agent")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "research_user")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "research_password")
+    POSTGRES_SSL_MODE: str = os.getenv("POSTGRES_SSL_MODE", "disable")
+    POSTGRES_MAX_CONNECTIONS: int = int(os.getenv("POSTGRES_MAX_CONNECTIONS", "20"))
+    POSTGRES_CONNECTION_TIMEOUT: int = int(os.getenv("POSTGRES_CONNECTION_TIMEOUT", "30"))
     
-    # Vector Database
+    # Redis Configuration
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    REDIS_MAX_CONNECTIONS: int = int(os.getenv("REDIS_MAX_CONNECTIONS", "20"))
+    REDIS_CONNECTION_TIMEOUT: int = int(os.getenv("REDIS_CONNECTION_TIMEOUT", "5"))
+    REDIS_SOCKET_KEEPALIVE: bool = os.getenv("REDIS_SOCKET_KEEPALIVE", "true").lower() == "true"
+    
+    # Vector Database Configuration
+    VECTOR_DB_TYPE: str = os.getenv("VECTOR_DB_TYPE", "chroma")  # chroma, pinecone, weaviate, qdrant
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", "./data/vector_db")
+    VECTOR_DB_COLLECTION: str = os.getenv("VECTOR_DB_COLLECTION", "research-papers")
+    
+    # Chroma Configuration
+    CHROMA_HOST: str = os.getenv("CHROMA_HOST", "")
+    CHROMA_PORT: int = int(os.getenv("CHROMA_PORT", "8000")) if os.getenv("CHROMA_PORT") else 8000
+    CHROMA_COLLECTION_NAME: str = os.getenv("CHROMA_COLLECTION_NAME", "research-papers")
+    
+    # Pinecone Configuration
+    PINECONE_API_KEY: str = os.getenv("PINECONE_API_KEY", "")
+    PINECONE_INDEX_NAME: str = os.getenv("PINECONE_INDEX_NAME", "research-papers")
+    PINECONE_ENVIRONMENT: str = os.getenv("PINECONE_ENVIRONMENT", "us-west1-gcp-free")
+    PINECONE_DIMENSION: int = int(os.getenv("PINECONE_DIMENSION", "384"))
+    
+    # Weaviate Configuration
+    WEAVIATE_HOST: str = os.getenv("WEAVIATE_HOST", "localhost")
+    WEAVIATE_PORT: int = int(os.getenv("WEAVIATE_PORT", "8080"))
+    WEAVIATE_SCHEME: str = os.getenv("WEAVIATE_SCHEME", "http")
+    WEAVIATE_URL: str = os.getenv("WEAVIATE_URL", f"{WEAVIATE_SCHEME}://{WEAVIATE_HOST}:{WEAVIATE_PORT}")
+    WEAVIATE_API_KEY: str = os.getenv("WEAVIATE_API_KEY", "")
+    WEAVIATE_CLASS_NAME: str = os.getenv("WEAVIATE_CLASS_NAME", "ResearchPaper")
+    
+    # Qdrant Configuration
+    QDRANT_HOST: str = os.getenv("QDRANT_HOST", "localhost")
+    QDRANT_PORT: int = int(os.getenv("QDRANT_PORT", "6333"))
+    QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
+    QDRANT_COLLECTION_NAME: str = os.getenv("QDRANT_COLLECTION_NAME", "research-papers")
+    QDRANT_VECTOR_SIZE: int = int(os.getenv("QDRANT_VECTOR_SIZE", "384"))
+    
+    # Embedding Model Configuration
+    EMBEDDING_MODEL_TYPE: str = os.getenv("EMBEDDING_MODEL_TYPE", "openai")  # openai, anthropic, huggingface, deepseek
+    OPENAI_EMBEDDING_MODEL: str = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+    ANTHROPIC_EMBEDDING_MODEL: str = os.getenv("ANTHROPIC_EMBEDDING_MODEL", "claude-3-haiku-20240307")
+    HUGGINGFACE_EMBEDDING_MODEL: str = os.getenv("HUGGINGFACE_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    DEEPSEEK_EMBEDDING_MODEL: str = os.getenv("DEEPSEEK_EMBEDDING_MODEL", "deepseek-embedding")
+    
+    # Processing Configuration
     MAX_PAPERS_PER_QUERY: int = int(os.getenv("MAX_PAPERS_PER_QUERY", "50"))
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
@@ -69,6 +127,14 @@ class Config:
     LOG_FILE: str = os.getenv("LOG_FILE", "logs/research_agent.log")
     
     # Server Configuration
+    HOST: str = os.getenv("HOST", "0.0.0.0")
+    PORT: int = int(os.getenv("PORT", "8000"))
+    WORKERS: int = int(os.getenv("WORKERS", "1"))
+    
+    # CORS Configuration
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:3000")
+    
+    # Legacy Streamlit Configuration (deprecated)
     STREAMLIT_PORT: int = int(os.getenv("STREAMLIT_PORT", "8501"))
     STREAMLIT_HOST: str = os.getenv("STREAMLIT_HOST", "localhost")
     
@@ -195,5 +261,42 @@ class Config:
             "research": {
                 "default_max_papers": cls.DEFAULT_MAX_PAPERS,
                 "default_include_recent": cls.DEFAULT_INCLUDE_RECENT
+            },
+            "database": {
+                "postgres": {
+                    "host": cls.POSTGRES_HOST,
+                    "port": cls.POSTGRES_PORT,
+                    "database": cls.POSTGRES_DB,
+                    "has_password": bool(cls.POSTGRES_PASSWORD)
+                },
+                "redis": {
+                    "host": cls.REDIS_HOST,
+                    "port": cls.REDIS_PORT,
+                    "has_password": bool(cls.REDIS_PASSWORD)
+                },
+                "vector_db": {
+                    "type": cls.VECTOR_DB_TYPE,
+                    "path": cls.VECTOR_DB_PATH,
+                    "collection": cls.VECTOR_DB_COLLECTION
+                }
+            },
+            "server": {
+                "host": cls.HOST,
+                "port": cls.PORT,
+                "workers": cls.WORKERS,
+                "cors_origins": cls.CORS_ORIGINS
             }
         }
+        
+    @classmethod
+    def get_postgres_url(cls) -> str:
+        """Get PostgreSQL connection URL"""
+        password_part = f":{cls.POSTGRES_PASSWORD}" if cls.POSTGRES_PASSWORD else ""
+        ssl_part = f"?sslmode={cls.POSTGRES_SSL_MODE}" if cls.POSTGRES_SSL_MODE != "disable" else ""
+        return f"postgresql://{cls.POSTGRES_USER}{password_part}@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}{ssl_part}"
+    
+    @classmethod
+    def get_redis_url(cls) -> str:
+        """Get Redis connection URL"""
+        password_part = f":{cls.REDIS_PASSWORD}@" if cls.REDIS_PASSWORD else ""
+        return f"redis://{password_part}{cls.REDIS_HOST}:{cls.REDIS_PORT}/{cls.REDIS_DB}"

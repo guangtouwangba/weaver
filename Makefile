@@ -24,7 +24,7 @@ help: ## Show this help message
 	@echo "$(YELLOW)Quick Start:$(NC)"
 	@echo "  1. make setup        - Complete project setup"
 	@echo "  2. make run-demo     - Run demonstration"
-	@echo "  3. make run-web      - Launch web interface"
+	@echo "  3. make run-api      - Launch FastAPI server"
 	@echo "  4. make run-frontend - Launch modern UI"
 	@echo "  5. make run-fullstack- Launch both backend + frontend"
 	@echo ""
@@ -32,13 +32,30 @@ help: ## Show this help message
 # Installation and Setup
 install: ## Install production dependencies
 	@echo "$(BLUE)Installing production dependencies...$(NC)"
-	cd $(BACKEND_DIR) && poetry install --only=main
+	poetry install --only=main
 	@echo "$(GREEN)✓ Production dependencies installed$(NC)"
 
 install-dev: ## Install all dependencies including development tools
 	@echo "$(BLUE)Installing all dependencies...$(NC)"
-	cd $(BACKEND_DIR) && poetry install --with=dev --extras=all
-	@echo "$(GREEN)✓ All dependencies installed$(NC)"
+	@if ! poetry install --with=dev --extras=all 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Standard install failed, trying fallback approach...$(NC)"; \
+		make fix-onnxruntime; \
+	else \
+		echo "$(GREEN)✓ All dependencies installed successfully$(NC)"; \
+	fi
+
+fix-onnxruntime: ## Fix onnxruntime compatibility issues
+	@echo "$(BLUE)Fixing onnxruntime compatibility issues...$(NC)"
+	@echo "$(YELLOW)Removing lock file and trying clean install...$(NC)"
+	@rm -f poetry.lock
+	@echo "$(BLUE)Installing with CPU-only dependencies...$(NC)"
+	@poetry install --with=dev --extras=all --no-deps || true
+	@echo "$(BLUE)Installing sentence-transformers with CPU backend...$(NC)"
+	@poetry run pip install --upgrade pip
+	@poetry run pip install sentence-transformers==2.5.1
+	@echo "$(BLUE)Installing remaining dependencies...$(NC)"
+	@poetry install --with=dev --extras=all || echo "$(YELLOW)⚠ Some optional dependencies may have failed$(NC)"
+	@echo "$(GREEN)✓ Dependencies installation completed with workarounds$(NC)"
 
 setup: install-dev setup-env setup-git ## Complete project setup (install deps, setup env, git hooks)
 	@echo "$(GREEN)✓ Project setup complete!$(NC)"
@@ -46,7 +63,7 @@ setup: install-dev setup-env setup-git ## Complete project setup (install deps, 
 	@echo "$(YELLOW)Next steps:$(NC)"
 	@echo "  1. Edit .env file and add your API keys"
 	@echo "  2. Run 'make run-demo' to test the system"
-	@echo "  3. Run 'make run-web' to start the web interface"
+	@echo "  3. Run 'make run-api' to start the FastAPI server"
 	@echo "  4. Run 'make run-frontend' to launch the modern UI"
 
 setup-env: ## Setup environment file
@@ -65,7 +82,7 @@ setup-git: ## Setup git hooks and pre-commit
 	@echo "$(BLUE)Setting up git hooks...$(NC)"
 	@if command -v git >/dev/null 2>&1; then \
 		if [ -d .git ]; then \
-			cd $(BACKEND_DIR) && poetry run pre-commit install; \
+			poetry run pre-commit install; \
 			echo "$(GREEN)✓ Git hooks installed$(NC)"; \
 		else \
 			echo "$(YELLOW)⚠ Not a git repository, skipping git hooks$(NC)"; \
@@ -77,46 +94,40 @@ setup-git: ## Setup git hooks and pre-commit
 # Development Tools
 lint: ## Run all linting tools
 	@echo "$(BLUE)Running linting tools...$(NC)"
-	cd $(BACKEND_DIR) && poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-	cd $(BACKEND_DIR) && poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
-	cd $(BACKEND_DIR) && poetry run mypy . --ignore-missing-imports
+	poetry run flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics
+	poetry run flake8 backend --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+	poetry run mypy backend --ignore-missing-imports
 	@echo "$(GREEN)✓ Linting complete$(NC)"
 
 format: ## Format code with black and isort
 	@echo "$(BLUE)Formatting code...$(NC)"
-	cd $(BACKEND_DIR) && poetry run black .
-	cd $(BACKEND_DIR) && poetry run isort .
+	poetry run black backend
+	poetry run isort backend
 	@echo "$(GREEN)✓ Code formatting complete$(NC)"
 
 format-check: ## Check code formatting without making changes
 	@echo "$(BLUE)Checking code formatting...$(NC)"
-	cd $(BACKEND_DIR) && poetry run black --check .
-	cd $(BACKEND_DIR) && poetry run isort --check-only .
+	poetry run black --check backend
+	poetry run isort --check-only backend
 	@echo "$(GREEN)✓ Code formatting check complete$(NC)"
 
 # Testing
 test: ## Run tests
 	@echo "$(BLUE)Running tests...$(NC)"
-	cd $(BACKEND_DIR) && poetry run pytest -v
+	poetry run pytest tests -v
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 test-cov: ## Run tests with coverage report
 	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	cd $(BACKEND_DIR) && poetry run pytest --cov=. --cov-report=html --cov-report=term-missing
+	poetry run pytest tests --cov=backend --cov-report=html --cov-report=term-missing
 	@echo "$(GREEN)✓ Tests with coverage complete$(NC)"
 
-# Running Applications
-run-demo: ## Run demonstration script
-	@echo "$(BLUE)Running demonstration...$(NC)"
-	cd $(BACKEND_DIR) && poetry run python examples/demo.py
 
-run-web: ## Run Streamlit web interface
-	@echo "$(BLUE)Starting Streamlit web interface...$(NC)"
-	cd $(BACKEND_DIR) && poetry run streamlit run chat/chat_interface.py --server.port 8501 --server.address 0.0.0.0
+run-web: run-api ## Legacy alias for FastAPI server (deprecated - use run-api)
 
-run-api: ## Run FastAPI server
+run-api: ## Run FastAPI server (default mode)
 	@echo "$(BLUE)Starting FastAPI server...$(NC)"
-	cd $(BACKEND_DIR) && poetry run python api/simple_server.py
+	poetry run python backend/main.py
 
 run-frontend: ## Run Next.js frontend
 	@echo "$(BLUE)Starting Next.js frontend...$(NC)"
@@ -132,7 +143,7 @@ run-fullstack: ## Run both backend and frontend
 
 run-cli: ## Run command line interface
 	@echo "$(BLUE)Starting CLI...$(NC)"
-	cd $(BACKEND_DIR) && poetry run python main.py
+	poetry run python backend/main.py
 
 # Building and Deployment
 build: ## Build all components
@@ -143,7 +154,7 @@ build: ## Build all components
 
 build-backend: ## Build backend
 	@echo "$(BLUE)Building backend...$(NC)"
-	cd $(BACKEND_DIR) && poetry build
+	poetry build
 	@echo "$(GREEN)✓ Backend built$(NC)"
 
 build-frontend: ## Build frontend
@@ -157,64 +168,88 @@ docker-build: ## Build Docker images
 	docker build -f $(INFRA_DIR)/docker/Dockerfile -t research-agent-rag:latest .
 	@echo "$(GREEN)✓ Docker images built$(NC)"
 
-docker-run: ## Run with Docker Compose (all services)
-	@echo "$(BLUE)Starting with Docker Compose...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose up -d
-	@echo "$(GREEN)✓ Application started with Docker$(NC)"
+docker-run-middleware: ## Start middleware services (PostgreSQL, Redis, Weaviate)
+	@echo "$(BLUE)Starting middleware services...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml up -d
+	@echo "$(GREEN)✓ Middleware services started$(NC)"
 
-docker-run-dev: ## Run with Docker Compose (development mode)
-	@echo "$(BLUE)Starting with Docker Compose (development)...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+docker-run-apps: ## Start application services (requires middleware to be running)
+	@echo "$(BLUE)Starting application services...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env up -d
+	@echo "$(GREEN)✓ Application services started$(NC)"
+
+docker-run: docker-run-middleware docker-run-apps ## Run with Docker Compose (all services)
+	@echo "$(GREEN)✓ All services started with Docker$(NC)"
+
+docker-run-dev: docker-run-middleware ## Run with Docker Compose (development mode)
+	@echo "$(BLUE)Starting development application services...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env --profile dev up -d
 	@echo "$(GREEN)✓ Development environment started with Docker$(NC)"
 
 docker-run-frontend: ## Run frontend only with Docker
 	@echo "$(BLUE)Starting frontend with Docker...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose up -d research-agent-frontend
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env up -d research-agent-frontend
 	@echo "$(GREEN)✓ Frontend started with Docker$(NC)"
 
 docker-run-backend: ## Run backend only with Docker
 	@echo "$(BLUE)Starting backend with Docker...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose up -d research-agent-backend
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env up -d research-agent-backend
 	@echo "$(GREEN)✓ Backend started with Docker$(NC)"
 
-docker-run-admin: ## Run with Docker Compose (with admin tools)
-	@echo "$(BLUE)Starting with Docker Compose (with admin tools)...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose --profile admin up -d
-	@echo "$(GREEN)✓ Application with admin tools started$(NC)"
+docker-run-admin: docker-run-middleware ## Run with Docker Compose (with admin tools)
+	@echo "$(BLUE)Starting admin tools...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml --profile admin up -d
+	@echo "$(GREEN)✓ Admin tools started$(NC)"
 
-docker-run-monitoring: ## Run with Docker Compose (with monitoring)
-	@echo "$(BLUE)Starting with Docker Compose (with monitoring)...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose --profile monitoring up -d
-	@echo "$(GREEN)✓ Application with monitoring started$(NC)"
+docker-run-monitoring: docker-run-middleware ## Run with Docker Compose (with monitoring)
+	@echo "$(BLUE)Starting monitoring services...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml --profile monitoring up -d
+	@echo "$(GREEN)✓ Monitoring services started$(NC)"
 
-docker-stop: ## Stop Docker containers
-	@echo "$(BLUE)Stopping Docker containers...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose down
-	@echo "$(GREEN)✓ Docker containers stopped$(NC)"
+docker-stop-apps: ## Stop application containers only
+	@echo "$(BLUE)Stopping application containers...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env down
+	@echo "$(GREEN)✓ Application containers stopped$(NC)"
 
-docker-logs: ## Show Docker logs
-	@echo "$(BLUE)Showing Docker logs...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose logs -f
+docker-stop-middleware: ## Stop middleware containers only
+	@echo "$(BLUE)Stopping middleware containers...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml down
+	@echo "$(GREEN)✓ Middleware containers stopped$(NC)"
+
+docker-stop: docker-stop-apps docker-stop-middleware ## Stop all Docker containers
+	@echo "$(GREEN)✓ All Docker containers stopped$(NC)"
+
+docker-logs: ## Show all Docker logs
+	@echo "$(BLUE)Showing all Docker logs...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env logs -f & docker-compose --env-file ../../.env -f docker-compose.middleware.yml logs -f
+
+docker-logs-apps: ## Show application service logs
+	@echo "$(BLUE)Showing application logs...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env logs -f
+
+docker-logs-middleware: ## Show middleware service logs
+	@echo "$(BLUE)Showing middleware logs...$(NC)"
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml logs -f
 
 docker-logs-api: ## Show API service logs
 	@echo "$(BLUE)Showing API logs...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose logs -f research-agent-api
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env logs -f research-agent-backend
 
 docker-logs-db: ## Show database logs
 	@echo "$(BLUE)Showing database logs...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose logs -f postgres weaviate redis
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml logs -f postgres weaviate redis
 
 docker-shell: ## Access API container shell
 	@echo "$(BLUE)Accessing API container shell...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose exec research-agent-api bash
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env exec research-agent-backend bash
 
 docker-db-shell: ## Access PostgreSQL shell
 	@echo "$(BLUE)Accessing PostgreSQL shell...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose exec postgres psql -U research_user -d research_agent
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml exec postgres psql -U research_user -d research_agent
 
 docker-redis-shell: ## Access Redis shell
 	@echo "$(BLUE)Accessing Redis shell...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose exec redis redis-cli -a redis_password
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml exec redis redis-cli -a redis_password
 
 docker-health: ## Check service health
 	@echo "$(BLUE)Checking service health...$(NC)"
@@ -223,11 +258,11 @@ docker-health: ## Check service health
 	@echo "$(CYAN)Frontend Health:$(NC)"
 	@curl -s http://localhost:3000/api/health || echo "$(RED)Frontend not responding$(NC)"
 	@echo "$(CYAN)PostgreSQL Health:$(NC)"
-	@cd $(INFRA_DIR)/docker && docker-compose exec -T postgres pg_isready -U research_user || echo "$(RED)PostgreSQL not ready$(NC)"
+	@cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml exec -T postgres pg_isready -U research_user || echo "$(RED)PostgreSQL not ready$(NC)"
 	@echo "$(CYAN)Weaviate Health:$(NC)"
 	@curl -s http://localhost:8080/v1/.well-known/ready || echo "$(RED)Weaviate not responding$(NC)"
 	@echo "$(CYAN)Redis Health:$(NC)"
-	@cd $(INFRA_DIR)/docker && docker-compose exec -T redis redis-cli -a redis_password ping || echo "$(RED)Redis not responding$(NC)"
+	@cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml exec -T redis redis-cli -a redis_password ping || echo "$(RED)Redis not responding$(NC)"
 
 docker-test: ## Run comprehensive docker tests
 	@echo "$(BLUE)Running Docker setup tests...$(NC)"
@@ -251,13 +286,13 @@ docker-deploy-monitoring: ## Deploy with Docker (monitoring)
 
 docker-backup: ## Backup PostgreSQL database
 	@echo "$(BLUE)Backing up PostgreSQL database...$(NC)"
-	cd $(INFRA_DIR)/docker && docker-compose exec -T postgres pg_dump -U research_user research_agent > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml exec -T postgres pg_dump -U research_user research_agent > backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "$(GREEN)✓ Database backup created$(NC)"
 
 docker-restore: ## Restore PostgreSQL database (requires backup file)
 	@echo "$(BLUE)Restoring PostgreSQL database...$(NC)"
 	@read -p "Enter backup file name: " backup_file; \
-	cd $(INFRA_DIR)/docker && docker-compose exec -T postgres psql -U research_user research_agent < $$backup_file
+	cd $(INFRA_DIR)/docker && docker-compose --env-file ../../.env -f docker-compose.middleware.yml exec -T postgres psql -U research_user research_agent < $$backup_file
 	@echo "$(GREEN)✓ Database restored$(NC)"
 
 # Infrastructure
@@ -285,19 +320,19 @@ clean: ## Clean build artifacts and temporary files
 
 update-deps: ## Update dependencies
 	@echo "$(BLUE)Updating dependencies...$(NC)"
-	cd $(BACKEND_DIR) && poetry update
+	poetry update
 	cd $(FRONTEND_DIR) && npm update
 	@echo "$(GREEN)✓ Dependencies updated$(NC)"
 
 check-deps: ## Check for outdated dependencies
 	@echo "$(BLUE)Checking dependencies...$(NC)"
-	cd $(BACKEND_DIR) && poetry show --outdated
+	poetry show --outdated
 	cd $(FRONTEND_DIR) && npm outdated
 	@echo "$(GREEN)✓ Dependency check complete$(NC)"
 
 security-check: ## Run security checks
 	@echo "$(BLUE)Running security checks...$(NC)"
-	cd $(BACKEND_DIR) && poetry run safety check
+	poetry run safety check
 	cd $(FRONTEND_DIR) && npm audit
 	@echo "$(GREEN)✓ Security checks complete$(NC)"
 
@@ -322,7 +357,7 @@ status: ## Show application status
 # Configuration
 config: ## Run configuration manager
 	@echo "$(BLUE)Running configuration manager...$(NC)"
-	cd $(BACKEND_DIR) && poetry run python config_manager.py
+	poetry run python backend/config_manager.py
 
 # Quick development
 dev: run-fullstack ## Quick development setup (alias for run-fullstack)

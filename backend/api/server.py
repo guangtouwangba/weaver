@@ -45,10 +45,20 @@ async def lifespan(app: FastAPI):
     global orchestrator
     
     try:
-        # Startup: Initialize orchestrator
-        logger.info("🚀 Initializing Research Orchestrator...")
+        # Initialize database first (needed for orchestrator)
+        logger.info("🗄️ Initializing database...")
         Config.validate()
+        db_manager = init_database()
+        db_manager.create_tables()
         
+        # Seed database with initial configurations
+        logger.info("🌱 Seeding database configurations...")
+        from database.seed_data import seed_database
+        seed_database()
+        logger.info("✅ Database initialized successfully")
+        
+        # Now initialize orchestrator (which needs the database)
+        logger.info("🚀 Initializing Research Orchestrator...")
         orchestrator = ResearchOrchestrator(
             openai_api_key=Config.OPENAI_API_KEY,
             deepseek_api_key=Config.DEEPSEEK_API_KEY,
@@ -60,12 +70,6 @@ async def lifespan(app: FastAPI):
         
         logger.info("✅ Research Orchestrator initialized successfully")
         logger.info(f"Available agents: {list(orchestrator.agents.keys())}")
-        
-        # Initialize database for cronjob system
-        logger.info("🗄️ Initializing database...")
-        db_manager = init_database()
-        db_manager.create_tables()
-        logger.info("✅ Database initialized successfully")
         
         yield
         

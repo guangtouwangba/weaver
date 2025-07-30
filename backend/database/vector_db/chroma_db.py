@@ -45,7 +45,9 @@ class ChromaVectorDB(BaseVectorDB):
         try:
             self.collection = self.client.get_collection(name=self.collection_name)
             logger.info(f"Loaded existing ChromaDB collection: {self.collection_name}")
-        except ValueError:
+        except Exception as e:
+            # Collection doesn't exist, create it
+            logger.info(f"Collection {self.collection_name} not found, creating new one: {e}")
             self.collection = self.client.create_collection(
                 name=self.collection_name,
                 metadata={"description": "Research papers with semantic embeddings"}
