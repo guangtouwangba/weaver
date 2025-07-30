@@ -62,6 +62,20 @@ class Config:
     REDIS_CONNECTION_TIMEOUT: int = int(os.getenv("REDIS_CONNECTION_TIMEOUT", "5"))
     REDIS_SOCKET_KEEPALIVE: bool = os.getenv("REDIS_SOCKET_KEEPALIVE", "true").lower() == "true"
     
+    # Celery Configuration
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" if REDIS_PASSWORD else f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+    CELERY_TASK_SERIALIZER: str = os.getenv("CELERY_TASK_SERIALIZER", "json")
+    CELERY_RESULT_SERIALIZER: str = os.getenv("CELERY_RESULT_SERIALIZER", "json")
+    CELERY_ACCEPT_CONTENT: str = os.getenv("CELERY_ACCEPT_CONTENT", "json")
+    CELERY_TIMEZONE: str = os.getenv("CELERY_TIMEZONE", "UTC")
+    CELERY_ENABLE_UTC: bool = os.getenv("CELERY_ENABLE_UTC", "true").lower() == "true"
+    CELERY_WORKER_PREFETCH_MULTIPLIER: int = int(os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "1"))
+    CELERY_TASK_ACKS_LATE: bool = os.getenv("CELERY_TASK_ACKS_LATE", "true").lower() == "true"
+    CELERY_RESULT_EXPIRES: int = int(os.getenv("CELERY_RESULT_EXPIRES", "3600"))  # 1 hour
+    CELERY_TASK_DEFAULT_RETRY_DELAY: int = int(os.getenv("CELERY_TASK_DEFAULT_RETRY_DELAY", "60"))  # 1 minute
+    CELERY_TASK_MAX_RETRIES: int = int(os.getenv("CELERY_TASK_MAX_RETRIES", "3"))
+    
     # Vector Database Configuration
     VECTOR_DB_TYPE: str = os.getenv("VECTOR_DB_TYPE", "chroma")  # chroma, pinecone, weaviate, qdrant
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", "./data/vector_db")
@@ -274,6 +288,13 @@ class Config:
                     "port": cls.REDIS_PORT,
                     "has_password": bool(cls.REDIS_PASSWORD)
                 },
+                "celery": {
+                    "broker_url": cls.CELERY_BROKER_URL,
+                    "result_backend": cls.CELERY_RESULT_BACKEND,
+                    "task_serializer": cls.CELERY_TASK_SERIALIZER,
+                    "result_expires": cls.CELERY_RESULT_EXPIRES,
+                    "max_retries": cls.CELERY_TASK_MAX_RETRIES
+                },
                 "vector_db": {
                     "type": cls.VECTOR_DB_TYPE,
                     "path": cls.VECTOR_DB_PATH,
@@ -300,3 +321,13 @@ class Config:
         """Get Redis connection URL"""
         password_part = f":{cls.REDIS_PASSWORD}@" if cls.REDIS_PASSWORD else ""
         return f"redis://{password_part}{cls.REDIS_HOST}:{cls.REDIS_PORT}/{cls.REDIS_DB}"
+    
+    @classmethod
+    def get_celery_broker_url(cls) -> str:
+        """Get Celery broker URL"""
+        return cls.CELERY_BROKER_URL
+    
+    @classmethod
+    def get_celery_result_backend(cls) -> str:
+        """Get Celery result backend URL"""
+        return cls.CELERY_RESULT_BACKEND

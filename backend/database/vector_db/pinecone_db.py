@@ -35,6 +35,8 @@ class PineconeVectorDB(BaseVectorDB):
         
         # Initialize Pinecone client
         api_key = config.get('api_key')
+        logger.info(f"PineconeVectorDB.__init__ called with config keys: {list(config.keys())}")
+        logger.info(f"PineconeVectorDB.__init__ api_key present: {bool(api_key)}")
         if not api_key:
             raise ValueError("Pinecone API key is required")
         

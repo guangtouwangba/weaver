@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { Button } from "@/components/ui/button"
 import {
@@ -39,6 +40,7 @@ function transformJobToTableData(job: any): CronjobData {
 }
 
 export default function JobsPage() {
+  const router = useRouter()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isCreatingJob, setIsCreatingJob] = useState(false)
@@ -83,6 +85,11 @@ export default function JobsPage() {
     window.toggleCronJob = toggleCronJob
     // @ts-ignore
     window.refreshJobs = refreshJobs
+    // @ts-ignore
+    window.navigateToJobDetails = (jobId: string, tab?: string) => {
+      const url = tab ? `/jobs/${jobId}?tab=${tab}` : `/jobs/${jobId}`
+      router.push(url)
+    }
 
     return () => {
       console.log("Cleaning up window functions")
@@ -94,8 +101,10 @@ export default function JobsPage() {
       delete window.toggleCronJob
       // @ts-ignore
       delete window.refreshJobs
+      // @ts-ignore
+      delete window.navigateToJobDetails
     }
-  }, [deleteCronJob, triggerCronJob, toggleCronJob, refreshJobs])
+  }, [deleteCronJob, triggerCronJob, toggleCronJob, refreshJobs, router])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
