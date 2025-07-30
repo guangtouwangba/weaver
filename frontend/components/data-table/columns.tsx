@@ -13,7 +13,8 @@ import {
   FileText,
   Copy,
   Eye,
-  History
+  History,
+  RefreshCw
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -34,6 +35,7 @@ declare global {
     triggerCronJob?: (jobId: string) => Promise<any>
     deleteCronJob?: (jobId: string) => Promise<any>
     refreshJobs?: () => Promise<any>
+    navigateToJobDetails?: (jobId: string, tab?: string) => void
   }
 }
 
@@ -117,66 +119,15 @@ export const columns: ColumnDef<CronjobData>[] = [
   },
   {
     accessorKey: "lastRun",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Last Run
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: "Last Run",
     cell: ({ row }) => {
       const lastRun = row.getValue("lastRun") as Date | null
-      return (
-        <div className="text-sm">
-          {lastRun ? formatDistanceToNow(lastRun, { addSuffix: true }) : "Never"}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: "nextRun",
-    header: "Next Run",
-    cell: ({ row }) => {
-      const nextRun = row.getValue("nextRun") as Date | null
-      return (
-        <div className="text-sm">
-          {nextRun ? formatDistanceToNow(nextRun, { addSuffix: true }) : "Not scheduled"}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: "papersFound",
-    header: "Papers",
-    cell: ({ row }) => {
-      const job = row.original
       return (
         <div className="flex items-center space-x-1">
           <FileText className="h-3 w-3 text-muted-foreground" />
           <span className="text-sm">
-            {job.papersFound} found / {job.papersProcessed} processed
+            {lastRun ? formatDistanceToNow(lastRun, { addSuffix: true }) : "Never"}
           </span>
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: "providers",
-    header: "Providers",
-    cell: ({ row }) => {
-      const job = row.original
-      return (
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">
-            Vector: {job.vectorDb}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Embedding: {job.embeddingModel}
-          </div>
         </div>
       )
     },
@@ -196,13 +147,27 @@ export const columns: ColumnDef<CronjobData>[] = [
       }
 
       const handleViewDetails = () => {
-        // TODO: Navigate to job details page
-        toast.info("View details - Coming soon")
+        if (window.navigateToJobDetails) {
+          window.navigateToJobDetails(job.id)
+        } else {
+          toast.info("Navigation not available")
+        }
       }
 
       const handleViewHistory = () => {
-        // TODO: Navigate to job history page
-        toast.info("View history - Coming soon")
+        if (window.navigateToJobDetails) {
+          window.navigateToJobDetails(job.id, 'history')
+        } else {
+          toast.info("Navigation not available")
+        }
+      }
+
+      const handleViewLogs = () => {
+        if (window.navigateToJobDetails) {
+          window.navigateToJobDetails(job.id, 'logs')
+        } else {
+          toast.info("Navigation not available")
+        }
       }
 
       const handleToggleJob = async () => {
@@ -219,13 +184,66 @@ export const columns: ColumnDef<CronjobData>[] = [
 
       const handleRunNow = async () => {
         try {
+          // Show loading toast
+          const loadingToast = toast.loading("Starting job execution...")
+          
           // This will be passed from the parent component
           if (window.triggerCronJob) {
-            await window.triggerCronJob(job.id)
-            toast.success("Job execution started")
+            const response = await window.triggerCronJob(job.id)
+            
+            // Dismiss loading toast and show success
+            toast.dismiss(loadingToast)
+            
+            // Check if response has task_id (async execution)
+            if (response && response.task_id) {
+              toast.success("Job execution started", {
+                description: "Task is running in the background. View progress in job details.",
+                action: {
+                  label: "View Progress",
+                  onClick: () => {
+                    if (window.navigateToJobDetails) {
+                      window.navigateToJobDetails(job.id)
+                    }
+                  }
+                }
+              })
+            } else {
+              // Fallback for sync execution
+              toast.success("Job execution started", {
+                description: "You can view real-time progress in the job details page",
+                action: {
+                  label: "View Details",
+                  onClick: () => {
+                    if (window.navigateToJobDetails) {
+                      window.navigateToJobDetails(job.id)
+                    }
+                  }
+                }
+              })
+            }
+            
+            // Refresh the page data after triggering
+            setTimeout(() => {
+              // Trigger SWR cache revalidation for all job-related data
+              Promise.all([
+                mutate(['cronjobs']),
+                mutate(['cronjobs', 0, 100, false]),
+                mutate(['cronjobs', 0, 10, false]),
+                mutate('dashboard-stats')
+              ])
+              
+              // Also call the refresh function if available
+              if (window.refreshJobs) {
+                window.refreshJobs()
+              }
+            }, 1000)
+          } else {
+            toast.dismiss(loadingToast)
+            toast.error("Trigger function not available")
           }
-        } catch (error) {
-          toast.error("Failed to start job execution")
+        } catch (error: any) {
+          console.error("Failed to trigger job:", error)
+          toast.error(error.message || "Failed to start job execution")
         }
       }
 
@@ -299,6 +317,10 @@ export const columns: ColumnDef<CronjobData>[] = [
               <History className="mr-2 h-4 w-4" />
               View history
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleViewLogs}>
+              <FileText className="mr-2 h-4 w-4" />
+              View logs
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             {job.status === "active" ? (
               <DropdownMenuItem onClick={handleToggleJob}>
@@ -312,7 +334,7 @@ export const columns: ColumnDef<CronjobData>[] = [
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={handleRunNow}>
-              <Play className="mr-2 h-4 w-4" />
+              <RefreshCw className="mr-2 h-4 w-4" />
               Run now
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleDeleteJob} className="text-destructive">

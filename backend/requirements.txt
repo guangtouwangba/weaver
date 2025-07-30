@@ -51,3 +51,9 @@ asyncio-mqtt>=0.13.0
 
 # Scheduling
 croniter>=2.0.0
+
+# Celery and task queue
+celery>=5.3.0
+redis>=4.5.0
+kombu>=5.3.0
+flower>=2.0.0

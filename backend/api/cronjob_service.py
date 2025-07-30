@@ -235,6 +235,18 @@ class CronJobService:
         """Get vector database instance for the job"""
         config = job.vector_db_config or {}
         config['provider'] = job.vector_db_provider
+        
+        # Add environment-based configuration for Pinecone
+        if job.vector_db_provider == 'pinecone':
+            import os
+            config.update({
+                'api_key': os.getenv('PINECONE_API_KEY'),
+                'index_name': os.getenv('PINECONE_INDEX_NAME', 'research-papers'),
+                'environment': os.getenv('PINECONE_ENVIRONMENT', 'us-west1-gcp'),
+                'dimension': int(os.getenv('PINECONE_DIMENSION', '384'))
+            })
+            logger.info(f"Pinecone config: api_key={'*' * 10 if config.get('api_key') else 'NOT_FOUND'}, index_name={config.get('index_name')}, environment={config.get('environment')}")
+        
         return VectorDBFactory.create(job.vector_db_provider, config)
     
     def _get_embedding_model_instance(self, job: CronJob):

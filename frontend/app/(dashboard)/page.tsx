@@ -41,6 +41,8 @@ export default function DashboardPage() {
         mutateHealth(),
         mutateCronJobs()
       ])
+    } catch (error) {
+      console.error('Failed to refresh:', error)
     } finally {
       setIsRefreshing(false)
     }
@@ -141,6 +143,9 @@ export default function DashboardPage() {
                 <p className="text-sm text-muted-foreground">
                   Failed to load dashboard data. Please check your connection and try again.
                 </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Backend server may not be running. Please start the backend service.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -230,6 +235,59 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Active Jobs */}
+        {jobs && jobs.filter(job => job.enabled).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <span>Active Jobs</span>
+                <Badge variant="secondary" className="text-xs">
+                  {jobs.filter(job => job.enabled).length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {jobs.filter(job => job.enabled).slice(0, 3).map((job) => (
+                  <div key={job.id} className="flex items-center justify-between border rounded-lg p-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-medium">{job.name}</h4>
+                        <Badge variant="default" className="text-xs">
+                          Active
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Keywords: {job.keywords.slice(0, 3).join(", ")}
+                        {job.keywords.length > 3 && ` +${job.keywords.length - 3} more`}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Schedule: {job.cron_expression || `Every ${job.interval_hours} hours`}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await triggerCronJob(job.id)
+                            toast.success("Job execution started")
+                          } catch (error: any) {
+                            toast.error(error.message || "Failed to trigger job")
+                          }
+                        }}
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Jobs */}
         <Card>

@@ -53,10 +53,21 @@ class JobRun(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey('cronjobs.id', ondelete='CASCADE'), nullable=False)
     
+    # Celery task tracking
+    task_id = Column(String(255), nullable=True, unique=True, index=True)
+    
     # Status tracking
     status = Column(String(20), nullable=False, default='pending')  # 'pending', 'running', 'completed', 'failed', 'partial'
     started_at = Column(DateTime, default=func.now())
     completed_at = Column(DateTime, nullable=True)
+    
+    # Progress tracking
+    progress_percentage = Column(Integer, default=0)
+    current_step = Column(String(255), nullable=True)
+    
+    # Manual trigger tracking
+    manual_trigger = Column(Boolean, default=False)
+    user_params = Column(JSON, nullable=True)
     
     # Metrics
     papers_found = Column(Integer, default=0)
@@ -78,6 +89,8 @@ class JobRun(Base):
         Index('idx_job_runs_job_id', 'job_id'),
         Index('idx_job_runs_status', 'status'),
         Index('idx_job_runs_started_at', 'started_at'),
+        Index('idx_job_runs_task_id', 'task_id'),
+        Index('idx_job_runs_manual_trigger', 'manual_trigger'),
     )
 
 class Paper(Base):
