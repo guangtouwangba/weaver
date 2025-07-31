@@ -36,6 +36,52 @@ async def list_cronjobs(
     """List all cronjobs"""
     return await controller.list_cronjobs(skip, limit, enabled_only)
 
+# Global history endpoints (must be before /{job_id} routes)
+@router.get("/history/runs", response_model=List[JobRunResponse])
+async def list_all_job_runs(
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    job_id_filter: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    controller: CronJobController = Depends(get_cronjob_controller)
+):
+    """List job runs across all cronjobs with filtering options"""
+    return await controller.list_all_job_runs(
+        skip, limit, status_filter, job_id_filter, start_date, end_date
+    )
+
+@router.get("/history/stats")
+async def get_history_stats(
+    days: int = 30,
+    controller: CronJobController = Depends(get_cronjob_controller)
+):
+    """Get historical statistics and trends"""
+    return await controller.get_history_stats(days)
+
+@router.get("/history/export")
+async def export_history(
+    format: str = "csv",
+    status_filter: Optional[str] = None,
+    job_id_filter: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    controller: CronJobController = Depends(get_cronjob_controller)
+):
+    """Export job run history in various formats"""
+    from fastapi.responses import Response
+    
+    export_data = await controller.export_history(
+        format, status_filter, job_id_filter, start_date, end_date
+    )
+    
+    return Response(
+        content=export_data["content"],
+        media_type=export_data["content_type"],
+        headers={"Content-Disposition": f"attachment; filename={export_data['filename']}"}
+    )
+
 @router.post("/", response_model=CronJobResponse, status_code=201)
 async def create_cronjob(
     job_data: CronJobCreate,
@@ -114,6 +160,7 @@ async def get_job_run(
     """Get details of a specific job run"""
     return await controller.get_job_run(run_id)
 
+
 @router.get("/providers/available")
 async def get_available_providers():
     """Get available vector database and embedding providers"""
@@ -158,61 +205,3 @@ async def test_configuration(
         logger.error(f"Error testing configuration: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Task management routes
-@router.get("/tasks/{task_id}/status")
-async def get_task_status(
-    task_id: str,
-    controller: CronJobController = Depends(get_cronjob_controller)
-):
-    """Get Celery task status and progress"""
-    return await controller.get_task_status(task_id)
-
-@router.get("/tasks/{task_id}/progress")
-async def get_task_progress(
-    task_id: str,
-    controller: CronJobController = Depends(get_cronjob_controller)
-):
-    """Get detailed task progress information"""
-    return await controller.get_task_progress(task_id)
-
-@router.post("/tasks/{task_id}/cancel")
-async def cancel_task(
-    task_id: str,
-    controller: CronJobController = Depends(get_cronjob_controller)
-):
-    """Cancel a running Celery task"""
-    return await controller.cancel_task(task_id)
-
-@router.get("/tasks/health-check")
-async def task_health_check():
-    """Check if Celery workers are healthy"""
-    try:
-        from tasks.research_tasks import health_check
-        
-        # Trigger health check task
-        task = health_check.delay()
-        
-        # Wait for result (with timeout)
-        try:
-            result = task.get(timeout=10)
-            return {
-                'status': 'healthy',
-                'celery_status': 'connected',
-                'task_id': task.id,
-                'result': result
-            }
-        except Exception as e:
-            return {
-                'status': 'unhealthy',
-                'celery_status': 'error',
-                'error': str(e),
-                'task_id': task.id
-            }
-            
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return {
-            'status': 'unhealthy',
-            'celery_status': 'disconnected',
-            'error': str(e)
-        }

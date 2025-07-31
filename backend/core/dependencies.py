@@ -52,8 +52,7 @@ def get_cronjob_service():
     return CronJobService(
         cronjob_repository=cronjob_repo,
         job_run_repository=job_run_repo,
-        paper_repository=paper_repo,
-        session=session
+        paper_repository=paper_repo
     )
 
 def get_research_service():
