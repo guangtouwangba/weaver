@@ -62,13 +62,13 @@ def run_api_server(host="0.0.0.0", port=8000, workers=1, reload=False):
     try:
         print(f"🚀 Starting FastAPI server on {host}:{port}...")
         
-        # Import uvicorn and the FastAPI app (using refactored server)
+        # Import uvicorn and the FastAPI app
         import uvicorn
-        from api.server_new import app
+        from api.server import app
         
         # Run the server
         uvicorn.run(
-            "api.server_new:app",
+            "api.server:app",
             host=host,
             port=port,
             workers=workers,

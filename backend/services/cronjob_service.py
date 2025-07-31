@@ -5,7 +5,7 @@ Refactored to use repository pattern and dependency injection.
 import logging
 import uuid
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from fastapi import BackgroundTasks
 
@@ -149,30 +149,30 @@ class CronJobService:
             raise ServiceError(f"Failed to toggle cronjob: {str(e)}")
     
     def trigger_job(self, job_id: str, background_tasks: BackgroundTasks, 
-                   force_reprocess: bool = False, user_params: Optional[Dict] = None) -> Dict[str, str]:
-        """Trigger manual execution of a cronjob using Celery"""
+                   force_reprocess: bool = False) -> str:
+        """Trigger manual execution of a cronjob"""
         try:
             job = self.cronjob_repo.get_by_id(job_id)
             if not job:
                 raise NotFoundError(f"Cronjob {job_id} not found")
             
-            # Import Celery task here to avoid circular imports
-            from tasks.research_tasks import execute_research_job
-            
-            # Trigger Celery task immediately
-            task = execute_research_job.delay(
+            # Create job run record
+            job_run = self.job_run_repo.create(
+                id=str(uuid.uuid4()),
                 job_id=job_id,
-                manual_trigger=True,
-                user_params=user_params or {'force_reprocess': force_reprocess}
+                status='pending',
+                started_at=datetime.utcnow()
             )
             
-            logger.info(f"Triggered Celery task for cronjob: {job.name} ({job.id}), task ID: {task.id}")
+            # Schedule background execution
+            background_tasks.add_task(
+                self._execute_job,
+                job_run.id,
+                force_reprocess
+            )
             
-            return {
-                'task_id': task.id,
-                'job_id': job_id,
-                'status': 'PENDING'
-            }
+            logger.info(f"Triggered cronjob: {job.name} ({job.id}), run ID: {job_run.id}")
+            return str(job_run.id)
             
         except NotFoundError:
             raise
@@ -228,138 +228,7 @@ class CronJobService:
             logger.error(f"Error getting job statistics: {e}")
             return {"error": str(e)}
     
-    def get_task_status(self, task_id: str) -> Dict[str, Any]:
-        """Get Celery task status and progress"""
-        try:
-            from celery_app import celery_app
-            from celery.result import AsyncResult
-            
-            # Get task result
-            task_result = AsyncResult(task_id, app=celery_app)
-            
-            # Get job run associated with this task
-            job_run = self.job_run_repo.get_by_task_id(task_id)
-            
-            status_data = {
-                'task_id': task_id,
-                'status': task_result.status,
-                'timestamp': datetime.utcnow().isoformat()
-            }
-            
-            if task_result.info:
-                if isinstance(task_result.info, dict):
-                    status_data.update(task_result.info)
-                else:
-                    status_data['info'] = str(task_result.info)
-            
-            # Add job run information if available
-            if job_run:
-                status_data.update({
-                    'job_run_id': str(job_run.id),
-                    'job_id': str(job_run.job_id),
-                    'progress_percentage': job_run.progress_percentage,
-                    'current_step': job_run.current_step,
-                    'started_at': job_run.started_at.isoformat() if job_run.started_at else None,
-                    'completed_at': job_run.completed_at.isoformat() if job_run.completed_at else None
-                })
-            
-            return status_data
-            
-        except Exception as e:
-            logger.error(f"Error getting task status for {task_id}: {e}")
-            return {
-                'task_id': task_id,
-                'status': 'UNKNOWN',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
-            }
-    
-    def get_task_progress(self, task_id: str) -> Dict[str, Any]:
-        """Get detailed task progress information"""
-        try:
-            from celery_app import celery_app
-            from celery.result import AsyncResult
-            
-            task_result = AsyncResult(task_id, app=celery_app)
-            job_run = self.job_run_repo.get_by_task_id(task_id)
-            
-            progress_data = {
-                'task_id': task_id,
-                'status': task_result.status,
-                'progress': 0,
-                'description': 'Task pending...',
-                'current': 0,
-                'total': 1
-            }
-            
-            # Get progress from Celery task
-            if task_result.info and isinstance(task_result.info, dict):
-                progress_data.update({
-                    'progress': task_result.info.get('progress', 0),
-                    'description': task_result.info.get('description', 'Processing...'),
-                    'current': task_result.info.get('current', 0),
-                    'total': task_result.info.get('total', 1),
-                    'metadata': task_result.info.get('metadata', {})
-                })
-            
-            # Supplement with database information
-            if job_run:
-                progress_data.update({
-                    'job_run_id': str(job_run.id),
-                    'db_progress': job_run.progress_percentage,
-                    'current_step': job_run.current_step,
-                    'papers_found': job_run.papers_found,
-                    'papers_processed': job_run.papers_processed,
-                    'papers_embedded': job_run.papers_embedded,
-                    'errors': {
-                        'embedding_errors': job_run.embedding_errors,
-                        'vector_db_errors': job_run.vector_db_errors
-                    }
-                })
-            
-            return progress_data
-            
-        except Exception as e:
-            logger.error(f"Error getting task progress for {task_id}: {e}")
-            return {
-                'task_id': task_id,
-                'status': 'ERROR',
-                'error': str(e),
-                'progress': 0
-            }
-    
-    def cancel_task(self, task_id: str) -> Dict[str, Any]:
-        """Cancel a running Celery task"""
-        try:
-            from celery_app import celery_app
-            
-            # Revoke the task
-            celery_app.control.revoke(task_id, terminate=True)
-            
-            # Update job run status if exists
-            job_run = self.job_run_repo.get_by_task_id(task_id)
-            if job_run:
-                self.job_run_repo.update_run_status(
-                    str(job_run.id), 
-                    'cancelled', 
-                    datetime.utcnow(),
-                    'Task cancelled by user'
-                )
-            
-            logger.info(f"Cancelled task: {task_id}")
-            return {
-                'task_id': task_id,
-                'status': 'CANCELLED',
-                'message': 'Task cancelled successfully'
-            }
-            
-        except Exception as e:
-            logger.error(f"Error cancelling task {task_id}: {e}")
-            return {
-                'task_id': task_id,
-                'status': 'ERROR',
-                'error': str(e)
-            }
+
     
     def _validate_providers(self, embedding_provider: str, vector_db_provider: str):
         """Validate that the specified providers are available"""
@@ -696,3 +565,205 @@ class CronJobService:
         except Exception as e:
             logger.error(f"Error saving paper {paper.arxiv_id} to SQL database: {e}")
             raise
+    
+    # History-related methods
+    def get_all_job_runs(self, skip: int = 0, limit: int = 100,
+                         status_filter: Optional[str] = None,
+                         job_id_filter: Optional[str] = None,
+                         start_date: Optional[str] = None,
+                         end_date: Optional[str] = None) -> List[JobRun]:
+        """Get all job runs across all cronjobs with filtering"""
+        try:
+            # Parse date strings to datetime objects
+            start_dt = None
+            end_dt = None
+            
+            if start_date:
+                try:
+                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                except ValueError:
+                    logger.warning(f"Invalid start_date format: {start_date}")
+            
+            if end_date:
+                try:
+                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                except ValueError:
+                    logger.warning(f"Invalid end_date format: {end_date}")
+            
+            return self.job_run_repo.get_all_runs(
+                skip=skip,
+                limit=limit,
+                status_filter=status_filter,
+                job_id_filter=job_id_filter,
+                start_date=start_dt,
+                end_date=end_dt
+            )
+        except Exception as e:
+            logger.error(f"Error getting all job runs: {e}")
+            raise ServiceError(f"Failed to get job runs: {str(e)}")
+    
+    def get_history_statistics(self, days: int = 30) -> Dict[str, Any]:
+        """Get historical statistics and trends"""
+        try:
+            # Get global statistics
+            global_stats = self.job_run_repo.get_global_statistics(days)
+            
+            # Get daily trends
+            daily_stats = self.job_run_repo.get_daily_stats(days)
+            
+            # Get job-specific statistics (top performers)
+            top_jobs = self._get_top_performing_jobs(days)
+            
+            return {
+                "global_statistics": global_stats,
+                "daily_trends": daily_stats,
+                "top_performing_jobs": top_jobs,
+                "period_summary": {
+                    "period_days": days,
+                    "start_date": (datetime.utcnow() - timedelta(days=days)).isoformat(),
+                    "end_date": datetime.utcnow().isoformat()
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error getting history statistics: {e}")
+            raise ServiceError(f"Failed to get history statistics: {str(e)}")
+    
+    def export_job_run_history(self, format: str = "csv",
+                               status_filter: Optional[str] = None,
+                               job_id_filter: Optional[str] = None,
+                               start_date: Optional[str] = None,
+                               end_date: Optional[str] = None):
+        """Export job run history in various formats"""
+        try:
+            # Get all matching job runs (no limit for export)
+            runs = self.get_all_job_runs(
+                skip=0, 
+                limit=10000,  # Large limit for export
+                status_filter=status_filter,
+                job_id_filter=job_id_filter,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            if format.lower() == "csv":
+                return self._export_to_csv(runs)
+            elif format.lower() == "json":
+                return self._export_to_json(runs)
+            else:
+                raise ValidationError(f"Unsupported export format: {format}")
+        except Exception as e:
+            logger.error(f"Error exporting job run history: {e}")
+            raise ServiceError(f"Failed to export history: {str(e)}")
+    
+    def _get_top_performing_jobs(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Get statistics for top performing jobs"""
+        try:
+            jobs = self.cronjob_repo.get_all()
+            job_stats = []
+            
+            for job in jobs:
+                stats = self.job_run_repo.get_job_statistics(job.id)
+                if stats['total_runs'] > 0:
+                    # Get recent activity for this job
+                    start_date = datetime.utcnow() - timedelta(days=days)
+                    recent_runs = self.job_run_repo.get_all_runs(
+                        job_id_filter=job.id,
+                        start_date=start_date,
+                        limit=100
+                    )
+                    
+                    recent_papers_processed = sum(run.papers_processed or 0 for run in recent_runs)
+                    
+                    job_stats.append({
+                        "job_id": job.id,
+                        "job_name": job.name,
+                        "total_runs": stats['total_runs'],
+                        "success_rate": stats['success_rate'],
+                        "recent_runs": len(recent_runs),
+                        "recent_papers_processed": recent_papers_processed,
+                        "enabled": job.enabled
+                    })
+            
+            # Sort by recent papers processed (descending) and success rate
+            job_stats.sort(key=lambda x: (x['recent_papers_processed'], x['success_rate']), reverse=True)
+            
+            return job_stats[:10]  # Top 10 jobs
+        except Exception as e:
+            logger.error(f"Error getting top performing jobs: {e}")
+            return []
+    
+    def _export_to_csv(self, runs: List[JobRun]) -> Dict[str, Any]:
+        """Export job runs to CSV format"""
+        import csv
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'ID', 'Job ID', 'Status', 'Started At', 'Completed At',
+            'Papers Found', 'Papers Processed', 'Papers Embedded',
+            'Embedding Errors', 'Vector DB Errors', 'Manual Trigger',
+            'Progress %', 'Current Step', 'Error Message'
+        ])
+        
+        # Write data
+        for run in runs:
+            writer.writerow([
+                str(run.id),
+                str(run.job_id),
+                run.status,
+                run.started_at.isoformat() if run.started_at else '',
+                run.completed_at.isoformat() if run.completed_at else '',
+                run.papers_found or 0,
+                run.papers_processed or 0,
+                run.papers_embedded or 0,
+                run.embedding_errors or 0,
+                run.vector_db_errors or 0,
+                run.manual_trigger or False,
+                run.progress_percentage or 0,
+                run.current_step or '',
+                run.error_message or ''
+            ])
+        
+        csv_content = output.getvalue()
+        output.close()
+        
+        return {
+            "content": csv_content,
+            "content_type": "text/csv",
+            "filename": f"job_runs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        }
+    
+    def _export_to_json(self, runs: List[JobRun]) -> Dict[str, Any]:
+        """Export job runs to JSON format"""
+        import json
+        
+        data = []
+        for run in runs:
+            data.append({
+                "id": str(run.id),
+                "job_id": str(run.job_id),
+                "status": run.status,
+                "started_at": run.started_at.isoformat() if run.started_at else None,
+                "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+                "papers_found": run.papers_found or 0,
+                "papers_processed": run.papers_processed or 0,
+                "papers_embedded": run.papers_embedded or 0,
+                "embedding_errors": run.embedding_errors or 0,
+                "vector_db_errors": run.vector_db_errors or 0,
+                "manual_trigger": run.manual_trigger or False,
+                "progress_percentage": run.progress_percentage or 0,
+                "current_step": run.current_step,
+                "error_message": run.error_message,
+                "execution_log": run.execution_log
+            })
+        
+        json_content = json.dumps(data, indent=2)
+        
+        return {
+            "content": json_content,
+            "content_type": "application/json",
+            "filename": f"job_runs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        }

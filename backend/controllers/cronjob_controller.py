@@ -84,20 +84,18 @@ class CronJobController:
     
     async def trigger_cronjob(self, job_id: str, request: JobTriggerRequest, 
                              background_tasks: BackgroundTasks) -> JobTriggerResponse:
-        """Manually trigger a cronjob execution using Celery"""
+        """Manually trigger a cronjob execution"""
         try:
-            result = self.cronjob_service.trigger_job(
+            job_run_id = self.cronjob_service.trigger_job(
                 job_id, 
                 background_tasks, 
-                request.force_reprocess,
-                user_params={'force_reprocess': request.force_reprocess}
+                request.force_reprocess
             )
             
             return JobTriggerResponse(
-                job_run_id="pending",  # Will be created by Celery task
-                task_id=result['task_id'],
-                status=result['status'],
-                message=f"Job execution queued successfully. Task ID: {result['task_id']}"
+                job_run_id=job_run_id,
+                status="started",
+                message="Job execution started in background"
             )
         except NotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e))
@@ -226,30 +224,68 @@ class CronJobController:
             updated_at=job.updated_at
         )
     
-    async def get_task_status(self, task_id: str) -> Dict[str, Any]:
-        """Get Celery task status and progress"""
+    # History-related methods
+    async def list_all_job_runs(
+        self, 
+        skip: int = 0, 
+        limit: int = 100,
+        status_filter: Optional[str] = None,
+        job_id_filter: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> List[JobRunResponse]:
+        """List job runs across all cronjobs with filtering"""
         try:
-            from models.schemas.cronjob import TaskStatusResponse
-            status = self.cronjob_service.get_task_status(task_id)
-            return TaskStatusResponse.model_validate(status).model_dump()
-        except Exception as e:
-            logger.error(f"Error getting task status: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    async def get_task_progress(self, task_id: str) -> Dict[str, Any]:
-        """Get detailed task progress information"""
-        try:
-            progress = self.cronjob_service.get_task_progress(task_id)
-            return progress
-        except Exception as e:
-            logger.error(f"Error getting task progress: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    async def cancel_task(self, task_id: str) -> Dict[str, Any]:
-        """Cancel a running Celery task"""
-        try:
-            result = self.cronjob_service.cancel_task(task_id)
+            runs = self.cronjob_service.get_all_job_runs(
+                skip, limit, status_filter, job_id_filter, start_date, end_date
+            )
+            result = []
+            for run in runs:
+                run_dict = {
+                    'id': str(run.id),
+                    'job_id': str(run.job_id),
+                    'task_id': run.task_id,
+                    'status': run.status,
+                    'started_at': run.started_at,
+                    'completed_at': run.completed_at,
+                    'progress_percentage': run.progress_percentage,
+                    'current_step': run.current_step,
+                    'manual_trigger': run.manual_trigger,
+                    'user_params': run.user_params,
+                    'papers_found': run.papers_found,
+                    'papers_processed': run.papers_processed,
+                    'papers_skipped': run.papers_skipped,
+                    'papers_embedded': run.papers_embedded,
+                    'embedding_errors': run.embedding_errors,
+                    'vector_db_errors': run.vector_db_errors,
+                    'error_message': run.error_message,
+                    'execution_log': run.execution_log
+                }
+                result.append(JobRunResponse.model_validate(run_dict))
             return result
-        except Exception as e:
-            logger.error(f"Error cancelling task: {e}")
+        except ServiceError as e:
             raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_history_stats(self, days: int = 30) -> Dict[str, Any]:
+        """Get historical statistics and trends"""
+        try:
+            return self.cronjob_service.get_history_statistics(days)
+        except ServiceError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def export_history(
+        self,
+        format: str = "csv",
+        status_filter: Optional[str] = None,
+        job_id_filter: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ):
+        """Export job run history in various formats"""
+        try:
+            return self.cronjob_service.export_job_run_history(
+                format, status_filter, job_id_filter, start_date, end_date
+            )
+        except ServiceError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    

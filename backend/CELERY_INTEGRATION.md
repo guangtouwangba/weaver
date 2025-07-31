@@ -126,7 +126,7 @@ redis-server --daemonize yes
 python manage_celery.py start --workers 2 --concurrency 2 --flower
 
 # Start FastAPI server
-python -m uvicorn api.server_new:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Option 3: Docker Compose
