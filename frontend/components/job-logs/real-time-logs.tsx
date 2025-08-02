@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   Play, 
   Pause, 
@@ -12,18 +13,19 @@ import {
   Search, 
   Filter,
   RefreshCw,
-  Terminal
+  Terminal,
+  ArrowDown,
+  Trash2,
+  WifiOff,
+  Wifi
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
-
-interface LogEntry {
-  id: string
-  timestamp: string
-  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR'
-  message: string
-  context?: Record<string, any>
-}
+import { formatDateTime } from "@/lib/utils"
+import { useJobLogs } from "@/lib/hooks/api-hooks"
+import { useWebSocketLogs } from "@/hooks/use-websocket-logs"
+import { VirtualLogViewer } from "./virtual-log-viewer"
+import type { LogEntry } from "@/lib/api"
 
 interface RealTimeLogsProps {
   jobId: string
@@ -31,106 +33,136 @@ interface RealTimeLogsProps {
   isRunning: boolean
 }
 
+const LOG_BUFFER_SIZE = 1000 // Maximum number of logs to keep in memory
+
 export function RealTimeLogs({ jobId, runId, isRunning }: RealTimeLogsProps) {
   const [logs, setLogs] = useState<LogEntry[]>([])
-  const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([])
-  const [isConnected, setIsConnected] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [levelFilter, setLevelFilter] = useState<string>("ALL")
   const [autoScroll, setAutoScroll] = useState(true)
+  const [showScrollButton, setShowScrollButton] = useState(false)
   
-  const wsRef = useRef<WebSocket | null>(null)
-  const logsEndRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when new logs arrive
-  useEffect(() => {
-    if (autoScroll && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+  // Fetch historical logs
+  const { 
+    data: historicalLogs, 
+    error: logsError, 
+    isLoading: logsLoading,
+    mutate: refreshLogs
+  } = useJobLogs(
+    jobId,
+    0,
+    500, // Get last 500 historical logs
+    levelFilter !== "ALL" ? levelFilter : undefined,
+    searchTerm || undefined
+  )
+
+  // WebSocket connection for real-time logs
+  const {
+    isConnected,
+    lastMessage,
+    connectionState,
+    reconnectCount,
+    connect,
+    disconnect
+  } = useWebSocketLogs({
+    jobId,
+    enabled: isRunning && !isPaused,
+    onMessage: (logEntry) => {
+      setLogs(prevLogs => {
+        const newLogs = [...prevLogs, logEntry]
+        // Keep buffer size under control
+        if (newLogs.length > LOG_BUFFER_SIZE) {
+          return newLogs.slice(-LOG_BUFFER_SIZE)
+        }
+        return newLogs
+      })
+    },
+    onConnect: () => {
+      console.log('WebSocket connected for real-time logs')
+      toast.success('Connected to live logs')
+    },
+    onDisconnect: () => {
+      console.log('WebSocket disconnected')
+    },
+    onError: (error) => {
+      console.error('WebSocket error:', error)
+      toast.error('Connection error - retrying...')
     }
-  }, [filteredLogs, autoScroll])
+  })
+
+  // Combine historical logs with real-time logs
+  const allLogs = useMemo(() => {
+    const historical = Array.isArray(historicalLogs) ? historicalLogs : []
+    const realTime = Array.isArray(logs) ? logs : []
+    
+    // Merge and deduplicate by id, sort by timestamp
+    const combined = [...historical, ...realTime]
+    const uniqueLogsMap = new Map()
+    
+    combined.forEach(log => {
+      if (log && log.id) {
+        uniqueLogsMap.set(log.id, log)
+      }
+    })
+    
+    return Array.from(uniqueLogsMap.values())
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+  }, [historicalLogs, logs])
 
   // Filter logs based on search term and level
-  useEffect(() => {
-    let filtered = logs
+  const filteredLogs = useMemo(() => {
+    let filtered = Array.isArray(allLogs) ? allLogs : []
 
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
       filtered = filtered.filter(log => 
-        log.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (log.context && JSON.stringify(log.context).toLowerCase().includes(searchTerm.toLowerCase()))
+        (log?.message?.toLowerCase?.() || '').includes(searchLower) ||
+        (log?.context && JSON.stringify(log.context).toLowerCase().includes(searchLower))
       )
     }
 
     if (levelFilter !== "ALL") {
-      filtered = filtered.filter(log => log.level === levelFilter)
+      filtered = filtered.filter(log => log?.level === levelFilter)
     }
 
-    setFilteredLogs(filtered)
-  }, [logs, searchTerm, levelFilter])
+    return filtered
+  }, [allLogs, searchTerm, levelFilter])
 
-  // Setup WebSocket connection for real-time logs
+  // Load historical logs when component mounts or filters change
   useEffect(() => {
-    if (!isRunning || !runId) return
+    refreshLogs()
+  }, [jobId, refreshLogs])
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = process.env.NEXT_PUBLIC_API_URL?.replace(/^https?:\/\//, '') || 'localhost:8000'
-    const wsUrl = `${protocol}//${host}/api/cronjobs/${jobId}/runs/${runId}/logs/stream`
-
-    try {
-      wsRef.current = new WebSocket(wsUrl)
-
-      wsRef.current.onopen = () => {
-        setIsConnected(true)
-        console.log('WebSocket connected for logs')
+  const handleTogglePause = useCallback(() => {
+    setIsPaused(prev => {
+      const newPaused = !prev
+      if (newPaused) {
+        disconnect()
+        toast.info('Live logs paused')
+      } else {
+        connect()
+        toast.info('Live logs resumed')
       }
+      return newPaused
+    })
+  }, [connect, disconnect])
 
-      wsRef.current.onmessage = (event) => {
-        if (isPaused) return
+  const handleToggleAutoScroll = useCallback(() => {
+    setAutoScroll(prev => !prev)
+  }, [])
 
-        try {
-          const logEntry: LogEntry = JSON.parse(event.data)
-          setLogs(prev => [...prev, logEntry])
-        } catch (error) {
-          console.error('Failed to parse log entry:', error)
-        }
-      }
+  const handleScrollToBottom = useCallback(() => {
+    // This will be handled by the VirtualLogViewer
+    setShowScrollButton(false)
+  }, [])
 
-      wsRef.current.onclose = () => {
-        setIsConnected(false)
-        console.log('WebSocket disconnected')
-      }
-
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        setIsConnected(false)
-      }
-    } catch (error) {
-      console.error('Failed to create WebSocket connection:', error)
-    }
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
-    }
-  }, [jobId, runId, isRunning, isPaused])
-
-  const handleScrollToBottom = () => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const handleToggleAutoScroll = () => {
-    setAutoScroll(!autoScroll)
-    if (!autoScroll) {
-      handleScrollToBottom()
-    }
-  }
-
-  const handleExportLogs = () => {
-    const logsText = filteredLogs.map(log => 
-      `[${format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss')}] ${log.level}: ${log.message}${
-        log.context ? '\n' + JSON.stringify(log.context, null, 2) : ''
+  const handleExportLogs = useCallback(() => {
+    const logsText = (Array.isArray(filteredLogs) ? filteredLogs : []).map(log => 
+      `[${formatDateTime(log?.timestamp || Date.now())}] ${log?.level || 'UNKNOWN'}: ${log?.message || ''}${
+        log?.context ? '\n' + JSON.stringify(log.context, null, 2) : ''
       }`
     ).join('\n\n')
 
@@ -145,32 +177,33 @@ export function RealTimeLogs({ jobId, runId, isRunning }: RealTimeLogsProps) {
     URL.revokeObjectURL(url)
     
     toast.success('Logs exported successfully')
-  }
+  }, [filteredLogs, jobId])
 
-  const handleClearLogs = () => {
+  const handleClearLogs = useCallback(() => {
     setLogs([])
-    toast.success('Logs cleared')
-  }
+    toast.success('Real-time logs cleared')
+  }, [])
 
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'DEBUG': return 'text-gray-500'
-      case 'INFO': return 'text-blue-600'
-      case 'WARNING': return 'text-yellow-600'
-      case 'ERROR': return 'text-red-600'
-      default: return 'text-gray-600'
+  const handleRefreshLogs = useCallback(() => {
+    refreshLogs()
+    toast.success('Historical logs refreshed')
+  }, [refreshLogs])
+
+  // Connection status info
+  const getConnectionStatusInfo = () => {
+    switch (connectionState) {
+      case 'connected':
+        return { icon: Wifi, color: 'text-green-500', text: 'Connected' }
+      case 'connecting':
+        return { icon: RefreshCw, color: 'text-yellow-500', text: 'Connecting...' }
+      case 'error':
+        return { icon: WifiOff, color: 'text-red-500', text: 'Connection Error' }
+      default:
+        return { icon: WifiOff, color: 'text-gray-500', text: 'Disconnected' }
     }
   }
 
-  const getLevelBadgeVariant = (level: string) => {
-    switch (level) {
-      case 'DEBUG': return 'secondary' as const
-      case 'INFO': return 'default' as const
-      case 'WARNING': return 'secondary' as const
-      case 'ERROR': return 'destructive' as const
-      default: return 'secondary' as const
-    }
-  }
+  const statusInfo = getConnectionStatusInfo()
 
   return (
     <Card className="h-full">
@@ -185,13 +218,33 @@ export function RealTimeLogs({ jobId, runId, isRunning }: RealTimeLogsProps) {
                 Live
               </Badge>
             )}
+            {connectionState === 'connecting' && (
+              <Badge variant="secondary" className="text-xs">
+                <RefreshCw className="w-2 h-2 mr-1 animate-spin" />
+                Connecting...
+              </Badge>
+            )}
+            {reconnectCount > 0 && (
+              <Badge variant="outline" className="text-xs">
+                Retry #{reconnectCount}
+              </Badge>
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsPaused(!isPaused)}
+              onClick={handleRefreshLogs}
+              disabled={logsLoading}
+            >
+              <RefreshCw className={`h-4 w-4 ${logsLoading ? 'animate-spin' : ''}`} />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTogglePause}
               disabled={!isRunning}
             >
               {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
@@ -206,11 +259,21 @@ export function RealTimeLogs({ jobId, runId, isRunning }: RealTimeLogsProps) {
               {autoScroll ? 'Disable Auto-scroll' : 'Enable Auto-scroll'}
             </Button>
             
+            {showScrollButton && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleScrollToBottom}
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+            )}
+            
             <Button
               variant="outline"
               size="sm"
               onClick={handleExportLogs}
-              disabled={logs.length === 0}
+              disabled={filteredLogs.length === 0}
             >
               <Download className="h-4 w-4 mr-1" />
               Export
@@ -222,7 +285,7 @@ export function RealTimeLogs({ jobId, runId, isRunning }: RealTimeLogsProps) {
               onClick={handleClearLogs}
               disabled={logs.length === 0}
             >
-              Clear
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -243,89 +306,73 @@ export function RealTimeLogs({ jobId, runId, isRunning }: RealTimeLogsProps) {
           
           <div className="flex items-center space-x-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <select
-              value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value)}
-              className="px-3 py-2 border border-input rounded-md text-sm"
-            >
-              <option value="ALL">All Levels</option>
-              <option value="DEBUG">Debug</option>
-              <option value="INFO">Info</option>
-              <option value="WARNING">Warning</option>
-              <option value="ERROR">Error</option>
-            </select>
+            <Select value={levelFilter} onValueChange={setLevelFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Levels</SelectItem>
+                <SelectItem value="DEBUG">Debug</SelectItem>
+                <SelectItem value="INFO">Info</SelectItem>
+                <SelectItem value="WARNING">Warning</SelectItem>
+                <SelectItem value="ERROR">Error</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </CardHeader>
       
       <CardContent className="p-0">
-        <div 
-          ref={containerRef}
-          className="h-96 overflow-y-auto bg-black text-green-400 font-mono text-sm p-4 space-y-1"
-          style={{ scrollBehavior: 'smooth' }}
-        >
-          {filteredLogs.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              {isRunning ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Waiting for logs...</span>
-                </div>
-              ) : (
-                <span>No logs available. Start a job to see real-time logs.</span>
-              )}
-            </div>
-          ) : (
-            filteredLogs.map((log, index) => (
-              <div key={`${log.id}-${index}`} className="flex items-start space-x-3 py-1">
-                <span className="text-gray-400 text-xs whitespace-nowrap">
-                  {format(new Date(log.timestamp), 'HH:mm:ss.SSS')}
-                </span>
-                
-                <Badge 
-                  variant={getLevelBadgeVariant(log.level)} 
-                  className="text-xs min-w-fit"
-                >
-                  {log.level}
-                </Badge>
-                
-                <div className="flex-1 min-w-0">
-                  <div className={`whitespace-pre-wrap break-words ${getLevelColor(log.level)}`}>
-                    {log.message}
-                  </div>
-                  
-                  {log.context && (
-                    <details className="mt-1">
-                      <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
-                        Context
-                      </summary>
-                      <pre className="text-xs text-gray-500 mt-1 pl-4 border-l border-gray-700">
-                        {JSON.stringify(log.context, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </div>
+        <div className="relative">
+          {logsLoading && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+              <div className="flex items-center space-x-2 text-white">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Loading logs...</span>
               </div>
-            ))
+            </div>
           )}
-          <div ref={logsEndRef} />
+          
+          {logsError && (
+            <div className="bg-red-900/20 border border-red-500/50 p-4 m-4 rounded">
+              <div className="text-red-400 text-sm">
+                Failed to load logs: {logsError.message}
+              </div>
+            </div>
+          )}
+          
+          <VirtualLogViewer
+            logs={filteredLogs}
+            height={400}
+            autoScroll={autoScroll}
+            onScrollToBottom={() => setShowScrollButton(false)}
+          />
         </div>
         
         {/* Status Bar */}
         <div className="flex items-center justify-between px-4 py-2 bg-muted/50 text-xs text-muted-foreground border-t">
           <div className="flex items-center space-x-4">
-            <span>{filteredLogs.length} log entries</span>
+            <span>{filteredLogs.length} log entries ({allLogs.length} total)</span>
             {searchTerm && (
               <span>Filtered by: "{searchTerm}"</span>
             )}
             {levelFilter !== "ALL" && (
               <span>Level: {levelFilter}</span>
             )}
+            {logs.length >= LOG_BUFFER_SIZE && (
+              <span className="text-yellow-600">Buffer limit reached</span>
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+            <statusInfo.icon className={`w-2 h-2 ${statusInfo.color} ${connectionState === 'connecting' ? 'animate-spin' : ''}`} />
+            <span>{statusInfo.text}</span>
+            {isRunning && !isPaused && (
+              <span className="text-green-600">• Live</span>
+            )}
+            {isPaused && (
+              <span className="text-yellow-600">• Paused</span>
+            )}
           </div>
         </div>
       </CardContent>

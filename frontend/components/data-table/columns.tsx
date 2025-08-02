@@ -183,9 +183,10 @@ export const columns: ColumnDef<CronjobData>[] = [
       }
 
       const handleRunNow = async () => {
+        let loadingToast: string | number | undefined
         try {
           // Show loading toast
-          const loadingToast = toast.loading("Starting job execution...")
+          loadingToast = toast.loading("Starting job execution...")
           
           // This will be passed from the parent component
           if (window.triggerCronJob) {
@@ -193,33 +194,14 @@ export const columns: ColumnDef<CronjobData>[] = [
             
             // Dismiss loading toast and show success
             toast.dismiss(loadingToast)
+            loadingToast = undefined
             
-            // Check if response has task_id (async execution)
-            if (response && response.task_id) {
-              toast.success("Job execution started", {
-                description: "Task is running in the background. View progress in job details.",
-                action: {
-                  label: "View Progress",
-                  onClick: () => {
-                    if (window.navigateToJobDetails) {
-                      window.navigateToJobDetails(job.id)
-                    }
-                  }
-                }
-              })
-            } else {
-              // Fallback for sync execution
-              toast.success("Job execution started", {
-                description: "You can view real-time progress in the job details page",
-                action: {
-                  label: "View Details",
-                  onClick: () => {
-                    if (window.navigateToJobDetails) {
-                      window.navigateToJobDetails(job.id)
-                    }
-                  }
-                }
-              })
+            // Show simple success message
+            toast.success("Job execution started")
+            
+            // Immediately navigate to job details
+            if (window.navigateToJobDetails) {
+              window.navigateToJobDetails(job.id)
             }
             
             // Refresh the page data after triggering
@@ -239,9 +221,14 @@ export const columns: ColumnDef<CronjobData>[] = [
             }, 1000)
           } else {
             toast.dismiss(loadingToast)
+            loadingToast = undefined
             toast.error("Trigger function not available")
           }
         } catch (error: any) {
+          // Ensure loading toast is dismissed on error
+          if (loadingToast !== undefined) {
+            toast.dismiss(loadingToast)
+          }
           console.error("Failed to trigger job:", error)
           toast.error(error.message || "Failed to start job execution")
         }

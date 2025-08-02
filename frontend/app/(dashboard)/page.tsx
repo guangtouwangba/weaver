@@ -21,6 +21,7 @@ import { formatNumber } from "@/lib/utils"
 import { useDashboardStats, useHealthStatus, useCronJobs, useCronJobMutations, useAvailableProviders } from "@/lib/hooks/api-hooks"
 import { formatDistanceToNow } from "date-fns"
 import { useState } from "react"
+import { toast } from "sonner"
 
 export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -31,7 +32,7 @@ export default function DashboardPage() {
   const { data: health, error: healthError, isLoading: healthLoading, mutate: mutateHealth } = useHealthStatus()
   const { data: jobs, error: jobsError, isLoading: jobsLoading, mutate: mutateCronJobs } = useCronJobs(0, 10) // Get first 10 jobs for recent jobs
   const { data: providers } = useAvailableProviders()
-  const { createCronJob } = useCronJobMutations()
+  const { createCronJob, triggerCronJob } = useCronJobMutations()
 
   const handleRefresh = async () => {
     setIsRefreshing(true)

@@ -15,8 +15,25 @@ import sys
 import logging
 from typing import Optional
 
-# Add project root to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add backend directory to Python path for imports
+current_file = os.path.abspath(__file__)
+backend_dir = os.path.dirname(current_file)
+
+# Add backend directory to path
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+# If running from project root (when main.py is in backend/), adjust path
+project_root = os.path.dirname(backend_dir)
+if os.path.basename(backend_dir) == 'backend':
+    # We're in the backend directory, add it to path
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+elif os.path.basename(os.getcwd()).endswith('research-agent-rag'):
+    # Running from project root, add backend to path
+    backend_path = os.path.join(os.getcwd(), 'backend')
+    if os.path.exists(backend_path) and backend_path not in sys.path:
+        sys.path.insert(0, backend_path)
 
 # Setup logging
 logging.basicConfig(

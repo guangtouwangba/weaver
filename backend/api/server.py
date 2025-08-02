@@ -91,6 +91,14 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(research_router)
 app.include_router(cronjob_router)
 
+# Add job log routes
+from routes.job_log_routes import router as job_log_router
+app.include_router(job_log_router)
+
+# Add Elasticsearch routes
+from routes.elasticsearch_routes import router as elasticsearch_router
+app.include_router(elasticsearch_router)
+
 
 # Error handlers
 @app.exception_handler(HTTPException)

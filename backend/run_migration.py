@@ -1,41 +1,76 @@
 #!/usr/bin/env python3
 """
-Simple script to run database migration
+Database migration script
 """
-import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sys
+import logging
+from pathlib import Path
 
-from database.database import get_database
+# Add backend directory to Python path
+backend_dir = Path(__file__).parent
+sys.path.insert(0, str(backend_dir))
+
+from database.database import init_database, get_database
+from core.dependencies import get_db_session
+from database.models import Base
+from config import Config
 from sqlalchemy import text
 
-def run_migration():
-    """Run the migration to add missing columns"""
-    db_manager = get_database()
-    
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def run_migrations():
+    """Run all database migrations"""
     try:
-        with db_manager.get_session() as session:
-            # Add task_id column
-            session.execute(text("ALTER TABLE job_runs ADD COLUMN IF NOT EXISTS task_id VARCHAR(255)"))
-            
-            # Add progress tracking columns
-            session.execute(text("ALTER TABLE job_runs ADD COLUMN IF NOT EXISTS progress_percentage INTEGER DEFAULT 0"))
-            session.execute(text("ALTER TABLE job_runs ADD COLUMN IF NOT EXISTS current_step VARCHAR(255)"))
-            
-            # Add manual trigger tracking columns
-            session.execute(text("ALTER TABLE job_runs ADD COLUMN IF NOT EXISTS manual_trigger BOOLEAN DEFAULT false"))
-            session.execute(text("ALTER TABLE job_runs ADD COLUMN IF NOT EXISTS user_params JSONB"))
-            
-            # Create indexes
-            session.execute(text("CREATE INDEX IF NOT EXISTS idx_job_runs_task_id ON job_runs(task_id)"))
-            session.execute(text("CREATE INDEX IF NOT EXISTS idx_job_runs_manual_trigger ON job_runs(manual_trigger)"))
-            
-            session.commit()
-            print("✅ Migration completed successfully")
-            
+        db_session = get_db_session()
+        
+        logger.info("Starting database migrations...")
+        
+        # Create all tables
+        Base.metadata.create_all(bind=db_session.bind)
+        logger.info("✓ All tables created successfully")
+        
+        # Run custom SQL migrations
+        run_sql_migrations(db_session)
+        
+        logger.info("✓ All migrations completed successfully")
+        
     except Exception as e:
-        print(f"❌ Migration failed: {e}")
-        raise
+        logger.error(f"Migration failed: {e}")
+        sys.exit(1)
+    finally:
+        db_session.close()
+
+def run_sql_migrations(db_session):
+    """Run SQL-based migrations"""
+    migrations_dir = backend_dir / "database" / "migrations"
+    
+    # Get all SQL migration files
+    sql_files = sorted([f for f in migrations_dir.glob("*.sql")])
+    
+    for sql_file in sql_files:
+        logger.info(f"Running migration: {sql_file.name}")
+        
+        try:
+            with open(sql_file, 'r') as f:
+                sql_content = f.read()
+            
+            # Split by semicolon and execute each statement
+            statements = [stmt.strip() for stmt in sql_content.split(';') if stmt.strip()]
+            
+            for statement in statements:
+                if statement:
+                    db_session.execute(text(statement))
+            
+            db_session.commit()
+            logger.info(f"✓ Migration {sql_file.name} completed")
+            
+        except Exception as e:
+            logger.error(f"Migration {sql_file.name} failed: {e}")
+            db_session.rollback()
+            raise
 
 if __name__ == "__main__":
-    run_migration() 
+    run_migrations() 

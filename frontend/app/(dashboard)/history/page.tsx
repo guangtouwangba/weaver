@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import { useAllJobRuns, useHistoryStats, useCronJobs, useHistoryExport } from "@/lib/hooks/api-hooks"
 import { formatDistanceToNow, format, parseISO, subDays } from "date-fns"
+import { formatDateTime, parseUTCDate, formatLocalDateTime } from "@/lib/utils"
 import { toast } from "sonner"
 import type { JobRun, HistoryFilters } from "@/lib/api"
 
@@ -99,7 +100,7 @@ export default function HistoryPage() {
   }
   
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       <Header 
         title="Execution History" 
         description="View and analyze job execution history and statistics"
@@ -133,7 +134,7 @@ export default function HistoryPage() {
         }
       />
       
-      <div className="flex-1 p-6 space-y-6 overflow-auto">
+      <div className="flex-1 p-6 space-y-6 overflow-y-auto min-h-0 scrollbar-thin">
         {/* Quick Stats Cards */}
         {historyStats && (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -266,7 +267,7 @@ export default function HistoryPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div>
                     <Label htmlFor="status-filter">Status</Label>
                     <Select 
@@ -302,6 +303,24 @@ export default function HistoryPage() {
                             {job.name}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="per-page">Per Page</Label>
+                    <Select 
+                      value={filters.limit.toString()} 
+                      onValueChange={(value) => handleFilterChange('limit', parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -342,62 +361,90 @@ export default function HistoryPage() {
                     ))}
                   </div>
                 ) : jobRuns && jobRuns.length > 0 ? (
-                  <div className="space-y-4">
-                    {jobRuns.map((run: JobRun) => (
-                      <div key={run.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            {getStatusIcon(run.status)}
-                            <Badge variant={
-                              run.status === 'completed' ? 'default' :
-                              run.status === 'running' ? 'secondary' :
-                              run.status === 'failed' ? 'destructive' : 'secondary'
-                            }>
-                              {run.status}
-                            </Badge>
-                            {run.manual_trigger && (
-                              <Badge variant="outline">Manual</Badge>
-                            )}
+                  <>
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin">
+                      {jobRuns.map((run: JobRun) => (
+                        <div key={run.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              {getStatusIcon(run.status)}
+                              <Badge variant={
+                                run.status === 'completed' ? 'default' :
+                                run.status === 'running' ? 'secondary' :
+                                run.status === 'failed' ? 'destructive' : 'secondary'
+                              }>
+                                {run.status}
+                              </Badge>
+                              {run.manual_trigger && (
+                                <Badge variant="outline">Manual</Badge>
+                              )}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {formatLocalDateTime(run.started_at, 'PPpp')}
+                            </span>
                           </div>
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(run.started_at), 'PPpp')}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Found:</span>
-                            <div className="font-medium">{run.papers_found}</div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Processed:</span>
-                            <div className="font-medium">{run.papers_processed}</div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Embedded:</span>
-                            <div className="font-medium">{run.papers_embedded}</div>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Duration:</span>
-                            <div className="font-medium">
-                              {run.completed_at ? 
-                                `${Math.round((new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000)}s` :
-                                run.status === 'running' ? 'Running...' : 'N/A'
-                              }
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Found:</span>
+                              <div className="font-medium">{run.papers_found}</div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Processed:</span>
+                              <div className="font-medium">{run.papers_processed}</div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Embedded:</span>
+                              <div className="font-medium">{run.papers_embedded}</div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Duration:</span>
+                              <div className="font-medium">
+                                {run.completed_at ? 
+                                  `${Math.round((parseUTCDate(run.completed_at).getTime() - parseUTCDate(run.started_at).getTime()) / 1000)}s` :
+                                  run.status === 'running' ? 'Running...' : 'N/A'
+                                }
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        {run.error_message && (
-                          <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded">
-                            <div className="text-sm text-destructive">
-                              <strong>Error:</strong> {run.error_message}
+                          
+                          {run.error_message && (
+                            <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded">
+                              <div className="text-sm text-destructive">
+                                <strong>Error:</strong> {run.error_message}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Pagination Controls */}
+                    <div className="flex items-center justify-between pt-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {filters.skip + 1} to {Math.min(filters.skip + filters.limit, filters.skip + (jobRuns?.length || 0))} 
+                        {jobRuns && jobRuns.length === filters.limit && ' of many'} results
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFilterChange('skip', Math.max(0, filters.skip - filters.limit))}
+                          disabled={filters.skip === 0}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFilterChange('skip', filters.skip + filters.limit)}
+                          disabled={!jobRuns || jobRuns.length < filters.limit}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     No job runs found for the selected filters
@@ -420,7 +467,7 @@ export default function HistoryPage() {
                       Showing trends for the last {statsPeriod} days
                     </div>
                     {/* Simple trend display - could be enhanced with a chart library */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin">
                       {historyStats.daily_trends.slice(-7).map((trend, index) => (
                         <div key={trend.date} className="flex items-center justify-between p-2 border rounded">
                           <div className="text-sm">
@@ -452,7 +499,7 @@ export default function HistoryPage() {
               </CardHeader>
               <CardContent>
                 {historyStats?.top_performing_jobs ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin">
                     {historyStats.top_performing_jobs.map((job, index) => (
                       <div key={job.job_id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-4">

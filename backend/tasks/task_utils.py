@@ -1,10 +1,27 @@
 """
-Utility functions for Celery tasks
+Task utilities for research agent
 """
+import os
+import sys
 import logging
-from typing import Dict, Any, Optional
+import asyncio
+import traceback
 from datetime import datetime, timedelta
-from celery.exceptions import Retry
+from typing import Dict, Any, Optional, List
+from pathlib import Path
+
+# Add backend directory to Python path
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
+
+from database.models import CronJob, JobRun, Paper
+from database.database import get_database
+from core.dependencies import get_db_session
+from repositories.cronjob_repository import CronJobRepository
+from repositories.job_run_repository import JobRunRepository
+from repositories.paper_repository import PaperRepository
+from services.cronjob_service import CronJobService
+from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +141,7 @@ def handle_task_error(task, exception: Exception, retry_policy: TaskRetryPolicy)
 def cleanup_task_resources(task_id: str) -> Dict[str, Any]:
     """Cleanup resources associated with a task"""
     try:
-        from database.database import get_db_session
+        from core.dependencies import get_db_session
         from repositories.job_run_repository import JobRunRepository
         
         with get_db_session() as db:
@@ -171,7 +188,7 @@ def validate_task_environment() -> Dict[str, Any]:
     
     try:
         # Test database connection
-        from database.database import get_db_session
+        from core.dependencies import get_db_session
         with get_db_session() as db:
             db.execute("SELECT 1").fetchone()
         validation_results['database'] = True

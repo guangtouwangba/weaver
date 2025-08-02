@@ -3,6 +3,7 @@
 # - PostgreSQL database
 # - Redis cache  
 # - Weaviate vector database
+# - Elasticsearch & Kibana for logging
 # - Admin tools (pgAdmin, Redis Commander)
 # - Monitoring (Prometheus)
 
@@ -17,7 +18,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-research_password}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d
@@ -68,6 +69,60 @@ services:
       test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 10s
       timeout: 5s
+      retries: 5
+    networks:
+      - research-network
+
+  # ===== LOGGING: ELASTICSEARCH =====
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: research-agent-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - cluster.name=research-agent-cluster
+      - node.name=research-agent-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    mem_limit: 1g
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+      - "${ELASTICSEARCH_TRANSPORT_PORT:-9300}:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - research-network
+
+  # ===== LOGGING: KIBANA =====
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: research-agent-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=research-agent-kibana
+      - SERVER_HOST=0.0.0.0
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
       retries: 5
     networks:
       - research-network
@@ -138,6 +193,9 @@ volumes:
     driver: local
   # Redis data
   redis_data:
+    driver: local
+  # Elasticsearch data
+  elasticsearch_data:
     driver: local
   # PgAdmin data
   pgadmin_data:

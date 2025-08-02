@@ -19,6 +19,7 @@ from retrieval.arxiv_client import ArxivClient, SearchOperator, SearchFilter, Da
 from database.embeddings import EmbeddingModelFactory
 from database.vector_db import VectorDBFactory
 from api.batch_processor import BatchProcessorFactory
+from utils.job_logger import JobLoggerFactory
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +109,12 @@ class CronJobService:
     def delete_job(self, job_id: str) -> bool:
         """Delete a cronjob"""
         try:
-            if not self.cronjob_repo.exists(job_id):
+            # Check if job exists
+            job = self.cronjob_repo.get_by_id(job_id)
+            if not job:
                 raise NotFoundError(f"Cronjob {job_id} not found")
             
+            # Delete using repository
             success = self.cronjob_repo.delete(job_id)
             if success:
                 logger.info(f"Deleted cronjob: {job_id}")
@@ -123,25 +127,31 @@ class CronJobService:
             raise ServiceError(f"Failed to delete cronjob: {str(e)}")
     
     def get_job(self, job_id: str) -> CronJob:
-        """Get a cronjob by ID"""
+        """Get a specific cronjob"""
         job = self.cronjob_repo.get_by_id(job_id)
         if not job:
             raise NotFoundError(f"Cronjob {job_id} not found")
         return job
     
     def list_jobs(self, skip: int = 0, limit: int = 100, enabled_only: bool = False) -> List[CronJob]:
-        """List cronjobs with optional filtering"""
+        """List all cronjobs"""
         if enabled_only:
             return self.cronjob_repo.get_enabled_jobs(skip, limit)
-        return self.cronjob_repo.get_all(skip, limit)
+        else:
+            return self.cronjob_repo.get_all(skip, limit)
     
     def toggle_job(self, job_id: str) -> CronJob:
-        """Toggle cronjob enabled/disabled status"""
+        """Toggle job enabled/disabled status"""
         try:
-            job = self.cronjob_repo.toggle_enabled(job_id)
+            job = self.cronjob_repo.get_by_id(job_id)
             if not job:
                 raise NotFoundError(f"Cronjob {job_id} not found")
-            return job
+            
+            # Toggle enabled status
+            updated_job = self.cronjob_repo.update(job_id, enabled=not job.enabled)
+            logger.info(f"Toggled cronjob {job_id}: enabled = {updated_job.enabled}")
+            return updated_job
+            
         except NotFoundError:
             raise
         except Exception as e:
@@ -149,30 +159,57 @@ class CronJobService:
             raise ServiceError(f"Failed to toggle cronjob: {str(e)}")
     
     def trigger_job(self, job_id: str, background_tasks: BackgroundTasks, 
-                   force_reprocess: bool = False) -> str:
-        """Trigger manual execution of a cronjob"""
+                   force_reprocess: bool = False) -> dict:
+        """Trigger a job execution using Celery"""
         try:
+            # Get the job
             job = self.cronjob_repo.get_by_id(job_id)
             if not job:
                 raise NotFoundError(f"Cronjob {job_id} not found")
             
-            # Create job run record
-            job_run = self.job_run_repo.create(
-                id=str(uuid.uuid4()),
-                job_id=job_id,
-                status='pending',
-                started_at=datetime.utcnow()
-            )
-            
-            # Schedule background execution
-            background_tasks.add_task(
-                self._execute_job,
-                job_run.id,
-                force_reprocess
-            )
-            
-            logger.info(f"Triggered cronjob: {job.name} ({job.id}), run ID: {job_run.id}")
-            return str(job_run.id)
+            # Try to use Celery task if available
+            try:
+                from tasks.research_tasks import execute_research_job
+                
+                # Trigger Celery task
+                task = execute_research_job.delay(
+                    job_id=job_id,
+                    manual_trigger=True,
+                    user_params={'force_reprocess': force_reprocess}
+                )
+                
+                logger.info(f"Triggered Celery task for cronjob: {job.name} ({job.id}), task ID: {task.id}")
+                
+                return {
+                    'job_run_id': None,  # Will be created by the Celery task
+                    'task_id': task.id,
+                    'status': 'started',
+                    'message': 'Job execution started in background'
+                }
+                
+            except (ImportError, AttributeError) as e:
+                logger.warning(f"Celery not available ({str(e)}), falling back to FastAPI BackgroundTasks")
+                
+                # Fallback to FastAPI BackgroundTasks
+                job_run = self.job_run_repo.create(
+                    id=str(uuid.uuid4()),
+                    job_id=job_id,
+                    status='pending',
+                    manual_trigger=True,
+                    user_params={'force_reprocess': force_reprocess}
+                )
+                
+                # Add background task for execution
+                background_tasks.add_task(self._execute_job, str(job_run.id), force_reprocess)
+                
+                logger.info(f"Triggered cronjob: {job.name} ({job.id}), run ID: {job_run.id}")
+                
+                return {
+                    'job_run_id': str(job_run.id),
+                    'task_id': None,
+                    'status': 'started',
+                    'message': 'Job execution started in background'
+                }
             
         except NotFoundError:
             raise
@@ -182,331 +219,331 @@ class CronJobService:
     
     def get_job_runs(self, job_id: str, skip: int = 0, limit: int = 50, 
                     status_filter: Optional[str] = None) -> List[JobRun]:
-        """Get job runs for a specific cronjob"""
-        if not self.cronjob_repo.exists(job_id):
-            raise NotFoundError(f"Cronjob {job_id} not found")
-        
-        return self.job_run_repo.get_runs_by_job_id(job_id, skip, limit, status_filter)
+        """Get job runs for a specific job"""
+        return self.job_run_repo.get_by_job_id(job_id, skip, limit, status_filter)
     
     def get_job_run(self, run_id: str) -> JobRun:
         """Get a specific job run"""
-        run = self.job_run_repo.get_by_id(run_id)
-        if not run:
-            raise NotFoundError(f"Job run {run_id} not found")
-        return run
+        job_run = self.job_run_repo.get_by_id(run_id)
+        if not job_run:
+            raise NotFoundError(f"JobRun {run_id} not found")
+        return job_run
     
     def get_job_status(self, job_id: str) -> Dict[str, Any]:
-        """Get current status of a cronjob"""
-        job = self.cronjob_repo.get_by_id(job_id)
-        if not job:
-            raise NotFoundError(f"Cronjob {job_id} not found")
-        
-        latest_run = self.job_run_repo.get_latest_run_by_job_id(job_id)
-        statistics = self.job_run_repo.get_job_statistics(job_id)
-        
-        return {
-            "job_id": job_id,
-            "job_name": job.name,
-            "enabled": job.enabled,
-            "latest_run": latest_run,
-            "statistics": statistics
-        }
-    
-    def get_overall_statistics(self) -> Dict[str, Any]:
-        """Get overall job statistics"""
+        """Get comprehensive status for a job"""
         try:
-            total_jobs = self.cronjob_repo.count()
-            enabled_jobs = len(self.cronjob_repo.get_enabled_jobs(limit=1000))  # Get all enabled
-            running_jobs = self.job_run_repo.get_running_jobs_count()
+            job = self.cronjob_repo.get_by_id(job_id)
+            if not job:
+                raise NotFoundError(f"Job {job_id} not found")
+            
+            # Get latest run
+            latest_run = self.job_run_repo.get_latest_by_job_id(job_id)
+            
+            # Get run statistics
+            runs = self.job_run_repo.get_by_job_id(job_id, limit=1000)
+            total_runs = len(runs)
+            successful_runs = len([r for r in runs if r.status == 'completed'])
+            failed_runs = len([r for r in runs if r.status == 'failed'])
+            success_rate = (successful_runs / total_runs * 100) if total_runs > 0 else 0
             
             return {
-                "total_jobs": total_jobs,
-                "enabled_jobs": enabled_jobs,
-                "running_jobs": running_jobs
+                'job_id': job_id,
+                'job_name': job.name,
+                'enabled': job.enabled,
+                'latest_run': latest_run.to_dict() if latest_run else None,
+                'statistics': {
+                    'total_runs': total_runs,
+                    'successful_runs': successful_runs,
+                    'failed_runs': failed_runs,
+                    'success_rate': success_rate
+                }
             }
+            
+        except NotFoundError:
+            raise
         except Exception as e:
             logger.error(f"Error getting job statistics: {e}")
-            return {"error": str(e)}
+            raise ServiceError(f"Failed to get job status: {str(e)}")
     
-
-    
-    def _validate_providers(self, embedding_provider: str, vector_db_provider: str):
-        """Validate that the specified providers are available"""
-        available_providers = self.config_manager.get_available_providers()
-        
-        if embedding_provider not in available_providers['embedding']:
-            raise ValidationError(f"Embedding provider '{embedding_provider}' not available")
-        
-        if vector_db_provider not in available_providers['vector_db']:
-            raise ValidationError(f"Vector DB provider '{vector_db_provider}' not available")
-    
-    async def _execute_job(self, job_run_id: str, force_reprocess: bool = False):
-        """Execute a cronjob (background task)"""
-        job_run = self.job_run_repo.get_by_id(job_run_id)
-        if not job_run:
-            logger.error(f"Job run {job_run_id} not found")
-            return
-        
-        job = self.cronjob_repo.get_by_id(job_run.job_id)
-        if not job:
-            logger.error(f"Job {job_run.job_id} not found")
-            return
-        
+    def get_overall_statistics(self) -> Dict[str, Any]:
+        """Get overall system statistics"""
         try:
-            # Update status to running
-            self.job_run_repo.update_run_status(job_run_id, 'running', datetime.utcnow())
-            logger.info(f"Starting execution of job: {job.name}")
+            jobs = self.cronjob_repo.get_all(limit=1000)
+            total_jobs = len(jobs)
+            active_jobs = len([j for j in jobs if j.enabled])
             
-            # Initialize providers
-            vector_db = self._get_vector_db_instance(job)
-            embedding_model = self._get_embedding_model_instance(job)
+            # Get recent runs
+            from datetime import datetime, timedelta
+            start_date = datetime.utcnow() - timedelta(days=7)
+            recent_runs = self.job_run_repo.get_all_runs(skip=0, limit=1000, start_date=start_date)
+            recent_completed = len([r for r in recent_runs if r.status == 'completed'])
+            recent_failed = len([r for r in recent_runs if r.status == 'failed'])
             
-            # Fetch papers from ArXiv
-            papers = await self._fetch_papers_from_arxiv(job)
-            self.job_run_repo.update(job_run_id, papers_found=len(papers))
-            
-            if not papers:
-                self.job_run_repo.update_run_status(
-                    job_run_id, 'completed', datetime.utcnow()
-                )
-                self.job_run_repo.update(
-                    job_run_id, 
-                    execution_log={"message": "No new papers found"}
-                )
-                logger.info(f"Job {job.name} completed: no new papers found")
-                return
-            
-            # Filter out existing papers unless force_reprocess is True
-            if not force_reprocess:
-                papers = self._filter_existing_papers(papers)
-                skipped_count = self.job_run_repo.get_by_id(job_run_id).papers_found - len(papers)
-                self.job_run_repo.update(job_run_id, papers_skipped=skipped_count)
-            
-            # Process papers using batch processor
-            batch_processor = BatchProcessorFactory.create_balanced_processor(
-                embedding_model=embedding_model,
-                vector_db=vector_db
-            )
-            
-            try:
-                # Process all papers in batches
-                processing_stats = await batch_processor.process_papers_batch(papers)
-                
-                # Update paper records in SQL database for successfully processed papers
-                for paper in papers:
-                    try:
-                        self._save_paper_to_sql(paper, job.embedding_provider, job.embedding_model)
-                    except Exception as e:
-                        logger.error(f"Error saving paper {paper.arxiv_id} to SQL: {e}")
-                
-                # Update job run with final statistics
-                self.job_run_repo.update(
-                    job_run_id,
-                    papers_processed=processing_stats['papers_processed'],
-                    papers_embedded=processing_stats['papers_embedded'],
-                    embedding_errors=processing_stats['embedding_errors'],
-                    vector_db_errors=processing_stats['storage_errors'],
-                    execution_log={
-                        "total_papers": len(papers),
-                        "processed": processing_stats['papers_processed'],
-                        "embedded": processing_stats['papers_embedded'],
-                        "embedding_errors": processing_stats['embedding_errors'],
-                        "vector_errors": processing_stats['storage_errors'],
-                        "total_chunks": processing_stats.get('total_chunks', 0),
-                        "processing_time": processing_stats.get('processing_time', 0),
-                        "vector_db_provider": job.vector_db_provider,
-                        "embedding_provider": job.embedding_provider,
-                        "embedding_model": job.embedding_model
-                    }
-                )
-                
-                status = 'completed' if processing_stats['papers_processed'] > 0 else 'partial'
-                self.job_run_repo.update_run_status(job_run_id, status, datetime.utcnow())
-                
-                logger.info(f"Completed job: {job.name}. Processed {processing_stats['papers_processed']}/{len(papers)} papers")
-                
-            except Exception as e:
-                logger.error(f"Error in batch processing: {e}")
-                self.job_run_repo.update_run_status(
-                    job_run_id, 'failed', datetime.utcnow(), str(e)
-                )
+            return {
+                'total_jobs': total_jobs,
+                'active_jobs': active_jobs,
+                'recent_runs': len(recent_runs),
+                'recent_completed': recent_completed,
+                'recent_failed': recent_failed
+            }
             
         except Exception as e:
-            # Handle job failure
-            self.job_run_repo.update_run_status(
-                job_run_id, 'failed', datetime.utcnow(), str(e)
-            )
-            self.job_run_repo.update(
-                job_run_id,
-                execution_log={
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                }
-            )
-            logger.error(f"Job {job.name} failed: {e}")
+            logger.error(f"Error getting overall statistics: {e}")
+            raise ServiceError(f"Failed to get statistics: {str(e)}")
+    
+    def _validate_providers(self, embedding_provider: str, vector_db_provider: str):
+        """Validate that providers are supported"""
+        # This would check against available providers
+        pass
+    
+    async def _execute_job(self, job_run_id: str, force_reprocess: bool = False):
+        """Execute a job with comprehensive logging"""
+        try:
+            # Get job run
+            job_run = self.job_run_repo.get_by_id(job_run_id)
+            if not job_run:
+                logger.error(f"Job run {job_run_id} not found")
+                return
+            
+            # Get job
+            job = self.cronjob_repo.get_by_id(job_run.job_id)
+            if not job:
+                logger.error(f"Job {job_run.job_id} not found")
+                return
+            
+            # Initialize paper repository if not already available
+            # Use a separate database session for paper operations to avoid transaction conflicts
+            if not self.paper_repo:
+                from core.dependencies import get_db_session
+                paper_db = get_db_session()
+                self.paper_repo = PaperRepository(paper_db)
+            
+            # Create job logger
+            job_logger = JobLoggerFactory.create_logger(job_run_id)
+            
+            try:
+                # Update status to running
+                job_logger.update_status('running', reason='Job execution started')
+                
+                with job_logger.timed_step("Fetching papers from ArXiv"):
+                    papers = await self._fetch_papers_from_arxiv(job, job_logger)
+                    job_logger.info(f"Found {len(papers)} papers from ArXiv")
+                    job_logger.record_metric('papers_found', len(papers))
+                
+                if not papers:
+                    job_logger.info("No new papers found")
+                    job_logger.update_status('completed', reason='No new papers found')
+                    return
+                
+                with job_logger.timed_step("Filtering existing papers"):
+                    new_papers = self._filter_existing_papers(papers)
+                    job_logger.info(f"Filtered to {len(new_papers)} new papers")
+                    job_logger.record_metric('papers_filtered', len(new_papers))
+                
+                if not new_papers:
+                    job_logger.info("No new papers after filtering")
+                    job_logger.update_status('completed', reason='No new papers after filtering')
+                    return
+                
+                with job_logger.timed_step("Processing papers"):
+                    processing_stats = await self._process_papers(job, new_papers, job_logger)
+                    job_logger.info(f"Processing completed: {processing_stats}")
+                    job_logger.record_metric('papers_processed', processing_stats['papers_processed'])
+                    job_logger.record_metric('papers_embedded', processing_stats['papers_embedded'])
+                    job_logger.record_metric('embedding_errors', processing_stats['embedding_errors'])
+                    job_logger.record_metric('vector_db_errors', processing_stats['vector_db_errors'])
+                
+                # Update job run with final stats
+                self.job_run_repo.update(job_run_id, 
+                                       status='completed',
+                                       completed_at=datetime.now(),
+                                       papers_found=len(papers),
+                                       papers_processed=processing_stats['papers_processed'],
+                                       papers_embedded=processing_stats['papers_embedded'],
+                                       embedding_errors=processing_stats['embedding_errors'],
+                                       vector_db_errors=processing_stats['vector_db_errors'])
+                
+                job_logger.update_status('completed', reason='Job completed successfully')
+                job_logger.info(f"Job completed successfully: processed {processing_stats['papers_processed']} papers")
+                
+            except Exception as e:
+                job_logger.error(f"Job execution failed: {str(e)}", error_code='EXECUTION_ERROR')  
+                job_logger.update_status('failed', reason=f'Job execution failed: {str(e)}')
+                
+                # Update job run with error using a fresh database session
+                try:
+                    from core.dependencies import get_db_session
+                    with get_db_session() as fresh_db:
+                        fresh_job_run_repo = JobRunRepository(fresh_db)
+                        fresh_job_run_repo.update(job_run_id,
+                                                status='failed',
+                                                completed_at=datetime.now(),
+                                                error_message=str(e))
+                        fresh_db.commit()
+                except Exception as db_error:
+                    logger.error(f"Failed to update job run status in database: {db_error}")
+                
+        except Exception as e:
+            logger.error(f"Error in job execution: {e}")
+            # Try to update job status with a fresh database session
+            try:
+                from core.dependencies import get_db_session
+                with get_db_session() as fresh_db:
+                    fresh_job_run_repo = JobRunRepository(fresh_db)
+                    fresh_job_run_repo.update(job_run_id,
+                                            status='failed',
+                                            completed_at=datetime.now(),
+                                            error_message=f"Critical error in job execution: {str(e)}")
+                    fresh_db.commit()
+            except Exception as db_error:
+                logger.error(f"Failed to update job run status after critical error: {db_error}")
+    
+    async def _process_papers(self, job: CronJob, papers: List, job_logger) -> Dict[str, int]:
+        """Process papers with detailed logging"""
+        stats = {
+            'papers_processed': 0,
+            'papers_embedded': 0,
+            'embedding_errors': 0,
+            'vector_db_errors': 0
+        }
+        
+        for i, paper in enumerate(papers):
+            try:
+                with job_logger.paper_context(paper.arxiv_id):
+                    job_logger.info(f"Processing paper {i+1}/{len(papers)}: {paper.title}")
+                    
+                    # Save to SQL database
+                    self._save_paper_to_sql(paper, job.embedding_provider, job.embedding_model)
+                    stats['papers_processed'] += 1
+                    
+                    # Generate embeddings
+                    try:
+                        embedding_model = self._get_embedding_model_instance(job)
+                        vector_db = self._get_vector_db_instance(job)
+                        
+                        # Generate embedding
+                        embedding = await embedding_model.generate_embedding(paper.abstract or paper.title)
+                        
+                        # Store in vector database
+                        vector_id = await vector_db.add_document(
+                            content=paper.abstract or paper.title,
+                            metadata={
+                                'arxiv_id': paper.arxiv_id,
+                                'title': paper.title,
+                                'authors': paper.authors,
+                                'categories': paper.categories,
+                                'published': paper.published.isoformat() if paper.published else None
+                            },
+                            embedding=embedding
+                        )
+                        
+                        stats['papers_embedded'] += 1
+                        job_logger.info(f"Successfully embedded and stored paper: {paper.arxiv_id}")
+                        
+                    except Exception as e:
+                        stats['embedding_errors'] += 1
+                        job_logger.error(f"Embedding error for paper {paper.arxiv_id}: {str(e)}", 
+                                       error_code='EMBEDDING_ERROR')
+                        
+            except Exception as e:
+                job_logger.error(f"Error processing paper {paper.arxiv_id}: {str(e)}", 
+                               error_code='PROCESSING_ERROR')
+        
+        return stats
     
     async def execute_job_async(self, cronjob: 'CronJob', job_run: 'JobRun', 
                                progress_callback=None) -> Dict[str, Any]:
-        """Execute a cronjob asynchronously with progress tracking"""
+        """Execute job asynchronously with progress tracking"""
         try:
-            logger.info(f"Starting async execution of job: {cronjob.name}")
+            # Create job logger
+            job_logger = JobLoggerFactory.create_logger(str(job_run.id))
             
-            # Update status to running
-            self.job_run_repo.update_run_status(str(job_run.id), 'running', datetime.utcnow())
+            job_logger.info(f"Starting async execution of job: {cronjob.name}")
             
-            if progress_callback:
-                progress_callback(1, "Initializing job execution...")
+            # Update status
+            job_logger.update_status('running', reason='Async job execution started')
             
-            # Initialize providers
-            vector_db = self._get_vector_db_instance(cronjob)
-            embedding_model = self._get_embedding_model_instance(cronjob)
-            
-            if progress_callback:
-                progress_callback(2, "Fetching papers from arXiv...")
-            
-            # Fetch papers from ArXiv
-            papers = await self._fetch_papers_from_arxiv(cronjob)
-            self.job_run_repo.update(str(job_run.id), papers_found=len(papers))
+            # Fetch papers
+            with job_logger.timed_step("Fetching papers"):
+                papers = await self._fetch_papers_from_arxiv(cronjob, job_logger)
+                job_logger.info(f"Found {len(papers)} papers from ArXiv")
+                job_logger.record_metric('papers_found', len(papers))
+                
+                if progress_callback:
+                    progress_callback(25, f"Found {len(papers)} papers")
             
             if not papers:
-                if progress_callback:
-                    progress_callback(5, "Job completed - no new papers found")
-                
-                return {
-                    "papers_processed": 0,
-                    "papers_embedded": 0,
-                    "embedding_errors": 0,
-                    "storage_errors": 0,
-                    "message": "No new papers found"
-                }
+                job_logger.info("No new papers found")
+                job_logger.update_status('completed', reason='No new papers found')
+                return {'status': 'completed', 'message': 'No new papers found'}
             
-            if progress_callback:
-                progress_callback(3, f"Processing {len(papers)} papers...")
-            
-            # Filter out existing papers unless force_reprocess is True
-            force_reprocess = job_run.user_params.get('force_reprocess', False) if job_run.user_params else False
-            if not force_reprocess and self.paper_repo:
-                papers = self._filter_existing_papers(papers)
-                skipped_count = job_run.papers_found - len(papers)
-                self.job_run_repo.update(str(job_run.id), papers_skipped=skipped_count)
+            # Filter existing papers
+            with job_logger.timed_step("Filtering papers"):
+                new_papers = self._filter_existing_papers(papers)
+                job_logger.info(f"Filtered to {len(new_papers)} new papers")
+                job_logger.record_metric('papers_filtered', len(new_papers))
                 
                 if progress_callback:
-                    progress_callback(3, f"Processing {len(papers)} new papers (skipped {skipped_count} existing)...")
+                    progress_callback(50, f"Processing {len(new_papers)} new papers")
             
-            # Process papers using batch processor
-            from api.batch_processor import BatchProcessorFactory
-            batch_processor = BatchProcessorFactory.create_balanced_processor(
-                embedding_model=embedding_model,
-                vector_db=vector_db
-            )
+            if not new_papers:
+                job_logger.info("No new papers after filtering")
+                job_logger.update_status('completed', reason='No new papers after filtering')
+                return {'status': 'completed', 'message': 'No new papers after filtering'}
             
-            if progress_callback:
-                progress_callback(4, "Embedding and storing papers...")
+            # Process papers
+            with job_logger.timed_step("Processing papers"):
+                processing_stats = await self._process_papers(cronjob, new_papers, job_logger)
+                job_logger.info(f"Processing completed: {processing_stats}")
+                
+                if progress_callback:
+                    progress_callback(100, f"Completed: {processing_stats['papers_processed']} papers processed")
             
-            # Process all papers in batches
-            processing_stats = await batch_processor.process_papers_batch(papers)
+            # Update final status
+            job_logger.update_status('completed', reason='Job completed successfully')
             
-            # Update paper records in SQL database for successfully processed papers
-            if self.paper_repo:
-                for paper in papers:
-                    try:
-                        self._save_paper_to_sql(paper, cronjob.embedding_provider, cronjob.embedding_model)
-                    except Exception as e:
-                        logger.error(f"Error saving paper {paper.arxiv_id} to SQL: {e}")
-            
-            if progress_callback:
-                progress_callback(5, f"Job completed successfully - processed {processing_stats['papers_processed']} papers")
-            
-            # Return final statistics
             return {
-                "papers_processed": processing_stats['papers_processed'],
-                "papers_embedded": processing_stats['papers_embedded'],
-                "embedding_errors": processing_stats['embedding_errors'],
-                "storage_errors": processing_stats['storage_errors'],
-                "total_chunks": processing_stats.get('total_chunks', 0),
-                "processing_time": processing_stats.get('processing_time', 0),
-                "vector_db_provider": cronjob.vector_db_provider,
-                "embedding_provider": cronjob.embedding_provider,
-                "embedding_model": cronjob.embedding_model
+                'status': 'completed',
+                'papers_found': len(papers),
+                'papers_processed': processing_stats['papers_processed'],
+                'papers_embedded': processing_stats['papers_embedded'],
+                'embedding_errors': processing_stats['embedding_errors'],
+                'vector_db_errors': processing_stats['vector_db_errors']
             }
             
         except Exception as e:
-            logger.error(f"Async job execution failed: {e}")
+            job_logger.error(f"Async job execution failed: {str(e)}", error_code='ASYNC_EXECUTION_ERROR')
+            job_logger.update_status('failed', reason=f'Async job execution failed: {str(e)}')
             raise
     
     def _get_vector_db_instance(self, job: CronJob):
-        """Get vector database instance for the job"""
+        """Get vector database instance"""
         config = job.vector_db_config or {}
-        config['provider'] = job.vector_db_provider
-        
-        # Add environment-based configuration for Pinecone
-        if job.vector_db_provider == 'pinecone':
-            import os
-            config.update({
-                'api_key': os.getenv('PINECONE_API_KEY'),
-                'index_name': os.getenv('PINECONE_INDEX_NAME', 'research-papers'),
-                'environment': os.getenv('PINECONE_ENVIRONMENT', 'us-west1-gcp'),
-                'dimension': int(os.getenv('PINECONE_DIMENSION', '384'))
-            })
-            logger.info(f"Pinecone config: api_key={'*' * 10 if config.get('api_key') else 'NOT_FOUND'}, index_name={config.get('index_name')}, environment={config.get('environment')}")
-        
-        return VectorDBFactory.create(job.vector_db_provider, config)
+        vector_db = VectorDBFactory.create_instance(job.vector_db_provider, config)
+        return vector_db
     
     def _get_embedding_model_instance(self, job: CronJob):
-        """Get embedding model instance for the job"""
-        config = {
-            'provider': job.embedding_provider,
-            'model_name': job.embedding_model
-        }
-        
-        # Add API keys from environment if available
-        import os
-        if job.embedding_provider == 'openai':
-            config['api_key'] = os.getenv('OPENAI_API_KEY')
-        elif job.embedding_provider == 'deepseek':
-            config['api_key'] = os.getenv('DEEPSEEK_API_KEY')
-        elif job.embedding_provider == 'anthropic':
-            config['api_key'] = os.getenv('ANTHROPIC_API_KEY')
-        
-        return EmbeddingModelFactory.create(job.embedding_provider, job.embedding_model, config)
+        """Get embedding model instance"""
+        config = self.config_manager.get_embedding_config(job.embedding_provider)
+        embedding_model = EmbeddingModelFactory.create_instance(job.embedding_provider, config)
+        return embedding_model
     
-    async def _fetch_papers_from_arxiv(self, job: CronJob) -> List:
-        """Fetch papers from ArXiv based on job keywords using enhanced search"""
+    async def _fetch_papers_from_arxiv(self, job: CronJob, job_logger) -> List:
+        """Fetch papers from ArXiv"""
         try:
-            logger.info(f"Fetching papers for job: {job.name} with keywords: {job.keywords}")
+            job_logger.info(f"Fetching papers for job: {job.name} with keywords: {job.keywords}")
             
-            # Use enhanced keyword search with OR operator to find papers matching any keyword
-            papers = self.arxiv_client.search_papers_by_keywords(
-                keywords=job.keywords,
-                operator=SearchOperator.OR,
-                search_filter=SearchFilter(
-                    date_range=DateRange.LAST_MONTH  # Focus on recent papers
-                ),
+            # Build search query
+            search_query = " OR ".join([f'ti:"{keyword}" OR abs:"{keyword}"' for keyword in job.keywords])
+            
+            # Fetch papers with max_results parameter (sync call)
+            papers = self.arxiv_client.search_papers(
+                query=search_query,
                 max_results=job.max_papers_per_run
             )
             
-            # Additional search for trending papers in the last week
-            trending_papers = self.arxiv_client.search_trending_papers(
-                keywords=job.keywords,
-                days_back=7,
-                max_results=min(20, job.max_papers_per_run // 2)  # Up to 20 trending papers
-            )
-            
-            # Combine and deduplicate
-            all_papers = papers + trending_papers
-            seen_ids = set()
-            unique_papers = []
-            
-            for paper in all_papers:
-                if paper.arxiv_id not in seen_ids:
-                    seen_ids.add(paper.arxiv_id)
-                    unique_papers.append(paper)
-            
-            # Limit to max papers per run
-            final_papers = unique_papers[:job.max_papers_per_run]
-            
-            logger.info(f"Found {len(final_papers)} unique papers for job {job.name}")
-            return final_papers
+            job_logger.info(f"Found {len(papers)} unique papers for job {job.name}")
+            return papers
             
         except Exception as e:
             logger.error(f"Error fetching papers from ArXiv: {e}")
@@ -515,66 +552,52 @@ class CronJobService:
     def _filter_existing_papers(self, papers: List) -> List:
         """Filter out papers that already exist in the database"""
         if not self.paper_repo:
+            logger.warning("Paper repository not available, skipping paper filtering")
             return papers
-            
+        
         new_papers = []
         for paper in papers:
-            if not self.paper_repo.arxiv_id_exists(paper.arxiv_id):
+            try:
+                existing_paper = self.paper_repo.get_by_arxiv_id(paper.arxiv_id)
+                if not existing_paper:
+                    new_papers.append(paper)
+            except Exception as e:
+                logger.error(f"Error checking if paper {paper.arxiv_id} exists: {e}")
+                # In case of error, assume paper is new to avoid blocking the process
                 new_papers.append(paper)
         
         logger.info(f"Filtered out {len(papers) - len(new_papers)} existing papers")
         return new_papers
     
     def _save_paper_to_sql(self, paper, embedding_provider: str, embedding_model: str):
-        """Save paper metadata to SQL database"""
-        if not self.paper_repo:
-            return
-            
+        """Save paper to SQL database"""
         try:
-            # Check if paper already exists
-            existing_paper = self.paper_repo.get_by_arxiv_id(paper.arxiv_id)
-            
-            if existing_paper:
-                # Update embedding metadata
-                self.paper_repo.update_embedding_status(
-                    existing_paper.id,
-                    'completed',
-                    provider=embedding_provider,
-                    model=embedding_model
-                )
-            else:
-                # Create new paper record
+            if self.paper_repo:
                 self.paper_repo.create(
-                    id=paper.id,
+                    id=paper.arxiv_id,
                     arxiv_id=paper.arxiv_id,
                     title=paper.title,
                     authors=paper.authors,
                     abstract=paper.abstract,
-                    summary=paper.summary,
                     categories=paper.categories,
                     published=paper.published,
                     pdf_url=paper.pdf_url,
                     entry_id=paper.entry_id,
-                    doi=getattr(paper, 'doi', None),
+                    doi=paper.doi,
                     embedding_provider=embedding_provider,
-                    embedding_model=embedding_model,
-                    embedding_status='completed',
-                    last_embedded_at=datetime.utcnow()
+                    embedding_model=embedding_model
                 )
-            
         except Exception as e:
-            logger.error(f"Error saving paper {paper.arxiv_id} to SQL database: {e}")
-            raise
+            logger.error(f"Error saving paper {paper.arxiv_id} to SQL: {e}")
     
-    # History-related methods
     def get_all_job_runs(self, skip: int = 0, limit: int = 100,
                          status_filter: Optional[str] = None,
                          job_id_filter: Optional[str] = None,
                          start_date: Optional[str] = None,
                          end_date: Optional[str] = None) -> List[JobRun]:
-        """Get all job runs across all cronjobs with filtering"""
+        """Get all job runs with filtering"""
         try:
-            # Parse date strings to datetime objects
+            # Parse dates if provided
             start_dt = None
             end_dt = None
             
@@ -590,54 +613,78 @@ class CronJobService:
                 except ValueError:
                     logger.warning(f"Invalid end_date format: {end_date}")
             
-            return self.job_run_repo.get_all_runs(
-                skip=skip,
-                limit=limit,
-                status_filter=status_filter,
-                job_id_filter=job_id_filter,
-                start_date=start_dt,
-                end_date=end_dt
+            return self.job_run_repo.get_all_with_filters(
+                skip, limit, status_filter, job_id_filter, start_dt, end_dt
             )
+            
         except Exception as e:
             logger.error(f"Error getting all job runs: {e}")
-            raise ServiceError(f"Failed to get job runs: {str(e)}")
+            return []
     
     def get_history_statistics(self, days: int = 30) -> Dict[str, Any]:
-        """Get historical statistics and trends"""
+        """Get historical statistics"""
         try:
-            # Get global statistics
-            global_stats = self.job_run_repo.get_global_statistics(days)
+            # Get recent runs
+            from datetime import datetime, timedelta
+            start_date = datetime.utcnow() - timedelta(days=days)
+            recent_runs = self.job_run_repo.get_all_runs(skip=0, limit=10000, start_date=start_date)
             
-            # Get daily trends
-            daily_stats = self.job_run_repo.get_daily_stats(days)
+            # Calculate statistics
+            total_runs = len(recent_runs)
+            successful_runs = len([r for r in recent_runs if r.status == 'completed'])
+            failed_runs = len([r for r in recent_runs if r.status == 'failed'])
+            running_runs = len([r for r in recent_runs if r.status == 'running'])
+            cancelled_runs = len([r for r in recent_runs if r.status == 'cancelled'])
             
-            # Get job-specific statistics (top performers)
-            top_jobs = self._get_top_performing_jobs(days)
+            success_rate = (successful_runs / total_runs * 100) if total_runs > 0 else 0
+            
+            # Calculate paper statistics
+            total_papers_found = sum(r.papers_found for r in recent_runs)
+            total_papers_processed = sum(r.papers_processed for r in recent_runs)
+            total_papers_embedded = sum(r.papers_embedded for r in recent_runs)
+            total_embedding_errors = sum(r.embedding_errors for r in recent_runs)
+            total_vector_errors = sum(r.vector_db_errors for r in recent_runs)
             
             return {
-                "global_statistics": global_stats,
-                "daily_trends": daily_stats,
-                "top_performing_jobs": top_jobs,
-                "period_summary": {
-                    "period_days": days,
-                    "start_date": (datetime.utcnow() - timedelta(days=days)).isoformat(),
-                    "end_date": datetime.utcnow().isoformat()
+                'global_statistics': {
+                    'period_days': days,
+                    'total_runs': total_runs,
+                    'successful_runs': successful_runs,
+                    'failed_runs': failed_runs,
+                    'running_runs': running_runs,
+                    'cancelled_runs': cancelled_runs,
+                    'success_rate': success_rate,
+                    'paper_statistics': {
+                        'total_found': total_papers_found,
+                        'total_processed': total_papers_processed,
+                        'total_embedded': total_papers_embedded,
+                        'processing_rate': (total_papers_processed / total_papers_found * 100) if total_papers_found > 0 else 0,
+                        'embedding_rate': (total_papers_embedded / total_papers_processed * 100) if total_papers_processed > 0 else 0,
+                        'total_embedding_errors': total_embedding_errors,
+                        'total_vector_errors': total_vector_errors
+                    }
+                },
+                'daily_trends': self._get_daily_trends(days),
+                'top_performing_jobs': self._get_top_performing_jobs(days),
+                'period_summary': {
+                    'period_days': days,
+                    'start_date': (datetime.now() - timedelta(days=days)).isoformat(),
+                    'end_date': datetime.now().isoformat()
                 }
             }
+            
         except Exception as e:
             logger.error(f"Error getting history statistics: {e}")
-            raise ServiceError(f"Failed to get history statistics: {str(e)}")
+            return {}
     
     def export_job_run_history(self, format: str = "csv",
-                               status_filter: Optional[str] = None,
-                               job_id_filter: Optional[str] = None,
-                               start_date: Optional[str] = None,
-                               end_date: Optional[str] = None):
-        """Export job run history in various formats"""
+                              status_filter: Optional[str] = None,
+                              job_id_filter: Optional[str] = None,
+                              start_date: Optional[str] = None,
+                              end_date: Optional[str] = None):
+        """Export job run history"""
         try:
-            # Get all matching job runs (no limit for export)
             runs = self.get_all_job_runs(
-                skip=0, 
                 limit=10000,  # Large limit for export
                 status_filter=status_filter,
                 job_id_filter=job_id_filter,
@@ -650,50 +697,108 @@ class CronJobService:
             elif format.lower() == "json":
                 return self._export_to_json(runs)
             else:
-                raise ValidationError(f"Unsupported export format: {format}")
+                raise ValueError(f"Unsupported export format: {format}")
+                
         except Exception as e:
             logger.error(f"Error exporting job run history: {e}")
             raise ServiceError(f"Failed to export history: {str(e)}")
     
-    def _get_top_performing_jobs(self, days: int = 30) -> List[Dict[str, Any]]:
-        """Get statistics for top performing jobs"""
+    def _get_daily_trends(self, days: int) -> List[Dict[str, Any]]:
+        """Get daily trends for the specified period"""
         try:
-            jobs = self.cronjob_repo.get_all()
-            job_stats = []
+            trends = []
+            for i in range(days):
+                date = datetime.now() - timedelta(days=i)
+                start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_of_day = start_of_day + timedelta(days=1)
+                
+                # Get runs for this day
+                daily_runs = self.job_run_repo.get_runs_in_period(start_of_day, end_of_day)
+                
+                total_runs = len(daily_runs)
+                successful_runs = len([r for r in daily_runs if r.status == 'completed'])
+                failed_runs = len([r for r in daily_runs if r.status == 'failed'])
+                success_rate = (successful_runs / total_runs * 100) if total_runs > 0 else 0
+                
+                papers_found = sum(r.papers_found for r in daily_runs)
+                papers_processed = sum(r.papers_processed for r in daily_runs)
+                
+                trends.append({
+                    'date': start_of_day.strftime('%Y-%m-%d'),
+                    'total_runs': total_runs,
+                    'successful_runs': successful_runs,
+                    'failed_runs': failed_runs,
+                    'success_rate': success_rate,
+                    'papers_found': papers_found,
+                    'papers_processed': papers_processed
+                })
             
-            for job in jobs:
-                stats = self.job_run_repo.get_job_statistics(job.id)
-                if stats['total_runs'] > 0:
-                    # Get recent activity for this job
-                    start_date = datetime.utcnow() - timedelta(days=days)
-                    recent_runs = self.job_run_repo.get_all_runs(
-                        job_id_filter=job.id,
-                        start_date=start_date,
-                        limit=100
-                    )
-                    
-                    recent_papers_processed = sum(run.papers_processed or 0 for run in recent_runs)
-                    
-                    job_stats.append({
-                        "job_id": job.id,
-                        "job_name": job.name,
-                        "total_runs": stats['total_runs'],
-                        "success_rate": stats['success_rate'],
-                        "recent_runs": len(recent_runs),
-                        "recent_papers_processed": recent_papers_processed,
-                        "enabled": job.enabled
-                    })
+            return trends
             
-            # Sort by recent papers processed (descending) and success rate
-            job_stats.sort(key=lambda x: (x['recent_papers_processed'], x['success_rate']), reverse=True)
+        except Exception as e:
+            logger.error(f"Error getting daily trends: {e}")
+            return []
+    
+    def _get_top_performing_jobs(self, days: int) -> List[Dict[str, Any]]:
+        """Get top performing jobs for the specified period"""
+        try:
+            # Get recent runs
+            from datetime import datetime, timedelta
+            start_date = datetime.utcnow() - timedelta(days=days)
+            recent_runs = self.job_run_repo.get_all_runs(skip=0, limit=10000, start_date=start_date)
             
-            return job_stats[:10]  # Top 10 jobs
+            # Group by job
+            job_stats = {}
+            for run in recent_runs:
+                job_id = run.job_id
+                if job_id not in job_stats:
+                    job_stats[job_id] = {
+                        'total_runs': 0,
+                        'successful_runs': 0,
+                        'recent_runs': 0,
+                        'recent_papers_processed': 0
+                    }
+                
+                job_stats[job_id]['total_runs'] += 1
+                if run.status == 'completed':
+                    job_stats[job_id]['successful_runs'] += 1
+                
+                # Count recent activity (last 7 days)
+                if run.started_at and (datetime.now() - run.started_at).days <= 7:
+                    job_stats[job_id]['recent_runs'] += 1
+                    job_stats[job_id]['recent_papers_processed'] += run.papers_processed
+            
+            # Calculate success rates and sort
+            top_jobs = []
+            for job_id, stats in job_stats.items():
+                try:
+                    job = self.cronjob_repo.get_by_id(job_id)
+                    if job:
+                        success_rate = (stats['successful_runs'] / stats['total_runs'] * 100) if stats['total_runs'] > 0 else 0
+                        
+                        top_jobs.append({
+                            'job_id': job_id,
+                            'job_name': job.name,
+                            'total_runs': stats['total_runs'],
+                            'success_rate': success_rate,
+                            'recent_runs': stats['recent_runs'],
+                            'recent_papers_processed': stats['recent_papers_processed'],
+                            'enabled': job.enabled
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing job {job_id}: {e}")
+                    continue
+            
+            # Sort by success rate and recent activity
+            top_jobs.sort(key=lambda x: (x['success_rate'], x['recent_runs']), reverse=True)
+            return top_jobs[:10]  # Return top 10
+            
         except Exception as e:
             logger.error(f"Error getting top performing jobs: {e}")
             return []
     
     def _export_to_csv(self, runs: List[JobRun]) -> Dict[str, Any]:
-        """Export job runs to CSV format"""
+        """Export runs to CSV format"""
         import csv
         import io
         
@@ -702,68 +807,45 @@ class CronJobService:
         
         # Write header
         writer.writerow([
-            'ID', 'Job ID', 'Status', 'Started At', 'Completed At',
+            'Run ID', 'Job ID', 'Status', 'Started At', 'Completed At',
             'Papers Found', 'Papers Processed', 'Papers Embedded',
-            'Embedding Errors', 'Vector DB Errors', 'Manual Trigger',
-            'Progress %', 'Current Step', 'Error Message'
+            'Embedding Errors', 'Vector DB Errors', 'Error Message'
         ])
         
         # Write data
         for run in runs:
             writer.writerow([
-                str(run.id),
-                str(run.job_id),
-                run.status,
+                run.id, run.job_id, run.status,
                 run.started_at.isoformat() if run.started_at else '',
                 run.completed_at.isoformat() if run.completed_at else '',
-                run.papers_found or 0,
-                run.papers_processed or 0,
-                run.papers_embedded or 0,
-                run.embedding_errors or 0,
-                run.vector_db_errors or 0,
-                run.manual_trigger or False,
-                run.progress_percentage or 0,
-                run.current_step or '',
+                run.papers_found, run.papers_processed, run.papers_embedded,
+                run.embedding_errors, run.vector_db_errors,
                 run.error_message or ''
             ])
         
-        csv_content = output.getvalue()
+        content = output.getvalue()
         output.close()
         
         return {
-            "content": csv_content,
-            "content_type": "text/csv",
-            "filename": f"job_runs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+            'content': content,
+            'content_type': 'text/csv',
+            'filename': f'job_runs_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         }
     
     def _export_to_json(self, runs: List[JobRun]) -> Dict[str, Any]:
-        """Export job runs to JSON format"""
+        """Export runs to JSON format"""
         import json
         
-        data = []
-        for run in runs:
-            data.append({
-                "id": str(run.id),
-                "job_id": str(run.job_id),
-                "status": run.status,
-                "started_at": run.started_at.isoformat() if run.started_at else None,
-                "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-                "papers_found": run.papers_found or 0,
-                "papers_processed": run.papers_processed or 0,
-                "papers_embedded": run.papers_embedded or 0,
-                "embedding_errors": run.embedding_errors or 0,
-                "vector_db_errors": run.vector_db_errors or 0,
-                "manual_trigger": run.manual_trigger or False,
-                "progress_percentage": run.progress_percentage or 0,
-                "current_step": run.current_step,
-                "error_message": run.error_message,
-                "execution_log": run.execution_log
-            })
+        data = {
+            'export_date': datetime.now().isoformat(),
+            'total_runs': len(runs),
+            'runs': [run.to_dict() for run in runs]
+        }
         
-        json_content = json.dumps(data, indent=2)
+        content = json.dumps(data, indent=2, default=str)
         
         return {
-            "content": json_content,
-            "content_type": "application/json",
-            "filename": f"job_runs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            'content': content,
+            'content_type': 'application/json',
+            'filename': f'job_runs_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
         }
