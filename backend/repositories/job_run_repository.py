@@ -33,6 +33,24 @@ class JobRunRepository(BaseRepository[JobRun]):
             JobRun.job_id == job_id
         ).order_by(desc(JobRun.started_at)).first()
     
+    # Alias methods for service compatibility
+    def get_by_job_id(self, job_id: str, skip: int = 0, 
+                     limit: int = 50, status_filter: Optional[str] = None) -> List[JobRun]:
+        """Alias for get_runs_by_job_id"""
+        return self.get_runs_by_job_id(job_id, skip, limit, status_filter)
+    
+    def get_latest_by_job_id(self, job_id: str) -> Optional[JobRun]:
+        """Alias for get_latest_run_by_job_id"""
+        return self.get_latest_run_by_job_id(job_id)
+    
+    def get_all_with_filters(self, skip: int = 0, limit: int = 100,
+                            status_filter: Optional[str] = None,
+                            job_id_filter: Optional[str] = None,
+                            start_date: Optional[datetime] = None,
+                            end_date: Optional[datetime] = None) -> List[JobRun]:
+        """Alias for get_all_runs with filtering"""
+        return self.get_all_runs(skip, limit, status_filter, job_id_filter, start_date, end_date)
+    
     def get_runs_by_status(self, status: str, skip: int = 0, limit: int = 100) -> List[JobRun]:
         """Get job runs by status"""
         return self.session.query(JobRun).filter(

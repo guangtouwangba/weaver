@@ -1,94 +1,31 @@
-.PHONY: help install install-dev setup clean lint format test test-cov run-web run-cli run-demo run-api run-frontend run-fullstack build docs docker-build docker-run update-deps check-deps security-check
+# Research Agent RAG System Makefile
 
-# Colors for output
-RED := \033[0;31m
-GREEN := \033[0;32m
-YELLOW := \033[0;33m
-BLUE := \033[0;34m
-MAGENTA := \033[0;35m
-CYAN := \033[0;36m
-NC := \033[0m # No Color
+# Directory variables
+FRONTEND_DIR = frontend
 
-# Project structure
-BACKEND_DIR := backend
-FRONTEND_DIR := frontend
-INFRA_DIR := infra
+# Color variables for output
+BLUE = \033[0;34m
+GREEN = \033[0;32m
+YELLOW = \033[0;33m
+NC = \033[0m
 
-# Default target
-help: ## Show this help message
-	@echo "$(CYAN)Research Agent RAG System - Makefile Commands$(NC)"
-	@echo "=================================================="
+.PHONY: help setup start start-dev stop status test-celery
+
+help:
+	@echo "🚀 Research Agent RAG System - 可用命令:"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(YELLOW)Quick Start:$(NC)"
-	@echo "  1. make setup        - Complete project setup"
-	@echo "  2. make run-demo     - Run demonstration"
-	@echo "  3. make run-api      - Launch FastAPI server"
-	@echo "  4. make run-frontend - Launch modern UI"
-	@echo "  5. make run-fullstack- Launch both backend + frontend"
-	@echo ""
+	@echo "  setup           - 初始化环境配置"
+	@echo "  start           - 启动完整系统 (包括Celery)"
+	@echo "  start-dev       - 启动开发环境"
+	@echo "  stop            - 停止所有服务"
+	@echo "  status          - 查看服务状态"
+	@echo "  test-celery     - 测试Celery配置"
 
-# Installation and Setup
-install: ## Install production dependencies
-	@echo "$(BLUE)Installing production dependencies...$(NC)"
-	poetry install --only=main
-	@echo "$(GREEN)✓ Production dependencies installed$(NC)"
-
-install-dev: ## Install all dependencies including development tools
-	@echo "$(BLUE)Installing all dependencies...$(NC)"
-	@if ! poetry install --with=dev --extras=all 2>/dev/null; then \
-		echo "$(YELLOW)⚠ Standard install failed, trying fallback approach...$(NC)"; \
-		make fix-onnxruntime; \
-	else \
-		echo "$(GREEN)✓ All dependencies installed successfully$(NC)"; \
-	fi
-
-fix-onnxruntime: ## Fix onnxruntime compatibility issues
-	@echo "$(BLUE)Fixing onnxruntime compatibility issues...$(NC)"
-	@echo "$(YELLOW)Removing lock file and trying clean install...$(NC)"
-	@rm -f poetry.lock
-	@echo "$(BLUE)Installing with CPU-only dependencies...$(NC)"
-	@poetry install --with=dev --extras=all --no-deps || true
-	@echo "$(BLUE)Installing sentence-transformers with CPU backend...$(NC)"
-	@poetry run pip install --upgrade pip
-	@poetry run pip install sentence-transformers==2.5.1
-	@echo "$(BLUE)Installing remaining dependencies...$(NC)"
-	@poetry install --with=dev --extras=all || echo "$(YELLOW)⚠ Some optional dependencies may have failed$(NC)"
-	@echo "$(GREEN)✓ Dependencies installation completed with workarounds$(NC)"
-
-setup: install-dev setup-env setup-git ## Complete project setup (install deps, setup env, git hooks)
-	@echo "$(GREEN)✓ Project setup complete!$(NC)"
-	@echo ""
-	@echo "$(YELLOW)Next steps:$(NC)"
-	@echo "  1. Edit .env file and add your API keys"
-	@echo "  2. Run 'make run-demo' to test the system"
-	@echo "  3. Run 'make run-api' to start the FastAPI server"
-	@echo "  4. Run 'make run-frontend' to launch the modern UI"
-
-setup-env: ## Setup environment file
-	@echo "$(BLUE)Setting up environment...$(NC)"
+setup:
+	@echo "📋 初始化环境配置..."
 	@if [ ! -f .env ]; then \
-		cp $(INFRA_DIR)/.env.development .env; \
-		echo "$(YELLOW)⚠ Created .env file from template. Please add your API keys!$(NC)"; \
-	else \
-		echo "$(GREEN)✓ .env file already exists$(NC)"; \
-	fi
-	@mkdir -p data/vector_db
-	@mkdir -p logs
-	@echo "$(GREEN)✓ Environment setup complete$(NC)"
-
-setup-git: ## Setup git hooks and pre-commit
-	@echo "$(BLUE)Setting up git hooks...$(NC)"
-	@if command -v git >/dev/null 2>&1; then \
-		if [ -d .git ]; then \
-			poetry run pre-commit install; \
-			echo "$(GREEN)✓ Git hooks installed$(NC)"; \
-		else \
-			echo "$(YELLOW)⚠ Not a git repository, skipping git hooks$(NC)"; \
-		fi \
-	else \
-		echo "$(YELLOW)⚠ Git not found, skipping git hooks$(NC)"; \
+		cp infra/docker/env.template .env; \
+		echo "✅ 创建了 .env 文件"; \
 	fi
 
 # Development Tools
@@ -347,57 +284,23 @@ logs: ## Show application logs
 	@echo "$(BLUE)Showing logs...$(NC)"
 	tail -f logs/*.log
 
-status: ## Show application status
-	@echo "$(BLUE)Application Status:$(NC)"
-	@echo "$(CYAN)Backend:$(NC)"
-	@curl -s http://localhost:8000/health || echo "$(RED)Backend not running$(NC)"
-	@echo "$(CYAN)Frontend:$(NC)"
-	@curl -s http://localhost:3000 > /dev/null && echo "$(GREEN)Frontend running$(NC)" || echo "$(RED)Frontend not running$(NC)"
+start: setup
+	@echo "🚀 启动完整系统..."
+	@docker-compose -f infra/docker/docker-compose.middleware.yml up -d
+	@sleep 20
+	@docker-compose -f infra/docker/docker-compose.yml up -d
 
-# Configuration
-config: ## Run configuration manager
-	@echo "$(BLUE)Running configuration manager...$(NC)"
-	poetry run python backend/config_manager.py
+start-dev: setup
+	@echo "🔧 启动开发环境..."
+	@docker-compose -f infra/docker/docker-compose.middleware.yml up -d postgres redis
 
-# Quick development
-dev: run-fullstack ## Quick development setup (alias for run-fullstack)
-	@echo "$(GREEN)✓ Development environment ready$(NC)"
+stop:
+	@docker-compose -f infra/docker/docker-compose.yml down
+	@docker-compose -f infra/docker/docker-compose.middleware.yml down
 
-# Production
-prod: build deploy-docker ## Production deployment
-	@echo "$(GREEN)✓ Production deployment complete$(NC)"
+status:
+	@docker-compose -f infra/docker/docker-compose.middleware.yml ps
+	@docker-compose -f infra/docker/docker-compose.yml ps
 
-# ===== Zeabur Deployment =====
-zeabur-deploy-backend: ## Deploy backend to Zeabur
-	@echo "$(BLUE)🚀 Deploying backend to Zeabur...$(NC)"
-	@echo "$(YELLOW)Make sure you have configured environment variables in Zeabur console$(NC)"
-	@echo "$(CYAN)Dockerfile: backend/Dockerfile$(NC)"
-	@echo "$(CYAN)Service name: backend$(NC)"
-	@echo "$(GREEN)✓ Backend deployment instructions ready$(NC)"
-
-zeabur-deploy-frontend: ## Deploy frontend to Zeabur
-	@echo "$(BLUE)🚀 Deploying frontend to Zeabur...$(NC)"
-	@echo "$(YELLOW)Make sure you have configured environment variables in Zeabur console$(NC)"
-	@echo "$(CYAN)Dockerfile: frontend/Dockerfile$(NC)"
-	@echo "$(CYAN)Service name: frontend$(NC)"
-	@echo "$(GREEN)✓ Frontend deployment instructions ready$(NC)"
-
-zeabur-deploy-all: zeabur-deploy-backend zeabur-deploy-frontend ## Deploy both services to Zeabur
-	@echo "$(GREEN)✅ Both services ready for Zeabur deployment$(NC)"
-	@echo "$(YELLOW)📋 Next steps:$(NC)"
-	@echo "1. Configure environment variables in Zeabur console"
-	@echo "2. Set API_BASE_URL to point to your backend service"
-	@echo "3. Check service health in Zeabur dashboard"
-	@echo "4. See ZEABUR_DEPLOYMENT.md for detailed instructions"
-
-zeabur-status: ## Show Zeabur deployment status
-	@echo "$(BLUE)📊 Zeabur Deployment Status$(NC)"
-	@echo "$(CYAN)Backend:$(NC) backend/Dockerfile"
-	@echo "$(CYAN)Frontend:$(NC) frontend/Dockerfile"
-	@echo "$(CYAN)Config:$(NC) zbpack.json"
-	@echo "$(CYAN)Guide:$(NC) ZEABUR_DEPLOYMENT.md"
-
-zeabur-clean: ## Clean up Zeabur deployment files
-	@echo "$(BLUE)🧹 Cleaning up Zeabur deployment files...$(NC)"
-	@rm -f zbpack.json
-	@echo "$(GREEN)✅ Cleaned up Zeabur configuration$(NC)"
+test-celery:
+	@python test-celery.py

@@ -339,6 +339,48 @@ class ConfigManager:
             logger.error(f"Error saving embedding configuration: {e}")
             return False
     
+    def get_embedding_config(self, provider: str) -> Dict[str, Any]:
+        """Get embedding configuration for a specific provider"""
+        if not self._embedding_configs:
+            self.load_embedding_configs()
+        
+        # Look for a config that matches the provider
+        for config_name, config in self._embedding_configs.items():
+            if config.provider == provider:
+                return config.config
+        
+        # If not found, return default configuration based on provider
+        if provider == 'openai':
+            return {
+                "model_name": "text-embedding-3-small",
+                "api_key": os.getenv("OPENAI_API_KEY", ""),
+                "batch_size": 100
+            }
+        elif provider == 'huggingface':
+            return {
+                "model_name": "all-MiniLM-L6-v2",
+                "batch_size": 32
+            }
+        elif provider == 'deepseek':
+            return {
+                "model_name": "deepseek-embedding",
+                "api_key": os.getenv("DEEPSEEK_API_KEY", ""),
+                "base_url": "https://api.deepseek.com/v1",
+                "batch_size": 100
+            }
+        elif provider == 'anthropic':
+            return {
+                "model_name": "claude-3-haiku-20240307",
+                "api_key": os.getenv("ANTHROPIC_API_KEY", ""),
+                "batch_size": 50
+            }
+        else:
+            # Return huggingface as fallback
+            return {
+                "model_name": "all-MiniLM-L6-v2",
+                "batch_size": 32
+            }
+    
     def get_available_providers(self) -> Dict[str, List[str]]:
         """Get available providers for vector databases and embeddings"""
         return {

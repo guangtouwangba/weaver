@@ -160,6 +160,38 @@ async def get_job_run(
     """Get details of a specific job run"""
     return await controller.get_job_run(run_id)
 
+# Task management endpoints
+@router.get("/tasks/{task_id}/status")
+async def get_task_status(
+    task_id: str,
+    controller: CronJobController = Depends(get_cronjob_controller)
+):
+    """Get Celery task status"""
+    return await controller.get_task_status(task_id)
+
+@router.get("/tasks/{task_id}/progress")
+async def get_task_progress(
+    task_id: str,
+    controller: CronJobController = Depends(get_cronjob_controller)
+):
+    """Get Celery task progress"""
+    return await controller.get_task_progress(task_id)
+
+@router.post("/tasks/{task_id}/cancel")
+async def cancel_task(
+    task_id: str,
+    controller: CronJobController = Depends(get_cronjob_controller)
+):
+    """Cancel a running Celery task"""
+    return await controller.cancel_task(task_id)
+
+@router.get("/tasks/health-check")
+async def task_health_check(
+    controller: CronJobController = Depends(get_cronjob_controller)
+):
+    """Check Celery worker health"""
+    return await controller.task_health_check()
+
 
 @router.get("/providers/available")
 async def get_available_providers():

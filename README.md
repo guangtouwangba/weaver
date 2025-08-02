@@ -2,6 +2,38 @@
 
 一个基于多智能体的研究论文分析和讨论系统，支持多种 LLM 提供商（OpenAI、DeepSeek、Anthropic）。
 
+## ✨ 产品功能亮点
+
+### 🎯 AI协作研究台
+- **智能论文检索**: 基于ArXiv API的实时论文搜索和相关性评分
+- **多AI代理协作**: MIT研究员、Google工程师、行业专家、论文分析师四大专业AI助手
+- **实时讨论分析**: AI代理间的协作讨论，展示不同视角的深度分析
+- **研究工作流**: 从问题提出到报告生成的完整研究流程
+
+### 📚 智能论文库
+- **论文收藏管理**: 支持分类、标签、评分的个人论文库
+- **AI深度分析**: 每篇论文的多维度AI分析和洞察
+- **引用网络**: 论文间关系和引用分析可视化
+- **批量导入**: 支持多种格式的论文批量导入
+
+### 📊 研究项目管理
+- **项目生命周期**: 从创建到完成的全流程项目跟踪
+- **进度可视化**: 实时项目进度和AI代理工作状态
+- **协作功能**: 支持团队协作和研究成果分享
+- **版本控制**: 研究过程和结果的版本管理
+
+### 📄 智能报告生成
+- **自动化报告**: 基于AI分析结果的研究报告自动生成
+- **多格式输出**: 支持Markdown、PDF、Word、LaTeX等格式
+- **模板定制**: 可定制的报告模板和样式
+- **一键分享**: 报告的在线发布和分享功能
+
+### 🤖 AI代理管理
+- **性能监控**: 实时监控AI代理的工作状态和性能指标
+- **配置管理**: 灵活的AI模型参数和行为配置
+- **协作分析**: AI代理间的协作模式和效果评估
+- **多供应商支持**: OpenAI、DeepSeek、Anthropic等多种LLM提供商
+
 ## 🏗️ 项目结构
 
 ```
@@ -28,48 +60,70 @@ research-agent-rag/
 └── Makefile                   # 构建脚本
 ```
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 安装依赖
+### Prerequisites
+- Python 3.8+
+- Docker & Docker Compose
+- Node.js 18+ (for frontend)
 
+### 1. Setup Project
 ```bash
-# 完整设置（推荐）
+# Clone the repository
+git clone <repository-url>
+cd research-agent-rag
+
+# Install dependencies
 make setup
 
-# 或者分步安装
-make install-dev
-make setup-env
+# Configure environment
+cp infra/docker/env.template .env
+# Edit .env and add your API keys
 ```
 
-### 2. 配置 API 密钥
+### 2. Start Services
 
-编辑 `.env` 文件，添加您的 API 密钥：
-
+#### Option A: Start All Services (Recommended)
 ```bash
-# OpenAI
-OPENAI_API_KEY=your_openai_key
+# Start all middleware services (PostgreSQL, Redis, Weaviate, Elasticsearch, Kibana)
+make docker-start-middleware
 
-# DeepSeek
-DEEPSEEK_API_KEY=your_deepseek_key
+# Start the API server
+make run-api
 
-# Anthropic
-ANTHROPIC_API_KEY=your_anthropic_key
-```
-
-### 3. 运行应用
-
-```bash
-# 运行演示
-make run-demo
-
-# 运行 Web 界面
-make run-web
-
-# 运行现代 UI
+# Start the frontend
 make run-frontend
+```
 
-# 运行完整栈（后端 + 前端）
-make run-fullstack
+#### Option B: Quick Elasticsearch Setup
+```bash
+# Use the quick start script
+./scripts/start-elasticsearch.sh middleware
+
+# Or manually start services
+cd infra/docker
+docker-compose -f docker-compose.middleware.yml up -d
+```
+
+### 3. Access Services
+- **API Server**: http://localhost:8000
+- **Frontend**: http://localhost:3000
+- **Elasticsearch**: http://localhost:9200
+- **Kibana**: http://localhost:5601
+- **Weaviate**: http://localhost:8080
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+
+### 4. Test the System
+```bash
+# Run comprehensive tests
+make test
+
+# Test Elasticsearch integration
+make test-elasticsearch
+
+# Check service health
+make docker-health
 ```
 
 ## 🛠️ 开发

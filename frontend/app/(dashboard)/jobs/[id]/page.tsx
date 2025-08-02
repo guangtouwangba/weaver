@@ -19,10 +19,12 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle,
-  XCircle
+  XCircle,
+  ExternalLink
 } from "lucide-react"
 import { useCronJob, useJobStatus, useJobRuns, useCronJobMutations } from "@/lib/hooks/api-hooks"
 import { formatDistanceToNow, format } from "date-fns"
+import { parseUTCDate, formatLocalDateTime } from "@/lib/utils"
 import { toast } from "sonner"
 import type { JobRun } from "@/lib/api"
 import { RealTimeLogs } from "@/components/job-logs/real-time-logs"
@@ -359,13 +361,13 @@ export default function JobDetailsPage() {
             <CardContent>
               <div className="text-sm font-medium">
                 {latestRun?.started_at ? 
-                  formatDistanceToNow(new Date(latestRun.started_at), { addSuffix: true }) : 
+                  formatDistanceToNow(parseUTCDate(latestRun.started_at), { addSuffix: true }) : 
                   'Never'
                 }
               </div>
               <p className="text-xs text-muted-foreground">
                 {latestRun?.completed_at ? 
-                  `Duration: ${Math.round((new Date(latestRun.completed_at).getTime() - new Date(latestRun.started_at).getTime()) / 1000)}s` :
+                  `Duration: ${Math.round((parseUTCDate(latestRun.completed_at).getTime() - parseUTCDate(latestRun.started_at).getTime()) / 1000)}s` :
                   latestRun?.status === 'running' ? 'In progress...' : ''
                 }
               </p>
@@ -408,7 +410,7 @@ export default function JobDetailsPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>Started:</span>
-                      <span>{format(new Date(latestRun.started_at), 'PPpp')}</span>
+                      <span>{formatLocalDateTime(latestRun.started_at, 'PPpp')}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Papers Found:</span>
@@ -500,7 +502,7 @@ export default function JobDetailsPage() {
                             </Badge>
                           </div>
                           <span className="text-sm text-muted-foreground">
-                            {format(new Date(run.started_at), 'PPpp')}
+                            {formatLocalDateTime(run.started_at, 'PPpp')}
                           </span>
                         </div>
                         
@@ -521,7 +523,7 @@ export default function JobDetailsPage() {
                             <span className="text-muted-foreground">Duration:</span>
                             <div className="font-medium">
                               {run.completed_at ? 
-                                `${Math.round((new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000)}s` :
+                                `${Math.round((parseUTCDate(run.completed_at).getTime() - parseUTCDate(run.started_at).getTime()) / 1000)}s` :
                                 run.status === 'running' ? 'Running...' : 'N/A'
                               }
                             </div>
@@ -548,6 +550,22 @@ export default function JobDetailsPage() {
           </TabsContent>
 
           <TabsContent value="logs" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-medium">Job Logs</h3>
+                <p className="text-sm text-muted-foreground">
+                  View real-time and historical logs for this job
+                </p>
+              </div>
+              <Button 
+                onClick={() => router.push(`/jobs/${jobId}/logs`)}
+                variant="outline"
+                size="sm"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Full Screen Logs
+              </Button>
+            </div>
             <RealTimeLogs 
               jobId={jobId} 
               runId={latestRun?.id} 
@@ -606,14 +624,14 @@ export default function JobDetailsPage() {
                   <div>
                     <label className="text-sm font-medium">Created</label>
                     <div className="text-sm text-muted-foreground">
-                      {format(new Date(job.created_at), 'PPpp')}
+                      {formatLocalDateTime(job.created_at, 'PPpp')}
                     </div>
                   </div>
                   
                   <div>
                     <label className="text-sm font-medium">Last Updated</label>
                     <div className="text-sm text-muted-foreground">
-                      {format(new Date(job.updated_at), 'PPpp')}
+                      {formatLocalDateTime(job.updated_at, 'PPpp')}
                     </div>
                   </div>
                 </div>

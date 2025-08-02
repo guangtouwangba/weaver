@@ -86,16 +86,17 @@ class CronJobController:
                              background_tasks: BackgroundTasks) -> JobTriggerResponse:
         """Manually trigger a cronjob execution"""
         try:
-            job_run_id = self.cronjob_service.trigger_job(
+            result = self.cronjob_service.trigger_job(
                 job_id, 
                 background_tasks, 
                 request.force_reprocess
             )
             
             return JobTriggerResponse(
-                job_run_id=job_run_id,
-                status="started",
-                message="Job execution started in background"
+                job_run_id=result.get('job_run_id') or '',
+                task_id=result.get('task_id'),
+                status=result.get('status', 'started'),
+                message=result.get('message', 'Job execution started in background')
             )
         except NotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e))
@@ -144,32 +145,35 @@ class CronJobController:
             if status.get('latest_run'):
                 latest_run = status['latest_run']
                 logger.debug(f"Latest run object: {latest_run}")
-                logger.debug(f"Latest run id type: {type(latest_run.id)}")
-                logger.debug(f"Latest run job_id type: {type(latest_run.job_id)}")
+                logger.debug(f"Latest run type: {type(latest_run)}")
                 
-                # Convert UUID fields to strings before validation
-                latest_run_dict = {
-                    'id': str(latest_run.id),
-                    'job_id': str(latest_run.job_id),
-                    'task_id': latest_run.task_id,
-                    'status': latest_run.status,
-                    'started_at': latest_run.started_at,
-                    'completed_at': latest_run.completed_at,
-                    'progress_percentage': latest_run.progress_percentage,
-                    'current_step': latest_run.current_step,
-                    'manual_trigger': latest_run.manual_trigger,
-                    'user_params': latest_run.user_params,
-                    'papers_found': latest_run.papers_found,
-                    'papers_processed': latest_run.papers_processed,
-                    'papers_skipped': latest_run.papers_skipped,
-                    'papers_embedded': latest_run.papers_embedded,
-                    'embedding_errors': latest_run.embedding_errors,
-                    'vector_db_errors': latest_run.vector_db_errors,
-                    'error_message': latest_run.error_message,
-                    'execution_log': latest_run.execution_log
-                }
-                logger.debug(f"Latest run dict: {latest_run_dict}")
-                status['latest_run'] = JobRunResponse.model_validate(latest_run_dict)
+                # latest_run is already a dictionary from service's to_dict() call
+                if isinstance(latest_run, dict):
+                    # Already a dictionary, just validate with Pydantic
+                    status['latest_run'] = JobRunResponse.model_validate(latest_run)
+                else:
+                    # If it's still a model object, convert to dict
+                    latest_run_dict = {
+                        'id': str(latest_run.id),
+                        'job_id': str(latest_run.job_id),
+                        'task_id': latest_run.task_id,
+                        'status': latest_run.status,
+                        'started_at': latest_run.started_at,
+                        'completed_at': latest_run.completed_at,
+                        'progress_percentage': latest_run.progress_percentage,
+                        'current_step': latest_run.current_step,
+                        'manual_trigger': latest_run.manual_trigger,
+                        'user_params': latest_run.user_params,
+                        'papers_found': latest_run.papers_found,
+                        'papers_processed': latest_run.papers_processed,
+                        'papers_skipped': latest_run.papers_skipped,
+                        'papers_embedded': latest_run.papers_embedded,
+                        'embedding_errors': latest_run.embedding_errors,
+                        'vector_db_errors': latest_run.vector_db_errors,
+                        'error_message': latest_run.error_message,
+                        'execution_log': latest_run.execution_log
+                    }
+                    status['latest_run'] = JobRunResponse.model_validate(latest_run_dict)
             return status
         except NotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e))
@@ -287,5 +291,135 @@ class CronJobController:
                 format, status_filter, job_id_filter, start_date, end_date
             )
         except ServiceError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # Task management methods
+    async def get_task_status(self, task_id: str):
+        """Get Celery task status"""
+        try:
+            from celery_app import celery_app
+            from models.schemas.cronjob import TaskStatusResponse
+            
+            # Get task result from Celery
+            result = celery_app.AsyncResult(task_id)
+            
+            # Map Celery states to our response format
+            task_status = {
+                'task_id': task_id,
+                'status': result.state,
+                'progress': None,
+                'description': None,
+                'current': None,
+                'total': None,
+                'result': None,
+                'error': None,
+                'error_type': None,
+                'metadata': None
+            }
+            
+            if result.state == 'PROGRESS':
+                info = result.info or {}
+                task_status.update({
+                    'progress': info.get('progress', 0),
+                    'description': info.get('description', ''),
+                    'current': info.get('current', 0),
+                    'total': info.get('total', 0),
+                    'metadata': info.get('metadata')
+                })
+            elif result.state == 'SUCCESS':
+                task_status['result'] = result.result
+            elif result.state == 'FAILURE':
+                task_status.update({
+                    'error': str(result.info),
+                    'error_type': type(result.info).__name__ if result.info else 'Unknown'
+                })
+            
+            return TaskStatusResponse(**task_status)
+            
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Celery not available")
+        except Exception as e:
+            logger.error(f"Error getting task status: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_task_progress(self, task_id: str):
+        """Get Celery task progress"""
+        try:
+            from celery_app import celery_app
+            
+            result = celery_app.AsyncResult(task_id)
+            
+            if result.state == 'PROGRESS':
+                info = result.info or {}
+                return {
+                    'task_id': task_id,
+                    'progress_percentage': info.get('progress', 0),
+                    'current_step': info.get('description', ''),
+                    'papers_found': info.get('metadata', {}).get('papers_found', 0),
+                    'papers_processed': info.get('metadata', {}).get('papers_processed', 0),
+                    'papers_embedded': info.get('metadata', {}).get('papers_embedded', 0),
+                    'embedding_errors': info.get('metadata', {}).get('embedding_errors', 0),
+                    'vector_db_errors': info.get('metadata', {}).get('vector_db_errors', 0),
+                    'time_elapsed': info.get('metadata', {}).get('time_elapsed', 0),
+                    'eta': info.get('metadata', {}).get('eta')
+                }
+            else:
+                return {
+                    'task_id': task_id,
+                    'progress_percentage': 100 if result.state == 'SUCCESS' else 0,
+                    'current_step': result.state,
+                    'papers_found': 0,
+                    'papers_processed': 0,
+                    'papers_embedded': 0,
+                    'embedding_errors': 0,
+                    'vector_db_errors': 0,
+                    'time_elapsed': 0,
+                    'eta': None
+                }
+                
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Celery not available")
+        except Exception as e:
+            logger.error(f"Error getting task progress: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def cancel_task(self, task_id: str):
+        """Cancel a running Celery task"""
+        try:
+            from celery_app import celery_app
+            
+            celery_app.control.revoke(task_id, terminate=True)
+            
+            return {"message": f"Task {task_id} cancellation requested"}
+            
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Celery not available")
+        except Exception as e:
+            logger.error(f"Error cancelling task: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def task_health_check(self):
+        """Check Celery worker health"""
+        try:
+            from celery_app import celery_app
+            
+            # Get worker statistics
+            inspector = celery_app.control.inspect()
+            stats = inspector.stats()
+            active_tasks = inspector.active()
+            
+            worker_count = len(stats) if stats else 0
+            total_active_tasks = sum(len(tasks) for tasks in active_tasks.values()) if active_tasks else 0
+            
+            return {
+                "status": "healthy" if worker_count > 0 else "no_workers",
+                "workers": worker_count,
+                "queued_tasks": total_active_tasks
+            }
+            
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Celery not available")
+        except Exception as e:
+            logger.error(f"Error checking task health: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     

@@ -19,6 +19,7 @@ import { useCronJobs, useCronJobMutations, useAvailableProviders } from "@/lib/h
 import { apiClient } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "sonner"
+import { parseUTCDate } from "@/lib/utils"
 
 // Helper function to transform API job data to table format
 function transformJobToTableData(job: any): CronjobData {
@@ -35,7 +36,7 @@ function transformJobToTableData(job: any): CronjobData {
     keywords: job.keywords,
     vectorDb: job.vector_db_provider,
     embeddingModel: job.embedding_model,
-    createdAt: new Date(job.created_at),
+    createdAt: parseUTCDate(job.created_at),
   }
 }
 
