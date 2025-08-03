@@ -288,3 +288,100 @@ class EmbeddingConfig(Base):
         Index('idx_embedding_configs_provider', 'provider'),
         Index('idx_embedding_configs_default', 'is_default'),
     )
+
+class AnalysisSession(Base):
+    """Analysis session tracking for research queries"""
+    __tablename__ = 'analysis_sessions'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Session metadata
+    query = Column(Text, nullable=False)
+    status = Column(String(20), nullable=False, default='started')  # 'started', 'in_progress', 'completed', 'failed'
+    progress = Column(Integer, default=0)  # 0-100
+    current_step = Column(String(255), nullable=True)
+    
+    # Request parameters
+    max_papers = Column(Integer, default=20)
+    similarity_threshold = Column(String(10), default='0.5')  # Store as string to avoid float precision issues
+    enable_arxiv_fallback = Column(Boolean, default=True)
+    selected_agents = Column(ARRAY(String), nullable=True)
+    
+    # Results
+    papers_found = Column(Integer, default=0)
+    papers_data = Column(JSON, nullable=True)  # Store paper metadata
+    agent_insights = Column(JSON, nullable=True)  # Store agent responses
+    final_results = Column(JSON, nullable=True)  # Store final analysis results
+    
+    # Error tracking
+    error_message = Column(Text, nullable=True)
+    
+    # Timestamps
+    started_at = Column(DateTime, default=func.now())
+    completed_at = Column(DateTime, nullable=True)
+    
+    # Session tracking
+    client_ip = Column(String(45), nullable=True)  # For tracking unique users
+    user_agent = Column(Text, nullable=True)
+    
+    def to_dict(self) -> dict:
+        """Convert AnalysisSession instance to dictionary"""
+        return {
+            'id': str(self.id),
+            'query': self.query,
+            'status': self.status,
+            'progress': self.progress,
+            'current_step': self.current_step,
+            'max_papers': self.max_papers,
+            'similarity_threshold': self.similarity_threshold,
+            'enable_arxiv_fallback': self.enable_arxiv_fallback,
+            'selected_agents': self.selected_agents,
+            'papers_found': self.papers_found,
+            'papers_data': self.papers_data,
+            'agent_insights': self.agent_insights,
+            'final_results': self.final_results,
+            'error_message': self.error_message,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'client_ip': self.client_ip,
+            'user_agent': self.user_agent
+        }
+    
+    # Relationships
+    progress_history = relationship("AnalysisProgress", back_populates="session", cascade="all, delete-orphan")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_analysis_sessions_status', 'status'),
+        Index('idx_analysis_sessions_started_at', 'started_at'),
+        Index('idx_analysis_sessions_client_ip', 'client_ip'),
+    )
+
+class AnalysisProgress(Base):
+    """Progress history for analysis sessions"""
+    __tablename__ = 'analysis_progress'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey('analysis_sessions.id', ondelete='CASCADE'), nullable=False)
+    
+    # Progress data
+    timestamp = Column(DateTime, default=func.now(), nullable=False)
+    step_name = Column(String(255), nullable=False)
+    progress_percentage = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False)  # 'running', 'completed', 'error'
+    message = Column(Text, nullable=True)
+    
+    # Context data
+    current_papers = Column(JSON, nullable=True)  # Papers found at this step
+    agent_insights = Column(JSON, nullable=True)  # Agent insights at this step
+    step_duration_ms = Column(Integer, nullable=True)  # Duration of this step
+    
+    # Relationships
+    session = relationship("AnalysisSession", back_populates="progress_history")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_analysis_progress_session_id', 'session_id'),
+        Index('idx_analysis_progress_timestamp', 'timestamp'),
+        Index('idx_analysis_progress_step', 'step_name'),
+    )

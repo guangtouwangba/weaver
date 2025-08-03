@@ -1,6 +1,10 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
+import { apiClient, ChatRequest, ApiError } from "@/lib/api"
+import { ApiErrorDisplay } from "@/components/ui/error-boundary"
+import { ButtonLoading } from "@/components/ui/loading-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -40,6 +44,9 @@ interface Paper {
 }
 
 export default function ResearchChatPage() {
+  const searchParams = useSearchParams()
+  const queryParam = searchParams.get('query')
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -48,9 +55,10 @@ export default function ResearchChatPage() {
       timestamp: new Date()
     }
   ])
-  const [inputValue, setInputValue] = useState("")
+  const [inputValue, setInputValue] = useState(queryParam || "")
   const [isLoading, setIsLoading] = useState(false)
   const [activeAgents, setActiveAgents] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const agents = [
@@ -92,6 +100,16 @@ export default function ResearchChatPage() {
     scrollToBottom()
   }, [messages])
 
+  // 自动启动分析（如果有查询参数）
+  useEffect(() => {
+    if (queryParam && messages.length === 1) {
+      // 自动发送查询
+      setTimeout(() => {
+        handleSend()
+      }, 500)
+    }
+  }, [queryParam])
+
   const handleSend = async () => {
     if (!inputValue.trim()) return
 
@@ -103,47 +121,88 @@ export default function ResearchChatPage() {
     }
 
     setMessages(prev => [...prev, userMessage])
+    const currentQuery = inputValue
     setInputValue("")
     setIsLoading(true)
+    setError(null)
     setActiveAgents(["paper_analyst"])
 
-    // 模拟AI响应
-    setTimeout(() => {
-      const agentMessage: Message = {
-        id: (Date.now() + 1).toString(),
+    try {
+      // 使用真实的聊天API
+      const chatRequest: ChatRequest = {
+        query: currentQuery,
+        max_papers: 20,
+        similarity_threshold: 0.5,
+        enable_arxiv_fallback: true
+      }
+
+      const response = await apiClient.chatWithPapers(chatRequest)
+
+      if (response.success) {
+        // 添加AI响应消息
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          type: "agent",
+          content: response.response,
+          agentName: "AI研究助手",
+          agentType: "paper_analyst",
+          timestamp: new Date(),
+          papers: response.relevant_papers.map(paper => ({
+            id: paper.paper_id || paper.id,
+            title: paper.title,
+            authors: Array.isArray(paper.authors) ? paper.authors : paper.authors.split(", "),
+            abstract: paper.relevant_text || paper.abstract || "",
+            publishedDate: paper.published || "",
+            arxivId: paper.paper_id || paper.id,
+            relevanceScore: paper.similarity_score || 0.8
+          }))
+        }
+
+        setMessages(prev => [...prev, aiResponse])
+
+        // 模拟agent讨论显示
+        if (response.agent_discussions && Object.keys(response.agent_discussions).length > 0) {
+          setTimeout(() => {
+            const discussionMessage: Message = {
+              id: (Date.now() + 2).toString(),
+              type: "agent",
+              content: "多位专家已完成协作分析，详细讨论内容已整合到上述回答中。",
+              agentName: "协作团队",
+              agentType: "mit_researcher",
+              timestamp: new Date()
+            }
+            setMessages(prev => [...prev, discussionMessage])
+            setActiveAgents([])
+          }, 1500)
+        }
+      } else {
+        throw new Error("Chat response failed")
+      }
+
+    } catch (error) {
+      console.error("Chat failed:", error)
+      
+      // 设置错误状态
+      setError(error instanceof ApiError 
+        ? `分析失败：${error.message}` 
+        : "当前无法连接到分析服务，请稍后重试")
+      
+      // 添加错误消息
+      const errorMessage: Message = {
+        id: (Date.now() + 3).toString(),
         type: "agent",
-        content: "我正在搜索相关论文，请稍候...",
-        agentName: "论文分析师",
+        content: error instanceof ApiError 
+          ? `抱歉，分析过程中出现错误：${error.message}` 
+          : "抱歉，当前无法连接到分析服务，请稍后重试。",
+        agentName: "系统",
         agentType: "paper_analyst",
         timestamp: new Date()
       }
-      setMessages(prev => [...prev, agentMessage])
-      
-      setTimeout(() => {
-        const resultsMessage: Message = {
-          id: (Date.now() + 2).toString(),
-          type: "agent", 
-          content: "我找到了15篇相关论文，现在邀请其他专家一起分析。",
-          agentName: "论文分析师",
-          agentType: "paper_analyst",
-          timestamp: new Date(),
-          papers: [
-            {
-              id: "1",
-              title: "Attention Is All You Need",
-              authors: ["Vaswani, A.", "Shazeer, N."],
-              abstract: "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks...",
-              publishedDate: "2017-06-12",
-              arxivId: "1706.03762",
-              relevanceScore: 0.95
-            }
-          ]
-        }
-        setMessages(prev => [...prev, resultsMessage])
-        setActiveAgents(["mit_researcher", "google_engineer"])
-        setIsLoading(false)
-      }, 2000)
-    }, 1000)
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+      setActiveAgents([])
+    }
   }
 
   const getAgentIcon = (agentType?: string) => {
@@ -185,6 +244,16 @@ export default function ResearchChatPage() {
               </div>
             </div>
           </CardHeader>
+
+          {/* Error Display */}
+          {error && (
+            <div className="px-4">
+              <ApiErrorDisplay 
+                error={error} 
+                onDismiss={() => setError(null)}
+              />
+            </div>
+          )}
 
           <CardContent className="flex-1 flex flex-col p-0">
             {/* Messages */}
@@ -279,7 +348,9 @@ export default function ResearchChatPage() {
                   disabled={isLoading || !inputValue.trim()}
                   size="icon"
                 >
-                  <Send className="h-4 w-4" />
+                  <ButtonLoading isLoading={isLoading}>
+                    <Send className="h-4 w-4" />
+                  </ButtonLoading>
                 </Button>
               </div>
             </div>
