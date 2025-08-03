@@ -168,9 +168,11 @@ export default function ResearchProjectsPage() {
             管理和跟踪您的AI协作研究项目
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          新建项目
+        <Button className="gap-2" asChild>
+          <Link href="/research/projects/new">
+            <Plus className="h-4 w-4" />
+            新建项目
+          </Link>
         </Button>
       </div>
 
@@ -362,26 +364,31 @@ export default function ResearchProjectsPage() {
               {/* Actions */}
               <div className="flex items-center justify-between pt-2 border-t">
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" asChild>
+                  <Button variant="ghost" size="sm" asChild title="查看详情">
                     <Link href={`/research/projects/${project.id}`}>
                       <Eye className="h-3 w-3" />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" title="编辑项目">
                     <Edit className="h-3 w-3" />
                   </Button>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" title="分享项目">
                     <Share className="h-3 w-3" />
                   </Button>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" title="下载报告">
                     <Download className="h-3 w-3" />
                   </Button>
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" title="归档项目">
                     <Archive className="h-3 w-3" />
                   </Button>
                 </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/research/projects/${project.id}`}>
+                    查看详情
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

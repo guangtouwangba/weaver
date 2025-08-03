@@ -3,13 +3,17 @@ Research routes - thin delegation layer to controllers.
 """
 import logging
 from typing import Dict, Any
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, WebSocket
 
-from models.schemas.research import ChatRequest, ChatResponse
+from models.schemas.research import (
+    ChatRequest, ChatResponse, AnalysisRequest, AnalysisResponse, 
+    QuickAnalysisRequest, QuickAnalysisResponse, AnalysisProgress
+)
 from models.schemas.common import HealthResponse
 from controllers.research_controller import ResearchController
 from services.research_service import ResearchService
 from core.dependencies import get_research_service, get_orchestrator
+from utils.analysis_websocket_manager import analysis_connection_manager
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +71,53 @@ async def get_database_stats(
 ):
     """Get database statistics"""
     return await controller.get_database_stats()
+
+@router.post("/analysis/start", response_model=AnalysisResponse)
+async def start_analysis(
+    request: AnalysisRequest,
+    controller: ResearchController = Depends(get_research_controller)
+):
+    """
+    Start a new research analysis with real-time progress tracking
+    
+    This endpoint initiates a comprehensive research analysis that includes:
+    - Paper retrieval from vector database and ArXiv
+    - Multi-agent collaborative analysis
+    - Real-time progress updates via WebSocket
+    """
+    return await controller.start_analysis(request)
+
+@router.get("/analysis/{analysis_id}", response_model=AnalysisResponse)
+async def get_analysis_status(
+    analysis_id: str,
+    controller: ResearchController = Depends(get_research_controller)
+):
+    """Get the current status and progress of an analysis"""
+    return await controller.get_analysis_status(analysis_id)
+
+@router.post("/analysis/quick", response_model=QuickAnalysisResponse)
+async def quick_analysis(
+    request: QuickAnalysisRequest,
+    controller: ResearchController = Depends(get_research_controller)
+):
+    """
+    Perform a quick paper search and relevance analysis
+    
+    This endpoint provides fast preliminary results for the frontend's
+    "开始分析" feature before initiating full analysis.
+    """
+    return await controller.quick_analysis(request)
+
+@router.websocket("/analysis/{analysis_id}/ws")
+async def analysis_websocket(websocket: WebSocket, analysis_id: str):
+    """
+    WebSocket endpoint for real-time analysis progress updates
+    
+    Clients can connect to this endpoint to receive real-time updates
+    about the progress of their analysis including:
+    - Step progress updates
+    - Papers found notifications  
+    - Agent insights as they're generated
+    - Analysis completion status
+    """
+    await analysis_connection_manager.handle_websocket_connection(websocket, analysis_id)
