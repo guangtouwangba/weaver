@@ -63,7 +63,7 @@ pdf_storage:
 # Scheduler settings
 scheduler:
   # How often to run the search (in hours)
-  interval_hours: 24
+  interval_hours: 1
   
   # Whether to run immediately on startup
   run_on_startup: false
