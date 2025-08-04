@@ -7,6 +7,9 @@ PyYAML==6.0.2
 # HTTP requests for API calls and PDF downloads
 requests==2.32.3
 
+# Alibaba Cloud OSS SDK (optional, only needed when using OSS backend)
+oss2==2.18.4
+
 # Database (SQLite is built into Python)
 # No additional database dependencies needed
 

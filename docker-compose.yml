@@ -12,6 +12,10 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - TZ=UTC  # Set timezone
+      
+      # OSS credentials (optional, only needed when using OSS backend)
+      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID:-}
+      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET:-}
     
     # Mount volumes for persistence
     volumes:

@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 
 from retrieval.arxiv_api_client import ArxivAPIClient, Paper, SearchOperator, SearchFilter, DateRange
+from storage.storage_manager import create_storage_manager
 
 class PaperDatabase:
     """Simple SQLite database for paper deduplication and metadata storage"""
@@ -138,74 +139,7 @@ class PaperDatabase:
                 })
             return results
 
-class PDFDownloader:
-    """Handles PDF download and storage"""
-    
-    def __init__(self, base_dir: str, create_subdirs: bool = True, 
-                 filename_format: str = "{arxiv_id}.pdf", timeout: int = 300):
-        self.base_dir = Path(base_dir)
-        self.create_subdirs = create_subdirs
-        self.filename_format = filename_format
-        self.timeout = timeout
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-    
-    def _safe_filename(self, text: str, max_length: int = 100) -> str:
-        """Create a safe filename from text"""
-        # Remove invalid characters
-        safe = re.sub(r'[<>:"/\\|?*]', '', text)
-        # Replace spaces with underscores
-        safe = re.sub(r'\s+', '_', safe)
-        # Limit length
-        if len(safe) > max_length:
-            safe = safe[:max_length]
-        return safe
-    
-    def _get_pdf_path(self, paper: Paper) -> Path:
-        """Determine the path where the PDF should be stored"""
-        # Prepare variables for filename formatting
-        format_vars = {
-            'arxiv_id': paper.arxiv_id,
-            'title_safe': self._safe_filename(paper.title),
-            'date': paper.published.strftime('%Y-%m-%d')
-        }
-        
-        filename = self.filename_format.format(**format_vars)
-        
-        if self.create_subdirs:
-            # Create subdirectory by date
-            subdir = self.base_dir / paper.published.strftime('%Y-%m-%d')
-            subdir.mkdir(parents=True, exist_ok=True)
-            return subdir / filename
-        else:
-            return self.base_dir / filename
-    
-    def download_pdf(self, paper: Paper) -> Optional[str]:
-        """Download PDF for a paper and return the local file path"""
-        try:
-            pdf_path = self._get_pdf_path(paper)
-            
-            # Skip if file already exists
-            if pdf_path.exists():
-                logging.info(f"PDF already exists: {pdf_path}")
-                return str(pdf_path)
-            
-            logging.info(f"Downloading PDF for {paper.arxiv_id}: {paper.title}")
-            
-            # Download the PDF
-            response = requests.get(paper.pdf_url, timeout=self.timeout, stream=True)
-            response.raise_for_status()
-            
-            # Save the PDF
-            with open(pdf_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            
-            logging.info(f"PDF downloaded successfully: {pdf_path}")
-            return str(pdf_path)
-            
-        except Exception as e:
-            logging.error(f"Failed to download PDF for {paper.arxiv_id}: {e}")
-            return None
+# Note: PDFDownloader class replaced by StorageManager
 
 class SimplePaperFetcher:
     """Main class for fetching and managing papers"""
@@ -223,12 +157,8 @@ class SimplePaperFetcher:
             delay=self.config['advanced']['request_delay']
         )
         
-        self.pdf_downloader = PDFDownloader(
-            base_dir=self.config['pdf_storage']['base_directory'],
-            create_subdirs=self.config['pdf_storage']['create_subdirectories'],
-            filename_format=self.config['pdf_storage']['filename_format'],
-            timeout=self.config['advanced']['download_timeout']
-        )
+        # Initialize storage manager (supports both local and OSS)
+        self.storage_manager = create_storage_manager(self.config['pdf_storage'])
     
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from YAML file"""
@@ -319,8 +249,15 @@ class SimplePaperFetcher:
         new_paper_count = 0
         for paper in new_papers:
             try:
-                # Download PDF
-                pdf_path = self.pdf_downloader.download_pdf(paper)
+                # Download and store PDF using storage manager
+                success, pdf_path = self.storage_manager.download_and_store_pdf(
+                    paper, 
+                    timeout=self.config['advanced']['download_timeout']
+                )
+                
+                if not success:
+                    logging.error(f"Failed to download/store PDF for {paper.arxiv_id}")
+                    continue
                 
                 # Store in database
                 self.database.insert_paper(paper, pdf_path)
