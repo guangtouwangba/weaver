@@ -9,17 +9,10 @@ database:
 search:
   max_papers_per_run: 100  # Maximum papers to fetch in each run
   keywords:
-    - "machine learning"
-    - "deep learning"
-    - "artificial intelligence"
-    - "neural networks"
-    - "computer vision"
-    - "natural language processing"
-    - "reinforcement learning"
-    - "transformer"
-    - "large language model"
-    - "llm"
-  
+    - "rag"
+    - "RAG"
+    - "agent"
+
   # Search filters (optional)
   categories:
     - "cs.AI"
@@ -27,6 +20,7 @@ search:
     - "cs.CV"
     - "cs.CL"
     - "stat.ML"
+    - "cs.IR"
   
   # Only search papers from the last N days (0 = all time)
   days_back: 7
@@ -36,9 +30,35 @@ search:
 
 # PDF storage settings
 pdf_storage:
-  base_directory: "./downloaded_papers"
-  create_subdirectories: true  # Create subdirs by date (YYYY-MM-DD)
-  filename_format: "{arxiv_id}.pdf"  # Available vars: {arxiv_id}, {title_safe}, {date}
+  # Storage backend: "local" or "oss"
+  backend: "oss"  # Change to "local" for local file system storage
+  
+  # Local storage settings (used when backend = "local")
+  local:
+    base_directory: "./downloaded_papers"
+    create_subdirectories: true  # Create subdirs by date (YYYY-MM-DD)
+    filename_format: "{arxiv_id}.pdf"  # Available vars: {arxiv_id}, {title_safe}, {date}
+  
+  # Alibaba Cloud OSS settings (used when backend = "oss")
+  oss:
+    # OSS connection settings
+    endpoint: "https://oss-cn-hangzhou.aliyuncs.com"  # OSS endpoint URL
+    access_key_id: "${OSS_ACCESS_KEY_ID}"  # Can use environment variable
+    access_key_secret: "${OSS_ACCESS_KEY_SECRET}"  # Can use environment variable
+    bucket_name: "your-papers-bucket"  # OSS bucket name
+    
+    # OSS storage settings
+    base_prefix: "papers"  # Base directory in OSS bucket
+    create_subdirectories: true  # Create subdirs by date (YYYY-MM-DD)
+    filename_format: "{arxiv_id}.pdf"  # Available vars: {arxiv_id}, {title_safe}, {date}
+    
+    # OSS advanced settings
+    multipart_threshold: 100  # MB - files larger than this use multipart upload
+    max_concurrency: 3  # Maximum concurrent uploads
+    
+    # Security settings
+    server_side_encryption: false  # Enable OSS server-side encryption
+    storage_class: "Standard"  # Standard, IA, Archive, ColdArchive
 
 # Scheduler settings
 scheduler:

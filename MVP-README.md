@@ -266,6 +266,53 @@ sqlite3 papers.db ".tables"
 curl http://localhost:8000/health
 ```
 
+## 🐳 Docker 部署
+
+### 快速开始
+
+```bash
+# 使用 Docker Compose（推荐）
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+```
+
+### 手动 Docker 运行
+
+```bash
+# 构建镜像
+docker build -t arxiv-paper-fetcher .
+
+# 运行容器
+docker run -d \
+  --name arxiv-fetcher \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/papers.db:/app/papers.db \
+  -v $(pwd)/downloaded_papers:/app/downloaded_papers \
+  -v $(pwd)/logs:/app/logs \
+  arxiv-paper-fetcher
+```
+
+### Docker 运行模式
+
+- **默认（调度器）**: `docker run arxiv-paper-fetcher`
+- **单次运行**: `docker run arxiv-paper-fetcher once`  
+- **测试模式**: `docker run arxiv-paper-fetcher test`
+- **交互模式**: `docker run -it arxiv-paper-fetcher bash`
+
+### 测试 Docker 设置
+
+```bash
+# 运行测试脚本
+./test-docker.sh
+```
+
+详细的 Docker 部署说明请参考 [DOCKER-README.md](DOCKER-README.md)。
+
 ## 贡献指南
 
 1. Fork项目

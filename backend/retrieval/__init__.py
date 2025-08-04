@@ -1,3 +1,3 @@
-from .arxiv_client import ArxivClient, Paper
+from .arxiv_api_client import ArxivAPIClient, Paper
 
-__all__ = ['ArxivClient', 'Paper']
+__all__ = ['ArxivAPIClient', 'Paper']

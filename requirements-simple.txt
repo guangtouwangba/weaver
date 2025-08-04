@@ -1,17 +1,17 @@
 # Simplified Requirements for ArXiv Paper Fetcher
 # Core dependencies only
 
-# ArXiv API client
-arxiv==2.1.3
-
 # YAML configuration
 PyYAML==6.0.2
 
-# HTTP requests for PDF downloads
+# HTTP requests for API calls and PDF downloads
 requests==2.32.3
 
 # Database (SQLite is built into Python)
 # No additional database dependencies needed
+
+# XML parsing (built into Python)
+# No additional dependencies needed
 
 # Optional: For better logging
 # (All logging modules are built into Python)
