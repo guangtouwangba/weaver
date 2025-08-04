@@ -1,0 +1,67 @@
+# ArXiv Paper Fetcher Configuration
+# This file defines the search keywords and settings for automated paper collection
+
+# Database settings
+database:
+  url: "sqlite:///papers.db"  # SQLite database for simplicity
+  
+# ArXiv search configuration
+search:
+  max_papers_per_run: 100  # Maximum papers to fetch in each run
+  keywords:
+    - "machine learning"
+    - "deep learning"
+    - "artificial intelligence"
+    - "neural networks"
+    - "computer vision"
+    - "natural language processing"
+    - "reinforcement learning"
+    - "transformer"
+    - "large language model"
+    - "llm"
+  
+  # Search filters (optional)
+  categories:
+    - "cs.AI"
+    - "cs.LG"
+    - "cs.CV"
+    - "cs.CL"
+    - "stat.ML"
+  
+  # Only search papers from the last N days (0 = all time)
+  days_back: 7
+  
+  # Sort results by (options: Relevance, LastUpdatedDate, SubmittedDate)
+  sort_by: "SubmittedDate"
+
+# PDF storage settings
+pdf_storage:
+  base_directory: "./downloaded_papers"
+  create_subdirectories: true  # Create subdirs by date (YYYY-MM-DD)
+  filename_format: "{arxiv_id}.pdf"  # Available vars: {arxiv_id}, {title_safe}, {date}
+
+# Scheduler settings
+scheduler:
+  # How often to run the search (in hours)
+  interval_hours: 24
+  
+  # Whether to run immediately on startup
+  run_on_startup: false
+  
+# Logging settings
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "paper_fetcher.log"
+  max_file_size_mb: 10
+  backup_count: 3
+
+# Advanced settings
+advanced:
+  # Delay between requests to respect ArXiv rate limits (seconds)
+  request_delay: 1.0
+  
+  # Maximum retries for failed downloads
+  max_retries: 3
+  
+  # Timeout for PDF downloads (seconds)
+  download_timeout: 300

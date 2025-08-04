@@ -17,7 +17,7 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 import uvicorn
 
 # 添加后端目录到路径
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # 数据模型
 class SearchRequest(BaseModel):
     query: str
-    max_results: int = 10
+    max_results: int  # 用户必须指定搜索数量
 
 class SearchResponse(BaseModel):
     success: bool
@@ -61,9 +61,9 @@ class PaperInfo(BaseModel):
 # 简化的ArXiv客户端
 class SimpleArxivClient:
     def __init__(self):
-        self.base_url = "http://export.arxiv.org/api/query"
+        self.base_url = "https://export.arxiv.org/api/query"
     
-    async def search_papers(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    async def search_papers(self, query: str, max_results: int) -> List[Dict[str, Any]]:
         """搜索ArXiv论文"""
         try:
             params = {
@@ -74,7 +74,7 @@ class SimpleArxivClient:
                 'sortOrder': 'descending'
             }
             
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=True) as client:
                 response = await client.get(self.base_url, params=params, timeout=30)
                 response.raise_for_status()
                 
@@ -90,6 +90,12 @@ class SimpleArxivClient:
                 
                 return papers
                 
+        except httpx.HTTPStatusError as e:
+            logger.error(f"ArXiv API HTTP错误: {e.response.status_code} - {e.response.text}")
+            return []
+        except httpx.TimeoutException:
+            logger.error("ArXiv API请求超时")
+            return []
         except Exception as e:
             logger.error(f"ArXiv搜索失败: {e}")
             return []
@@ -256,7 +262,7 @@ class SimplePDFDownloader:
                 return str(file_path)
             
             # 下载PDF
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=True) as client:
                 response = await client.get(paper['pdf_url'], timeout=60)
                 response.raise_for_status()
                 
@@ -266,6 +272,12 @@ class SimplePDFDownloader:
                 logger.info(f"PDF下载成功: {filename}")
                 return str(file_path)
                 
+        except httpx.HTTPStatusError as e:
+            logger.error(f"PDF下载HTTP错误: {e.response.status_code} - {paper['pdf_url']}")
+            return None
+        except httpx.TimeoutException:
+            logger.error(f"PDF下载超时: {paper['pdf_url']}")
+            return None
         except Exception as e:
             logger.error(f"PDF下载失败: {e}")
             return None
@@ -372,7 +384,11 @@ async def health_check():
 async def search_papers(request: SearchRequest):
     """搜索论文并保存到本地数据库"""
     try:
-        logger.info(f"搜索论文: {request.query}")
+        # 验证搜索数量
+        if request.max_results < 1 or request.max_results > 100:
+            raise HTTPException(status_code=400, detail="搜索数量必须在1-100之间")
+            
+        logger.info(f"搜索论文: {request.query}, 数量: {request.max_results}")
         
         # 先搜索本地数据库
         local_papers = paper_db.search_papers(request.query)
@@ -450,6 +466,33 @@ async def list_papers(topic: str = "", limit: int = 20):
     except Exception as e:
         logger.error(f"获取论文列表失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取论文失败: {str(e)}")
+
+@app.get("/stats")
+async def get_stats():
+    """获取系统统计信息"""
+    try:
+        all_papers = paper_db.search_papers("", "")
+        topics = {}
+        pdf_downloaded = 0
+        
+        for paper in all_papers:
+            topic = paper.get('topic', 'unknown')
+            topics[topic] = topics.get(topic, 0) + 1
+            if paper.get('local_path'):
+                pdf_downloaded += 1
+        
+        return {
+            "success": True,
+            "stats": {
+                "total_papers": len(all_papers),
+                "pdf_downloaded": pdf_downloaded,
+                "topics": topics
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取统计信息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取统计失败: {str(e)}")
 
 async def download_paper_async(paper: Dict[str, Any]):
     """异步下载PDF任务"""
