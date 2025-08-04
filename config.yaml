@@ -31,7 +31,7 @@ search:
 # PDF storage settings
 pdf_storage:
   # Storage backend: "local" or "oss"
-  backend: "oss"  # Change to "local" for local file system storage
+  backend: "oss"  # Change to "oss" for Alibaba Cloud OSS storage
   
   # Local storage settings (used when backend = "local")
   local:
@@ -42,10 +42,10 @@ pdf_storage:
   # Alibaba Cloud OSS settings (used when backend = "oss")
   oss:
     # OSS connection settings
-    endpoint: "https://oss-cn-hangzhou.aliyuncs.com"  # OSS endpoint URL
-    access_key_id: "${OSS_ACCESS_KEY_ID}"  # Can use environment variable
-    access_key_secret: "${OSS_ACCESS_KEY_SECRET}"  # Can use environment variable
-    bucket_name: "your-papers-bucket"  # OSS bucket name
+    endpoint: "https://oss-cn-shanghai.aliyuncs.com"  # OSS endpoint URL
+    access_key_id: "LTAI5tFzmAkMnTgUWtcuFUE2"  # Can use environment variable
+    access_key_secret: "3kLDcKfSvFMbj86TCF2cGdWDq0A5JK"  # Can use environment variable
+    bucket_name: "golearning"  # OSS bucket name
     
     # OSS storage settings
     base_prefix: "papers"  # Base directory in OSS bucket
