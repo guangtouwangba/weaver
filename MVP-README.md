@@ -39,27 +39,60 @@
 
 ## 快速开始
 
-### 1. 启动后端服务
+### 0. 一键启动（最简单）
 
 ```bash
-# 使用启动脚本（推荐）
+./start-full-mvp.sh
+```
+
+这个脚本会自动检查环境、启动后端和前端，适合快速体验。
+
+### 1. 环境检查（推荐第一步）
+
+```bash
+./check-env.sh
+```
+
+这个脚本会检查你的Python和conda环境，并推荐最适合的启动方式。
+
+### 2. 启动后端服务
+
+```bash
+# 方式1：Conda环境（推荐，最稳定）
+./start-mvp-conda.sh
+
+# 方式2：venv环境（更新版本）  
+./start-mvp-simple.sh
+
+# 方式3：使用requirements文件
 ./start-mvp.sh
 
-# 或手动启动
+# 方式4：手动启动
 cd backend
-pip install -r ../requirements-mvp.txt
+python3 -m venv venv
+source venv/bin/activate
+pip install fastapi uvicorn httpx pydantic python-multipart
 python simple_mvp_server.py
 ```
 
-### 2. 启动前端
+**重要提示：**
+- **Python 3.13用户**: 推荐使用conda方案 (`./start-mvp-conda.sh`)
+- **Python 3.8-3.12用户**: 可使用任何方案
+- 如果遇到依赖冲突，优先尝试conda方案
+
+### 3. 启动前端
 
 ```bash
+# 使用启动脚本（推荐）
+./start-frontend.sh
+
+# 或手动启动
 cd frontend
 npm install
 npm run dev
 ```
 
-### 3. 访问系统
+### 4. 访问系统
 
 - 前端界面: http://localhost:3000/mvp
 - 后端API: http://localhost:8000
@@ -70,10 +103,11 @@ npm run dev
 ### 1. 搜索论文
 
 1. 在搜索框输入英文关键词（如：`deep learning`）
-2. 点击"搜索"按钮
-3. 系统从ArXiv检索相关论文
-4. 自动下载PDF并保存到本地
-5. 显示论文列表和元数据
+2. 选择搜索数量（1-100篇，可手动输入或点击快捷按钮）
+3. 点击"搜索"按钮
+4. 系统从ArXiv检索相关论文
+5. 自动下载PDF并保存到本地
+6. 显示论文列表和元数据
 
 ### 2. RAG对话
 
@@ -198,17 +232,26 @@ research-agent-rag/
 
 ### 常见问题
 
-1. **ArXiv API超时**
+1. **Python 3.13兼容性问题**
+   - 推荐使用 `./start-mvp-conda.sh` (创建Python 3.11环境)
+   - 或使用 `./start-mvp-simple.sh` (最新依赖版本)
+   - Python 3.13对某些库有兼容性问题
+
+2. **ArXiv API超时**
    - 检查网络连接
    - 等待重试，API有速率限制
 
-2. **PDF下载失败**
+3. **PDF下载失败**
    - 检查磁盘空间
    - 某些论文可能不提供PDF
 
-3. **数据库权限错误**
+4. **数据库权限错误**
    - 确保目录写权限
    - 检查SQLite文件权限
+
+5. **虚拟环境问题**
+   - 删除venv-mvp目录重新创建
+   - 使用Python 3.8+版本
 
 ### 开发调试
 

@@ -4,163 +4,133 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a multi-agent research paper analysis system that supports multiple LLM providers (OpenAI, DeepSeek, Anthropic). The system uses specialized AI agents to analyze academic papers from ArXiv and provides a modern web interface for research and discussion.
+This is a simplified ArXiv paper fetching system that automatically searches for academic papers based on configurable keywords, downloads PDFs, and stores metadata in a local database with deduplication.
 
 ## Core Architecture
 
-### Backend Structure
-- **FastAPI Server** (`backend/main.py`): Main API server with health checks and middleware
-- **Multi-Agent System** (`backend/agents/`): Specialized AI agents for research analysis
-  - `orchestrator.py`: Coordinates agent interactions and manages research sessions
-  - `google_engineer_agent.py`: Engineering implementation perspectives
-  - `mit_researcher_agent.py`: Academic research analysis
-  - `industry_expert_agent.py`: Commercial applications focus
-  - `paper_analyst_agent.py`: Deep paper analysis
-- **Vector Database Integration** (`backend/database/vector_db/`): Multiple vector DB adapters (ChromaDB, Weaviate, Pinecone, Qdrant)
-- **ArXiv Integration** (`backend/retrieval/arxiv_client.py`): Academic paper retrieval
-- **Task System** (`backend/tasks/`): Celery-based async job processing
-- **Job Logging** (`backend/utils/job_logger.py`, `backend/services/job_log_service.py`): Comprehensive logging with Elasticsearch integration
-
-### Frontend Structure
-- **Next.js Application** (`frontend/`): Modern React-based UI
-- **Dashboard Pages** (`frontend/app/(dashboard)/`): Job management, history, and real-time logs
-- **Component Library** (`frontend/components/`): Reusable UI components with shadcn/ui
-- **API Integration** (`frontend/lib/api.ts`): SWR-based data fetching hooks
-
-### Infrastructure
-- **Docker Compose Setup** (`infra/docker/`): Complete containerized development environment
-- **Database Migrations** (`backend/database/migrations/`): SQL migration system
-- **Middleware Services**: PostgreSQL, Redis, Weaviate, Elasticsearch, Kibana
+### Main Components
+- **ArXiv Client** (`backend/retrieval/arxiv_client.py`): Academic paper retrieval from ArXiv API
+- **Paper Fetcher** (`simple_paper_fetcher.py`): Main application logic for fetching, deduplicating, and storing papers
+- **PDF Downloader**: Built-in PDF download and organization system
+- **SQLite Database**: Simple database for paper metadata and deduplication
+- **Scheduler** (`scheduler.py`): Simple scheduler for automated periodic fetching
+- **YAML Configuration** (`config.yaml`): All settings managed via YAML file
 
 ## Development Commands
 
-### Start Development Environment
+### Installation
 ```bash
-# Start all middleware services (PostgreSQL, Redis, Weaviate, Elasticsearch)
-make docker-run-middleware
-
-# Start API server
-make run-api
-
-# Start frontend development server
-cd frontend && npm run dev
+# Install dependencies
+pip install -r requirements-simple.txt
 ```
 
-### Build and Test
+### Running the System
 ```bash
-# Format code
-make format
+# Single run - fetch papers once
+python simple_paper_fetcher.py
 
-# Run linting
-make lint
+# With custom config file
+python simple_paper_fetcher.py my-config.yaml
 
-# Run tests
-make test
+# Start scheduler for periodic fetching
+python scheduler.py
 
-# Run tests with coverage
-make test-cov
-
-# Build frontend
-cd frontend && npm run build
-
-# Build all components
-make build
+# Start scheduler with custom config
+python scheduler.py my-config.yaml
 ```
 
-### Docker Operations
+### Repository Cleanup (Optional)
 ```bash
-# Full stack with Docker
-make docker-run
+# Preview files that would be removed
+python cleanup_repository.py
 
-# Stop all services
-make docker-stop
-
-# Check service health
-make docker-health
-
-# View logs
-make docker-logs
-```
-
-### Database Operations
-```bash
-# Run database migrations
-cd backend && python run_migration.py
-
-# Access PostgreSQL shell
-make docker-db-shell
-
-# Access Redis shell
-make docker-redis-shell
+# Actually remove unnecessary files
+python cleanup_repository.py --execute
 ```
 
 ## Key Configuration
 
-### Environment Setup
-Copy `infra/docker/env.template` to `.env` and configure:
-- API keys for OpenAI, DeepSeek, Anthropic
-- Database connection strings
-- Service ports and credentials
+### Main Configuration (`config.yaml`)
+All system settings are managed through the YAML configuration file:
 
-### Agent Configuration
-Each agent can be configured independently in `backend/config.py` with different LLM providers, models, and parameters.
+#### Search Configuration
+- `keywords`: List of search terms for ArXiv
+- `max_papers_per_run`: Maximum papers to fetch per execution (default: 100)
+- `categories`: ArXiv categories to filter by (e.g., "cs.AI", "cs.LG")
+- `days_back`: Only search recent papers (0 = all time, 7 = last week)
+- `sort_by`: Sort results by "Relevance", "SubmittedDate", or "LastUpdatedDate"
 
-### Vector Database Configuration
-The system supports multiple vector databases configured in `backend/database/vector_db/`. Default is ChromaDB for development.
+#### PDF Storage Configuration
+- `base_directory`: Where to store downloaded PDFs (default: "./downloaded_papers")
+- `create_subdirectories`: Organize PDFs by date (YYYY-MM-DD folders)
+- `filename_format`: PDF naming pattern (supports {arxiv_id}, {title_safe}, {date})
+
+#### Scheduler Configuration
+- `interval_hours`: How often to run automated fetching (default: 24 hours)
+- `run_on_startup`: Whether to run immediately when scheduler starts
+
+#### Database Configuration
+- `url`: SQLite database path (default: "sqlite:///papers.db")
 
 ## Important Development Notes
 
-### Multi-Agent System
-- The `ResearchOrchestrator` in `backend/agents/orchestrator.py` manages agent interactions
-- Each agent extends `BaseAgent` and implements specialized analysis methods
-- Agents can run in parallel or sequential workflows
+### Paper Fetching Process
+- Uses the existing `ArxivClient` from `backend/retrieval/arxiv_client.py`
+- Supports keyword-based search with advanced filtering
+- Handles pagination and rate limiting automatically
+- Respects ArXiv API rate limits with configurable delays
 
-### Async Task Processing
-- Uses Celery for background job processing
-- Job progress and logs are tracked in PostgreSQL
-- Real-time updates via WebSocket integration
+### Deduplication System
+- SQLite database stores paper metadata for deduplication
+- Papers are deduplicated by ArXiv ID before processing
+- Existing papers are skipped to avoid redundant downloads
+- Database schema includes: id, arxiv_id, title, authors, abstract, categories, published, pdf_url, pdf_path
 
-### Database Schema
-- Main tables: `cronjobs`, `job_runs`, `job_logs`, `job_log_entries`
-- Vector embeddings stored in chosen vector database
-- Migration system handles schema evolution
+### PDF Download and Storage
+- Downloads PDFs directly from ArXiv using paper.pdf_url
+- Organizes files by date in subdirectories (YYYY-MM-DD format)
+- Supports configurable filename patterns
+- Handles download failures gracefully with logging
 
-### Frontend Architecture
-- Server-side rendering with Next.js App Router
-- Real-time job monitoring with WebSocket hooks
-- Data fetching with SWR for caching and revalidation
-- Component library based on Radix UI and Tailwind CSS
+### Logging System
+- Comprehensive logging to both console and rotating log files
+- Configurable log levels (DEBUG, INFO, WARNING, ERROR)
+- Log file rotation with size limits and backup counts
+- Detailed operation tracking for debugging
 
-### Testing Strategy
-- Backend tests in `tests/` directory using pytest
-- Frontend tests with built-in Next.js testing
-- Docker-based integration testing
-- Comprehensive health checks for all services
-
-## Service Ports
-- Backend API: 8000
-- Frontend: 3000
-- PostgreSQL: 5433
-- Redis: 6379
-- Weaviate: 8080
-- Elasticsearch: 9200
-- Kibana: 5601
+### Scheduler Implementation
+- Simple threading-based scheduler (no external dependencies)
+- Configurable interval-based execution
+- Graceful shutdown handling with signal handlers
+- Optional immediate execution on startup
 
 ## Common Workflows
 
-### Adding New Agents
-1. Create new agent class extending `BaseAgent` in `backend/agents/`
-2. Implement required analysis methods
-3. Register agent in `orchestrator.py`
-4. Add configuration in `config.py`
+### Adding New Search Keywords
+1. Edit `config.yaml` and add keywords to the `search.keywords` list
+2. Optionally add relevant ArXiv categories to `search.categories`
+3. Run the fetcher to test: `python simple_paper_fetcher.py`
 
-### Database Changes
-1. Create migration file in `backend/database/migrations/`
-2. Run migration: `cd backend && python run_migration.py`
-3. Update models in `backend/database/models.py`
+### Customizing PDF Storage
+1. Modify `pdf_storage` section in `config.yaml`
+2. Change `base_directory` to your preferred location
+3. Customize `filename_format` with available variables: `{arxiv_id}`, `{title_safe}`, `{date}`
+4. Set `create_subdirectories: false` to store all PDFs in one directory
 
-### Frontend Components
-1. Create components in `frontend/components/`
-2. Follow existing patterns for API integration
-3. Use shadcn/ui components for consistency
-4. Implement proper TypeScript types
+### Database Maintenance
+1. The SQLite database is created automatically on first run
+2. View papers: Use any SQLite browser or command line: `sqlite3 papers.db "SELECT * FROM papers LIMIT 10;"`
+3. Reset database: Delete `papers.db` file to start fresh
+4. Backup database: Copy `papers.db` file to backup location
+
+### Scheduling for Production
+1. For production use, consider setting up as a system service
+2. Use `scheduler.py` for simple interval-based scheduling
+3. For more complex scheduling, integrate with cron or systemd timers
+4. Monitor logs in `paper_fetcher.log` for operational status
+
+### GitHub Actions Integration
+1. Create `.github/workflows/fetch-papers.yml` 
+2. Set up scheduled workflow with `schedule: - cron: '0 0 * * *'` (daily)
+3. Configure repository secrets for any API keys if needed
+4. Use actions to commit results back to repository
