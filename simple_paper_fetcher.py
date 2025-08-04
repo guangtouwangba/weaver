@@ -20,8 +20,7 @@ from urllib.parse import urlparse
 # Add the backend directory to the path to import existing modules
 sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 
-from retrieval.arxiv_client import ArxivClient, Paper, SearchOperator, SearchFilter, DateRange
-import arxiv
+from retrieval.arxiv_api_client import ArxivAPIClient, Paper, SearchOperator, SearchFilter, DateRange
 
 class PaperDatabase:
     """Simple SQLite database for paper deduplication and metadata storage"""
@@ -33,21 +32,41 @@ class PaperDatabase:
     def init_database(self):
         """Initialize the SQLite database with required tables"""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS papers (
-                    id TEXT PRIMARY KEY,
-                    arxiv_id TEXT UNIQUE NOT NULL,
-                    title TEXT NOT NULL,
-                    authors TEXT NOT NULL,
-                    abstract TEXT,
-                    categories TEXT NOT NULL,
-                    published DATETIME NOT NULL,
-                    pdf_url TEXT,
-                    pdf_path TEXT,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+            # Check if papers table exists
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='papers'")
+            table_exists = cursor.fetchone() is not None
+            
+            if table_exists:
+                # Check if categories column exists
+                cursor = conn.execute("PRAGMA table_info(papers)")
+                columns = [row[1] for row in cursor.fetchall()]
+                
+                if 'categories' not in columns:
+                    # Add missing columns
+                    conn.execute("ALTER TABLE papers ADD COLUMN categories TEXT DEFAULT ''")
+                    
+                if 'pdf_path' not in columns:
+                    conn.execute("ALTER TABLE papers ADD COLUMN pdf_path TEXT")
+                    
+                if 'updated_at' not in columns:
+                    conn.execute("ALTER TABLE papers ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+            else:
+                # Create new table with correct structure
+                conn.execute("""
+                    CREATE TABLE papers (
+                        id TEXT PRIMARY KEY,
+                        arxiv_id TEXT UNIQUE NOT NULL,
+                        title TEXT NOT NULL,
+                        authors TEXT NOT NULL,
+                        abstract TEXT,
+                        categories TEXT NOT NULL,
+                        published DATETIME NOT NULL,
+                        pdf_url TEXT,
+                        pdf_path TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
             
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_papers_arxiv_id ON papers(arxiv_id)
@@ -199,7 +218,7 @@ class SimplePaperFetcher:
         db_path = self.config['database']['url'].replace('sqlite:///', '')
         self.database = PaperDatabase(db_path)
         
-        self.arxiv_client = ArxivClient(
+        self.arxiv_client = ArxivAPIClient(
             max_results=self.config['search']['max_papers_per_run'],
             delay=self.config['advanced']['request_delay']
         )
@@ -258,36 +277,37 @@ class SimplePaperFetcher:
         max_papers = self.config['search']['max_papers_per_run']
         days_back = self.config['search'].get('days_back', 0)
         
-        # Create search filter
-        search_filter = None
-        if self.config['search'].get('categories'):
-            search_filter = SearchFilter(
-                categories=self.config['search']['categories'],
-                date_range=days_back if days_back > 0 else None
-            )
-        elif days_back > 0:
-            search_filter = SearchFilter(date_range=days_back)
+        # Get categories and sort by
+        categories = self.config['search'].get('categories')
+        sort_by = self.config['search'].get('sort_by', 'submittedDate').lower()
         
-        # Determine sort criterion
+        # Map sort options to API format
         sort_mapping = {
-            'Relevance': arxiv.SortCriterion.Relevance,
-            'LastUpdatedDate': arxiv.SortCriterion.LastUpdatedDate,
-            'SubmittedDate': arxiv.SortCriterion.SubmittedDate
+            'relevance': 'relevance',
+            'lastupdateddate': 'lastUpdatedDate', 
+            'submitteddate': 'submittedDate'
         }
-        sort_by = sort_mapping.get(
-            self.config['search'].get('sort_by', 'SubmittedDate'),
-            arxiv.SortCriterion.SubmittedDate
-        )
+        sort_by = sort_mapping.get(sort_by, 'submittedDate')
         
         # Search for papers
         logging.info(f"Searching for papers with keywords: {keywords}")
-        papers = self.arxiv_client.search_papers_by_keywords(
-            keywords=keywords,
-            operator=SearchOperator.OR,
-            search_filter=search_filter,
-            max_results=max_papers,
-            sort_by=sort_by
-        )
+        
+        if days_back > 0:
+            # Use recent search for date filtering
+            papers = self.arxiv_client.search_recent_papers(
+                keywords=keywords,
+                days_back=days_back,
+                categories=categories,
+                max_results=max_papers
+            )
+        else:
+            # Use regular search
+            papers = self.arxiv_client.search_papers(
+                keywords=keywords,
+                categories=categories,
+                max_results=max_papers,
+                sort_by=sort_by
+            )
         
         logging.info(f"Found {len(papers)} papers from ArXiv")
         

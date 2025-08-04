@@ -1,0 +1,51 @@
+# Docker Compose for ArXiv Paper Fetcher
+version: '3.8'
+
+services:
+  paper-fetcher:
+    build: .
+    container_name: arxiv-paper-fetcher
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - TZ=UTC  # Set timezone
+    
+    # Mount volumes for persistence
+    volumes:
+      # Configuration file
+      - ./config.yaml:/app/config.yaml:ro
+      
+      # Data persistence
+      - ./papers.db:/app/papers.db
+      - ./downloaded_papers:/app/downloaded_papers
+      - ./logs:/app/logs
+      
+      # Optional: mount custom config
+      # - ./custom-config.yaml:/app/config.yaml:ro
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sqlite3; conn = sqlite3.connect('papers.db'); print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Optional: expose port for monitoring/health checks
+    ports:
+      - "8080:8080"
+    
+    # Labels for organization
+    labels:
+      - "com.example.service=arxiv-paper-fetcher"
+      - "com.example.description=Automated ArXiv paper fetching service"
