@@ -1,0 +1,43 @@
+# RAG Question Answering Module Requirements
+# Additional dependencies for the RAG functionality
+
+# Base requirements (include the simple requirements)
+-r requirements-simple.txt
+
+# PDF text extraction
+PyPDF2==3.0.1
+pdfplumber==0.11.4
+
+# Text processing and embeddings
+sentence-transformers==3.3.1
+transformers==4.48.0
+
+# Vector database
+chromadb==0.5.23
+
+# LLM integration
+openai==1.62.0
+
+# Terminal UI
+rich==13.9.4
+click==8.1.8
+
+# Text splitting and processing
+langchain-text-splitters==0.3.2
+
+# Additional utilities
+numpy==1.24.4
+tqdm==4.67.1
+python-dotenv==1.0.1
+
+# Database - Supabase SDK (already included in simple requirements)
+# supabase==2.9.1
+
+# Optional: For better performance
+faiss-cpu==1.9.0  # Alternative vector database
+torch==2.5.1  # For sentence-transformers
+
+# Development/Testing (optional)
+# pytest==8.3.3
+# pytest-cov==5.0.0
+# pytest-asyncio==0.24.0

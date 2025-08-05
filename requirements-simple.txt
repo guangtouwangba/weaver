@@ -10,8 +10,12 @@ requests==2.32.3
 # Alibaba Cloud OSS SDK (optional, only needed when using OSS backend)
 oss2==2.18.4
 
-# Database (SQLite is built into Python)
-# No additional database dependencies needed
+# Environment variables
+python-dotenv==1.0.1
+
+# Database - SQLite is built into Python
+# Supabase SDK (optional, only needed when using Supabase backend)
+supabase==2.9.1
 
 # XML parsing (built into Python)
 # No additional dependencies needed

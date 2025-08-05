@@ -3,7 +3,15 @@
 
 # Database settings
 database:
-  url: "sqlite:///papers.db"  # SQLite database for simplicity
+  # Database provider: "sqlite" for local, "supabase" for cloud
+  provider: "supabase"  # Change to "supabase" for cloud database
+  
+  # SQLite configuration (local development)
+  url: "sqlite:///papers.db"
+  
+  # Supabase configuration (cloud deployment)
+  supabase_url: "${SUPABASE_URL}"        # Set in .env file
+  supabase_key: "${SUPABASE_ANON_KEY}"   # Set in .env file
   
 # ArXiv search configuration
 search:
@@ -85,3 +93,43 @@ advanced:
   
   # Timeout for PDF downloads (seconds)
   download_timeout: 300
+
+# RAG问答配置
+rag:
+  # 向量数据库设置
+  vector_db:
+    type: "chroma"  # chroma, faiss
+    persist_directory: "./rag_vector_db"
+    collection_name: "arxiv_papers"
+  
+  # 文本处理设置
+  text_processing:
+    chunk_size: 1000
+    chunk_overlap: 200
+    max_chunks_per_doc: 50
+  
+  # 嵌入模型设置
+  embeddings:
+    provider: "openai"  # openai, sentence-transformers
+    model: "text-embedding-3-small"  # OpenAI embedding model
+    # model: "text-embedding-ada-002"  # Alternative OpenAI model
+    device: "cpu"  # cpu, cuda (only for sentence-transformers)
+  
+  # LLM设置
+  llm:
+    provider: "openai"  # openai, anthropic, local
+    model: "gpt-3.5-turbo"
+    max_tokens: 2000
+    temperature: 0.1
+  
+  # 检索设置
+  retrieval:
+    top_k: 5
+    similarity_threshold: 0.7
+    max_context_length: 4000
+  
+  # UI设置
+  ui:
+    max_keywords_display: 20
+    results_per_page: 3
+    show_similarity_scores: true

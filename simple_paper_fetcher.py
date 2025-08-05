@@ -22,135 +22,23 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 
 from retrieval.arxiv_api_client import ArxivAPIClient, Paper, SearchOperator, SearchFilter, DateRange
 from storage.storage_manager import create_storage_manager
+from database.database_adapter import create_database_manager
+from dotenv import load_dotenv
 
-class PaperDatabase:
-    """Simple SQLite database for paper deduplication and metadata storage"""
-    
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self.init_database()
-    
-    def init_database(self):
-        """Initialize the SQLite database with required tables"""
-        with sqlite3.connect(self.db_path) as conn:
-            # Check if papers table exists
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='papers'")
-            table_exists = cursor.fetchone() is not None
-            
-            if table_exists:
-                # Check if categories column exists
-                cursor = conn.execute("PRAGMA table_info(papers)")
-                columns = [row[1] for row in cursor.fetchall()]
-                
-                if 'categories' not in columns:
-                    # Add missing columns
-                    conn.execute("ALTER TABLE papers ADD COLUMN categories TEXT DEFAULT ''")
-                    
-                if 'pdf_path' not in columns:
-                    conn.execute("ALTER TABLE papers ADD COLUMN pdf_path TEXT")
-                    
-                if 'updated_at' not in columns:
-                    conn.execute("ALTER TABLE papers ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP")
-            else:
-                # Create new table with correct structure
-                conn.execute("""
-                    CREATE TABLE papers (
-                        id TEXT PRIMARY KEY,
-                        arxiv_id TEXT UNIQUE NOT NULL,
-                        title TEXT NOT NULL,
-                        authors TEXT NOT NULL,
-                        abstract TEXT,
-                        categories TEXT NOT NULL,
-                        published DATETIME NOT NULL,
-                        pdf_url TEXT,
-                        pdf_path TEXT,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-            
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_papers_arxiv_id ON papers(arxiv_id)
-            """)
-            
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_papers_published ON papers(published)
-            """)
-            
-            conn.commit()
-    
-    def paper_exists(self, arxiv_id: str) -> bool:
-        """Check if a paper already exists in the database"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT 1 FROM papers WHERE arxiv_id = ?", (arxiv_id,))
-            return cursor.fetchone() is not None
-    
-    def get_existing_arxiv_ids(self) -> Set[str]:
-        """Get all existing arXiv IDs from the database"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT arxiv_id FROM papers")
-            return {row[0] for row in cursor.fetchall()}
-    
-    def insert_paper(self, paper: Paper, pdf_path: Optional[str] = None):
-        """Insert a new paper into the database"""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                INSERT OR REPLACE INTO papers 
-                (id, arxiv_id, title, authors, abstract, categories, published, pdf_url, pdf_path, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """, (
-                paper.id,
-                paper.arxiv_id,
-                paper.title,
-                '|'.join(paper.authors),  # Store authors as pipe-separated string
-                paper.abstract,
-                '|'.join(paper.categories),  # Store categories as pipe-separated string
-                paper.published.isoformat(),
-                paper.pdf_url,
-                pdf_path
-            ))
-            conn.commit()
-    
-    def get_paper_count(self) -> int:
-        """Get total number of papers in the database"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT COUNT(*) FROM papers")
-            return cursor.fetchone()[0]
-    
-    def get_recent_papers(self, days: int = 7) -> List[Dict]:
-        """Get papers added in the last N days"""
-        cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
-                SELECT arxiv_id, title, authors, published, pdf_path 
-                FROM papers 
-                WHERE created_at > ? 
-                ORDER BY published DESC
-            """, (cutoff_date,))
-            
-            results = []
-            for row in cursor.fetchall():
-                results.append({
-                    'arxiv_id': row[0],
-                    'title': row[1],
-                    'authors': row[2].split('|') if row[2] else [],
-                    'published': row[3],
-                    'pdf_path': row[4]
-                })
-            return results
-
-# Note: PDFDownloader class replaced by StorageManager
+# Note: PaperDatabase class replaced by DatabaseManager (unified adapter)
 
 class SimplePaperFetcher:
     """Main class for fetching and managing papers"""
     
     def __init__(self, config_path: str = "config.yaml"):
+        # Load environment variables first
+        load_dotenv()
+        
         self.config = self._load_config(config_path)
         self._setup_logging()
         
-        # Initialize components
-        db_path = self.config['database']['url'].replace('sqlite:///', '')
-        self.database = PaperDatabase(db_path)
+        # Initialize components with unified database manager
+        self.database = create_database_manager(self.config)
         
         self.arxiv_client = ArxivAPIClient(
             max_results=self.config['search']['max_papers_per_run'],
@@ -161,10 +49,20 @@ class SimplePaperFetcher:
         self.storage_manager = create_storage_manager(self.config['pdf_storage'])
     
     def _load_config(self, config_path: str) -> Dict:
-        """Load configuration from YAML file"""
+        """Load configuration from YAML file with environment variable substitution"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
-                return yaml.safe_load(f)
+                content = f.read()
+                
+                # Substitute environment variables in the format ${VAR_NAME}
+                import re
+                def replace_env_var(match):
+                    var_name = match.group(1)
+                    return os.environ.get(var_name, match.group(0))
+                
+                content = re.sub(r'\$\{([^}]+)\}', replace_env_var, content)
+                
+                return yaml.safe_load(content)
         except Exception as e:
             print(f"Error loading config: {e}")
             sys.exit(1)
@@ -259,7 +157,7 @@ class SimplePaperFetcher:
                     logging.error(f"Failed to download/store PDF for {paper.arxiv_id}")
                     continue
                 
-                # Store in database
+                # Store in database using unified adapter
                 self.database.insert_paper(paper, pdf_path)
                 new_paper_count += 1
                 
@@ -281,10 +179,14 @@ class SimplePaperFetcher:
         total_papers = self.database.get_paper_count()
         recent_papers = self.database.get_recent_papers(7)
         
+        # Get database info
+        db_info = self.database.get_database_info()
+        
         return {
             'total_papers': total_papers,
             'papers_this_week': len(recent_papers),
-            'recent_papers': recent_papers[:10]  # Show last 10
+            'recent_papers': recent_papers[:10],  # Show last 10
+            'database_type': db_info.get('adapter_type', 'Unknown')
         }
     
     def run_once(self):
