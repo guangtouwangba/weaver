@@ -232,17 +232,20 @@ class DatabaseManager:
         supabase_key = os.getenv('SUPABASE_ANON_KEY') or db_config.get('supabase_key')
         
         # Determine which adapter to use
-        if db_config.get('provider', '').lower() == 'supabase' or (supabase_url and supabase_key):
-            logger.info("Using Supabase database adapter")
-            return SupabaseAdapter(supabase_url, supabase_key)
-        else:
-            # Default to SQLite
-            logger.info("Using SQLite database adapter")
-            if db_url.startswith('sqlite:///'):
-                db_path = db_url.replace('sqlite:///', '')
+        if db_config.get('provider', '').lower() == 'supabase':
+            if supabase_url and supabase_key:
+                logger.info("Using Supabase database adapter")
+                return SupabaseAdapter(supabase_url, supabase_key)
             else:
-                db_path = 'papers.db'
-            return SQLiteAdapter(db_path)
+                logger.warning("Supabase provider specified but credentials not found, falling back to SQLite")
+        
+        # Default to SQLite
+        logger.info("Using SQLite database adapter")
+        if db_url.startswith('sqlite:///'):
+            db_path = db_url.replace('sqlite:///', '')
+        else:
+            db_path = 'papers.db'
+        return SQLiteAdapter(db_path)
     
     def paper_exists(self, arxiv_id: str) -> bool:
         """Check if a paper already exists in the database"""

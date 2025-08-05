@@ -1,0 +1,202 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hybrid-job-scheduler
+  namespace: default
+  labels:
+    app: hybrid-job-scheduler
+    version: v1
+spec:
+  replicas: 1  # Only one instance to avoid job conflicts
+  selector:
+    matchLabels:
+      app: hybrid-job-scheduler
+  template:
+    metadata:
+      labels:
+        app: hybrid-job-scheduler
+    spec:
+      containers:
+      - name: hybrid-scheduler
+        image: your-registry/hybrid-job-scheduler:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: PYTHONPATH
+          value: "/app"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        envFrom:
+        - secretRef:
+            name: hybrid-scheduler-secrets
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+          readOnly: true
+        - name: schedules-volume
+          mountPath: /app/job_schedules.yaml
+          subPath: job_schedules.yaml
+          readOnly: true
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - hybrid_job_scheduler.py
+            - --status
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - hybrid_job_scheduler.py
+            - --status
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: hybrid-scheduler-config
+      - name: schedules-volume
+        configMap:
+          name: hybrid-scheduler-schedules
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: hybrid-scheduler-data
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: hybrid-scheduler-logs
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hybrid-scheduler-secrets
+type: Opaque
+stringData:
+  SUPABASE_URL: "https://your-project.supabase.co"
+  SUPABASE_ANON_KEY: "your-anon-key"
+  SUPABASE_SERVICE_KEY: "your-service-key"
+  OPENAI_API_KEY: "your-openai-key"
+  DEEPSEEK_API_KEY: "your-deepseek-key"
+  ANTHROPIC_API_KEY: "your-anthropic-key"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hybrid-scheduler-config
+data:
+  config.yaml: |
+    database:
+      provider: "supabase"
+      supabase:
+        url: "${SUPABASE_URL}"
+        anon_key: "${SUPABASE_ANON_KEY}"
+        service_key: "${SUPABASE_SERVICE_KEY}"
+    
+    llm_providers:
+      openai:
+        api_key: "${OPENAI_API_KEY}"
+        model: "gpt-3.5-turbo"
+      deepseek:
+        api_key: "${DEEPSEEK_API_KEY}"
+        model: "deepseek-coder"
+      anthropic:
+        api_key: "${ANTHROPIC_API_KEY}"
+        model: "claude-3-sonnet-20240229"
+    
+    arxiv:
+      base_url: "http://export.arxiv.org/api/query"
+      delay_between_requests: 3
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hybrid-scheduler-schedules
+data:
+  job_schedules.yaml: |
+    scheduler_settings:
+      cron_check_interval: 60
+      job_check_interval: 30
+      max_concurrent_jobs: 3
+      default_max_retries: 3
+      default_timeout_seconds: 3600
+      job_lock_duration_minutes: 30
+      instance_prefix: "k8s-scheduler"
+
+    job_schedules:
+      - name: "Daily Paper Fetch"
+        job_type: "paper_fetch"
+        cron_expression: "0 9 * * *"
+        description: "Daily paper fetching"
+        enabled: true
+        config:
+          config_path: "config.yaml"
+          max_papers: 100
+          keywords: ["AI", "machine learning"]
+          
+      - name: "Weekly Cleanup"
+        job_type: "maintenance"
+        cron_expression: "0 2 * * 0"
+        description: "Weekly database cleanup"
+        enabled: true
+        config:
+          cleanup_days: 30
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hybrid-scheduler-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hybrid-scheduler-logs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hybrid-job-scheduler-service
+spec:
+  selector:
+    app: hybrid-job-scheduler
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP

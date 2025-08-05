@@ -99,6 +99,8 @@ CREATE POLICY IF NOT EXISTS "Authenticated write access" ON papers
 
 4. Click **Run** to execute the SQL
 
+**Important**: If you get a syntax error with `DO` blocks, use the simplified SQL from `scripts/supabase_job_schema.sql` instead.
+
 ### 5. Update Configuration
 
 Edit `config.yaml` to use Supabase:
