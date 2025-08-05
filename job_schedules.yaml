@@ -1,0 +1,92 @@
+# Job Schedules Configuration
+# Define cron-based job creation rules
+
+job_schedules:
+  # Paper fetching jobs
+  - name: "Daily Paper Fetch"
+    job_type: "paper_fetch"
+    cron_expression: "0 9 * * *"  # Every day at 9 AM
+    description: "Daily fetch of new papers from ArXiv"
+    max_retries: 3
+    enabled: true
+    config:
+      config_path: "config.yaml"
+      max_papers: 100
+      keywords: ["AI", "machine learning", "deep learning", "neural networks"]
+  
+  - name: "Evening Paper Fetch"
+    job_type: "paper_fetch" 
+    cron_expression: "0 21 * * *"  # Every day at 9 PM
+    description: "Evening fetch to catch papers published during the day"
+    max_retries: 2
+    enabled: true
+    config:
+      config_path: "config.yaml"
+      max_papers: 50
+      keywords: ["computer vision", "natural language processing", "NLP"]
+  
+  # Maintenance jobs
+  - name: "Weekly Cleanup"
+    job_type: "maintenance"
+    cron_expression: "0 2 * * 0"  # Every Sunday at 2 AM
+    description: "Weekly database cleanup and maintenance"
+    max_retries: 1
+    enabled: true
+    config:
+      cleanup_days: 30
+      cleanup_executions: true
+      optimize_database: true
+  
+  - name: "Daily Log Cleanup"
+    job_type: "maintenance"
+    cron_expression: "0 3 * * *"  # Every day at 3 AM
+    description: "Daily cleanup of old execution logs"
+    max_retries: 1
+    enabled: false  # Disabled by default
+    config:
+      cleanup_days: 7
+      cleanup_executions: true
+  
+  # Custom jobs examples
+  - name: "Hourly Health Check"
+    job_type: "custom"
+    cron_expression: "0 * * * *"  # Every hour
+    description: "System health check and monitoring"
+    max_retries: 1
+    enabled: false  # Disabled by default
+    config:
+      check_type: "health"
+      notify_on_failure: true
+      email_recipients: ["admin@example.com"]
+  
+  - name: "Weekend Data Processing"
+    job_type: "custom"
+    cron_expression: "0 10 * * 6,0"  # Saturday and Sunday at 10 AM
+    description: "Weekend data processing and analysis"
+    max_retries: 2
+    enabled: false  # Disabled by default
+    config:
+      process_type: "batch_analysis"
+      input_source: "database"
+      output_format: "json"
+
+# Global settings for job scheduling
+scheduler_settings:
+  # How often to check for new jobs to create (seconds)
+  cron_check_interval: 60
+  
+  # How often to check for jobs to execute (seconds) 
+  job_check_interval: 30
+  
+  # Maximum number of concurrent job executions
+  max_concurrent_jobs: 3
+  
+  # Default values for new jobs
+  default_max_retries: 3
+  default_timeout_seconds: 3600
+  
+  # Job execution settings
+  job_lock_duration_minutes: 30
+  
+  # Instance identification
+  instance_prefix: "hybrid-scheduler"

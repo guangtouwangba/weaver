@@ -17,6 +17,9 @@ python-dotenv==1.0.1
 # Supabase SDK (optional, only needed when using Supabase backend)
 supabase==2.9.1
 
+# Job scheduling
+croniter==3.0.3
+
 # XML parsing (built into Python)
 # No additional dependencies needed
 
