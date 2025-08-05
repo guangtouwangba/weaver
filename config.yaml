@@ -4,7 +4,7 @@
 # Database settings
 database:
   # Database provider: "sqlite" for local, "supabase" for cloud
-  provider: "supabase"  # Change to "supabase" for cloud database
+  provider: "supabase"  # Using Supabase for cloud database
   
   # SQLite configuration (local development)
   url: "sqlite:///papers.db"
