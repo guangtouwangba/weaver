@@ -261,12 +261,34 @@ class CloudJobPicker:
         """Release any expired job locks"""
         try:
             if hasattr(self.db_manager.adapter, 'client') and hasattr(self.db_manager.adapter.client, 'client'):
-                # Supabase - use stored function
-                result = self.db_manager.adapter.client.client.rpc('release_expired_locks').execute()
-                if result.data:
-                    released_count = result.data
+                # Supabase - query and update expired locks directly
+                try:
+                    # First find expired locks
+                    now = datetime.utcnow().isoformat()
+                    expired_result = self.db_manager.adapter.client.client.table('cloud_jobs').select('job_id', 'current_retries', 'max_retries').eq('status', 'locked').lt('lock_expires_at', now).execute()
+                    
+                    released_count = 0
+                    if expired_result.data:
+                        for job in expired_result.data:
+                            # Determine new status based on retry count
+                            new_status = 'waiting' if job['current_retries'] < job['max_retries'] else 'failed'
+                            
+                            # Update the job
+                            update_result = self.db_manager.adapter.client.client.table('cloud_jobs').update({
+                                'status': new_status,
+                                'locked_at': None,
+                                'locked_by': None,
+                                'lock_expires_at': None
+                            }).eq('job_id', job['job_id']).execute()
+                            
+                            if update_result.data:
+                                released_count += 1
+                    
                     if released_count > 0:
                         logger.info(f"Released {released_count} expired locks")
+                        
+                except Exception as e:
+                    logger.warning(f"Could not release expired locks from Supabase: {e}")
             else:
                 # SQLite
                 conn = sqlite3.connect(self.db_manager.adapter.db_path)
@@ -299,10 +321,33 @@ class CloudJobPicker:
         """Get current job statistics"""
         try:
             if hasattr(self.db_manager.adapter, 'client') and hasattr(self.db_manager.adapter.client, 'client'):
-                # Supabase
-                result = self.db_manager.adapter.client.client.table('job_statistics').select('*').execute()
-                if result.data and len(result.data) > 0:
-                    return result.data[0]
+                # Supabase - query cloud_jobs table directly
+                try:
+                    result = self.db_manager.adapter.client.client.table('cloud_jobs').select('status').execute()
+                    if result.data:
+                        stats = {'total_jobs': 0, 'waiting_jobs': 0, 'locked_jobs': 0, 
+                                'success_jobs': 0, 'failed_jobs': 0, 'disabled_jobs': 0}
+                        for job in result.data:
+                            status = job.get('status', 'unknown')
+                            stats['total_jobs'] += 1
+                            if status == 'waiting':
+                                stats['waiting_jobs'] += 1
+                            elif status == 'locked':
+                                stats['locked_jobs'] += 1
+                            elif status == 'success':
+                                stats['success_jobs'] += 1
+                            elif status == 'failed':
+                                stats['failed_jobs'] += 1
+                            elif status == 'disabled':
+                                stats['disabled_jobs'] += 1
+                        return stats
+                    else:
+                        return {'total_jobs': 0, 'waiting_jobs': 0, 'locked_jobs': 0, 
+                               'success_jobs': 0, 'failed_jobs': 0, 'disabled_jobs': 0}
+                except Exception as e:
+                    logger.warning(f"Could not get job statistics from Supabase: {e}")
+                    return {'total_jobs': 0, 'waiting_jobs': 0, 'locked_jobs': 0, 
+                           'success_jobs': 0, 'failed_jobs': 0, 'disabled_jobs': 0}
             else:
                 # SQLite
                 conn = sqlite3.connect(self.db_manager.adapter.db_path)
