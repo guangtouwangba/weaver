@@ -21,6 +21,10 @@ RUN pip install --no-cache-dir -r requirements-simple.txt
 # Copy application code
 COPY . .
 
+# Remove any Python cache files
+RUN find . -name "*.pyc" -delete && \
+    find . -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
 # Copy and make entrypoint script executable
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

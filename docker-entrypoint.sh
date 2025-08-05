@@ -22,11 +22,32 @@ check_config() {
 init_database() {
     log "Initializing database..."
     python -c "
+import os
+import yaml
+from dotenv import load_dotenv
 import sys
 sys.path.append('backend')
-from simple_paper_fetcher import PaperDatabase
-db = PaperDatabase('papers.db')
-print('Database initialized successfully')
+
+# Load environment variables
+load_dotenv()
+
+# Load config with environment variable substitution
+def load_config(config_path='config.yaml'):
+    with open(config_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    import re
+    def replace_env_var(match):
+        var_name = match.group(1)
+        return os.environ.get(var_name, match.group(0))
+    content = re.sub(r'\$\{([^}]+)\}', replace_env_var, content)
+    return yaml.safe_load(content)
+
+# Initialize database using the new adapter
+from database.database_adapter import create_database_manager
+config = load_config()
+db_manager = create_database_manager(config)
+print(f'Database initialized successfully using {type(db_manager.adapter).__name__}')
+print(f'Current paper count: {db_manager.get_paper_count()}')
 "
 }
 
