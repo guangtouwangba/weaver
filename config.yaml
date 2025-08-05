@@ -15,7 +15,7 @@ database:
   
 # ArXiv search configuration
 search:
-  max_papers_per_run: 100  # Maximum papers to fetch in each run
+  max_papers_per_run: 1000  # Maximum papers to fetch in each run
   keywords:
     - "rag"
     - "RAG"
