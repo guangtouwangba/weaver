@@ -30,24 +30,24 @@ check_config() {
 create_default_schedules() {
     cat > job_schedules.yaml << 'EOF'
 scheduler_settings:
-  cron_check_interval: 60
-  job_check_interval: 30
-  max_concurrent_jobs: 3
-  default_max_retries: 3
-  default_timeout_seconds: 3600
-  job_lock_duration_minutes: 30
+  cron_check_interval: 30
+  job_check_interval: 15
+  max_concurrent_jobs: 2
+  default_max_retries: 2
+  default_timeout_seconds: 1800
+  job_lock_duration_minutes: 15
   instance_prefix: "docker-scheduler"
 
 job_schedules:
-  - name: "Daily Paper Fetch"
+  - name: "Hourly Paper Fetch"
     job_type: "paper_fetch"
-    cron_expression: "0 9 * * *"
-    description: "Daily paper fetching"
+    cron_expression: "0 * * * *"
+    description: "Hourly paper fetching"
     enabled: true
     config:
       config_path: "config.yaml"
-      max_papers: 100
-      keywords: ["AI", "machine learning"]
+      max_papers: 20
+      keywords: ["rag", "RAG", "agent", "Agents", "agents", "retrieval-augmented generation", "retrieval augmented generation"]
       
   - name: "Weekly Cleanup"
     job_type: "maintenance"
