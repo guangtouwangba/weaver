@@ -2,28 +2,17 @@
 # Define cron-based job creation rules
 
 job_schedules:
-  # Paper fetching jobs
-  - name: "Daily Paper Fetch"
+  # Paper fetching jobs - Hourly
+  - name: "Hourly Paper Fetch"
     job_type: "paper_fetch"
-    cron_expression: "0 9 * * *"  # Every day at 9 AM
-    description: "Daily fetch of new papers from ArXiv"
-    max_retries: 3
-    enabled: true
-    config:
-      config_path: "config.yaml"
-      max_papers: 100
-      keywords: ["AI", "machine learning", "deep learning", "neural networks"]
-  
-  - name: "Evening Paper Fetch"
-    job_type: "paper_fetch" 
-    cron_expression: "0 21 * * *"  # Every day at 9 PM
-    description: "Evening fetch to catch papers published during the day"
+    cron_expression: "0 * * * *"  # Every hour at minute 0
+    description: "Hourly fetch of new papers from ArXiv"
     max_retries: 2
     enabled: true
     config:
       config_path: "config.yaml"
-      max_papers: 50
-      keywords: ["computer vision", "natural language processing", "NLP"]
+      max_papers: 20  # Reduced since it's hourly
+      keywords: ["AI", "machine learning", "deep learning", "neural networks", "computer vision", "NLP"]
   
   # Maintenance jobs
   - name: "Weekly Cleanup"
@@ -72,21 +61,21 @@ job_schedules:
 
 # Global settings for job scheduling
 scheduler_settings:
-  # How often to check for new jobs to create (seconds)
-  cron_check_interval: 60
+  # How often to check for new jobs to create (seconds) - optimized for higher frequency
+  cron_check_interval: 30
   
-  # How often to check for jobs to execute (seconds) 
-  job_check_interval: 30
+  # How often to check for jobs to execute (seconds) - more frequent checks
+  job_check_interval: 15
   
   # Maximum number of concurrent job executions
-  max_concurrent_jobs: 3
+  max_concurrent_jobs: 2
   
   # Default values for new jobs
-  default_max_retries: 3
-  default_timeout_seconds: 3600
+  default_max_retries: 2
+  default_timeout_seconds: 1800  # 30 minutes timeout for hourly jobs
   
   # Job execution settings
-  job_lock_duration_minutes: 30
+  job_lock_duration_minutes: 15  # Shorter lock duration for faster turnover
   
   # Instance identification
   instance_prefix: "hybrid-scheduler"
