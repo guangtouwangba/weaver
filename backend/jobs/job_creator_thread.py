@@ -49,7 +49,7 @@ class CronJobDefinition:
         except Exception as e:
             raise ValueError(f"Invalid cron expression '{cron_expression}': {e}")
         
-        logger.debug(f"CronJobDefinition created: {name} - {cron_expression}")
+        # CronJobDefinition created successfully
     
     def should_create_job(self, current_time: datetime) -> bool:
         """Check if a job should be created based on cron schedule"""

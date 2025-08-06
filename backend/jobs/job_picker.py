@@ -92,10 +92,8 @@ class CloudJobPicker:
                     return job
                 else:
                     # Failed to lock the job (race condition)
-                    logger.debug("Failed to lock job (may have been picked by another instance)")
                     return None
             else:
-                logger.debug("No available jobs found")
                 return None
                 
         except Exception as e:
@@ -133,7 +131,6 @@ class CloudJobPicker:
                 row = cursor.fetchone()
                 if not row:
                     conn.commit()
-                    logger.debug("No available jobs found")
                     return None
                 
                 job_id = row[0]

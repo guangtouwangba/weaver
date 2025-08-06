@@ -41,7 +41,7 @@ class SupabaseClient:
         # Initialize Supabase client
         try:
             self.client: Client = create_client(self.supabase_url, self.supabase_key)
-            logger.info("Supabase client initialized successfully")
+            logger.info("Supabase client initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
             raise
@@ -54,9 +54,9 @@ class SupabaseClient:
         try:
             # Try to read from papers table (will create if not exists)
             result = self.client.table("papers").select("count", count="exact").limit(1).execute()
-            logger.info("Supabase connection test successful")
+            logger.info("Supabase connection verified")
         except Exception as e:
-            logger.warning(f"Connection test failed, table may not exist: {e}")
+            logger.warning(f"Connection test failed: {e}")
             # This is expected if table doesn't exist yet
     
     def create_papers_table(self):
