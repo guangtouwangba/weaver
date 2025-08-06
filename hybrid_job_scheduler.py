@@ -27,6 +27,7 @@ from jobs.job_creator_thread import JobCreatorThread, CronJobDefinition
 
 def setup_logging(level=logging.INFO):
     """Setup logging for the hybrid scheduler"""
+    # Configure root logger
     logging.basicConfig(
         level=level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -35,6 +36,15 @@ def setup_logging(level=logging.INFO):
             logging.FileHandler('hybrid_scheduler.log')
         ]
     )
+    
+    # Reduce noise from HTTP libraries
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    
+    # Keep supabase client at INFO level but reduce HTTP noise
+    logging.getLogger('supabase').setLevel(logging.INFO)
 
 def load_config(config_path: str = "config.yaml"):
     """Load main configuration"""
@@ -154,10 +164,9 @@ class HybridJobScheduler:
             self.executor_thread.start()
             self.creator_thread.start()
             
-            self.logger.info("✅ Hybrid Job Scheduler started successfully")
-            self.logger.info(f"   Instance ID: {self.instance_id}")
-            self.logger.info(f"   Executor thread: {'✅' if self.executor_thread.is_healthy() else '❌'}")
-            self.logger.info(f"   Creator thread: {'✅' if self.creator_thread.is_healthy() else '❌'}")
+            self.logger.info("✅ Hybrid Job Scheduler started")
+            self.logger.info(f"   Instance: {self.instance_id}")
+            self.logger.info(f"   Threads: {'✅' if self.executor_thread.is_healthy() else '❌'} executor, {'✅' if self.creator_thread.is_healthy() else '❌'} creator")
             
             # Print initial statistics
             self._print_status()
@@ -209,10 +218,10 @@ class HybridJobScheduler:
             executor_status = self.executor_thread.get_status()
             creator_status = self.creator_thread.get_status()
             
-            self.logger.info("📊 Current Status:")
-            self.logger.info(f"   Database jobs: {job_stats}")
-            self.logger.info(f"   Executor stats: {executor_status.get('statistics', {})}")
-            self.logger.info(f"   Creator stats: {creator_status.get('statistics', {})}")
+            self.logger.info("📊 Status Summary:")
+            self.logger.info(f"   Jobs: {job_stats.get('total_jobs', 0)} total, {job_stats.get('waiting_jobs', 0)} waiting")
+            self.logger.info(f"   Executor: {executor_status.get('statistics', {}).get('jobs_executed', 0)} executed")
+            self.logger.info(f"   Creator: {creator_status.get('statistics', {}).get('jobs_created', 0)} created")
             
         except Exception as e:
             self.logger.error(f"Error getting status: {e}")
@@ -241,7 +250,11 @@ def main():
     args = parser.parse_args()
     
     # Setup logging
-    log_level = logging.DEBUG if args.verbose else logging.INFO
+    if args.verbose:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+        
     setup_logging(log_level)
     
     logger = logging.getLogger(__name__)
