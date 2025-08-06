@@ -84,6 +84,10 @@ class JobExecutorThread:
         
         while self.running:
             try:
+                # Proactively clean up expired locks every few cycles
+                if self.stats['jobs_executed'] % 5 == 0:  # Every 5th cycle
+                    self.job_picker._release_expired_locks()
+                
                 # Look for available job
                 job = self.job_picker.get_next_job()
                 

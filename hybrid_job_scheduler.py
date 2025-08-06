@@ -24,6 +24,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 from database.database_adapter import create_database_manager
 from jobs.job_executor_thread import JobExecutorThread
 from jobs.job_creator_thread import JobCreatorThread, CronJobDefinition
+from jobs.lock_cleaner_thread import LockCleanerThread
 from utils.logging_config import setup_clean_logging
 
 def load_config(config_path: str = "config.yaml"):
@@ -112,6 +113,13 @@ class HybridJobScheduler:
             cron_check_interval
         )
         
+        # Create lock cleaner thread
+        lock_clean_interval = scheduler_settings.get('lock_clean_interval', 300)  # 5 minutes default
+        self.lock_cleaner = LockCleanerThread(
+            self.db_manager,
+            lock_clean_interval
+        )
+        
         self.running = False
         self.logger = logging.getLogger(__name__)
         
@@ -140,13 +148,14 @@ class HybridJobScheduler:
         self.running = True
         
         try:
-            # Start both threads
+            # Start all threads
             self.executor_thread.start()
             self.creator_thread.start()
+            self.lock_cleaner.start()
             
             self.logger.info("✅ Hybrid Job Scheduler started")
             self.logger.info(f"   Instance: {self.instance_id}")
-            self.logger.info(f"   Threads: {'✅' if self.executor_thread.is_healthy() else '❌'} executor, {'✅' if self.creator_thread.is_healthy() else '❌'} creator")
+            self.logger.info(f"   Threads: {'✅' if self.executor_thread.is_healthy() else '❌'} executor, {'✅' if self.creator_thread.is_healthy() else '❌'} creator, {'✅' if self.lock_cleaner.is_healthy() else '❌'} cleaner")
             
             # Print initial statistics
             self._print_status()
@@ -164,8 +173,9 @@ class HybridJobScheduler:
         self.logger.info("🛑 Stopping Hybrid Job Scheduler...")
         self.running = False
         
-        # Stop both threads
+        # Stop all threads
         self.creator_thread.stop()
+        self.lock_cleaner.stop()
         self.executor_thread.stop()
         
         self.logger.info("✅ Hybrid Job Scheduler stopped")
@@ -182,6 +192,9 @@ class HybridJobScheduler:
                 
                 if not self.creator_thread.is_healthy():
                     self.logger.error("❌ Creator thread is not healthy!")
+                
+                if not self.lock_cleaner.is_healthy():
+                    self.logger.error("❌ Lock cleaner thread is not healthy!")
                 
         except KeyboardInterrupt:
             self.logger.info("Received keyboard interrupt")
