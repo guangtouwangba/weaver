@@ -41,6 +41,15 @@ def setup_logging(level=logging.INFO):
             logging.StreamHandler(sys.stdout)
         ]
     )
+    
+    # Reduce noise from HTTP libraries
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    logging.getLogger('h11').setLevel(logging.WARNING)
+    logging.getLogger('hpack').setLevel(logging.WARNING)
+    logging.getLogger('hyperframe').setLevel(logging.WARNING)
 
 def load_config(config_path: str = "config.yaml"):
     """Load configuration from YAML file with environment variable substitution"""
