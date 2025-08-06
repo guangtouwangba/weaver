@@ -73,20 +73,13 @@ class CloudJobPicker:
                     # Successfully locked the job
                     job_data = update_result.data[0]
                     
-                    # Convert to CloudJob object
-                    job = CloudJob(
-                        job_id=job_data['job_id'],
-                        name=job_data['name'],
-                        job_type=CloudJobType(job_data['job_type']),
-                        config=job_data['config'],
-                        description=job_data['description'],
-                        current_retries=job_data.get('current_retries', 0),
-                        max_retries=job_data.get('max_retries', 3),
-                        status=CloudJobStatus.LOCKED,
-                        locked_at=datetime.utcnow(),
-                        locked_by=self.instance_id,
-                        lock_expires_at=lock_expires
-                    )
+                    # Convert to CloudJob object using from_dict for proper config parsing
+                    job_data['status'] = 'locked'  # Mark as locked
+                    job_data['locked_at'] = datetime.utcnow().isoformat()
+                    job_data['locked_by'] = self.instance_id
+                    job_data['lock_expires_at'] = lock_expires.isoformat()
+                    
+                    job = CloudJob.from_dict(job_data)
                     
                     logger.info(f"Picked job: {job.name} ({job.job_id}) - Instance: {self.instance_id}")
                     return job

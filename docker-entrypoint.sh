@@ -46,7 +46,7 @@ job_schedules:
     enabled: true
     config:
       config_path: "config.yaml"
-      max_papers: 20
+      max_papers: 1000
       keywords: ["rag", "RAG", "agent", "Agents", "agents", "retrieval-augmented generation", "retrieval augmented generation"]
       
   - name: "Weekly Cleanup"
