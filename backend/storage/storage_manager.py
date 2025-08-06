@@ -53,20 +53,34 @@ class StorageManager:
         logger.info(f"Local storage initialized: {self.base_dir}")
     
     def _init_oss_storage(self):
-        """Initialize OSS storage"""
+        """Initialize OSS storage with fallback to local storage"""
         oss_config = self.config.get('oss', {})
         
         if not oss_config:
-            raise ValueError("OSS configuration is required when backend is 'oss'")
+            logger.warning("OSS configuration missing, falling back to local storage")
+            self._fallback_to_local()
+            return
         
-        self.oss_client = create_oss_client(oss_config)
-        if not self.oss_client:
-            raise ValueError("Failed to create OSS client")
-        
-        self.create_subdirs = oss_config.get('create_subdirectories', True)
-        self.filename_format = oss_config.get('filename_format', '{arxiv_id}.pdf')
-        
-        logger.info(f"OSS storage initialized: bucket={oss_config.get('bucket_name')}")
+        try:
+            self.oss_client = create_oss_client(oss_config)
+            if not self.oss_client:
+                logger.error("Failed to create OSS client, falling back to local storage")
+                self._fallback_to_local()
+                return
+            
+            self.create_subdirs = oss_config.get('create_subdirectories', True)
+            self.filename_format = oss_config.get('filename_format', '{arxiv_id}.pdf')
+            
+            logger.info(f"OSS storage initialized: bucket={oss_config.get('bucket_name')}")
+        except Exception as e:
+            logger.error(f"OSS initialization failed: {e}, falling back to local storage")
+            self._fallback_to_local()
+    
+    def _fallback_to_local(self):
+        """Fallback to local storage when OSS fails"""
+        logger.info("Falling back to local storage")
+        self.backend = 'local'
+        self._init_local_storage()
     
     def _safe_filename(self, text: str, max_length: int = 100) -> str:
         """Create a safe filename from text"""

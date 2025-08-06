@@ -64,7 +64,7 @@ class OSSClient:
                 self.config[field] = env_value
     
     def _init_client(self):
-        """Initialize OSS client and bucket"""
+        """Initialize OSS client and bucket with optimized timeouts"""
         try:
             # Create auth object
             auth = oss2.Auth(
@@ -72,14 +72,32 @@ class OSSClient:
                 self.config['access_key_secret']
             )
             
-            # Create bucket object
+            # Create session with shorter timeouts
+            session = oss2.Session()
+            session.adapters['http://'].init_poolmanager(
+                connections=10,
+                maxsize=10,
+                block=False,
+                timeout=10,  # 10 second timeout instead of 60
+                retries=2    # Only 2 retries instead of default
+            )
+            session.adapters['https://'].init_poolmanager(
+                connections=10,
+                maxsize=10,
+                block=False,
+                timeout=10,  # 10 second timeout instead of 60
+                retries=2    # Only 2 retries instead of default
+            )
+            
+            # Create bucket object with custom session
             self.bucket = oss2.Bucket(
                 auth, 
                 self.config['endpoint'], 
-                self.config['bucket_name']
+                self.config['bucket_name'],
+                session=session
             )
             
-            # Test connection
+            # Test connection with timeout
             self._test_connection()
             
             logger.info(f"OSS client initialized successfully for bucket: {self.config['bucket_name']}")

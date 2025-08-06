@@ -39,7 +39,7 @@ search:
 # PDF storage settings
 pdf_storage:
   # Storage backend: "local" or "oss"
-  backend: "oss"  # Change to "oss" for Alibaba Cloud OSS storage
+  backend: "local"  # Using local storage (OSS will auto-fallback if needed)
   
   # Local storage settings (used when backend = "local")
   local:

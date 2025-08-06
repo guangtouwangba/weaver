@@ -75,7 +75,10 @@ scheduler_settings:
   default_timeout_seconds: 1800  # 30 minutes timeout for hourly jobs
   
   # Job execution settings
-  job_lock_duration_minutes: 15  # Shorter lock duration for faster turnover
+  job_lock_duration_minutes: 45  # Lock duration should be longer than job timeout
+  
+  # Lock cleanup settings
+  lock_clean_interval: 300  # Clean expired locks every 5 minutes
   
   # Instance identification
   instance_prefix: "hybrid-scheduler"
