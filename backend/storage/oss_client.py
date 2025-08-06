@@ -72,29 +72,13 @@ class OSSClient:
                 self.config['access_key_secret']
             )
             
-            # Create session with shorter timeouts
-            session = oss2.Session()
-            session.adapters['http://'].init_poolmanager(
-                connections=10,
-                maxsize=10,
-                block=False,
-                timeout=10,  # 10 second timeout instead of 60
-                retries=2    # Only 2 retries instead of default
-            )
-            session.adapters['https://'].init_poolmanager(
-                connections=10,
-                maxsize=10,
-                block=False,
-                timeout=10,  # 10 second timeout instead of 60
-                retries=2    # Only 2 retries instead of default
-            )
-            
-            # Create bucket object with custom session
+            # Create bucket object with shorter connection timeout
             self.bucket = oss2.Bucket(
                 auth, 
                 self.config['endpoint'], 
                 self.config['bucket_name'],
-                session=session
+                connect_timeout=10,  # 10 second connection timeout
+                timeout=30           # 30 second read timeout
             )
             
             # Test connection with timeout
