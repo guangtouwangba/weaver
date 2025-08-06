@@ -24,27 +24,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 from database.database_adapter import create_database_manager
 from jobs.job_executor_thread import JobExecutorThread
 from jobs.job_creator_thread import JobCreatorThread, CronJobDefinition
-
-def setup_logging(level=logging.INFO):
-    """Setup logging for the hybrid scheduler"""
-    # Configure root logger
-    logging.basicConfig(
-        level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler('hybrid_scheduler.log')
-        ]
-    )
-    
-    # Reduce noise from HTTP libraries
-    logging.getLogger('httpx').setLevel(logging.WARNING)
-    logging.getLogger('httpcore').setLevel(logging.WARNING)
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('requests').setLevel(logging.WARNING)
-    
-    # Keep supabase client at INFO level but reduce HTTP noise
-    logging.getLogger('supabase').setLevel(logging.INFO)
+from utils.logging_config import setup_clean_logging
 
 def load_config(config_path: str = "config.yaml"):
     """Load main configuration"""
@@ -255,7 +235,7 @@ def main():
     else:
         log_level = logging.INFO
         
-    setup_logging(log_level)
+    setup_clean_logging(log_level, 'hybrid_scheduler.log')
     
     logger = logging.getLogger(__name__)
     
