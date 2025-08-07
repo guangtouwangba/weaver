@@ -72,13 +72,11 @@ class OSSClient:
                 self.config['access_key_secret']
             )
             
-            # Create bucket object with shorter connection timeout
+            # Create bucket object (timeout settings are handled by the session)
             self.bucket = oss2.Bucket(
                 auth, 
                 self.config['endpoint'], 
-                self.config['bucket_name'],
-                connect_timeout=10,  # 10 second connection timeout
-                timeout=30           # 30 second read timeout
+                self.config['bucket_name']
             )
             
             # Test connection with timeout
