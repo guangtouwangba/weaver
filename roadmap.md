@@ -1,62 +1,62 @@
-# 知识管理Agent系统架构设计路线图
+# Knowledge Management Agent System Architecture Design Roadmap
 
-## 🎯 项目愿景
+## 🎯 Project Vision
 
-基于NotebookLM理念，构建一个智能的知识管理Agent系统，解决PDF文档间的"孤岛问题"，实现知识的互联互通。系统不仅是一个简单的RAG，更是一个能够：
+Based on the NotebookLM concept, build an intelligent knowledge management Agent system that solves the "island problem" between PDF documents and achieves knowledge interconnection. The system is not just a simple RAG, but one that can:
 
-- **AI提取知识**：自动从文档中提取结构化知识
-- **人工构建链接**：支持用户手动创建知识关联
-- **AI自动链接**：智能发现和建立知识关系
-- **知识互联**：让分散的知识形成有机的知识网络
+- **AI Knowledge Extraction**: Automatically extract structured knowledge from documents
+- **Manual Link Building**: Support users to manually create knowledge associations
+- **AI Automatic Linking**: Intelligently discover and establish knowledge relationships
+- **Knowledge Interconnection**: Let scattered knowledge form organic knowledge networks
 
-## 🏗️ 系统架构设计
+## 🏗️ System Architecture Design
 
-### 核心架构层次
+### Core Architecture Layers
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        接口层 (Interface Layer)              │
+│                    Interface Layer                         │
 ├─────────────────────────────────────────────────────────────┤
-│                        服务层 (Service Layer)               │
+│                     Service Layer                          │
 ├─────────────────────────────────────────────────────────────┤
-│                        处理层 (Processing Layer)            │
+│                   Processing Layer                         │
 ├─────────────────────────────────────────────────────────────┤
-│                        数据层 (Data Layer)                  │
+│                      Data Layer                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 模块架构图
+### Module Architecture Diagram
 
 ```mermaid
 graph TB
-    subgraph "第一阶段：简单RAG"
-        A[文档输入] --> B[file_loader<br/>文件加载]
-        B --> C[document_spliter<br/>文档分割]
-        C --> D[vector_store<br/>向量存储]
-        D --> E[index<br/>索引构建]
-        E --> F[retriever<br/>检索器]
-        F --> G[router<br/>智能路由]
-        G --> H[RAG问答]
+    subgraph "Phase 1: Simple RAG"
+        A[Document Input] --> B[file_loader<br/>File Loading]
+        B --> C[document_spliter<br/>Document Splitting]
+        C --> D[vector_store<br/>Vector Storage]
+        D --> E[index<br/>Index Building]
+        E --> F[retriever<br/>Retriever]
+        F --> G[router<br/>Smart Routing]
+        G --> H[RAG Q&A]
     end
     
-    subgraph "未来扩展：知识管理Agent"
-        I[knowledge_graph<br/>知识图谱] --> J[relation_discovery<br/>关系发现]
-        J --> K[linking<br/>知识链接管理]
-        K --> L[agent<br/>Agent决策]
-        L --> M[extraction<br/>知识提取]
+    subgraph "Future Extension: Knowledge Management Agent"
+        I[knowledge_graph<br/>Knowledge Graph] --> J[relation_discovery<br/>Relationship Discovery]
+        J --> K[linking<br/>Knowledge Link Management]
+        K --> L[agent<br/>Agent Decision]
+        L --> M[extraction<br/>Knowledge Extraction]
         
-        N[knowledge_store<br/>扩展知识存储] --> I
+        N[knowledge_store<br/>Extended Knowledge Storage] --> I
         F --> I
         M --> N
-        K --> O[人工知识链接]
-        K --> P[AI自动链接]
+        K --> O[Manual Knowledge Linking]
+        K --> P[AI Automatic Linking]
     end
     
-    subgraph "数据层"
-        Q[原始文档存储]
-        R[向量数据库]
-        S[知识图谱数据库]
-        T[元数据存储]
+    subgraph "Data Layer"
+        Q[Raw Document Storage]
+        R[Vector Database]
+        S[Knowledge Graph Database]
+        T[Metadata Storage]
     end
     
     B -.-> Q
@@ -65,15 +65,15 @@ graph TB
     N -.-> T
 ```
 
-## 📋 模块详细设计
+## 📋 Module Detailed Design
 
-### 第一阶段：简单RAG（基于现有结构）
+### Phase 1: Simple RAG (Based on Existing Structure)
 
-#### 1. `file_loader/` - 文件加载器
-- **功能**：支持多种文档格式的加载和解析
-- **支持格式**：PDF、Word、Markdown、TXT等
-- **特性**：元数据提取、格式检测、错误处理
-- **接口**：统一的文档对象接口
+#### 1. `file_loader/` - File Loader
+- **Function**: Support loading and parsing of multiple document formats
+- **Supported Formats**: PDF, Word, Markdown, TXT, etc.
+- **Features**: Metadata extraction, format detection, error handling
+- **Interface**: Unified document object interface
 
 #### 2. `document_spliter/` - 文档分割器
 - **功能**：智能文档分块和预处理

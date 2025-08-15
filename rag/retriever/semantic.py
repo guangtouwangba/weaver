@@ -2,7 +2,7 @@
 语义检索器实现
 """
 
-from typing import List, Optional, Dict, Any, tuple
+from typing import List, Optional, Dict, Any, Tuple
 import asyncio
 
 from ..models import SearchFilter
@@ -13,7 +13,7 @@ from .processors import RetrievalStrategy
 class SemanticRetriever(BaseRetriever):
     """语义检索器"""
     
-    async def _semantic_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[tuple]:
+    async def _semantic_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[Tuple]:
         """语义检索实现"""
         # 确定搜索范围
         document_ids = None
@@ -30,7 +30,7 @@ class SemanticRetriever(BaseRetriever):
         # 应用相似度阈值
         return self._apply_similarity_threshold(chunks_with_scores)
     
-    async def _keyword_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[tuple]:
+    async def _keyword_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[Tuple]:
         """关键词检索实现（简单文本匹配）"""
         # 确定搜索范围
         document_ids = None
@@ -44,7 +44,7 @@ class SemanticRetriever(BaseRetriever):
             document_ids=document_ids
         )
     
-    async def _hybrid_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[tuple]:
+    async def _hybrid_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[Tuple]:
         """混合检索实现"""
         # 并行执行语义和关键词检索
         semantic_task = self._semantic_retrieve(query, top_k, filters, **kwargs)
@@ -55,7 +55,7 @@ class SemanticRetriever(BaseRetriever):
         # 合并结果
         return self._merge_hybrid_results(semantic_results, keyword_results)
     
-    def _merge_hybrid_results(self, semantic_results: List[tuple], keyword_results: List[tuple]) -> List[tuple]:
+    def _merge_hybrid_results(self, semantic_results: List[Tuple], keyword_results: List[Tuple]) -> List[Tuple]:
         """合并混合检索结果"""
         # 创建结果字典，避免重复
         chunk_scores = {}
