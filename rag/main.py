@@ -13,10 +13,10 @@ from rag.models import RAGConfig, Document, DocumentStatus
 from rag.file_loader.base import BaseFileLoader
 from rag.file_loader.text_loader import TextFileLoader, MarkdownLoader
 from rag.document_spliter.base import BaseDocumentSplitter, FixedSizeSplitter, SentenceSplitter
-from rag.vector_store.base import BaseVectorStore, InMemoryVectorStore
-from rag.knowledge_store.base import BaseKnowledgeStore, InMemoryKnowledgeStore
-from rag.retriever.base import BaseRetriever, SemanticRetriever, HybridRetriever
-from rag.router.base import BaseRouter, RuleBasedRouter
+from rag.vector_store import BaseVectorStore, InMemoryVectorStore
+from rag.document_repository import BaseDocumentRepository, InMemoryDocumentRepository
+from rag.retriever import BaseRetriever, SemanticRetriever, HybridRetriever
+# Router功能已集成到Retriever中
 
 
 class RAGSystem:
@@ -40,9 +40,8 @@ class RAGSystem:
         self.file_loaders = self._initialize_file_loaders()
         self.document_splitter = self._initialize_document_splitter()
         self.vector_store = self._initialize_vector_store()
-        self.knowledge_store = self._initialize_knowledge_store()
+        self.document_repository = self._initialize_document_repository()
         self.retriever = self._initialize_retriever()
-        self.router = self._initialize_router()
         
         print(f"✅ RAG系统初始化完成")
         print(f"   - 支持文件格式: {self.config.supported_file_types}")
@@ -69,9 +68,9 @@ class RAGSystem:
         """初始化向量存储"""
         return InMemoryVectorStore(self.config.vector_store_config.__dict__)
     
-    def _initialize_knowledge_store(self) -> BaseKnowledgeStore:
-        """初始化知识存储"""
-        return InMemoryKnowledgeStore()
+    def _initialize_document_repository(self) -> BaseDocumentRepository:
+        """初始化文档仓储"""
+        return InMemoryDocumentRepository()
     
     def _initialize_retriever(self) -> BaseRetriever:
         """初始化检索器"""
@@ -83,13 +82,10 @@ class RAGSystem:
         
         return SemanticRetriever(
             vector_store=self.vector_store,
-            knowledge_store=self.knowledge_store,
+            document_repository=self.document_repository,
             config=retriever_config
         )
     
-    def _initialize_router(self) -> BaseRouter:
-        """初始化路由器"""
-        return RuleBasedRouter()
     
     def _get_appropriate_loader(self, file_path: str) -> BaseFileLoader:
         """根据文件类型选择合适的加载器"""
@@ -131,7 +127,7 @@ class RAGSystem:
             
             # 3. 存储文档元数据
             print("   🔄 存储文档元数据...")
-            doc_id = await self.knowledge_store.store_document(document)
+            doc_id = await self.document_repository.save(document)
             
             # 4. 分割文档
             print("   🔄 分割文档...")
@@ -152,7 +148,7 @@ class RAGSystem:
             print(f"   ✅ 向量存储完成: {len(vector_ids)} 个向量")
             
             # 6. 更新文档状态
-            await self.knowledge_store.update_document_status(doc_id, DocumentStatus.COMPLETED)
+            await self.document_repository.update_status(doc_id, DocumentStatus.COMPLETED)
             
             processing_time = (time.time() - start_time) * 1000
             print(f"   ⏱️  处理完成，耗时: {processing_time:.2f}ms")
@@ -166,7 +162,7 @@ class RAGSystem:
             
             # 更新文档状态为错误
             if 'document' in locals():
-                await self.knowledge_store.update_document_status(document.id, DocumentStatus.ERROR)
+                await self.document_repository.update_status(document.id, DocumentStatus.ERROR)
             
             raise
     
@@ -185,27 +181,25 @@ class RAGSystem:
         try:
             print(f"\n🔍 执行查询: {question}")
             
-            # 1. 路由决策
-            print("   🔄 分析查询类型...")
-            service_name = await self.router.route(question)
-            print(f"   ✅ 选择服务: {service_name}")
-            
-            # 2. 执行检索
+            # 1. 执行智能检索（包含内置路由决策）
             print("   🔄 执行检索...")
             result = await self.retriever.retrieve(question, top_k=self.config.top_k)
             
             query_time = (time.time() - start_time) * 1000
             
             print(f"   ✅ 检索完成: 找到 {len(result.chunks)} 个相关块")
+            print(f"   🎯 使用策略: {result.metadata.get('strategy', 'unknown')}")
             print(f"   ⏱️  查询耗时: {query_time:.2f}ms")
             
-            # 3. 格式化结果
+            # 2. 格式化结果
             formatted_result = {
                 'query': question,
                 'answer_chunks': [],
                 'total_found': len(result.chunks),
                 'query_time_ms': query_time,
-                'service_used': service_name
+                'strategy_used': result.metadata.get('strategy', 'unknown'),
+                'preprocessing': result.metadata.get('pre_processing', {}),
+                'postprocessing': result.metadata.get('post_processing', {})
             }
             
             for i, (chunk, score) in enumerate(zip(result.chunks, result.relevance_scores)):
@@ -234,11 +228,11 @@ class RAGSystem:
         """获取系统状态"""
         # 获取各组件状态
         vector_store_info = await self.vector_store.get_collection_info()
-        knowledge_store_stats = await self.knowledge_store.get_document_statistics()
+        document_repository_stats = await self.document_repository.get_statistics()
         
         return {
             'vector_store': vector_store_info,
-            'knowledge_store': knowledge_store_stats,
+            'document_repository': document_repository_stats,
             'config': {
                 'chunk_size': self.config.chunk_size,
                 'chunk_overlap': self.config.chunk_overlap,
@@ -333,7 +327,21 @@ RAG系统广泛应用于：
                 print(f"❌ 错误: {result['error']}")
             else:
                 print(f"📊 找到 {result['total_found']} 个相关结果")
-                print(f"⚡ 使用服务: {result['service_used']}")
+                print(f"🎯 使用策略: {result['strategy_used']}")
+                
+                # 显示预处理信息
+                if result['preprocessing']:
+                    preprocessing = result['preprocessing']
+                    if 'query_type' in preprocessing:
+                        print(f"🧠 查询类型: {preprocessing['query_type']}")
+                
+                # 显示后处理信息
+                if result['postprocessing']:
+                    postprocessing = result['postprocessing']
+                    if 'reranked' in postprocessing:
+                        print(f"🔄 重排序: {'是' if postprocessing['reranked'] else '否'}")
+                    if 'total_compressed' in postprocessing and postprocessing['total_compressed'] > 0:
+                        print(f"📦 压缩了 {postprocessing['total_compressed']} 个结果")
                 
                 for chunk_info in result['answer_chunks']:
                     print(f"\n📄 结果 {chunk_info['rank']} (相关性: {chunk_info['score']:.3f}):")
@@ -345,7 +353,7 @@ RAG系统广泛应用于：
         status = await rag_system.get_system_status()
         
         print(f"   向量存储: {status['vector_store']['total_chunks']} 个块")
-        print(f"   文档数量: {status['knowledge_store']['total_documents']} 个")
+        print(f"   文档数量: {status['document_repository']['total_documents']} 个")
         print(f"   配置信息: 块大小={status['config']['chunk_size']}, Top-K={status['config']['top_k']}")
         
     finally:
