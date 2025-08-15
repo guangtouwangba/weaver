@@ -2,7 +2,7 @@
 混合检索器实现
 """
 
-from typing import List, Optional, Dict, Any, tuple
+from typing import List, Optional, Dict, Any, Tuple
 import asyncio
 
 from ..models import SearchFilter
@@ -18,7 +18,7 @@ class HybridRetriever(BaseRetriever):
         self.semantic_weight = self.config.get('semantic_weight', 0.7)
         self.keyword_weight = self.config.get('keyword_weight', 0.3)
     
-    async def _semantic_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[tuple]:
+    async def _semantic_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[Tuple]:
         """语义检索实现"""
         document_ids = None
         if filters and filters.document_ids:
@@ -32,7 +32,7 @@ class HybridRetriever(BaseRetriever):
         
         return self._apply_similarity_threshold(chunks_with_scores)
     
-    async def _keyword_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[tuple]:
+    async def _keyword_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[Tuple]:
         """关键词检索实现"""
         document_ids = None
         if filters and filters.document_ids:
@@ -44,7 +44,7 @@ class HybridRetriever(BaseRetriever):
             document_ids=document_ids
         )
     
-    async def _hybrid_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[tuple]:
+    async def _hybrid_retrieve(self, query: str, top_k: int, filters: Optional[SearchFilter], **kwargs) -> List[Tuple]:
         """混合检索实现"""
         # 并行执行语义和关键词检索
         semantic_task = self._semantic_retrieve(query, top_k, filters, **kwargs)
@@ -55,7 +55,7 @@ class HybridRetriever(BaseRetriever):
         # 合并结果
         return self._merge_hybrid_results(semantic_results, keyword_results)
     
-    def _merge_hybrid_results(self, semantic_results: List[tuple], keyword_results: List[tuple]) -> List[tuple]:
+    def _merge_hybrid_results(self, semantic_results: List[Tuple], keyword_results: List[Tuple]) -> List[Tuple]:
         """合并混合检索结果"""
         chunk_scores = {}
         
