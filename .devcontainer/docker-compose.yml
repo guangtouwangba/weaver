@@ -23,8 +23,8 @@ services:
     networks:
       - rag-network
     ports:
-      - "8000:8000"
-      - "8888:8888"
+      - "18000:8000"  # FastAPI App
+      - "18888:8888"  # Jupyter Lab
 
   postgres:
     image: postgres:15
@@ -37,7 +37,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
     ports:
-      - "5432:5432"
+      - "15432:5432"  # PostgreSQL
     networks:
       - rag-network
     healthcheck:
@@ -53,7 +53,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "16379:6379"  # Redis
     networks:
       - rag-network
     healthcheck:
@@ -77,8 +77,8 @@ services:
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - "19200:9200"  # Elasticsearch
+      - "19300:9300"  # Elasticsearch cluster
     networks:
       - rag-network
     healthcheck:
@@ -97,8 +97,8 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "19000:9000"  # MinIO API
+      - "19001:9001"  # MinIO Console
     networks:
       - rag-network
     healthcheck:
@@ -121,7 +121,7 @@ services:
     volumes:
       - weaviate_data:/var/lib/weaviate
     ports:
-      - "8080:8080"
+      - "18080:8080"  # Weaviate
     networks:
       - rag-network
 
@@ -135,7 +135,7 @@ services:
     volumes:
       - chromadb_data:/chroma/chroma
     ports:
-      - "8001:8000"
+      - "18001:8000"  # ChromaDB
     networks:
       - rag-network
 
@@ -153,7 +153,7 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "19090:9090"  # Prometheus
     networks:
       - rag-network
 
@@ -167,7 +167,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana:/etc/grafana/provisioning
     ports:
-      - "3000:3000"
+      - "13000:3000"  # Grafana
     networks:
       - rag-network
 
