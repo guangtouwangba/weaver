@@ -11,8 +11,8 @@ from alembic import context
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # 导入数据库配置和模型
-from database.config import db_config
-from database.models import Base
+from infrastructure.database.config import db_config
+from infrastructure.database.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

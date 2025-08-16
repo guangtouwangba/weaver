@@ -1,0 +1,664 @@
+
+"""
+Application layer for topic management.
+
+This module contains DTOs, application services, and controllers
+for topic-related operations with proper integration of messaging
+and storage infrastructure.
+"""
+
+import logging
+from typing import List, Optional, Dict, Any, Union
+from datetime import datetime
+from dataclasses import dataclass, field
+from pathlib import Path
+
+# Domain imports
+from domain.topic import Topic, TopicResource, Tag, Conversation, TopicStatus, ResourceType, ParseStatus
+
+# Infrastructure imports
+from infrastructure import (
+    get_database_session, RedisMessageBroker, MinIOStorage, MinIOFileManager,
+    IMessageBroker, IObjectStorage, IFileManager, 
+    Message, SystemEvents, SystemTasks, MessagePriority,
+    StorageObject, UploadOptions, AccessLevel,
+    get_config
+)
+from infrastructure.database.repositories.topic import (
+    TopicRepository, TagRepository, TopicResourceRepository, ConversationRepository
+)
+
+logger = logging.getLogger(__name__)
+
+
+# DTOs (Data Transfer Objects)
+@dataclass
+class CreateTopicRequest:
+    """DTO for creating a new topic."""
+    name: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    user_id: Optional[int] = None
+    conversation_id: Optional[str] = None
+    parent_topic_id: Optional[int] = None
+    settings: Dict[str, Any] = field(default_factory=dict)
+    tags: List[str] = field(default_factory=list)
+
+
+@dataclass
+class UpdateTopicRequest:
+    """DTO for updating a topic."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    status: Optional[TopicStatus] = None
+    settings: Optional[Dict[str, Any]] = None
+    add_tags: List[str] = field(default_factory=list)
+    remove_tags: List[str] = field(default_factory=list)
+
+
+@dataclass
+class TopicResponse:
+    """DTO for topic response."""
+    id: int
+    name: str
+    description: Optional[str]
+    category: Optional[str]
+    status: str
+    core_concepts_discovered: int
+    concept_relationships: int
+    missing_materials_count: int
+    total_resources: int
+    total_conversations: int
+    user_id: Optional[int]
+    conversation_id: Optional[str]
+    parent_topic_id: Optional[int]
+    settings: Dict[str, Any]
+    created_at: str
+    updated_at: str
+    last_accessed_at: str
+    tags: List[str] = field(default_factory=list)
+    resources: List[Dict[str, Any]] = field(default_factory=list)
+    conversations: List[Dict[str, Any]] = field(default_factory=list)
+    
+    @classmethod
+    def from_domain(cls, topic: Topic) -> 'TopicResponse':
+        """Create response from domain entity."""
+        return cls(
+            id=topic.id,
+            name=topic.name,
+            description=topic.description,
+            category=topic.category,
+            status=topic.status.value if isinstance(topic.status, TopicStatus) else topic.status,
+            core_concepts_discovered=topic.core_concepts_discovered,
+            concept_relationships=topic.concept_relationships,
+            missing_materials_count=topic.missing_materials_count,
+            total_resources=topic.total_resources,
+            total_conversations=topic.total_conversations,
+            user_id=topic.user_id,
+            conversation_id=topic.conversation_id,
+            parent_topic_id=topic.parent_topic_id,
+            settings=topic.settings,
+            created_at=topic.created_at.isoformat() if topic.created_at else "",
+            updated_at=topic.updated_at.isoformat() if topic.updated_at else "",
+            last_accessed_at=topic.last_accessed_at.isoformat() if topic.last_accessed_at else "",
+            tags=[tag.name for tag in topic.tags],
+            resources=[resource.__dict__ for resource in topic.resources],
+            conversations=[conv.__dict__ for conv in topic.conversations]
+        )
+
+
+@dataclass
+class UploadResourceRequest:
+    """DTO for uploading a resource to a topic."""
+    topic_id: int
+    file_data: Union[bytes, str, Path]
+    original_name: str
+    resource_type: Optional[ResourceType] = None
+    source_url: Optional[str] = None
+    is_public: bool = False
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ResourceResponse:
+    """DTO for resource response."""
+    id: int
+    topic_id: int
+    original_name: str
+    file_name: str
+    file_path: str
+    file_size: Optional[int]
+    mime_type: Optional[str]
+    resource_type: str
+    parse_status: str
+    is_parsed: bool
+    content_preview: Optional[str]
+    content_summary: Optional[str]
+    uploaded_at: str
+    access_url: Optional[str] = None
+    
+    @classmethod
+    def from_domain(cls, resource: TopicResource, access_url: Optional[str] = None) -> 'ResourceResponse':
+        """Create response from domain entity."""
+        return cls(
+            id=resource.id,
+            topic_id=resource.topic_id,
+            original_name=resource.original_name,
+            file_name=resource.file_name,
+            file_path=resource.file_path,
+            file_size=resource.file_size,
+            mime_type=resource.mime_type,
+            resource_type=resource.resource_type.value if isinstance(resource.resource_type, ResourceType) else resource.resource_type,
+            parse_status=resource.parse_status.value if isinstance(resource.parse_status, ParseStatus) else resource.parse_status,
+            is_parsed=resource.is_parsed,
+            content_preview=resource.content_preview,
+            content_summary=resource.content_summary,
+            uploaded_at=resource.uploaded_at.isoformat() if resource.uploaded_at else "",
+            access_url=access_url
+        )
+
+
+class TopicApplicationService:
+    """Application service for topic management with infrastructure integration."""
+    
+    def __init__(
+        self,
+        topic_repo: TopicRepository,
+        tag_repo: TagRepository,
+        resource_repo: TopicResourceRepository,
+        conversation_repo: ConversationRepository,
+        message_broker: IMessageBroker,
+        storage: IObjectStorage,
+        file_manager: IFileManager
+    ):
+        self.topic_repo = topic_repo
+        self.tag_repo = tag_repo
+        self.resource_repo = resource_repo
+        self.conversation_repo = conversation_repo
+        self.message_broker = message_broker
+        self.storage = storage
+        self.file_manager = file_manager
+    
+    async def create_topic(self, request: CreateTopicRequest) -> TopicResponse:
+        """Create a new topic with event publishing."""
+        try:
+            # Create topic
+            topic_data = {
+                'name': request.name,
+                'description': request.description,
+                'category': request.category,
+                'user_id': request.user_id,
+                'conversation_id': request.conversation_id,
+                'parent_topic_id': request.parent_topic_id,
+                'settings': request.settings,
+                'status': TopicStatus.ACTIVE.value,
+                'created_at': datetime.now(datetime.UTC),
+                'updated_at': datetime.now(datetime.UTC),
+                'last_accessed_at': datetime.now(datetime.UTC)
+            }
+            
+            # Create in database
+            topic_entity = await self.topic_repo.create(topic_data)
+            
+            # Handle tags
+            if request.tags:
+                await self._process_tags(topic_entity.id, request.tags)
+            
+            # Convert to domain entity
+            topic = self._entity_to_domain(topic_entity)
+            
+            # Publish event
+            await self.message_broker.publish_event(
+                event_type=SystemEvents.TOPIC_CREATED,
+                event_data={
+                    'topic_id': topic.id,
+                    'name': topic.name,
+                    'user_id': topic.user_id,
+                    'category': topic.category
+                },
+                source='topic_service'
+            )
+            
+            logger.info(f"Created topic {topic.id}: {topic.name}")
+            return TopicResponse.from_domain(topic)
+            
+        except Exception as e:
+            logger.error(f"Failed to create topic: {e}")
+            raise
+    
+    async def get_topic(self, topic_id: int, include_resources: bool = False, include_conversations: bool = False) -> Optional[TopicResponse]:
+        """Get a topic by ID with optional related data."""
+        try:
+            topic_entity = await self.topic_repo.get_by_id(topic_id)
+            if not topic_entity:
+                return None
+            
+            # Convert to domain entity
+            topic = self._entity_to_domain(topic_entity)
+            
+            # Load related data if requested
+            if include_resources:
+                resources = await self.resource_repo.get_all(filters={'topic_id': topic_id})
+                topic.resources = [self._resource_entity_to_domain(r) for r in resources]
+            
+            if include_conversations:
+                conversations = await self.conversation_repo.get_all(filters={'topic_id': topic_id})
+                topic.conversations = [self._conversation_entity_to_domain(c) for c in conversations]
+            
+            # Update last accessed
+            topic.mark_accessed()
+            await self.topic_repo.update(topic_id, {'last_accessed_at': topic.last_accessed_at})
+            
+            return TopicResponse.from_domain(topic)
+            
+        except Exception as e:
+            logger.error(f"Failed to get topic {topic_id}: {e}")
+            raise
+    
+    async def update_topic(self, topic_id: int, request: UpdateTopicRequest) -> Optional[TopicResponse]:
+        """Update a topic."""
+        try:
+            # Prepare update data
+            update_data = {}
+            if request.name is not None:
+                update_data['name'] = request.name
+            if request.description is not None:
+                update_data['description'] = request.description
+            if request.category is not None:
+                update_data['category'] = request.category
+            if request.status is not None:
+                update_data['status'] = request.status.value
+            if request.settings is not None:
+                update_data['settings'] = request.settings
+            
+            update_data['updated_at'] = datetime.now(datetime.UTC)
+            
+            # Update in database
+            topic_entity = await self.topic_repo.update(topic_id, update_data)
+            if not topic_entity:
+                return None
+            
+            # Handle tags
+            if request.add_tags:
+                await self._process_tags(topic_id, request.add_tags)
+            if request.remove_tags:
+                await self._remove_tags(topic_id, request.remove_tags)
+            
+            # Convert to domain entity
+            topic = self._entity_to_domain(topic_entity)
+            
+            # Publish event
+            await self.message_broker.publish_event(
+                event_type=SystemEvents.TOPIC_UPDATED,
+                event_data={
+                    'topic_id': topic.id,
+                    'changes': list(update_data.keys())
+                },
+                source='topic_service'
+            )
+            
+            logger.info(f"Updated topic {topic.id}")
+            return TopicResponse.from_domain(topic)
+            
+        except Exception as e:
+            logger.error(f"Failed to update topic {topic_id}: {e}")
+            raise
+    
+    async def delete_topic(self, topic_id: int, hard_delete: bool = False) -> bool:
+        """Delete a topic (soft delete by default)."""
+        try:
+            success = await self.topic_repo.delete(topic_id, soft_delete=not hard_delete)
+            
+            if success:
+                # Publish event
+                await self.message_broker.publish_event(
+                    event_type=SystemEvents.TOPIC_DELETED,
+                    event_data={
+                        'topic_id': topic_id,
+                        'hard_delete': hard_delete
+                    },
+                    source='topic_service'
+                )
+                
+                logger.info(f"Deleted topic {topic_id} (hard={hard_delete})")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to delete topic {topic_id}: {e}")
+            raise
+    
+    async def upload_resource(self, request: UploadResourceRequest) -> ResourceResponse:
+        """Upload a resource to a topic."""
+        try:
+            # Save file to storage
+            file_id = await self.file_manager.save_file(
+                file_data=request.file_data,
+                filename=request.original_name,
+                folder=f"topics/{request.topic_id}",
+                tags={'topic_id': str(request.topic_id)},
+                public=request.is_public
+            )
+            
+            # Determine resource type
+            resource_type = request.resource_type or self._detect_resource_type(request.original_name)
+            
+            # Create resource record
+            resource_data = {
+                'topic_id': request.topic_id,
+                'original_name': request.original_name,
+                'file_name': f"{file_id}_{request.original_name}",
+                'file_path': f"topics/{request.topic_id}/{file_id}",
+                'resource_type': resource_type.value,
+                'source_url': request.source_url,
+                'is_public': request.is_public,
+                'resource_metadata': request.metadata,
+                'parse_status': ParseStatus.PENDING.value,
+                'uploaded_at': datetime.now(datetime.UTC),
+                'created_at': datetime.now(datetime.UTC),
+                'updated_at': datetime.now(datetime.UTC)
+            }
+            
+            resource_entity = await self.resource_repo.create(resource_data)
+            resource = self._resource_entity_to_domain(resource_entity)
+            
+            # Update topic resource count
+            topic_entity = await self.topic_repo.get_by_id(request.topic_id)
+            if topic_entity:
+                await self.topic_repo.update(request.topic_id, {
+                    'total_resources': topic_entity.total_resources + 1,
+                    'updated_at': datetime.now(datetime.UTC)
+                })
+            
+            # Enqueue parsing task
+            await self.message_broker.enqueue_task(
+                task_name=SystemTasks.PARSE_RESOURCE,
+                task_args={
+                    'resource_id': resource.id,
+                    'topic_id': request.topic_id,
+                    'file_id': file_id
+                },
+                priority=MessagePriority.NORMAL
+            )
+            
+            # Generate access URL
+            access_url = await self.file_manager.get_file_url(file_id)
+            
+            logger.info(f"Uploaded resource {resource.id} to topic {request.topic_id}")
+            return ResourceResponse.from_domain(resource, access_url)
+            
+        except Exception as e:
+            logger.error(f"Failed to upload resource to topic {request.topic_id}: {e}")
+            raise
+    
+    async def get_topic_resources(self, topic_id: int) -> List[ResourceResponse]:
+        """Get all resources for a topic."""
+        try:
+            resources = await self.resource_repo.get_all(filters={'topic_id': topic_id})
+            result = []
+            
+            for resource_entity in resources:
+                resource = self._resource_entity_to_domain(resource_entity)
+                # Generate access URL if needed
+                access_url = None
+                if resource.file_path:
+                    # Extract file_id from file_path and get URL
+                    pass  # Implementation depends on file_manager integration
+                
+                result.append(ResourceResponse.from_domain(resource, access_url))
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to get resources for topic {topic_id}: {e}")
+            raise
+    
+    async def search_topics(
+        self,
+        query: str,
+        category: Optional[str] = None,
+        status: Optional[TopicStatus] = None,
+        user_id: Optional[int] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[TopicResponse]:
+        """Search topics with various filters."""
+        try:
+            # Build filters
+            filters = {}
+            if category:
+                filters['category'] = category
+            if status:
+                filters['status'] = status.value
+            if user_id:
+                filters['user_id'] = user_id
+            
+            # Search by name and description
+            topics = await self.topic_repo.search(
+                search_term=query,
+                search_fields=['name', 'description'],
+                limit=limit,
+                offset=offset
+            )
+            
+            # Apply additional filters
+            if filters:
+                filtered_topics = []
+                for topic in topics:
+                    match = True
+                    for key, value in filters.items():
+                        if not hasattr(topic, key) or getattr(topic, key) != value:
+                            match = False
+                            break
+                    if match:
+                        filtered_topics.append(topic)
+                topics = filtered_topics
+            
+            # Convert to domain entities and responses
+            results = []
+            for topic_entity in topics:
+                topic = self._entity_to_domain(topic_entity)
+                results.append(TopicResponse.from_domain(topic))
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Failed to search topics: {e}")
+            raise
+    
+    def _entity_to_domain(self, entity) -> Topic:
+        """Convert database entity to domain entity."""
+        return Topic(
+            id=entity.id,
+            name=entity.name,
+            description=entity.description,
+            category=entity.category,
+            status=TopicStatus(entity.status) if entity.status else TopicStatus.ACTIVE,
+            core_concepts_discovered=entity.core_concepts_discovered or 0,
+            concept_relationships=entity.concept_relationships or 0,
+            missing_materials_count=entity.missing_materials_count or 0,
+            total_resources=entity.total_resources or 0,
+            total_conversations=entity.total_conversations or 0,
+            user_id=entity.user_id,
+            conversation_id=entity.conversation_id,
+            parent_topic_id=entity.parent_topic_id,
+            settings=entity.settings or {},
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            last_accessed_at=entity.last_accessed_at,
+            is_deleted=entity.is_deleted,
+            deleted_at=entity.deleted_at
+        )
+    
+    def _resource_entity_to_domain(self, entity) -> TopicResource:
+        """Convert resource entity to domain entity."""
+        return TopicResource(
+            id=entity.id,
+            topic_id=entity.topic_id,
+            original_name=entity.original_name,
+            file_name=entity.file_name,
+            file_path=entity.file_path,
+            file_size=entity.file_size,
+            mime_type=entity.mime_type,
+            file_hash=entity.file_hash,
+            resource_type=ResourceType(entity.resource_type) if entity.resource_type else ResourceType.TEXT,
+            source_url=entity.source_url,
+            is_parsed=entity.is_parsed,
+            parse_status=ParseStatus(entity.parse_status) if entity.parse_status else ParseStatus.PENDING,
+            parse_error=entity.parse_error,
+            parse_attempts=entity.parse_attempts or 0,
+            total_pages=entity.total_pages,
+            parsed_pages=entity.parsed_pages or 0,
+            content_preview=entity.content_preview,
+            content_summary=entity.content_summary,
+            resource_metadata=entity.resource_metadata or {},
+            is_public=entity.is_public,
+            access_level=entity.access_level,
+            uploaded_at=entity.uploaded_at,
+            parsed_at=entity.parsed_at,
+            last_accessed_at=entity.last_accessed_at,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            is_deleted=entity.is_deleted,
+            deleted_at=entity.deleted_at
+        )
+    
+    def _conversation_entity_to_domain(self, entity) -> Conversation:
+        """Convert conversation entity to domain entity."""
+        return Conversation(
+            id=entity.id,
+            topic_id=entity.topic_id,
+            title=entity.title,
+            description=entity.description,
+            message_count=entity.message_count or 0,
+            conversation_data=entity.conversation_data,
+            external_conversation_url=entity.external_conversation_url,
+            storage_type=entity.storage_type,
+            total_tokens=entity.total_tokens or 0,
+            total_cost=entity.total_cost or 0,
+            conversation_tags=entity.conversation_tags or [],
+            last_message_at=entity.last_message_at,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            is_deleted=entity.is_deleted,
+            deleted_at=entity.deleted_at
+        )
+    
+    async def _process_tags(self, topic_id: int, tag_names: List[str]) -> None:
+        """Process and associate tags with a topic."""
+        # Implementation would handle tag creation and association
+        pass
+    
+    async def _remove_tags(self, topic_id: int, tag_names: List[str]) -> None:
+        """Remove tag associations from a topic."""
+        # Implementation would handle tag removal
+        pass
+    
+    def _detect_resource_type(self, filename: str) -> ResourceType:
+        """Detect resource type from filename."""
+        ext = Path(filename).suffix.lower()
+        if ext in ['.pdf']:
+            return ResourceType.PDF
+        elif ext in ['.doc', '.docx']:
+            return ResourceType.DOC if ext == '.doc' else ResourceType.DOCX
+        elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
+            return ResourceType.IMAGE
+        elif ext in ['.mp4', '.avi', '.mov', '.wmv']:
+            return ResourceType.VIDEO
+        elif ext in ['.mp3', '.wav', '.flac']:
+            return ResourceType.AUDIO
+        elif ext in ['.zip', '.rar', '.tar', '.gz']:
+            return ResourceType.ARCHIVE
+        else:
+            return ResourceType.TEXT
+
+
+class TopicController:
+    """Topic controller for handling HTTP requests."""
+    
+    def __init__(self, service: TopicApplicationService):
+        self.service = service
+    
+    async def create_topic(self, request: CreateTopicRequest) -> TopicResponse:
+        """Create a new topic."""
+        return await self.service.create_topic(request)
+    
+    async def get_topic(
+        self, 
+        topic_id: int, 
+        include_resources: bool = False, 
+        include_conversations: bool = False
+    ) -> Optional[TopicResponse]:
+        """Get a topic by ID."""
+        return await self.service.get_topic(topic_id, include_resources, include_conversations)
+    
+    async def update_topic(self, topic_id: int, request: UpdateTopicRequest) -> Optional[TopicResponse]:
+        """Update a topic."""
+        return await self.service.update_topic(topic_id, request)
+    
+    async def delete_topic(self, topic_id: int, hard_delete: bool = False) -> bool:
+        """Delete a topic."""
+        return await self.service.delete_topic(topic_id, hard_delete)
+    
+    async def upload_resource(self, request: UploadResourceRequest) -> ResourceResponse:
+        """Upload a resource to a topic."""
+        return await self.service.upload_resource(request)
+    
+    async def get_topic_resources(self, topic_id: int) -> List[ResourceResponse]:
+        """Get all resources for a topic."""
+        return await self.service.get_topic_resources(topic_id)
+    
+    async def search_topics(
+        self,
+        query: str,
+        category: Optional[str] = None,
+        status: Optional[str] = None,
+        user_id: Optional[int] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[TopicResponse]:
+        """Search topics."""
+        status_enum = TopicStatus(status) if status else None
+        return await self.service.search_topics(query, category, status_enum, user_id, limit, offset)
+
+
+# Factory function for creating a configured topic controller
+async def create_topic_controller() -> TopicController:
+    """Create a fully configured topic controller."""
+    # Get configuration
+    config = get_config()
+    
+    # Initialize infrastructure components
+    session = await get_database_session()
+    
+    # Create repositories
+    topic_repo = TopicRepository(session)
+    tag_repo = TagRepository(session)
+    resource_repo = TopicResourceRepository(session)
+    conversation_repo = ConversationRepository(session)
+    
+    # Create messaging broker
+    message_broker = RedisMessageBroker(
+        redis_url=config.messaging.redis.url,
+        database=config.messaging.redis.database
+    )
+    await message_broker.connect()
+    
+    # Create storage components
+    storage = MinIOStorage(**config.storage.minio_config)
+    file_manager = MinIOFileManager(storage, config.storage.default_bucket)
+    
+    # Create application service
+    service = TopicApplicationService(
+        topic_repo=topic_repo,
+        tag_repo=tag_repo,
+        resource_repo=resource_repo,
+        conversation_repo=conversation_repo,
+        message_broker=message_broker,
+        storage=storage,
+        file_manager=file_manager
+    )
+    
+    # Create and return controller
+    return TopicController(service)

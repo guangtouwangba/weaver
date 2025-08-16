@@ -13,7 +13,12 @@
 # Variable definitions
 PROJECT_NAME := research-agent-rag
 PYTHON := python3
-UV := uv
+# 检查是否在容器中，如果是则使用系统路径
+ifeq ($(DEV_CONTAINER),true)
+UV := /usr/local/bin/uv
+else
+UV := $(shell which uv 2>/dev/null || echo uv)
+endif
 DOCKER_COMPOSE := docker-compose -f docker-compose.middleware.yaml
 ENV_FILE := .env
 
@@ -206,6 +211,88 @@ db-reset: ## Reset database (Dangerous operation!)
 		echo "$(GREEN)Database reset completed!$(NC)"; \
 	else \
 		echo "$(YELLOW)Database reset cancelled$(NC)"; \
+	fi
+
+db-status: ## Check database migration status
+	@echo "$(BLUE)Checking database migration status...$(NC)"
+	$(UV) run alembic current
+	@echo ""
+	@echo "$(BLUE)Migration history:$(NC)"
+	$(UV) run alembic history --verbose
+
+db-create-migration: ## Create new migration with auto-generated name (Usage: make db-create-migration MSG="your message")
+	@if [ -z "$(MSG)" ]; then \
+		echo "$(RED)Error: Please provide migration message, e.g.: make db-create-migration MSG='add user table'$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Creating new migration: $(MSG)$(NC)"
+	$(UV) run alembic revision --autogenerate -m "$(MSG)"
+
+db-upgrade-to: ## Upgrade to specific migration (Usage: make db-upgrade-to REV=revision_id)
+	@if [ -z "$(REV)" ]; then \
+		echo "$(RED)Error: Please provide revision ID, e.g.: make db-upgrade-to REV=001$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Upgrading database to revision: $(REV)$(NC)"
+	$(UV) run alembic upgrade $(REV)
+
+db-downgrade-to: ## Downgrade to specific migration (Usage: make db-downgrade-to REV=revision_id)
+	@if [ -z "$(REV)" ]; then \
+		echo "$(RED)Error: Please provide revision ID, e.g.: make db-downgrade-to REV=001$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Downgrading database to revision: $(REV)$(NC)"
+	$(UV) run alembic downgrade $(REV)
+
+db-show-sql: ## Show SQL for next upgrade (dry-run)
+	@echo "$(BLUE)Showing SQL for next upgrade (dry-run):$(NC)"
+	$(UV) run alembic upgrade head --sql
+
+db-stamp: ## Mark database as up-to-date without running migrations (Usage: make db-stamp REV=head)
+	@if [ -z "$(REV)" ]; then \
+		REV="head"; \
+	fi
+	@echo "$(BLUE)Stamping database with revision: $(REV)$(NC)"
+	$(UV) run alembic stamp $(REV)
+
+db-apply-optimized: ## Apply the optimized database schema directly
+	@echo "$(BLUE)Applying optimized database schema...$(NC)"
+	@echo "$(YELLOW)Warning: This will replace current schema!$(NC)"
+	@read -p "Confirm applying optimized schema? (Type 'yes' to confirm): " confirm; \
+	if [ "$$confirm" = "yes" ]; then \
+		echo "$(BLUE)Connecting to database and applying schema...$(NC)"; \
+		$(DOCKER_COMPOSE) exec -T postgres psql -U rag_user -d rag_db -f /tmp/database_schema_optimized.sql; \
+		echo "$(GREEN)Optimized schema applied!$(NC)"; \
+		$(UV) run alembic stamp head; \
+		echo "$(GREEN)Database marked as up-to-date$(NC)"; \
+	else \
+		echo "$(YELLOW)Schema application cancelled$(NC)"; \
+	fi
+
+db-backup: ## Create database backup
+	@echo "$(BLUE)Creating database backup...$(NC)"
+	@mkdir -p backups
+	@timestamp=$$(date +%Y%m%d_%H%M%S); \
+	$(DOCKER_COMPOSE) exec -T postgres pg_dump -U rag_user -d rag_db > backups/rag_db_backup_$$timestamp.sql; \
+	echo "$(GREEN)Database backup created: backups/rag_db_backup_$$timestamp.sql$(NC)"
+
+db-restore: ## Restore database from backup (Usage: make db-restore BACKUP=filename)
+	@if [ -z "$(BACKUP)" ]; then \
+		echo "$(RED)Error: Please provide backup filename, e.g.: make db-restore BACKUP=rag_db_backup_20241215_143022.sql$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "backups/$(BACKUP)" ]; then \
+		echo "$(RED)Error: Backup file backups/$(BACKUP) not found$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Restoring database from backup: $(BACKUP)$(NC)"
+	@echo "$(RED)Warning: This will overwrite current database!$(NC)"
+	@read -p "Confirm database restore? (Type 'yes' to confirm): " confirm; \
+	if [ "$$confirm" = "yes" ]; then \
+		$(DOCKER_COMPOSE) exec -T postgres psql -U rag_user -d rag_db < backups/$(BACKUP); \
+		echo "$(GREEN)Database restored from backup!$(NC)"; \
+	else \
+		echo "$(YELLOW)Database restore cancelled$(NC)"; \
 	fi
 
 # =============================================================================
