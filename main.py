@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
         
         # Initialize monitoring
         health_checker = get_health_checker()
-        await health_checker.start_background_monitoring()
+        # await health_checker.start_background_monitoring()
         
         logger.info("RAG API application started successfully")
         
