@@ -54,8 +54,8 @@ POSTGRES_PASSWORD=rag_password
 ### 数据库模型
 
 ```python
-from database.models import Document, DocumentChunk, QueryHistory
-from database.config import get_sync_session
+from infrastructure.database.models import Document, DocumentChunk, QueryHistory
+from infrastructure.database.config import get_sync_session
 
 # 使用同步会话
 with get_sync_session() as session:
@@ -63,7 +63,7 @@ with get_sync_session() as session:
     print(doc.title)
 
 # 使用异步会话
-from database.config import get_async_session
+from infrastructure.database.config import get_async_session
 async with get_async_session() as session:
     result = await session.execute(select(Document))
     docs = result.scalars().all()
@@ -129,7 +129,7 @@ async with get_async_session() as session:
 
 ### 1. 修改模型
 
-编辑 `database/models.py` 文件：
+编辑 `infrastructure/database/models/` 相关文件：
 
 ```python
 class Document(Base):
@@ -298,8 +298,8 @@ ORDER BY schemaname, tablename;
 
 ```python
 import pytest
-from database.config import sync_engine
-from database.models import Base
+from infrastructure.database.config import sync_engine
+from infrastructure.database.models import Base
 from sqlalchemy.orm import sessionmaker
 
 @pytest.fixture
