@@ -22,7 +22,7 @@ from infrastructure import (
     IMessageBroker, IObjectStorage, IFileManager, 
     Message, SystemEvents, SystemTasks, MessagePriority,
     StorageObject, UploadOptions, AccessLevel,
-    get_config
+    get_config, get_async_database_session
 )
 from infrastructure.database.repositories.topic import (
     TopicRepository, TagRepository, TopicResourceRepository, ConversationRepository
@@ -192,10 +192,10 @@ class TopicApplicationService:
                 'conversation_id': request.conversation_id,
                 'parent_topic_id': request.parent_topic_id,
                 'settings': request.settings,
-                'status': TopicStatus.ACTIVE.value,
-                'created_at': datetime.now(datetime.UTC),
-                'updated_at': datetime.now(datetime.UTC),
-                'last_accessed_at': datetime.now(datetime.UTC)
+                'status': "active",
+                'created_at': datetime.utcnow(),
+                'updated_at': datetime.utcnow(),
+                'last_accessed_at': datetime.utcnow()
             }
             
             # Create in database
@@ -208,17 +208,18 @@ class TopicApplicationService:
             # Convert to domain entity
             topic = self._entity_to_domain(topic_entity)
             
-            # Publish event
-            await self.message_broker.publish_event(
-                event_type=SystemEvents.TOPIC_CREATED,
-                event_data={
-                    'topic_id': topic.id,
-                    'name': topic.name,
-                    'user_id': topic.user_id,
-                    'category': topic.category
-                },
-                source='topic_service'
-            )
+            # Publish event (if message broker is available)
+            if self.message_broker:
+                await self.message_broker.publish_event(
+                    event_type=SystemEvents.TOPIC_CREATED,
+                    event_data={
+                        'topic_id': topic.id,
+                        'name': topic.name,
+                        'user_id': topic.user_id,
+                        'category': topic.category
+                    },
+                    source='topic_service'
+                )
             
             logger.info(f"Created topic {topic.id}: {topic.name}")
             return TopicResponse.from_domain(topic)
@@ -272,7 +273,7 @@ class TopicApplicationService:
             if request.settings is not None:
                 update_data['settings'] = request.settings
             
-            update_data['updated_at'] = datetime.now(datetime.UTC)
+            update_data['updated_at'] = datetime.utcnow()
             
             # Update in database
             topic_entity = await self.topic_repo.update(topic_id, update_data)
@@ -355,9 +356,9 @@ class TopicApplicationService:
                 'is_public': request.is_public,
                 'resource_metadata': request.metadata,
                 'parse_status': ParseStatus.PENDING.value,
-                'uploaded_at': datetime.now(datetime.UTC),
-                'created_at': datetime.now(datetime.UTC),
-                'updated_at': datetime.now(datetime.UTC)
+                'uploaded_at': datetime.utcnow(),
+                'created_at': datetime.utcnow(),
+                'updated_at': datetime.utcnow()
             }
             
             resource_entity = await self.resource_repo.create(resource_data)
@@ -368,7 +369,7 @@ class TopicApplicationService:
             if topic_entity:
                 await self.topic_repo.update(request.topic_id, {
                     'total_resources': topic_entity.total_resources + 1,
-                    'updated_at': datetime.now(datetime.UTC)
+                    'updated_at': datetime.utcnow()
                 })
             
             # Enqueue parsing task
@@ -629,8 +630,8 @@ async def create_topic_controller() -> TopicController:
     # Get configuration
     config = get_config()
     
-    # Initialize infrastructure components
-    session = await get_database_session()
+    # Initialize infrastructure components - use async session
+    session = await get_async_database_session()
     
     # Create repositories
     topic_repo = TopicRepository(session)
@@ -638,12 +639,13 @@ async def create_topic_controller() -> TopicController:
     resource_repo = TopicResourceRepository(session)
     conversation_repo = ConversationRepository(session)
     
-    # Create messaging broker
-    message_broker = RedisMessageBroker(
-        redis_url=config.messaging.redis.url,
-        database=config.messaging.redis.database
-    )
-    await message_broker.connect()
+    # Create messaging broker - temporarily disabled to avoid connection issues
+    message_broker = None
+    # message_broker = RedisMessageBroker(
+    #     redis_url=config.messaging.redis.url,
+    #     database=config.messaging.redis.database
+    # )
+    # await message_broker.connect()
     
     # Create storage components
     storage = MinIOStorage(**config.storage.minio_config)

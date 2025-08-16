@@ -13,7 +13,7 @@ The infrastructure layer handles external dependencies and provides
 implementations for domain interfaces.
 """
 
-from .database import get_database_session, get_database_config
+from .database import get_database_session, get_database_config, get_async_database_session
 from .config import InfrastructureConfig, get_config, validate_config
 from .messaging.redis_broker import RedisMessageBroker
 from .messaging.interfaces import (
@@ -39,6 +39,7 @@ __all__ = [
     # Database
     "get_database_session",
     "get_database_config",
+    "get_async_database_session",
     
     # Configuration
     "InfrastructureConfig",

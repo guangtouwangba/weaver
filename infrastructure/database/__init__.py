@@ -8,12 +8,13 @@ This module provides database-related infrastructure including:
 - Migration utilities
 """
 
-from .config import get_database_config, get_database_session, DatabaseConfig
+from .config import get_database_config, get_database_session, get_async_database_session, DatabaseConfig
 from .models import Base, get_all_models
 
 __all__ = [
     "get_database_config",
-    "get_database_session", 
+    "get_database_session",
+    "get_async_database_session", 
     "DatabaseConfig",
     "Base",
     "get_all_models",
