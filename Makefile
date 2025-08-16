@@ -1,11 +1,15 @@
 # Makefile for Research Agent RAG Project
 # Usage: make <target>
 
-.PHONY: help install install-dev install-test install-docs install-prod
+.PHONY: help install install-dev install-test install-docs install-prod install-server
+.PHONY: install-all setup-dev setup-server
 .PHONY: start stop restart status logs clean clean-all
 .PHONY: test test-cov lint format check pre-commit
 .PHONY: db-init db-migrate db-upgrade db-downgrade
 .PHONY: docker-build docker-push docker-pull
+.PHONY: server server-dev server-prod server-test server-debug server-gunicorn
+.PHONY: server-stop server-status server-restart server-logs server-background
+.PHONY: server-full server-quick api-test api-test-quick api-test-health api-test-topics load-test
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -45,6 +49,9 @@ help: ## Show help information
 	@echo "$(YELLOW)Database Management:$(NC)"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(db-)"
 	@echo ""
+	@echo "$(YELLOW)Server Management:$(NC)"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(server)"
+	@echo ""
 	@echo "$(YELLOW)Cleanup:$(NC)"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(clean)"
 
@@ -56,6 +63,13 @@ install: ## Install production dependencies
 	@echo "$(BLUE)Installing production dependencies...$(NC)"
 	$(UV) pip install -e .
 	@echo "$(GREEN)Production dependencies installed!$(NC)"
+
+install-server: ## Install dependencies for server
+	@echo "$(BLUE)Installing server dependencies...$(NC)"
+	$(UV) pip install -e .
+	@echo "$(YELLOW)Installing additional server packages...$(NC)"
+	$(UV) pip install minio redis httpx uvicorn[standard] gunicorn
+	@echo "$(GREEN)Server dependencies installed!$(NC)"
 
 install-dev: ## Install development dependencies
 	@echo "$(BLUE)Installing development dependencies...$(NC)"
@@ -79,6 +93,34 @@ install-prod: ## Install production environment dependencies
 
 install-all: install install-dev install-test install-docs install-prod ## Install all dependencies
 	@echo "$(GREEN)All dependencies installed!$(NC)"
+
+setup-dev: ## Complete development setup
+	@echo "$(BLUE)Setting up development environment...$(NC)"
+	@echo "$(YELLOW)Step 1: Installing dependencies...$(NC)"
+	@make install-dev
+	@echo "$(YELLOW)Step 2: Installing pre-commit hooks...$(NC)"
+	@$(UV) run pre-commit install
+	@echo "$(YELLOW)Step 3: Starting middleware services...$(NC)"
+	@make start
+	@echo "$(YELLOW)Step 4: Waiting for services...$(NC)"
+	@sleep 10
+	@echo "$(YELLOW)Step 5: Initializing database...$(NC)"
+	@make db-init
+	@echo "$(GREEN)Development environment ready!$(NC)"
+	@echo "$(BLUE)You can now run: make server$(NC)"
+
+setup-server: ## Complete server setup (production-like)
+	@echo "$(BLUE)Setting up server environment...$(NC)"
+	@echo "$(YELLOW)Step 1: Installing server dependencies...$(NC)"
+	@make install-server
+	@echo "$(YELLOW)Step 2: Starting middleware services...$(NC)"
+	@make start
+	@echo "$(YELLOW)Step 3: Waiting for services...$(NC)"
+	@sleep 10
+	@echo "$(YELLOW)Step 4: Initializing database...$(NC)"
+	@make db-init
+	@echo "$(GREEN)Server environment ready!$(NC)"
+	@echo "$(BLUE)You can now run: make server-prod$(NC)"
 
 # =============================================================================
 # Middleware Management
@@ -176,6 +218,141 @@ check: format lint ## Format code and run linting
 pre-commit: ## Run pre-commit checks
 	@echo "$(BLUE)Running pre-commit checks...$(NC)"
 	$(UV) run pre-commit run --all-files
+
+# =============================================================================
+# Server Management
+# =============================================================================
+
+server: server-dev ## Start development server (default)
+
+server-dev: ## Start development server with hot reload
+	@echo "$(BLUE)Starting RAG API development server...$(NC)"
+	@echo "$(YELLOW)Checking dependencies...$(NC)"
+	@make start > /dev/null 2>&1 || true
+	@echo "$(YELLOW)Waiting for middleware services to be ready...$(NC)"
+	@sleep 5
+	@echo "$(BLUE)Starting FastAPI server with auto-reload...$(NC)"
+	@echo "$(YELLOW)Server will be available at: http://localhost:8000$(NC)"
+	@echo "$(YELLOW)API documentation: http://localhost:8000/docs$(NC)"
+	@echo "$(YELLOW)Health check: http://localhost:8000/health$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to stop the server$(NC)"
+	$(UV) run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info
+
+server-prod: ## Start production server
+	@echo "$(BLUE)Starting RAG API production server...$(NC)"
+	@echo "$(YELLOW)Checking dependencies...$(NC)"
+	@make start > /dev/null 2>&1 || true
+	@echo "$(YELLOW)Waiting for middleware services to be ready...$(NC)"
+	@sleep 5
+	@echo "$(BLUE)Starting FastAPI server for production...$(NC)"
+	@echo "$(YELLOW)Server will be available at: http://localhost:8000$(NC)"
+	@echo "$(YELLOW)Health check: http://localhost:8000/health$(NC)"
+	$(UV) run uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level warning
+
+server-test: ## Start server for testing
+	@echo "$(BLUE)Starting RAG API test server...$(NC)"
+	@echo "$(YELLOW)Starting test environment...$(NC)"
+	@make start > /dev/null 2>&1 || true
+	@sleep 3
+	@echo "$(BLUE)Starting FastAPI server for testing...$(NC)"
+	$(UV) run uvicorn main:app --host 0.0.0.0 --port 8001 --log-level debug
+
+server-debug: ## Start server with debug logging
+	@echo "$(BLUE)Starting RAG API debug server...$(NC)"
+	@echo "$(YELLOW)Checking dependencies...$(NC)"
+	@make start > /dev/null 2>&1 || true
+	@sleep 5
+	@echo "$(BLUE)Starting FastAPI server with debug logging...$(NC)"
+	@echo "$(YELLOW)Server will be available at: http://localhost:8000$(NC)"
+	@echo "$(YELLOW)API documentation: http://localhost:8000/docs$(NC)"
+	@echo "$(YELLOW)Debug mode enabled - detailed logging$(NC)"
+	$(UV) run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+
+server-gunicorn: ## Start server with Gunicorn (production alternative)
+	@echo "$(BLUE)Starting RAG API with Gunicorn...$(NC)"
+	@echo "$(YELLOW)Checking dependencies...$(NC)"
+	@make start > /dev/null 2>&1 || true
+	@sleep 5
+	@echo "$(BLUE)Starting Gunicorn server...$(NC)"
+	$(UV) run gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --log-level info
+
+server-status: ## Check server status
+	@echo "$(BLUE)Checking RAG API server status...$(NC)"
+	@echo "$(YELLOW)Health Check:$(NC)"
+	@if curl -s http://localhost:8000/health > /dev/null 2>&1; then \
+		echo "  $(GREEN)✓ Server is running$(NC)"; \
+		echo "  $(BLUE)Server Info:$(NC)"; \
+		curl -s http://localhost:8000/info | python3 -m json.tool 2>/dev/null || echo "  Unable to fetch server info"; \
+	else \
+		echo "  $(RED)✗ Server is not running$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(YELLOW)Available Endpoints:$(NC)"
+	@echo "  $(GREEN)Health Check:$(NC)      http://localhost:8000/health"
+	@echo "  $(GREEN)Server Info:$(NC)       http://localhost:8000/info"
+	@echo "  $(GREEN)API Documentation:$(NC) http://localhost:8000/docs"
+	@echo "  $(GREEN)ReDoc:$(NC)             http://localhost:8000/redoc"
+	@echo "  $(GREEN)OpenAPI Schema:$(NC)    http://localhost:8000/openapi.json"
+	@echo "  $(GREEN)Topics API:$(NC)        http://localhost:8000/api/v1/topics"
+	@echo "  $(GREEN)Metrics:$(NC)           http://localhost:8000/metrics"
+
+server-stop: ## Stop server (find and kill process)
+	@echo "$(BLUE)Stopping RAG API server...$(NC)"
+	@if pgrep -f "uvicorn main:app" > /dev/null; then \
+		echo "$(YELLOW)Found running server process(es):$(NC)"; \
+		pgrep -f "uvicorn main:app" | xargs ps -p; \
+		echo "$(BLUE)Stopping server...$(NC)"; \
+		pkill -f "uvicorn main:app"; \
+		sleep 2; \
+		if pgrep -f "uvicorn main:app" > /dev/null; then \
+			echo "$(YELLOW)Force killing server...$(NC)"; \
+			pkill -9 -f "uvicorn main:app"; \
+		fi; \
+		echo "$(GREEN)Server stopped!$(NC)"; \
+	else \
+		echo "$(YELLOW)No running server found$(NC)"; \
+	fi
+
+server-restart: server-stop server-dev ## Restart development server
+
+server-logs: ## Show server logs (if running in background)
+	@echo "$(BLUE)Showing server logs...$(NC)"
+	@echo "$(YELLOW)Note: This shows logs if server was started in background$(NC)"
+	@if [ -f server.log ]; then \
+		tail -f server.log; \
+	else \
+		echo "$(YELLOW)No log file found. Start server with: make server-background$(NC)"; \
+	fi
+
+server-background: ## Start server in background with logging
+	@echo "$(BLUE)Starting RAG API server in background...$(NC)"
+	@make start > /dev/null 2>&1 || true
+	@sleep 5
+	@echo "$(BLUE)Starting FastAPI server in background...$(NC)"
+	@nohup $(UV) run uvicorn main:app --host 0.0.0.0 --port 8000 --reload > server.log 2>&1 &
+	@echo "$$!" > server.pid
+	@sleep 2
+	@echo "$(GREEN)Server started in background (PID: $$(cat server.pid))$(NC)"
+	@echo "$(YELLOW)Server available at: http://localhost:8000$(NC)"
+	@echo "$(YELLOW)View logs with: make server-logs$(NC)"
+	@echo "$(YELLOW)Stop server with: make server-stop$(NC)"
+
+server-full: ## Start full stack (middleware + server)
+	@echo "$(BLUE)Starting full RAG system...$(NC)"
+	@echo "$(YELLOW)Step 1: Starting middleware services...$(NC)"
+	@make start
+	@echo "$(YELLOW)Step 2: Waiting for services to be ready...$(NC)"
+	@sleep 10
+	@echo "$(YELLOW)Step 3: Running database migrations...$(NC)"
+	@make db-upgrade
+	@echo "$(YELLOW)Step 4: Starting API server...$(NC)"
+	@make server-dev
+
+server-quick: ## Quick start (assumes middleware is running)
+	@echo "$(BLUE)Quick starting RAG API server...$(NC)"
+	@echo "$(YELLOW)Assuming middleware services are already running...$(NC)"
+	@echo "$(YELLOW)Use 'make server-full' for complete startup$(NC)"
+	$(UV) run uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info
 
 # =============================================================================
 # Database Management
@@ -346,6 +523,43 @@ jupyter: ## Start Jupyter Notebook
 docs-serve: ## Start documentation server
 	@echo "$(BLUE)Starting documentation server...$(NC)"
 	$(UV) run mkdocs serve
+
+api-test: ## Test API endpoints with Python test script
+	@echo "$(BLUE)Running comprehensive API tests...$(NC)"
+	$(UV) run python scripts/test_api.py --test full
+
+api-test-quick: ## Quick API health test with curl
+	@echo "$(BLUE)Quick testing API endpoints...$(NC)"
+	@echo "$(YELLOW)Health Check:$(NC)"
+	@curl -s http://localhost:8000/health | python3 -m json.tool || echo "Server not running"
+	@echo ""
+	@echo "$(YELLOW)Server Info:$(NC)"
+	@curl -s http://localhost:8000/info | python3 -m json.tool || echo "Server not running"
+
+api-test-health: ## Test only health endpoint
+	@echo "$(BLUE)Testing health endpoint...$(NC)"
+	$(UV) run python scripts/test_api.py --test health
+
+api-test-topics: ## Test topics endpoints
+	@echo "$(BLUE)Testing topics endpoints...$(NC)"
+	$(UV) run python scripts/test_api.py --test topics
+
+load-test: ## Run simple load test
+	@echo "$(BLUE)Running load test on API...$(NC)"
+	@echo "$(YELLOW)Note: Make sure server is running$(NC)"
+	@if command -v ab > /dev/null; then \
+		echo "$(BLUE)Running Apache Bench load test...$(NC)"; \
+		ab -n 100 -c 10 http://localhost:8000/health; \
+	elif command -v wrk > /dev/null; then \
+		echo "$(BLUE)Running wrk load test...$(NC)"; \
+		wrk -t10 -c10 -d10s http://localhost:8000/health; \
+	else \
+		echo "$(YELLOW)No load testing tool found. Install 'ab' or 'wrk'$(NC)"; \
+		echo "$(BLUE)Running simple curl test...$(NC)"; \
+		for i in $$(seq 1 10); do \
+			curl -s http://localhost:8000/health > /dev/null && echo "Request $$i: OK" || echo "Request $$i: FAILED"; \
+		done; \
+	fi
 
 # =============================================================================
 # Environment Management

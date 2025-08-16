@@ -70,17 +70,17 @@ This directory contains the development container configuration for the RAG Rese
 
 | Service | Container Port | Host Port | URL |
 |---------|----------------|-----------|-----|
-| FastAPI App | 8000 | 8000 | http://localhost:8000 |
-| Jupyter Lab | 8888 | 8888 | http://localhost:8888 |
-| PostgreSQL | 5432 | 5432 | localhost:5432 |
-| Redis | 6379 | 6379 | localhost:6379 |
-| Elasticsearch | 9200 | 9200 | http://localhost:9200 |
-| MinIO API | 9000 | 9000 | http://localhost:9000 |
-| MinIO Console | 9001 | 9001 | http://localhost:9001 |
-| Weaviate | 8080 | 8080 | http://localhost:8080 |
-| ChromaDB | 8000 | 8001 | http://localhost:8001 |
-| Prometheus | 9090 | 9090 | http://localhost:9090 |
-| Grafana | 3000 | 3000 | http://localhost:3000 |
+| FastAPI App | 8000 | 18000 | http://localhost:18000 |
+| Jupyter Lab | 8888 | 18888 | http://localhost:18888 |
+| PostgreSQL | 5432 | 15432 | localhost:15432 |
+| Redis | 6379 | 16379 | localhost:16379 |
+| Elasticsearch | 9200 | 19200 | http://localhost:19200 |
+| MinIO API | 9000 | 19000 | http://localhost:19000 |
+| MinIO Console | 9001 | 19001 | http://localhost:19001 |
+| Weaviate | 8080 | 18080 | http://localhost:18080 |
+| ChromaDB | 8000 | 18001 | http://localhost:18001 |
+| Prometheus | 9090 | 19090 | http://localhost:19090 |
+| Grafana | 3000 | 13000 | http://localhost:13000 |
 
 ## 🛠️ Development Tools
 
