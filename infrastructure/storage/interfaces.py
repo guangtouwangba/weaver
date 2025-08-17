@@ -25,6 +25,16 @@ class StorageType(Enum):
     CLOUD_STORAGE = "cloud_storage"  # Google Cloud Storage, Azure Blob, etc.
 
 
+class StorageProvider(Enum):
+    """Supported storage providers."""
+    MINIO = "minio"
+    AWS_S3 = "aws_s3"
+    GOOGLE_CLOUD = "google_cloud"
+    ALIBABA_OSS = "alibaba_oss"
+    AZURE_BLOB = "azure_blob"
+    LOCAL_FILE = "local_file"
+
+
 class AccessLevel(Enum):
     """File access levels."""
     PRIVATE = "private"
@@ -65,6 +75,43 @@ class ContentType(Enum):
     
     # Default
     BINARY = "application/octet-stream"
+
+
+@dataclass
+class StorageCredentials:
+    """Storage provider credentials."""
+    provider: StorageProvider
+    access_key: Optional[str] = None
+    secret_key: Optional[str] = None
+    region: Optional[str] = None
+    endpoint_url: Optional[str] = None
+    token: Optional[str] = None  # For token-based auth
+    key_file_path: Optional[str] = None  # For service account files
+    bucket_name: Optional[str] = None  # Default bucket
+    additional_config: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ProviderConfig:
+    """Configuration for a specific storage provider."""
+    provider: StorageProvider
+    credentials: StorageCredentials
+    default_bucket: str
+    region: Optional[str] = None
+    encryption_enabled: bool = False
+    versioning_enabled: bool = False
+    multipart_threshold: int = 64 * 1024 * 1024  # 64MB
+    max_concurrency: int = 10
+    connect_timeout: int = 60
+    read_timeout: int = 300
+    retry_attempts: int = 3
+    
+    # Provider-specific settings
+    aws_settings: Dict[str, Any] = field(default_factory=dict)
+    gcp_settings: Dict[str, Any] = field(default_factory=dict)
+    alibaba_settings: Dict[str, Any] = field(default_factory=dict)
+    azure_settings: Dict[str, Any] = field(default_factory=dict)
+    minio_settings: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
