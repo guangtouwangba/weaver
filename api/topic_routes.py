@@ -28,6 +28,9 @@ from api.exceptions import (
     raise_not_found, raise_validation_error
 )
 
+# Unified file service for bridge functionality
+from api.unified_file_service import get_unified_files_for_topic, get_unified_file_stats_for_topic
+
 logger = logging.getLogger(__name__)
 
 # Create router
@@ -62,7 +65,7 @@ class UpdateTopicAPI(BaseModel):
 
 
 class TopicResponseAPI(BaseModel):
-    """API response model for topic."""
+    """API response model for topic (optimized for performance)."""
     model_config = ConfigDict(from_attributes=True)
     
     id: int
@@ -83,8 +86,10 @@ class TopicResponseAPI(BaseModel):
     updated_at: str
     last_accessed_at: str
     tags: List[str] = Field(default_factory=list)
-    resources: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
-    conversations: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    
+    # Deprecated fields (kept for backward compatibility)
+    resources: Optional[List[Dict[str, Any]]] = Field(default=None, description="Deprecated: Use /topics/{id}/files instead")
+    conversations: Optional[List[Dict[str, Any]]] = Field(default=None, description="Deprecated: Use /topics/{id}/conversations instead")
 
 
 class ResourceResponseAPI(BaseModel):
@@ -171,23 +176,59 @@ async def create_topic(
 @router.get("/{topic_id}", response_model=TopicResponseAPI)
 async def get_topic(
     topic_id: int = Path(..., description="Topic ID"),
-    include_resources: bool = Query(False, description="Include topic resources"),
-    include_conversations: bool = Query(False, description="Include topic conversations"),
+    include_resources: bool = Query(False, description="[Deprecated] Include topic resources - use /topics/{id}/files instead"),
+    include_conversations: bool = Query(False, description="[Deprecated] Include topic conversations"),
     controller: TopicController = Depends(get_topic_controller)
 ) -> TopicResponseAPI:
     """
-    Get a topic by ID.
+    Get a topic by ID (optimized for performance).
+    
+    **Performance Optimized**: This endpoint now returns only core topic information by default.
+    For file lists, use the dedicated `/topics/{topic_id}/files` endpoint.
     
     - **topic_id**: ID of the topic to retrieve
-    - **include_resources**: Whether to include associated resources
-    - **include_conversations**: Whether to include associated conversations
+    - **include_resources**: [Deprecated] Use `/topics/{topic_id}/files` instead
+    - **include_conversations**: [Deprecated] Use `/topics/{topic_id}/conversations` instead
     """
     try:
-        response = await controller.get_topic(topic_id, include_resources, include_conversations)
+        # Get topic with optimized query (no resources by default)
+        response = await controller.get_topic(topic_id, False, False)
         if response is None:
             raise_not_found("topic", topic_id)
         
-        return TopicResponseAPI(**response.__dict__)
+        # Convert to API response format
+        topic_data = response.__dict__.copy()
+        
+        # Update total_resources count efficiently using stats
+        try:
+            file_stats = await get_unified_file_stats_for_topic(topic_id)
+            topic_data['total_resources'] = file_stats.get('total_files', 0)
+        except Exception as e:
+            logger.warning(f"Failed to get file stats for topic {topic_id}: {e}")
+            topic_data['total_resources'] = 0
+        
+        # Handle backward compatibility for deprecated include_resources parameter
+        if include_resources:
+            logger.warning(f"include_resources parameter is deprecated. Use /topics/{topic_id}/files instead")
+            try:
+                unified_files = await get_unified_files_for_topic(topic_id)
+                topic_data['resources'] = unified_files
+                logger.info(f"[Deprecated] Retrieved {len(unified_files)} files for topic {topic_id}")
+            except Exception as e:
+                logger.error(f"Failed to get files for topic {topic_id}: {e}")
+                topic_data['resources'] = []
+        else:
+            # Default: no resources for performance
+            topic_data['resources'] = None
+        
+        # Handle conversations (also deprecated)
+        if include_conversations:
+            logger.warning(f"include_conversations parameter is deprecated")
+            # Keep existing behavior for now
+        else:
+            topic_data['conversations'] = None
+        
+        return TopicResponseAPI(**topic_data)
         
     except Exception as e:
         logger.error(f"Error getting topic {topic_id}: {e}")

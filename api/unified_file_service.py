@@ -298,3 +298,189 @@ async def get_unified_file_stats_for_topic(topic_id: int) -> Dict[str, Any]:
     """Convenience function to get unified file statistics for a topic."""
     service = UnifiedFileService()
     return await service.get_file_statistics(topic_id)
+
+
+async def get_unified_files_paginated(
+    topic_id: int,
+    limit: int = 20,
+    offset: int = 0,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    file_type: Optional[str] = None,
+    search: Optional[str] = None,
+    source: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get paginated and filtered files for a topic.
+    
+    Args:
+        topic_id: Topic ID
+        limit: Number of files per page
+        offset: Number of files to skip
+        sort_by: Field to sort by (name, size, created_at, updated_at, file_type)
+        sort_order: Sort order (asc, desc)
+        file_type: Filter by file type/MIME type
+        search: Search term for file names
+        source: Filter by source system (legacy, new)
+    
+    Returns:
+        Dict with paginated results and metadata
+    """
+    try:
+        conn = await asyncpg.connect('postgresql://rag_user:rag_password@localhost:5432/rag_db')
+        
+        # Build WHERE conditions
+        where_conditions = ["topic_id = $1", "is_deleted = false"]
+        params = [topic_id]
+        param_counter = 1
+        
+        # Add search filter
+        if search:
+            param_counter += 1
+            where_conditions.append(f"(original_name ILIKE ${param_counter} OR file_name ILIKE ${param_counter})")
+            params.append(f"%{search}%")
+        
+        # Add file type filter
+        if file_type:
+            param_counter += 1
+            where_conditions.append(f"(mime_type ILIKE ${param_counter} OR resource_type ILIKE ${param_counter})")
+            params.append(f"%{file_type}%")
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        # Map sort fields
+        sort_field_mapping = {
+            "name": "original_name",
+            "size": "file_size", 
+            "created_at": "uploaded_at",
+            "updated_at": "uploaded_at",
+            "file_type": "resource_type"
+        }
+        
+        db_sort_field = sort_field_mapping.get(sort_by, "uploaded_at")
+        db_sort_order = "ASC" if sort_order.lower() == "asc" else "DESC"
+        
+        # Query legacy files with pagination
+        legacy_query = f"""
+            SELECT 
+                id, 'legacy' as source, original_name, file_name, file_path, file_size, 
+                mime_type, resource_type, is_parsed, parse_status, total_pages, parsed_pages,
+                content_preview, metadata, uploaded_at, parsed_at, last_accessed_at
+            FROM topic_resources 
+            WHERE {where_clause}
+            ORDER BY {db_sort_field} {db_sort_order}
+        """
+        
+        # Query new files with pagination (adjust field names)
+        new_where_conditions = ["topic_id = $1", "is_deleted = false"]
+        new_params = [topic_id]
+        new_param_counter = 1
+        
+        if search:
+            new_param_counter += 1
+            new_where_conditions.append(f"original_name ILIKE ${new_param_counter}")
+            new_params.append(f"%{search}%")
+        
+        if file_type:
+            new_param_counter += 1
+            new_where_conditions.append(f"content_type ILIKE ${new_param_counter}")
+            new_params.append(f"%{file_type}%")
+        
+        new_where_clause = " AND ".join(new_where_conditions)
+        
+        # Map sort fields for new files table
+        new_sort_field_mapping = {
+            "name": "original_name",
+            "size": "file_size",
+            "created_at": "created_at", 
+            "updated_at": "updated_at",
+            "file_type": "content_type"
+        }
+        
+        new_db_sort_field = new_sort_field_mapping.get(sort_by, "created_at")
+        
+        new_query = f"""
+            SELECT 
+                id, 'new' as source, original_name, original_name as file_name, 
+                storage_key as file_path, file_size, content_type as mime_type, 
+                category as resource_type, (status = 'available') as is_parsed, 
+                status as parse_status, null as total_pages, null as parsed_pages,
+                null as content_preview, custom_metadata as metadata, 
+                created_at as uploaded_at, updated_at as parsed_at, last_accessed_at
+            FROM files 
+            WHERE {new_where_clause}
+            ORDER BY {new_db_sort_field} {db_sort_order}
+        """
+        
+        # Apply source filter
+        if source == "legacy":
+            # Only legacy files
+            legacy_files = await conn.fetch(legacy_query, *params)
+            new_files = []
+            total_legacy = len(legacy_files)
+            total_new = 0
+        elif source == "new":
+            # Only new files  
+            legacy_files = []
+            new_files = await conn.fetch(new_query, *new_params)
+            total_legacy = 0
+            total_new = len(new_files)
+        else:
+            # Both systems
+            legacy_files = await conn.fetch(legacy_query, *params)
+            new_files = await conn.fetch(new_query, *new_params)
+            total_legacy = len(legacy_files)
+            total_new = len(new_files)
+        
+        await conn.close()
+        
+        # Combine and normalize results
+        all_files = []
+        
+        # Convert legacy files
+        for record in legacy_files:
+            file_data = dict(record)
+            file_data['source'] = 'legacy'
+            file_data['file_type'] = file_data.get('resource_type')
+            file_data['created_at'] = file_data.get('uploaded_at')
+            all_files.append(file_data)
+        
+        # Convert new files
+        for record in new_files:
+            file_data = dict(record) 
+            file_data['source'] = 'new'
+            file_data['file_type'] = file_data.get('resource_type')
+            file_data['created_at'] = file_data.get('uploaded_at')
+            all_files.append(file_data)
+        
+        # Sort combined results
+        reverse = sort_order.lower() == "desc"
+        if sort_by == "name":
+            all_files.sort(key=lambda x: x.get('original_name', ''), reverse=reverse)
+        elif sort_by == "size":
+            all_files.sort(key=lambda x: x.get('file_size', 0), reverse=reverse)
+        elif sort_by == "file_type":
+            all_files.sort(key=lambda x: x.get('file_type', ''), reverse=reverse)
+        else:  # created_at, updated_at
+            all_files.sort(key=lambda x: x.get('created_at'), reverse=reverse)
+        
+        # Apply pagination
+        total_count = len(all_files)
+        paginated_files = all_files[offset:offset + limit]
+        
+        # Calculate total size
+        total_size = sum(f.get('file_size', 0) for f in all_files if f.get('file_size'))
+        
+        return {
+            'files': paginated_files,
+            'total_count': total_count,
+            'total_size': total_size,
+            'legacy_count': total_legacy,
+            'new_count': total_new,
+            'offset': offset,
+            'limit': limit
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get paginated files for topic {topic_id}: {e}")
+        raise

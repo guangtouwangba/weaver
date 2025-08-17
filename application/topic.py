@@ -515,7 +515,7 @@ class TopicApplicationService:
             parsed_pages=entity.parsed_pages or 0,
             content_preview=entity.content_preview,
             content_summary=entity.content_summary,
-            resource_metadata=entity.resource_metadata or {},
+            metadata=entity.resource_metadata or {},
             is_public=entity.is_public,
             access_level=entity.access_level,
             uploaded_at=entity.uploaded_at,

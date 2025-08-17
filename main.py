@@ -28,6 +28,8 @@ from infrastructure import (
 # API routes
 from api.topic_routes import router as topic_router
 from api.file_routes import router as file_router
+from api.topic_files_routes import router as topic_files_router
+from api.topic_stats_routes import router as topic_stats_router
 
 # Configure logging
 logging.basicConfig(
@@ -166,6 +168,8 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(topic_router)
     app.include_router(file_router)
+    app.include_router(topic_files_router)
+    app.include_router(topic_stats_router)
     
     # Mount static files for Swagger UI
     try:

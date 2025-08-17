@@ -111,8 +111,8 @@ class FileSearchAPI(BaseModel):
 
 # Mock dependency functions (to be replaced with actual authentication)
 
-async def get_current_user() -> str:
-    """Get current authenticated user ID."""
+async def get_current_user_id() -> str:
+    """Get current authenticated user ID (simplified for testing)."""
     # This would integrate with your authentication system
     return "user_123"  # Mock user ID
 
@@ -123,7 +123,7 @@ async def get_optional_user() -> Optional[str]:
     return "user_123"  # Mock user ID
 
 
-async def get_user_groups(user_id: str = Depends(get_current_user)) -> Set[str]:
+async def get_user_groups(user_id: str = Depends(get_current_user_id)) -> Set[str]:
     """Get user groups for authorization."""
     # This would integrate with your authorization system
     return {"default_group"}  # Mock groups
@@ -133,22 +133,17 @@ async def get_file_controller() -> FileController:
     """Get file controller instance with real MinIO dependencies."""
     from application.fileupload.controllers.file_controller import FileController
     from infrastructure.config import get_config
-    from infrastructure.storage.minio_storage import MinIOStorage
+    from infrastructure.storage.factory import create_storage_from_env
+    from infrastructure.storage.interfaces import UploadOptions, AccessLevel as StorageAccessLevel
     
     # Get configuration
     config = get_config()
     
-    # Initialize MinIO storage with real credentials
-    minio_storage = MinIOStorage(
-        endpoint=config.storage.endpoint,
-        access_key=config.storage.access_key,
-        secret_key=config.storage.secret_key,
-        secure=config.storage.secure,
-        region=config.storage.region
-    )
+    # Initialize storage with multi-provider support
+    storage = create_storage_from_env()
     
     # Helper function to ensure bucket exists
-    async def ensure_bucket_exists(storage: MinIOStorage, bucket_name: str):
+    async def ensure_bucket_exists(storage, bucket_name: str):
         """Ensure the specified bucket exists, create if not."""
         try:
             # Check if bucket exists and create if not
@@ -163,7 +158,7 @@ async def get_file_controller() -> FileController:
     
     # Ensure bucket exists
     try:
-        await ensure_bucket_exists(minio_storage, config.storage.default_bucket)
+        await ensure_bucket_exists(storage, config.storage.default_bucket)
     except Exception as e:
         logger.warning(f"Could not ensure bucket exists: {e}")
     
@@ -180,9 +175,10 @@ async def get_file_controller() -> FileController:
             file_id = str(uuid.uuid4())
             storage_key = f"uploads/{user_id}/{file_id}/{request.filename}"
             
-            # Generate real presigned URL from MinIO
+            # Generate real presigned URL from storage provider
+            from datetime import timedelta
             expires_in = timedelta(hours=request.expires_in_hours or 1)
-            upload_url = await minio_storage.generate_presigned_url(
+            upload_url = await storage.generate_presigned_url(
                 bucket=config.storage.default_bucket,
                 key=storage_key,
                 expiration=expires_in,
@@ -254,7 +250,7 @@ async def get_file_controller() -> FileController:
         async def get_chunk_upload_url(self, session_id, chunk_number, user_id):
             # Generate presigned URL for specific chunk upload
             storage_key = f"uploads/{user_id}/chunks/{session_id}/chunk_{chunk_number}"
-            chunk_url = await minio_storage.generate_presigned_url(
+            chunk_url = await storage.generate_presigned_url(
                 bucket=config.storage.default_bucket,
                 key=storage_key,
                 expiration=timedelta(hours=1),
@@ -324,7 +320,7 @@ async def get_file_controller() -> FileController:
             
             # Generate real presigned download URL
             expires_in = timedelta(hours=request.expires_in_hours)
-            download_url = await minio_storage.generate_presigned_url(
+            download_url = await storage.generate_presigned_url(
                 bucket=config.storage.default_bucket,
                 key=storage_key,
                 expiration=expires_in,
@@ -349,7 +345,7 @@ async def get_file_controller() -> FileController:
         async def stream_file(self, file_id, user_id, user_groups):
             # Generate streaming URL for the file
             storage_key = f"uploads/{user_id}/{file_id}/file"
-            stream_url = await minio_storage.generate_presigned_url(
+            stream_url = await storage.generate_presigned_url(
                 bucket=config.storage.default_bucket,
                 key=storage_key,
                 expiration=timedelta(hours=1),
@@ -474,7 +470,7 @@ async def get_file_controller() -> FileController:
 @router.post("/upload/signed-url", response_model=SignedUrlResponse, status_code=201)
 async def get_signed_upload_url(
     request: GetSignedUrlAPI,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """
@@ -523,7 +519,7 @@ async def get_signed_upload_url(
 @router.post("/upload/initiate", response_model=UploadSessionResponse, status_code=201)
 async def initiate_upload(
     request: InitiateUploadAPI,
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """
@@ -558,7 +554,7 @@ async def initiate_upload(
 async def get_chunk_upload_url(
     session_id: str = Path(..., description="Upload session ID"),
     chunk_number: int = Path(..., ge=0, description="Chunk number to upload"),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """
@@ -582,7 +578,7 @@ async def get_chunk_upload_url(
 @router.post("/upload/{session_id}/complete", response_model=FileResponse)
 async def complete_upload(
     session_id: str = Path(..., description="Upload session ID"),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller),
     request: CompleteUploadAPI = None
 ):
@@ -612,7 +608,7 @@ async def complete_upload(
 @router.get("/upload/{session_id}/status", response_model=UploadSessionResponse)
 async def get_upload_status(
     session_id: str = Path(..., description="Upload session ID"),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """Get the current status of an upload session."""
@@ -632,7 +628,7 @@ async def get_upload_status(
 @router.delete("/upload/{session_id}")
 async def cancel_upload(
     session_id: str = Path(..., description="Upload session ID"),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """Cancel an upload session."""
@@ -743,7 +739,7 @@ async def get_file_info(
 @router.put("/{file_id}/access", response_model=FileResponse)
 async def update_file_access(
     file_id: str = Path(..., description="File ID"),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller),
     request: UpdateFileAccessAPI = None
 ):
@@ -774,7 +770,7 @@ async def update_file_access(
 async def delete_file(
     file_id: str = Path(..., description="File ID"),
     hard_delete: bool = Query(False, description="Permanently delete file"),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """Delete a file (soft delete by default)."""
@@ -833,7 +829,7 @@ async def list_user_files(
     user_id: str = Path(..., description="User ID"),
     limit: int = Query(50, ge=1, le=1000, description="Number of files to return"),
     offset: int = Query(0, ge=0, description="Number of files to skip"),
-    current_user: str = Depends(get_current_user),
+    current_user: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """List files owned by a specific user."""
@@ -874,7 +870,7 @@ async def get_public_files(
 @router.get("/stats", response_model=FileStatsResponse)
 async def get_file_stats(
     user_id: Optional[str] = Query(None, description="Get stats for specific user"),
-    current_user: str = Depends(get_current_user),
+    current_user: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """Get file statistics."""
@@ -922,7 +918,7 @@ async def simple_file_upload(
     category: Optional[str] = Form(None, description="File category"),
     access_level: AccessLevel = Form(AccessLevel.PRIVATE, description="Access level"),
     tags: Optional[str] = Form(None, description="Comma-separated tags"),
-    user_id: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
     """

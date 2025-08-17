@@ -62,7 +62,7 @@ class TopicResource:
     parsed_pages: int = 0
     content_preview: Optional[str] = None
     content_summary: Optional[str] = None
-    resource_metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     is_public: bool = False
     access_level: str = "private"
     uploaded_at: Optional[datetime] = None
