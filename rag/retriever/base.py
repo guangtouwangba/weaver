@@ -53,24 +53,24 @@ class QueryPreProcessor(BaseQueryProcessor):
         processed_query = query.strip()
         metadata = {'original_query': query}
         
-        # 查询清理
+        # Query cleaning
         processed_query = self._clean_query(processed_query)
         
-        # 拼写检查
+        # Spell checking
         if self.enable_spell_check:
             processed_query = self._spell_check(processed_query)
         
-        # 查询扩展
+        # Query expansion
         expanded_terms = []
         if self.enable_query_expansion:
             expanded_terms = self._expand_query(processed_query)
         
-        # 意图检测
+        # Intent detection
         query_type = QueryType.CONVERSATIONAL
         if self.enable_intent_detection:
             query_type = self._detect_intent(processed_query)
         
-        # 选择检索策略
+        # Select retrieval strategy
         strategy = self._select_strategy(processed_query, query_type)
         
         return {
@@ -82,23 +82,22 @@ class QueryPreProcessor(BaseQueryProcessor):
         }
     
     def _clean_query(self, query: str) -> str:
-        """清理查询文本"""
-        # 移除多余空格
-        query = ' '.join(query.split())
-        # 移除特殊字符（保留基本标点）
-        import re
-        query = re.sub(r'[^\w\s\?\!\.,;:-]', '', query)
-        return query
+        """Clean and normalize the query."""
+        # Remove extra whitespace
+        cleaned = ' '.join(query.split())
+        # Remove special characters (keep basic punctuation)
+        cleaned = re.sub(r'[^\w\s\.\?\!\,\;\:\-\(\)]', '', cleaned)
+        return cleaned
     
     def _spell_check(self, query: str) -> str:
-        """拼写检查（简单实现）"""
-        # 这里可以集成专业的拼写检查工具
-        # 暂时返回原查询
+        """Check and correct spelling in the query."""
+        # Here you can integrate professional spelling check tools
+        # For now, return the original query
         return query
     
     def _expand_query(self, query: str) -> List[str]:
-        """查询扩展"""
-        # 简单的同义词扩展
+        """Expand query with synonyms and related terms."""
+        # Simple synonym expansion
         synonyms_map = {
             'AI': ['artificial intelligence', 'machine learning', 'deep learning'],
             'ML': ['machine learning', 'artificial intelligence'],
@@ -114,7 +113,7 @@ class QueryPreProcessor(BaseQueryProcessor):
         return expanded
     
     def _detect_intent(self, query: str) -> QueryType:
-        """检测查询意图"""
+        """Detect query intent."""
         query_lower = query.lower()
         
         if any(word in query_lower for word in ['what', 'who', 'when', 'where', 'how many']):
@@ -129,8 +128,8 @@ class QueryPreProcessor(BaseQueryProcessor):
             return QueryType.CONVERSATIONAL
     
     def _select_strategy(self, query: str, query_type: QueryType) -> RetrievalStrategy:
-        """选择检索策略"""
-        # 根据查询类型和复杂度选择策略
+        """Select retrieval strategy."""
+        # Select strategy based on query type and complexity
         complexity = self._get_query_complexity(query)
         
         if query_type in [QueryType.FACTUAL, QueryType.SEARCH] and complexity < 0.3:
@@ -141,19 +140,19 @@ class QueryPreProcessor(BaseQueryProcessor):
             return RetrievalStrategy.SEMANTIC
     
     def _get_query_complexity(self, query: str) -> float:
-        """评估查询复杂度"""
+        """Evaluate query complexity."""
         factors = []
         
-        # 长度因子
+        # Length factor
         length_factor = min(len(query.split()) / 20, 1.0)
         factors.append(length_factor)
         
-        # 复杂词汇因子
+        # Complex word factor
         complex_words = ['analyze', 'compare', 'synthesize', 'evaluate', 'relationship']
         complex_factor = sum(1 for word in complex_words if word in query.lower()) / len(complex_words)
         factors.append(complex_factor)
         
-        # 问号数量
+        # Question mark factor
         question_factor = min(query.count('?') / 3, 1.0)
         factors.append(question_factor)
         
@@ -178,18 +177,18 @@ class QueryPostProcessor(BaseQueryProcessor):
         chunks_with_scores = context['chunks_with_scores']
         processed_chunks = chunks_with_scores.copy()
         
-        # 重排序
+        # Reranking
         if self.enable_reranking and len(processed_chunks) > 1:
             processed_chunks = await self._rerank_results(query, processed_chunks)
         
-        # 去重
+        # Deduplication
         processed_chunks = self._deduplicate_chunks(processed_chunks)
         
-        # 压缩结果
+        # Compress results
         if self.enable_compression and len(processed_chunks) > self.max_chunks:
             processed_chunks = self._compress_results(processed_chunks)
         
-        # 上下文构建
+        # Context building
         context_info = self._build_context(processed_chunks)
         
         return {
@@ -207,19 +206,19 @@ class QueryPostProcessor(BaseQueryProcessor):
         def calculate_relevance_score(chunk_content: str, semantic_score: float) -> float:
             chunk_words = set(chunk_content.lower().split())
             
-            # 词汇重叠分数
+            # Vocabulary overlap score
             overlap = len(query_words.intersection(chunk_words))
             overlap_score = overlap / len(query_words) if query_words else 0
             
-            # 位置分数（标题、开头段落权重更高）
-            position_score = 1.0  # 简化实现
+            # Position score (headers and opening paragraphs have higher weight)
+            position_score = 1.0  # Simplified implementation
             
-            # 长度分数（适中长度的块得分更高）
+            # Length score (moderate length chunks score higher)
             ideal_length = 200
             length_score = 1.0 - abs(len(chunk_content) - ideal_length) / ideal_length
             length_score = max(0.1, length_score)
             
-            # 组合分数
+            # Combined score
             combined_score = (
                 0.5 * semantic_score +
                 0.3 * overlap_score +
@@ -234,7 +233,7 @@ class QueryPostProcessor(BaseQueryProcessor):
             new_score = calculate_relevance_score(chunk.content, semantic_score)
             reranked.append((chunk, new_score))
         
-        # 按新分数排序
+        # Sort by new score
         reranked.sort(key=lambda x: x[1], reverse=True)
         return reranked
     
@@ -244,7 +243,7 @@ class QueryPostProcessor(BaseQueryProcessor):
         deduplicated = []
         
         for chunk, score in chunks_with_scores:
-            # 使用内容的前100个字符作为去重键
+            # Use first 100 characters of content as deduplication key
             content_key = chunk.content[:100].strip()
             
             if content_key not in seen_content:
@@ -258,7 +257,7 @@ class QueryPostProcessor(BaseQueryProcessor):
         target_count = int(len(chunks_with_scores) * self.compression_ratio)
         target_count = max(target_count, self.max_chunks)
         
-        # 保留分数最高的块
+        # Keep chunks with highest scores
         sorted_chunks = sorted(chunks_with_scores, key=lambda x: x[1], reverse=True)
         return sorted_chunks[:target_count]
     
@@ -267,7 +266,7 @@ class QueryPostProcessor(BaseQueryProcessor):
         if not chunks_with_scores:
             return {}
         
-        # 文档分布
+        # Document distribution
         doc_distribution = {}
         for chunk, score in chunks_with_scores:
             doc_id = chunk.document_id
@@ -276,12 +275,12 @@ class QueryPostProcessor(BaseQueryProcessor):
             doc_distribution[doc_id]['count'] += 1
             doc_distribution[doc_id]['chunks'].append((chunk, score))
         
-        # 计算每个文档的平均分数
+        # Calculate average score for each document
         for doc_id, info in doc_distribution.items():
             total_score = sum(score for _, score in info['chunks'])
             info['avg_score'] = total_score / info['count']
         
-        # 分数统计
+        # Score statistics
         scores = [score for _, score in chunks_with_scores]
         score_stats = {
             'min': min(scores),
@@ -319,11 +318,11 @@ class BaseRetriever(ABC):
         self.top_k = self.config.get('top_k', 10)
         self.similarity_threshold = self.config.get('similarity_threshold', 0.7)
         
-        # 初始化处理器
+        # Initialize processors
         self.pre_processor = QueryPreProcessor(self.config.get('pre_processor', {}))
         self.post_processor = QueryPostProcessor(self.config.get('post_processor', {}))
         
-        # 注册可用的检索策略
+        # Register available retrieval strategies
         self.strategies: Dict[RetrievalStrategy, callable] = {
             RetrievalStrategy.SEMANTIC: self._semantic_retrieve,
             RetrievalStrategy.KEYWORD: self._keyword_retrieve,
@@ -352,7 +351,7 @@ class BaseRetriever(ABC):
         start_time = time.time()
         
         try:
-            # 1. 查询预处理
+            # 1. Query preprocessing
             pre_result = await self.pre_processor.process(query, kwargs.get('context'))
             processed_query = pre_result['processed_query']
             selected_strategy = strategy or pre_result['strategy']
@@ -492,26 +491,26 @@ class SemanticRetriever(BaseRetriever):
         k = top_k or self.top_k
         
         try:
-            # 确定搜索范围
+            # Determine search scope
             document_ids = None
             if filters and filters.document_ids:
                 document_ids = filters.document_ids
             
-            # 使用向量存储进行语义搜索
+            # Use vector store for semantic search
             chunks_with_scores = await self.vector_store.search_by_text(
                 query_text=query,
-                top_k=k * 2,  # 获取更多候选结果用于重排序
+                top_k=k * 2,  # Get more candidate results for reranking
                 document_ids=document_ids
             )
             
-            # 应用相似度阈值
+            # Apply similarity threshold
             chunks_with_scores = self._apply_similarity_threshold(chunks_with_scores)
             
-            # 重排序（如果启用）
+            # Rerank (if enabled)
             if self.enable_reranking and len(chunks_with_scores) > k:
                 chunks_with_scores = await self._rerank_results(query, chunks_with_scores)
             
-            # 截取到指定数量
+            # Truncate to specified number
             chunks_with_scores = chunks_with_scores[:k]
             
             query_time = (time.time() - start_time) * 1000
@@ -536,10 +535,10 @@ class SemanticRetriever(BaseRetriever):
     
     async def _rerank_results(self, query: str, chunks_with_scores: List[tuple]) -> List[tuple]:
         """重排序结果（简单实现）"""
-        # 这里可以实现更复杂的重排序逻辑
-        # 例如使用交叉编码器、BM25分数等
+        # Here you can implement more complex reranking logic
+        # For example, using cross-encoders, BM25 scores, etc.
         
-        # 简单的基于文本匹配的重排序
+        # Simple reranking based on text matching
         query_words = set(query.lower().split())
         
         def calculate_text_score(chunk_content: str) -> float:
@@ -547,14 +546,14 @@ class SemanticRetriever(BaseRetriever):
             overlap = len(query_words.intersection(chunk_words))
             return overlap / len(query_words) if query_words else 0
         
-        # 结合语义分数和文本匹配分数
+        # Combine semantic score and text matching score
         reranked = []
         for chunk, semantic_score in chunks_with_scores:
             text_score = calculate_text_score(chunk.content)
             combined_score = 0.7 * semantic_score + 0.3 * text_score
             reranked.append((chunk, combined_score))
         
-        # 按组合分数排序
+        # Sort by combined score
         reranked.sort(key=lambda x: x[1], reverse=True)
         return reranked
 
@@ -578,12 +577,12 @@ class HybridRetriever(BaseRetriever):
         k = top_k or self.top_k
         
         try:
-            # 确定搜索范围
+            # Determine search scope
             document_ids = None
             if filters and filters.document_ids:
                 document_ids = filters.document_ids
             
-            # 并行执行语义检索和关键词检索
+            # Parallel execution of semantic and keyword search
             import asyncio
             
             semantic_task = self.vector_store.search_by_text(query, k * 2, document_ids)
@@ -593,12 +592,12 @@ class HybridRetriever(BaseRetriever):
                 semantic_task, keyword_task
             )
             
-            # 合并和重排序结果
+            # Merge and rerank results
             combined_results = self._merge_results(
                 semantic_results, keyword_results, query
             )
             
-            # 截取到指定数量
+            # Truncate to specified number
             combined_results = combined_results[:k]
             
             query_time = (time.time() - start_time) * 1000
@@ -624,8 +623,8 @@ class HybridRetriever(BaseRetriever):
     
     async def _keyword_search(self, query: str, top_k: int, document_ids) -> List[tuple]:
         """关键词搜索（简单实现）"""
-        # 这里可以集成专门的关键词搜索引擎如Elasticsearch
-        # 目前使用简单的文本匹配
+        # Here you can integrate a dedicated keyword search engine like Elasticsearch
+        # Currently using simple text matching
         return await self.vector_store.search_by_text(query, top_k, document_ids)
     
     def _merge_results(self, 
@@ -633,10 +632,10 @@ class HybridRetriever(BaseRetriever):
                       keyword_results: List[tuple],
                       query: str) -> List[tuple]:
         """合并语义和关键词检索结果"""
-        # 创建结果字典，避免重复
+        # Create a result dictionary to avoid duplicates
         chunk_scores = {}
         
-        # 添加语义检索结果
+        # Add semantic search results
         for chunk, score in semantic_results:
             chunk_scores[chunk.id] = {
                 'chunk': chunk,
@@ -644,7 +643,7 @@ class HybridRetriever(BaseRetriever):
                 'keyword_score': 0.0
             }
         
-        # 添加关键词检索结果
+        # Add keyword search results
         for chunk, score in keyword_results:
             if chunk.id in chunk_scores:
                 chunk_scores[chunk.id]['keyword_score'] = score
@@ -655,7 +654,7 @@ class HybridRetriever(BaseRetriever):
                     'keyword_score': score
                 }
         
-        # 计算组合分数
+        # Calculate combined score
         combined_results = []
         for chunk_data in chunk_scores.values():
             combined_score = (
@@ -664,6 +663,6 @@ class HybridRetriever(BaseRetriever):
             )
             combined_results.append((chunk_data['chunk'], combined_score))
         
-        # 按组合分数排序
+        # Sort by combined score
         combined_results.sort(key=lambda x: x[1], reverse=True)
         return combined_results

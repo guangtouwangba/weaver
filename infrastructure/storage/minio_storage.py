@@ -106,11 +106,14 @@ class MinIOStorage(IObjectStorage):
         await self._ensure_connected()
         
         try:
-            await self._run_sync(
-                self._client.make_bucket,
-                bucket_name,
-                location=region or self.region
-            )
+            # Use a wrapper function to handle the MinIO client call correctly
+            def make_bucket_sync():
+                return self._client.make_bucket(
+                    bucket_name,
+                    location=region or self.region
+                )
+            
+            await self._run_sync(make_bucket_sync)
             logger.info(f"Created bucket: {bucket_name}")
             return True
         except S3Error as e:
@@ -493,24 +496,16 @@ class MinIOStorage(IObjectStorage):
         await self._ensure_connected()
         
         try:
-            if method.upper() == "GET":
-                url = await self._run_sync(
-                    self._client.get_presigned_url,
-                    "GET",
+            # Use a wrapper function to handle the MinIO client call correctly
+            def get_presigned_url_sync():
+                return self._client.get_presigned_url(
+                    method.upper(),
                     bucket,
                     key,
                     expires=expiration
                 )
-            elif method.upper() == "PUT":
-                url = await self._run_sync(
-                    self._client.get_presigned_url,
-                    "PUT",
-                    bucket,
-                    key,
-                    expires=expiration
-                )
-            else:
-                raise ValueError(f"Unsupported method: {method}")
+            
+            url = await self._run_sync(get_presigned_url_sync)
             
             logger.debug(f"Generated presigned URL for {bucket}/{key}")
             return url

@@ -161,7 +161,7 @@ class BaseKnowledgeStore(ABC):
         """
         pass
     
-    # 通用工具方法
+            # Common utility methods
     async def batch_store_documents(self, documents: List[Document]) -> List[str]:
         """
         批量存储文档

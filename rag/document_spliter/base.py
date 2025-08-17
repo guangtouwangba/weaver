@@ -26,7 +26,7 @@ class BaseDocumentSplitter(ABC):
         self.chunk_overlap = chunk_overlap
         self.config = kwargs
         
-        # 验证参数
+        # Validate parameters
         if chunk_overlap >= chunk_size:
             raise ValueError("chunk_overlap must be less than chunk_size")
     
@@ -129,7 +129,7 @@ class BaseDocumentSplitter(ABC):
         
         chunks = await self.split(document)
         
-        processing_time = (time.time() - start_time) * 1000  # 转换为毫秒
+        processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
         
         return {
             'chunks': chunks,
@@ -162,9 +162,9 @@ class FixedSizeSplitter(BaseDocumentSplitter):
         while start < len(content):
             end = min(start + self.chunk_size, len(content))
             
-            # 如果不是最后一块，尝试在合适的位置断开
+            # If not the last chunk, try to break at an appropriate position
             if end < len(content):
-                # 寻找最近的句号、换行符或空格
+                # Find the nearest period, newline, or space
                 for i in range(end, max(start, end - 100), -1):
                     if content[i] in '.。\n ':
                         end = i + 1
@@ -182,7 +182,7 @@ class FixedSizeSplitter(BaseDocumentSplitter):
                 chunks.append(chunk)
                 chunk_index += 1
             
-            # 计算下一个块的开始位置（考虑重叠）
+            # Calculate the start position of the next chunk (considering overlap)
             start = max(start + 1, end - self.chunk_overlap)
         
         return chunks
@@ -200,7 +200,7 @@ class SentenceSplitter(BaseDocumentSplitter):
         if not document.content:
             return []
         
-        # 简单的句子分割实现
+        # Simple sentence splitting implementation
         sentences = self._split_into_sentences(document.content)
         
         chunks = []
@@ -209,9 +209,9 @@ class SentenceSplitter(BaseDocumentSplitter):
         start_offset = 0
         
         for sentence in sentences:
-            # 检查添加这个句子是否会超过大小限制
+            # Check if adding this sentence would exceed size limit
             if len(current_chunk) + len(sentence) > self.chunk_size and current_chunk:
-                # 创建当前块
+                # Create current chunk
                 chunk = self.create_chunk(
                     document=document,
                     content=current_chunk,
@@ -222,7 +222,7 @@ class SentenceSplitter(BaseDocumentSplitter):
                 chunks.append(chunk)
                 chunk_index += 1
                 
-                # 处理重叠
+                # Handle overlap
                 if self.chunk_overlap > 0:
                     overlap_content = current_chunk[-self.chunk_overlap:]
                     current_chunk = overlap_content + sentence
@@ -233,7 +233,7 @@ class SentenceSplitter(BaseDocumentSplitter):
             else:
                 current_chunk += sentence
         
-        # 添加最后一个块
+        # Add the last chunk
         if current_chunk.strip():
             chunk = self.create_chunk(
                 document=document,

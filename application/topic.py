@@ -289,15 +289,16 @@ class TopicApplicationService:
             # Convert to domain entity
             topic = self._entity_to_domain(topic_entity)
             
-            # Publish event
-            await self.message_broker.publish_event(
-                event_type=SystemEvents.TOPIC_UPDATED,
-                event_data={
-                    'topic_id': topic.id,
-                    'changes': list(update_data.keys())
-                },
-                source='topic_service'
-            )
+            # Publish event (if message broker is available)
+            if self.message_broker:
+                await self.message_broker.publish_event(
+                    event_type=SystemEvents.TOPIC_UPDATED,
+                    event_data={
+                        'topic_id': topic.id,
+                        'changes': list(update_data.keys())
+                    },
+                    source='topic_service'
+                )
             
             logger.info(f"Updated topic {topic.id}")
             return TopicResponse.from_domain(topic)
@@ -312,15 +313,16 @@ class TopicApplicationService:
             success = await self.topic_repo.delete(topic_id, soft_delete=not hard_delete)
             
             if success:
-                # Publish event
-                await self.message_broker.publish_event(
-                    event_type=SystemEvents.TOPIC_DELETED,
-                    event_data={
-                        'topic_id': topic_id,
-                        'hard_delete': hard_delete
-                    },
-                    source='topic_service'
-                )
+                # Publish event (if message broker is available)
+                if self.message_broker:
+                    await self.message_broker.publish_event(
+                        event_type=SystemEvents.TOPIC_DELETED,
+                        event_data={
+                            'topic_id': topic_id,
+                            'hard_delete': hard_delete
+                        },
+                        source='topic_service'
+                    )
                 
                 logger.info(f"Deleted topic {topic_id} (hard={hard_delete})")
             

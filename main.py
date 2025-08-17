@@ -16,6 +16,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 
 # Infrastructure imports
 from infrastructure import (
@@ -25,6 +27,7 @@ from infrastructure import (
 
 # API routes
 from api.topic_routes import router as topic_router
+from api.file_routes import router as file_router
 
 # Configure logging
 logging.basicConfig(
@@ -121,9 +124,20 @@ def create_app() -> FastAPI:
             "url": "https://opensource.org/licenses/MIT",
         },
         lifespan=lifespan,
-        docs_url="/docs" if config.debug else None,
-        redoc_url="/redoc" if config.debug else None,
-        openapi_url="/openapi.json" if config.debug else None
+        docs_url=None,  # Disable default docs
+        redoc_url=None,  # Disable default redoc
+        openapi_url="/openapi.json" if config.debug else None,
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,
+            "defaultModelExpandDepth": 1,
+            "displayRequestDuration": True,
+            "docExpansion": "list",
+            "filter": True,
+            "showExtensions": True,
+            "showCommonExtensions": True,
+            "tryItOutEnabled": True,
+            "syntaxHighlight.theme": "monokai"
+        }
     )
     
     # Add middleware
@@ -151,6 +165,98 @@ def create_app() -> FastAPI:
     
     # Include routers
     app.include_router(topic_router)
+    app.include_router(file_router)
+    
+    # Mount static files for Swagger UI
+    try:
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+    except Exception:
+        # If static directory doesn't exist, create a fallback
+        pass
+    
+    # Custom Swagger UI endpoint with local files
+    @app.get("/docs", include_in_schema=False)
+    async def custom_swagger_ui_html():
+        """Custom Swagger UI with local files."""
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>RAG Knowledge Management API - Swagger UI</title>
+            <link rel="stylesheet" type="text/css" href="/static/swagger-ui/swagger-ui.css" />
+            <link rel="icon" type="image/png" href="https://fastapi.tiangolo.com/img/favicon.png"/>
+            <style>
+                html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+                *, *:before, *:after { box-sizing: inherit; }
+                body { margin:0; background: #fafafa; }
+            </style>
+        </head>
+        <body>
+            <div id="swagger-ui"></div>
+            <script src="/static/swagger-ui/swagger-ui-bundle.js"></script>
+            <script src="/static/swagger-ui/swagger-ui-standalone-preset.js"></script>
+            <script>
+                window.onload = function() {
+                    const ui = SwaggerUIBundle({
+                        url: '/openapi.json',
+                        dom_id: '#swagger-ui',
+                        deepLinking: true,
+                        presets: [
+                            SwaggerUIBundle.presets.apis,
+                            SwaggerUIStandalonePreset
+                        ],
+                        plugins: [
+                            SwaggerUIBundle.plugins.DownloadUrl
+                        ],
+                        layout: "BaseLayout",
+                        tryItOutEnabled: true,
+                        showExtensions: true,
+                        showCommonExtensions: true,
+                        defaultModelsExpandDepth: 1,
+                        defaultModelExpandDepth: 1,
+                        displayRequestDuration: true,
+                        docExpansion: "list",
+                        filter: true,
+                        syntaxHighlight: {
+                            theme: "monokai"
+                        },
+                        onComplete: function() {
+                            console.log("Swagger UI loaded successfully");
+                        },
+                        onFailure: function(data) {
+                            console.error("Swagger UI failed to load:", data);
+                        }
+                    });
+                };
+            </script>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content, status_code=200)
+    
+    # Custom ReDoc endpoint
+    @app.get("/redoc", include_in_schema=False)
+    async def custom_redoc_html():
+        """Custom ReDoc with local files."""
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>RAG Knowledge Management API - ReDoc</title>
+            <meta charset="utf-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+            <style>
+                body { margin: 0; padding: 0; }
+            </style>
+        </head>
+        <body>
+            <redoc spec-url="/openapi.json"></redoc>
+            <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js"></script>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content, status_code=200)
     
     # Add custom OpenAPI schema
     def custom_openapi():
@@ -162,11 +268,22 @@ def create_app() -> FastAPI:
             version=app.version,
             description=app.description,
             routes=app.routes,
+            openapi_version="3.0.2"  # Force OpenAPI 3.0.2 for better Swagger UI compatibility
         )
         
         # Add custom schema extensions
         openapi_schema["info"]["x-environment"] = config.environment
         openapi_schema["info"]["x-version"] = "1.0.0"
+        
+        # Ensure compatibility with Swagger UI
+        if "servers" not in openapi_schema:
+            openapi_schema["servers"] = [
+                {"url": "/", "description": "Current server"}
+            ]
+        
+        # Add security schemes if needed
+        if "components" not in openapi_schema:
+            openapi_schema["components"] = {}
         
         app.openapi_schema = openapi_schema
         return app.openapi_schema

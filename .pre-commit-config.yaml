@@ -1,6 +1,6 @@
-# Pre-commit 钩子配置
+# Pre-commit hook configuration
 repos:
-  # Python代码格式化
+  # Python code formatting
   - repo: https://github.com/psf/black
     rev: 23.12.1
     hooks:
@@ -8,21 +8,21 @@ repos:
         language_version: python3.11
         args: [--line-length=100]
 
-  # Import排序
+  # Import sorting
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
         args: [--profile=black, --line-length=100]
 
-  # 代码质量检查
+  # Code quality checks
   - repo: https://github.com/pycqa/flake8
     rev: 7.0.0
     hooks:
       - id: flake8
         args: [--max-line-length=100, --extend-ignore=E203,W503]
 
-  # 类型检查
+  # Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
     hooks:
@@ -30,7 +30,7 @@ repos:
         additional_dependencies: [types-requests, types-PyYAML]
         args: [--ignore-missing-imports, --no-strict-optional]
 
-  # 通用文件检查
+  # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:

@@ -87,7 +87,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# 开发依赖
+# Development dependencies
 dev = [
     "pytest>=7.4.3",
     "pytest-asyncio>=0.21.1",
@@ -102,7 +102,7 @@ dev = [
     "ipython>=8.18.0",
 ]
 
-# 测试依赖
+# Test dependencies
 test = [
     "pytest>=7.4.3",
     "pytest-asyncio>=0.21.1",
@@ -113,7 +113,7 @@ test = [
     "httpx>=0.25.0",
 ]
 
-# 文档依赖
+# Documentation dependencies
 docs = [
     "mkdocs>=1.5.3",
     "mkdocs-material>=9.4.8",
@@ -122,7 +122,7 @@ docs = [
     "mkdocs-literate-nav>=0.6.0",
 ]
 
-# 生产依赖
+# Production dependencies
 prod = [
     "gunicorn>=21.2.0",
     "uvloop>=0.19.0",
@@ -146,7 +146,7 @@ build-backend = "hatchling.build"
 packages = ["rag"]
 
 [tool.uv]
-# uv特定配置
+# uv-specific configuration
 dev-dependencies = [
     "pytest>=7.4.3",
     "pytest-asyncio>=0.21.1",
