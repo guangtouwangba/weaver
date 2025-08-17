@@ -1,11 +1,11 @@
-# 数据库相关依赖
+# Database-related dependencies
 alembic==1.13.1
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 asyncpg==0.29.0
 
-# 配置管理
+# Configuration management
 python-dotenv==1.0.0
 
-# 日志
+# Logging
 structlog==23.2.0

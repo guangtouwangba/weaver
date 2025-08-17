@@ -89,16 +89,16 @@ class BaseFileLoader(ABC):
         """
         errors = []
         
-        # 检查文件是否存在
+        # Check if file exists
         if not Path(file_path).exists():
             errors.append(f"File not found: {file_path}")
             return errors
         
-        # 检查文件格式
+        # Check file format
         if not self.can_handle(file_path):
             errors.append(f"Unsupported file format: {Path(file_path).suffix}")
         
-        # 检查文件大小
+        # Check file size
         max_size = self.config.get('max_file_size_mb', 100) * 1024 * 1024
         file_size = Path(file_path).stat().st_size
         if file_size > max_size:
@@ -129,7 +129,7 @@ class BaseFileLoader(ABC):
         }
 
 
-# 异常类定义
+        # Exception class definitions
 class DocumentLoadError(Exception):
     """文档加载错误"""
     pass

@@ -11,13 +11,13 @@
 .PHONY: server-stop server-status server-restart server-logs server-background
 .PHONY: server-full server-quick api-test api-test-quick api-test-health api-test-topics load-test
 
-# 默认目标
+# Default target
 .DEFAULT_GOAL := help
 
 # Variable definitions
 PROJECT_NAME := research-agent-rag
 PYTHON := python3
-# 检查是否在容器中，如果是则使用系统路径
+# Check if in container, if so use system path
 ifeq ($(DEV_CONTAINER),true)
 UV := /usr/local/bin/uv
 else

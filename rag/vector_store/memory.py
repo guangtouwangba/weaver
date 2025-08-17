@@ -17,7 +17,7 @@ class InMemoryVectorStore(BaseVectorStore):
         super().__init__(config)
         self.chunks: Dict[str, DocumentChunk] = {}
         self.embeddings: Dict[str, List[float]] = {}
-        # 按文档ID索引块
+        # Index chunks by document ID
         self.document_chunks: Dict[str, List[str]] = {}  # document_id -> [chunk_ids]
     
     async def store_chunks(self, chunks: List[DocumentChunk]) -> List[str]:
@@ -28,7 +28,7 @@ class InMemoryVectorStore(BaseVectorStore):
             if chunk.embedding:
                 self.embeddings[chunk.id] = chunk.embedding
             
-            # 更新文档索引
+            # Update document index
             if chunk.document_id not in self.document_chunks:
                 self.document_chunks[chunk.document_id] = []
             if chunk.id not in self.document_chunks[chunk.document_id]:
@@ -43,7 +43,7 @@ class InMemoryVectorStore(BaseVectorStore):
         """内存中的向量相似度搜索"""
         results = []
         
-        # 确定搜索范围
+        # Determine search scope
         search_chunk_ids = []
         if document_ids:
             for doc_id in document_ids:
@@ -58,7 +58,7 @@ class InMemoryVectorStore(BaseVectorStore):
                 chunk = self.chunks[chunk_id]
                 results.append((chunk, similarity))
         
-        # 按相似度排序
+        # Sort by similarity
         results.sort(key=lambda x: x[1], reverse=True)
         
         return results[:top_k]
@@ -70,7 +70,7 @@ class InMemoryVectorStore(BaseVectorStore):
         results = []
         query_lower = query_text.lower()
         
-        # 确定搜索范围
+        # Determine search scope
         search_chunks = []
         if document_ids:
             for doc_id in document_ids:
@@ -82,15 +82,15 @@ class InMemoryVectorStore(BaseVectorStore):
             search_chunks = list(self.chunks.values())
         
         for chunk in search_chunks:
-            # 简单的文本匹配计分
+            # Simple text matching scoring
             content_lower = chunk.content.lower()
             score = 0.0
             
-            # 完全匹配
+            # Exact match
             if query_lower in content_lower:
                 score += 1.0
             
-            # 词语匹配
+            # Word matching
             query_words = query_lower.split()
             content_words = content_lower.split()
             matched_words = sum(1 for word in query_words if word in content_words)
@@ -99,7 +99,7 @@ class InMemoryVectorStore(BaseVectorStore):
             if score > 0:
                 results.append((chunk, score))
         
-        # 按分数排序
+        # Sort by score
         results.sort(key=lambda x: x[1], reverse=True)
         
         return results[:top_k]
@@ -112,7 +112,7 @@ class InMemoryVectorStore(BaseVectorStore):
             if chunk_id in self.chunks:
                 chunks.append(self.chunks[chunk_id])
         
-        # 按chunk_index排序
+        # Sort by chunk_index
         chunks.sort(key=lambda x: x.chunk_index)
         return chunks
     
@@ -124,16 +124,16 @@ class InMemoryVectorStore(BaseVectorStore):
         """删除指定块"""
         try:
             for chunk_id in chunk_ids:
-                # 从主存储中删除
+                # Remove from main storage
                 chunk = self.chunks.pop(chunk_id, None)
                 self.embeddings.pop(chunk_id, None)
                 
-                # 从文档索引中删除
+                # Remove from document index
                 if chunk and chunk.document_id in self.document_chunks:
                     if chunk_id in self.document_chunks[chunk.document_id]:
                         self.document_chunks[chunk.document_id].remove(chunk_id)
                     
-                    # 如果文档没有块了，删除文档索引
+                    # If document has no chunks, delete document index
                     if not self.document_chunks[chunk.document_id]:
                         del self.document_chunks[chunk.document_id]
             return True

@@ -163,7 +163,7 @@ class BaseVectorStore(ABC):
         """
         pass
     
-    # 批量操作
+            # Batch operations
     async def batch_search_by_text(self, queries: List[str], 
                                   top_k: int = 10,
                                   document_ids: Optional[List[str]] = None) -> List[List[Tuple[DocumentChunk, float]]]:
@@ -200,7 +200,7 @@ class BaseVectorStore(ABC):
             result[doc_id] = chunks
         return result
     
-    # 工具方法
+    # Utility methods
     def validate_embeddings(self, embeddings: List[List[float]]) -> List[str]:
         """
         验证嵌入向量
@@ -217,18 +217,18 @@ class BaseVectorStore(ABC):
             errors.append("Embeddings list is empty")
             return errors
         
-        # 检查维度一致性
+        # Check dimension consistency
         first_dim = len(embeddings[0]) if embeddings else 0
         for i, embedding in enumerate(embeddings):
             if len(embedding) != first_dim:
                 errors.append(f"Embedding {i} has dimension {len(embedding)}, expected {first_dim}")
         
-        # 检查数值有效性
+        # Check numerical validity
         for i, embedding in enumerate(embeddings):
             for j, value in enumerate(embedding):
                 if not isinstance(value, (int, float)):
                     errors.append(f"Embedding {i}, element {j} is not a number: {type(value)}")
-                elif not (-1e10 < value < 1e10):  # 检查是否为合理的数值范围
+                elif not (-1e10 < value < 1e10):  # Check if value is within reasonable range
                     errors.append(f"Embedding {i}, element {j} has invalid value: {value}")
         
         return errors

@@ -36,19 +36,19 @@ class TextFileLoader(BaseFileLoader):
         """
         start_time = time.time()
         
-        # 验证文件
+        # Validate file
         errors = self.validate_file(file_path)
         if errors:
             raise DocumentLoadError(f"File validation failed: {'; '.join(errors)}")
         
         try:
-            # 读取文件内容
+            # Read file content
             content = await self._read_file_with_encoding(file_path)
             
-            # 提取元数据
+            # Extract metadata
             metadata = await self.extract_metadata(file_path)
             
-            # 创建文档对象
+            # Create document object
             document = Document(
                 title=Path(file_path).stem,
                 content=content,
@@ -107,24 +107,24 @@ class TextFileLoader(BaseFileLoader):
         Returns:
             str: 文件内容
         """
-        # 首先尝试默认编码
+                    # First try default encoding
         try:
             async with aiofiles.open(file_path, 'r', encoding=self.encoding) as f:
                 return await f.read()
         except UnicodeDecodeError:
             pass
         
-        # 尝试备用编码
+                    # Try alternative encodings
         for encoding in self.fallback_encodings:
             try:
                 async with aiofiles.open(file_path, 'r', encoding=encoding) as f:
                     content = await f.read()
-                    self.encoding = encoding  # 更新当前使用的编码
+                    self.encoding = encoding  # Update current encoding
                     return content
             except UnicodeDecodeError:
                 continue
         
-        # 如果所有编码都失败，抛出异常
+        # If all encodings fail, raise exception
         raise DocumentLoadError(f"Could not decode file {file_path} with any supported encoding")
     
     def _extract_text_features(self, content: str) -> dict:
@@ -153,7 +153,7 @@ class MarkdownLoader(TextFileLoader):
         """加载Markdown文件并提取结构信息"""
         document = await super().load(file_path)
         
-        # 提取Markdown特有的元数据
+        # Extract Markdown-specific metadata
         md_metadata = self._extract_markdown_features(document.content)
         document.metadata.update(md_metadata)
         
@@ -177,30 +177,30 @@ class MarkdownLoader(TextFileLoader):
         for line in lines:
             line_stripped = line.strip()
             
-            # 检测标题
+            # Detect headers
             if line_stripped.startswith('#'):
                 level = len(line_stripped) - len(line_stripped.lstrip('#'))
                 title = line_stripped.lstrip('#').strip()
                 features['headers'].append({'level': level, 'title': title})
             
-            # 检测代码块
+            # Detect code blocks
             if line_stripped.startswith('```'):
                 if in_code_block:
                     features['code_blocks'] += 1
                 in_code_block = not in_code_block
             
-            # 检测链接和图片
+            # Detect links and images
             if '[' in line and ']' in line and '(' in line and ')' in line:
                 if line_stripped.startswith('!['):
                     features['images'] += line.count('![')
                 else:
                     features['links'] += line.count('[')
             
-            # 检测表格
+            # Detect tables
             if '|' in line and not in_code_block:
                 features['tables'] += 1
             
-            # 检测列表
+            # Detect lists
             if line_stripped.startswith(('-', '*', '+')) or (line_stripped and line_stripped[0].isdigit() and '.' in line_stripped[:5]):
                 features['lists'] += 1
         

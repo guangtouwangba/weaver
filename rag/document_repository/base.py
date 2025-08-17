@@ -148,7 +148,7 @@ class BaseDocumentRepository(ABC):
         """
         pass
     
-    # 批量操作
+            # Batch operations
     async def save_batch(self, documents: List[Document]) -> List[str]:
         """
         批量保存文档
@@ -182,7 +182,7 @@ class BaseDocumentRepository(ABC):
                 documents.append(document)
         return documents
     
-    # 便捷方法
+            # Convenience methods
     async def find_by_file_type(self, file_type: str) -> List[Document]:
         """
         根据文件类型查找文档
