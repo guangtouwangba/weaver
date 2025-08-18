@@ -8,6 +8,7 @@ from .requests import (
     GetSignedUrlRequest,
     InitiateUploadRequest, 
     CompleteUploadRequest,
+    ConfirmUploadCompletionRequest,
     DownloadFileRequest,
     UpdateFileAccessRequest,
     FileSearchRequest
@@ -16,6 +17,7 @@ from .requests import (
 from .responses import (
     SignedUrlResponse,
     UploadSessionResponse,
+    UploadCompletionResponse,
     FileResponse,
     DownloadResponse,
     FileListResponse,
@@ -28,6 +30,7 @@ __all__ = [
     "GetSignedUrlRequest",
     "InitiateUploadRequest", 
     "CompleteUploadRequest",
+    "ConfirmUploadCompletionRequest",
     "DownloadFileRequest",
     "UpdateFileAccessRequest",
     "FileSearchRequest",
@@ -35,6 +38,7 @@ __all__ = [
     # Response DTOs
     "SignedUrlResponse",
     "UploadSessionResponse",
+    "UploadCompletionResponse",
     "FileResponse",
     "DownloadResponse",
     "FileListResponse",

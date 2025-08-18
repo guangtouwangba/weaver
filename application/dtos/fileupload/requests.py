@@ -72,6 +72,19 @@ class CompleteUploadRequest:
 
 
 @dataclass
+class ConfirmUploadCompletionRequest:
+    """Request DTO for confirming upload completion."""
+    file_id: str
+    file_hash: Optional[str] = None
+    actual_file_size: Optional[int] = None
+    
+    def __post_init__(self):
+        """Validate request data."""
+        if not self.file_id:
+            raise ValueError("File ID cannot be empty")
+
+
+@dataclass
 class DownloadFileRequest:
     """Request DTO for file download."""
     file_id: str

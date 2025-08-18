@@ -163,6 +163,82 @@ FILE_EXAMPLES = {
                 }
             }
         }
+    },
+    "signed_url_request": {
+        "summary": "Request signed URL for file upload",
+        "description": "Generate a secure signed URL for direct file upload to storage",
+        "value": {
+            "filename": "research_paper.pdf",
+            "file_size": 2048000,
+            "content_type": "application/pdf",
+            "access_level": "private",
+            "expires_in_hours": 2,
+            "category": "research",
+            "tags": ["ai", "machine-learning", "research"],
+            "metadata": {
+                "author": "Dr. Smith",
+                "department": "AI Research",
+                "version": "1.0"
+            },
+            "enable_multipart": True,
+            "topic_id": 42
+        }
+    },
+    "signed_url_response": {
+        "summary": "Signed URL response",
+        "description": "Response containing the signed URL and upload metadata",
+        "value": {
+            "file_id": "a2385d89-8824-474c-8740-8a93ef0d5469",
+            "upload_url": "https://minio.example.com/files/uploads/user123/2024/01/15/file123/research_paper.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+            "upload_session_id": "session_a2385d89-8824-474c-8740-8a93ef0d5469",
+            "expires_at": "2024-01-15T14:30:00Z",
+            "multipart_upload_id": "multipart_a2385d89-8824-474c-8740-8a93ef0d5469",
+            "chunk_size": 5242880,
+            "max_chunks": 391
+        }
+    },
+    "upload_completion_request": {
+        "summary": "Confirm upload completion",
+        "description": "Notify server that file upload has completed and trigger processing",
+        "value": {
+            "file_hash": "sha256:a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890",
+            "actual_file_size": 2048000
+        }
+    },
+    "upload_completion_response": {
+        "summary": "Upload completion confirmation",
+        "description": "Server confirmation of upload completion with processing status",
+        "value": {
+            "file_id": "a2385d89-8824-474c-8740-8a93ef0d5469",
+            "status": "available",
+            "processing_started": True,
+            "task_ids": [
+                "task_embedding_uuid_1",
+                "task_parsing_uuid_2",
+                "task_analysis_uuid_3"
+            ],
+            "message": "Upload completion confirmed and processing started",
+            "verification_result": {
+                "exists": True,
+                "storage_size": 2048000,
+                "size_verified": True
+            }
+        }
+    },
+    "upload_completion_error": {
+        "summary": "Upload completion error",
+        "description": "Error response when upload confirmation fails",
+        "value": {
+            "file_id": "a2385d89-8824-474c-8740-8a93ef0d5469",
+            "status": "uploading",
+            "processing_started": False,
+            "task_ids": [],
+            "message": "File was not found in storage. Upload may have failed.",
+            "verification_result": {
+                "exists": False,
+                "error": "Object not found in bucket"
+            }
+        }
     }
 }
 
@@ -229,6 +305,50 @@ def enhance_openapi_schema(openapi_schema: Dict[str, Any]) -> Dict[str, Any]:
             - **Metadata enrichment** - Processing results and statistics
             - **Performance optimized** - Pagination and filtering support
             """
+        },
+        "file-upload": {
+            "name": "file-upload",
+            "description": """
+            **Secure File Upload System**
+            
+            Advanced file upload system with signed URLs and automatic processing integration.
+            
+            ### Upload Workflow:
+            1. **Request Signed URL** - Get secure upload URL from server
+            2. **Direct Upload** - Upload file directly to storage (MinIO/S3) using signed URL
+            3. **Confirm Completion** - Notify server that upload is complete
+            4. **Automatic Processing** - Server triggers RAG processing pipeline
+            
+            ### Features:
+            - **Signed URLs** - Secure direct-to-storage uploads
+            - **Upload Verification** - File existence and size validation
+            - **Completion Tracking** - Prevents orphaned uploads
+            - **Background Monitoring** - Automatic recovery of missed uploads
+            - **Processing Integration** - Seamless RAG pipeline triggering
+            - **Multi-part Support** - Large file upload capabilities
+            - **Metadata Management** - Rich file metadata and categorization
+            
+            ### Security:
+            - **Time-limited URLs** - Signed URLs with configurable expiration
+            - **Ownership Validation** - Users can only confirm their own uploads
+            - **Storage Verification** - Server validates file existence before processing
+            - **Error Handling** - Comprehensive error responses and recovery
+            
+            ### Status Flow:
+            ```
+            Request URL → Upload to Storage → Confirm Completion → Processing
+                ↓               ↓                    ↓                ↓
+            UPLOADING     File Stored         AVAILABLE        PROCESSING
+            ```
+            
+            ### Orphan Recovery:
+            Background monitor automatically detects and recovers uploads that were
+            completed but not confirmed, ensuring no files are lost in the process.
+            """,
+            "externalDocs": {
+                "description": "Upload Completion System Guide",
+                "url": "/docs/upload-completion"
+            }
         }
     }
     
@@ -339,6 +459,9 @@ def enhance_openapi_schema(openapi_schema: Dict[str, Any]) -> Dict[str, Any]:
         "Real-time task processing",
         "WebSocket support", 
         "File processing pipeline",
+        "Secure signed URL uploads",
+        "Upload completion tracking",
+        "Orphaned upload recovery",
         "Multi-cloud storage",
         "Health monitoring",
         "Metrics collection"
@@ -415,10 +538,96 @@ WEBSOCKET_DOCS = {
 
 # Integration Examples
 INTEGRATION_EXAMPLES = {
-    "file_upload_with_processing": """
-    ### File Upload with Automatic Processing
+    "complete_upload_workflow": """
+    ### Complete Upload Workflow with Processing
     
-    When a file is uploaded, automatically trigger processing tasks:
+    Full end-to-end file upload workflow using the new completion tracking system:
+    
+    ```javascript
+    // Frontend Upload Implementation
+    class FileUploadManager {
+        async uploadFile(file, topicId) {
+            try {
+                // Step 1: Request signed URL
+                const signedUrlResponse = await fetch('/api/v1/files/upload/signed-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        file_size: file.size,
+                        content_type: file.type,
+                        topic_id: topicId,
+                        access_level: 'private',
+                        expires_in_hours: 2
+                    })
+                });
+                
+                const signedData = await signedUrlResponse.json();
+                console.log('Got signed URL:', signedData.file_id);
+                
+                // Step 2: Upload to storage
+                const uploadResponse = await fetch(signedData.upload_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': file.type }
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('Upload to storage failed');
+                }
+                
+                // Step 3: Confirm completion and trigger processing
+                const confirmResponse = await fetch(`/api/v1/files/${signedData.file_id}/upload/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file_hash: await this.calculateFileHash(file),
+                        actual_file_size: file.size
+                    })
+                });
+                
+                const confirmData = await confirmResponse.json();
+                
+                return {
+                    success: true,
+                    file_id: signedData.file_id,
+                    processing_started: confirmData.processing_started,
+                    task_ids: confirmData.task_ids,
+                    status: confirmData.status
+                };
+                
+            } catch (error) {
+                console.error('Upload failed:', error);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        async calculateFileHash(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return 'sha256:' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+    }
+    
+    // Usage
+    const uploader = new FileUploadManager();
+    const result = await uploader.uploadFile(fileInput.files[0], 42);
+    
+    if (result.success) {
+        console.log('Upload successful, processing started:', result.processing_started);
+        if (result.task_ids.length > 0) {
+            // Monitor processing progress
+            monitorProcessingTasks(result.task_ids);
+        }
+    }
+    ```
+    """,
+    
+    "file_upload_with_processing": """
+    ### Backend Processing Integration
+    
+    Server-side integration for automatic processing after upload confirmation:
     
     ```python
     from infrastructure.tasks.integration_example import FileProcessingIntegration
@@ -448,6 +657,37 @@ INTEGRATION_EXAMPLES = {
             "processing_started": result["processing_started"],
             "task_ids": result["task_ids"]
         }
+    ```
+    """,
+    
+    "orphan_recovery_monitoring": """
+    ### Orphaned Upload Recovery
+    
+    Monitor and automatically recover orphaned uploads:
+    
+    ```python
+    from infrastructure.tasks.upload_monitor import UploadMonitorService
+    
+    # Configure upload monitor
+    monitor = UploadMonitorService(
+        check_interval=300,      # Check every 5 minutes
+        orphan_threshold=1800,   # Consider orphaned after 30 minutes
+        max_concurrent_checks=10 # Process up to 10 files simultaneously
+    )
+    
+    # Start monitoring
+    await monitor.start()
+    
+    # The monitor will automatically:
+    # 1. Find files in 'uploading' status older than threshold
+    # 2. Check if files exist in storage
+    # 3. Auto-confirm uploads that exist
+    # 4. Mark missing files as failed
+    # 5. Trigger processing for confirmed files
+    
+    # Monitor runs continuously in background
+    # To stop when application shuts down:
+    await monitor.stop()
     ```
     """,
     

@@ -14,8 +14,8 @@ from domain.fileupload import (
     StorageLocation, FileStatus
 )
 from application.dtos.fileupload import (
-    GetSignedUrlRequest, InitiateUploadRequest, CompleteUploadRequest,
-    DownloadFileRequest, SignedUrlResponse, UploadSessionResponse, FileResponse, DownloadResponse
+    GetSignedUrlRequest, InitiateUploadRequest, CompleteUploadRequest, ConfirmUploadCompletionRequest,
+    DownloadFileRequest, SignedUrlResponse, UploadSessionResponse, UploadCompletionResponse, FileResponse, DownloadResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -385,6 +385,138 @@ class FileUploadService:
             file_size_mb=entity.file_size_mb,
             age_days=entity.age_days
         )
+    
+    async def confirm_upload_completion(
+        self,
+        request: ConfirmUploadCompletionRequest,
+        user_id: str
+    ) -> UploadCompletionResponse:
+        """
+        Confirm that a file upload has completed and trigger processing.
+        
+        This method:
+        1. Verifies the file exists in storage
+        2. Updates file status from UPLOADING to AVAILABLE
+        3. Triggers RAG processing pipeline
+        """
+        try:
+            logger.info(f"Confirming upload completion for file {request.file_id} by user {user_id}")
+            
+            # Get the file entity from database
+            file_entity = await self.file_repository.get_by_id(request.file_id)
+            if not file_entity:
+                raise ValueError(f"File {request.file_id} not found")
+            
+            # Verify ownership
+            if file_entity.owner_id != user_id:
+                raise PermissionError(f"User {user_id} does not own file {request.file_id}")
+            
+            # Check current status
+            if file_entity.status != FileStatus.UPLOADING:
+                return UploadCompletionResponse(
+                    file_id=request.file_id,
+                    status=file_entity.status.value,
+                    processing_started=False,
+                    message=f"File is already in {file_entity.status.value} status"
+                )
+            
+            # Verify file exists in storage
+            verification_result = await self._verify_upload_completion(file_entity, request)
+            
+            if not verification_result["exists"]:
+                raise ValueError("File was not found in storage. Upload may have failed.")
+            
+            # Update file status to AVAILABLE
+            file_entity.status = FileStatus.AVAILABLE
+            file_entity.updated_at = datetime.utcnow()
+            
+            # Update actual file size if provided
+            if request.actual_file_size and file_entity.metadata:
+                file_entity.metadata.file_size = request.actual_file_size
+            
+            # Save updated entity
+            await self.file_repository.save(file_entity)
+            
+            # Trigger RAG processing pipeline
+            task_ids = []
+            if file_entity.storage_location:
+                try:
+                    from infrastructure.tasks.service import process_file_complete
+                    task_ids = await process_file_complete(
+                        file_id=file_entity.id,
+                        file_path=file_entity.storage_location.key,
+                        file_name=file_entity.metadata.original_name if file_entity.metadata else "unknown",
+                        file_size=file_entity.metadata.file_size if file_entity.metadata else 0,
+                        mime_type=file_entity.metadata.content_type if file_entity.metadata else "application/octet-stream",
+                        topic_id=file_entity.topic_id,
+                        user_id=user_id
+                    )
+                    logger.info(f"Started processing pipeline for file {request.file_id} with task IDs: {task_ids}")
+                except Exception as e:
+                    logger.error(f"Failed to start processing pipeline for file {request.file_id}: {e}")
+                    # Don't fail the completion - the file is uploaded successfully
+            
+            return UploadCompletionResponse(
+                file_id=request.file_id,
+                status=FileStatus.AVAILABLE.value,
+                processing_started=len(task_ids) > 0,
+                task_ids=task_ids,
+                message="Upload completion confirmed and processing started" if task_ids else "Upload completion confirmed",
+                verification_result=verification_result
+            )
+            
+        except Exception as e:
+            logger.error(f"Error confirming upload completion: {e}")
+            raise
+    
+    async def _verify_upload_completion(
+        self, 
+        file_entity: FileEntity, 
+        request: ConfirmUploadCompletionRequest
+    ) -> dict:
+        """Verify that the upload was completed successfully."""
+        try:
+            if not file_entity.storage_location:
+                return {"exists": False, "error": "No storage location defined"}
+            
+            # Check if file exists in storage
+            exists = await self.storage.object_exists(
+                bucket=file_entity.storage_location.bucket,
+                key=file_entity.storage_location.key
+            )
+            
+            verification = {"exists": exists}
+            
+            if exists:
+                # Get file size from storage
+                try:
+                    metadata = await self.storage.get_object_metadata(
+                        bucket=file_entity.storage_location.bucket,
+                        key=file_entity.storage_location.key
+                    )
+                    storage_size = metadata.get("size", 0)
+                    verification["storage_size"] = storage_size
+                    
+                    # Compare with expected size
+                    expected_size = file_entity.metadata.file_size if file_entity.metadata else 0
+                    actual_size = request.actual_file_size or expected_size
+                    
+                    if storage_size != actual_size:
+                        verification["size_mismatch"] = True
+                        verification["expected_size"] = actual_size
+                        logger.warning(f"Size mismatch for file {request.file_id}: expected {actual_size}, got {storage_size}")
+                    else:
+                        verification["size_verified"] = True
+                        
+                except Exception as e:
+                    logger.warning(f"Could not verify file size for {request.file_id}: {e}")
+                    verification["size_check_failed"] = str(e)
+            
+            return verification
+            
+        except Exception as e:
+            logger.error(f"Upload verification failed for {request.file_id}: {e}")
+            return {"exists": False, "error": str(e)}
 
 
 class FileAccessService:

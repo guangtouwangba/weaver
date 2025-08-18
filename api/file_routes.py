@@ -15,7 +15,8 @@ from datetime import datetime
 # Application layer imports
 from application.fileupload_controller import FileController
 from application.dtos.fileupload import (
-    GetSignedUrlRequest, InitiateUploadRequest, DownloadFileRequest, SignedUrlResponse, UploadSessionResponse, FileResponse, DownloadResponse
+    GetSignedUrlRequest, InitiateUploadRequest, ConfirmUploadCompletionRequest, DownloadFileRequest, 
+    SignedUrlResponse, UploadSessionResponse, UploadCompletionResponse, FileResponse, DownloadResponse
 )
 from domain.fileupload import AccessLevel, FileStatus
 from infrastructure.tasks.models import TaskPriority
@@ -65,6 +66,14 @@ class CompleteUploadAPI(BaseModel):
     
     upload_session_id: str = Field(..., description="Upload session ID")
     file_hash: Optional[str] = Field(None, description="SHA256 hash for verification")
+
+
+class ConfirmUploadCompletionAPI(BaseModel):
+    """API model for confirming upload completion."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    file_hash: Optional[str] = Field(None, description="SHA256 hash for verification")
+    actual_file_size: Optional[int] = Field(None, ge=0, description="Actual uploaded file size in bytes")
 
 
 class DownloadFileAPI(BaseModel):
@@ -225,8 +234,94 @@ async def get_file_controller() -> FileController:
                 logger.error(f"Failed to save file metadata: {e}")
                 # Continue anyway
         
-        async def get_by_id(self, id): 
-            return None
+        async def get_by_id(self, id):
+            """Get file entity by ID from database."""
+            try:
+                import asyncpg
+                from datetime import datetime
+                from domain.fileupload import FileEntity, FileMetadata, AccessPermission, StorageLocation, FileStatus, AccessLevel
+                
+                logger.debug(f"Attempting to retrieve file {id} from database")
+                
+                conn = None
+                try:
+                    conn = await asyncpg.connect('postgresql://rag_user:rag_password@localhost:5432/rag_db')
+                    logger.debug(f"Database connection established for file {id}")
+                    
+                    row = await conn.fetchrow('''
+                        SELECT 
+                            id, owner_id, original_name, file_size, content_type,
+                            storage_bucket, storage_key, category, tags, status,
+                            access_level, download_count, topic_id, custom_metadata,
+                            created_at, updated_at, is_deleted
+                        FROM files 
+                        WHERE id = $1::uuid AND is_deleted = false
+                    ''', id)
+                    
+                    logger.debug(f"Database query completed for file {id}, found: {row is not None}")
+                    
+                except Exception as db_error:
+                    logger.error(f"Database error for file {id}: {db_error}")
+                    return None
+                finally:
+                    if conn:
+                        await conn.close()
+                        logger.debug(f"Database connection closed for file {id}")
+                
+                if not row:
+                    logger.warning(f"File {id} not found in database")
+                    return None
+                
+                try:
+                    # Create file metadata
+                    metadata = FileMetadata(
+                        original_name=row['original_name'],
+                        file_size=row['file_size'],
+                        content_type=row['content_type'],
+                        category=row['category'],
+                        tags=row['tags'] or [],
+                        custom_metadata=row['custom_metadata'] or {}
+                    )
+                    
+                    # Create access permission
+                    access_permission = AccessPermission(
+                        level=AccessLevel(row['access_level']),
+                        allowed_users={row['owner_id']} if row['owner_id'] else set()
+                    )
+                    
+                    # Create storage location
+                    storage_location = StorageLocation(
+                        bucket=row['storage_bucket'],
+                        key=row['storage_key'],
+                        provider="minio"
+                    ) if row['storage_bucket'] and row['storage_key'] else None
+                    
+                    # Create file entity
+                    entity = FileEntity(
+                        owner_id=row['owner_id'],
+                        metadata=metadata,
+                        status=FileStatus(row['status']),
+                        access_permission=access_permission,
+                        topic_id=row['topic_id'],
+                        download_count=row['download_count'] or 0,
+                        created_at=row['created_at'],
+                        updated_at=row['updated_at']
+                    )
+                    
+                    # Set ID and storage location
+                    entity.id = str(row['id'])
+                    entity.storage_location = storage_location
+                    
+                    logger.info(f"Successfully retrieved file entity {id} with status {entity.status.value}")
+                    return entity
+                    
+                except Exception as entity_error:
+                    logger.error(f"Failed to create entity for file {id}: {entity_error}")
+                    return None
+                
+            except Exception as e:
+                logger.error(f"Unexpected error in get_by_id for file {id}: {e}")
+                return None
     
     class MockUploadSessionRepository:
         async def save(self, entity): 
@@ -285,6 +380,130 @@ async def get_signed_upload_url(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error in get_signed_upload_url: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post(
+    "/{file_id}/upload/confirm", 
+    response_model=UploadCompletionResponse, 
+    status_code=200,
+    summary="Confirm Upload Completion",
+    description="Confirm that a file upload has completed and trigger RAG processing pipeline",
+    responses={
+        200: {
+            "description": "Upload confirmed successfully and processing started",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "file_id": "a2385d89-8824-474c-8740-8a93ef0d5469",
+                        "status": "available",
+                        "processing_started": True,
+                        "task_ids": ["task_embedding_uuid_1", "task_parsing_uuid_2"],
+                        "message": "Upload completion confirmed and processing started",
+                        "verification_result": {
+                            "exists": True,
+                            "storage_size": 2048000,
+                            "size_verified": True
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "File already confirmed or invalid status",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "File is already in available status"
+                    }
+                }
+            }
+        },
+        403: {
+            "description": "Permission denied - user doesn't own the file",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "User user_123 does not own file a2385d89-8824-474c-8740-8a93ef0d5469"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "File not found or upload verification failed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "File was not found in storage. Upload may have failed."
+                    }
+                }
+            }
+        }
+    },
+    tags=["file-upload"]
+)
+async def confirm_upload_completion(
+    file_id: str = Path(..., description="UUID of the file to confirm upload completion", example="a2385d89-8824-474c-8740-8a93ef0d5469"),
+    request: ConfirmUploadCompletionAPI = ConfirmUploadCompletionAPI(),
+    user_id: str = Depends(get_current_user_id),
+    controller: FileController = Depends(get_file_controller)
+):
+    """
+    ## Confirm Upload Completion and Trigger Processing
+    
+    This endpoint must be called by the client after successfully uploading a file via the signed URL
+    to notify the server that the upload is complete and trigger the RAG processing pipeline.
+    
+    ### Upload Workflow:
+    1. **Request signed URL** using `POST /upload/signed-url`
+    2. **Upload file directly** to storage using the signed URL
+    3. **Call this endpoint** to confirm completion and start processing
+    
+    ### What This Endpoint Does:
+    - ✅ Verifies the file exists in storage
+    - ✅ Updates file status from `UPLOADING` to `AVAILABLE`
+    - ✅ Validates file size and integrity (if hash provided)
+    - ✅ Triggers automatic RAG processing (embedding, parsing, analysis)
+    - ✅ Returns processing task IDs for status tracking
+    
+    ### Security & Validation:
+    - User ownership verification (only file owner can confirm)
+    - Storage existence check (file must exist in MinIO/S3)
+    - Optional file hash validation for integrity verification
+    - Size validation to detect partial uploads
+    
+    ### Processing Pipeline:
+    Upon successful confirmation, the following tasks are automatically created:
+    - **Document Parsing**: Extract text and metadata
+    - **Embedding Generation**: Create vector embeddings for semantic search
+    - **Content Analysis**: Keyword extraction, sentiment analysis, classification
+    
+    ### Error Handling:
+    - If file doesn't exist in storage: Returns 404
+    - If user doesn't own file: Returns 403
+    - If file already confirmed: Returns 400 with current status
+    - If storage verification fails: Returns 404 with error details
+    
+    ### Background Recovery:
+    If this endpoint is not called, the background monitor service will automatically
+    detect orphaned uploads after 30 minutes and confirm them if they exist in storage.
+    """
+    try:
+        completion_request = ConfirmUploadCompletionRequest(
+            file_id=file_id,
+            file_hash=request.file_hash,
+            actual_file_size=request.actual_file_size
+        )
+        
+        response = await controller.confirm_upload_completion(completion_request, user_id)
+        return response
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in confirm_upload_completion: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

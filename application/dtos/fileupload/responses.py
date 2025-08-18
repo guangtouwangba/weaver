@@ -61,6 +61,17 @@ class FileResponse:
 
 
 @dataclass
+class UploadCompletionResponse:
+    """Response DTO for upload completion confirmation."""
+    file_id: str
+    status: str
+    processing_started: bool
+    task_ids: List[str] = field(default_factory=list)
+    message: str = ""
+    verification_result: Optional[Dict[str, Any]] = None
+
+
+@dataclass
 class DownloadResponse:
     """Response DTO for file download."""
     file_id: str
