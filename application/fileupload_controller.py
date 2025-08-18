@@ -9,9 +9,9 @@ import logging
 from typing import Optional, Set
 
 from application.dtos.fileupload import (
-    GetSignedUrlRequest, InitiateUploadRequest, CompleteUploadRequest,
+    GetSignedUrlRequest, InitiateUploadRequest, CompleteUploadRequest, ConfirmUploadCompletionRequest,
     DownloadFileRequest, UpdateFileAccessRequest, FileSearchRequest,
-    SignedUrlResponse, UploadSessionResponse, FileResponse, DownloadResponse,
+    SignedUrlResponse, UploadSessionResponse, UploadCompletionResponse, FileResponse, DownloadResponse,
     FileListResponse, FileStatsResponse
 )
 from services.fileupload_services import FileUploadService, FileAccessService
@@ -307,6 +307,19 @@ class FileController:
             )
         except Exception as e:
             logger.error(f"Controller error in get_file_stats: {e}")
+            raise
+    
+    async def confirm_upload_completion(
+        self,
+        request: ConfirmUploadCompletionRequest,
+        user_id: str
+    ) -> UploadCompletionResponse:
+        """Confirm that a file upload has completed and trigger processing."""
+        try:
+            logger.info(f"Controller: Confirming upload completion for file {request.file_id}")
+            return await self.upload_service.confirm_upload_completion(request, user_id)
+        except Exception as e:
+            logger.error(f"Controller error in confirm_upload_completion: {e}")
             raise
     
     async def health_check(self) -> dict:

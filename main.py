@@ -73,6 +73,11 @@ async def lifespan(app: FastAPI):
         task_service = await get_task_service()
         logger.info("Task processing service initialized")
         
+        # Initialize upload monitoring service
+        from infrastructure.tasks.upload_monitor import start_upload_monitor
+        await start_upload_monitor()
+        logger.info("Upload monitoring service initialized")
+        
         logger.info("RAG API application started successfully")
         
         yield
@@ -93,6 +98,11 @@ async def lifespan(app: FastAPI):
             from infrastructure.tasks import shutdown_task_service
             await shutdown_task_service()
             logger.info("Task processing service shutdown")
+            
+            # Shutdown upload monitoring service
+            from infrastructure.tasks.upload_monitor import stop_upload_monitor
+            await stop_upload_monitor()
+            logger.info("Upload monitoring service shutdown")
             
             logger.info("RAG API application shutdown complete")
         except Exception as e:
