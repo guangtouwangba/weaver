@@ -13,23 +13,23 @@ from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
 # Application layer imports
-from application.topic import (
+from src.application.services.topic_app_service import (
     TopicController,
     CreateTopicRequest, UpdateTopicRequest, UploadResourceRequest,
     TopicResponse, ResourceResponse,
     create_topic_controller
 )
-from domain.topic import TopicStatus, ResourceType
+from src.domain.entities.topic import TopicStatus, ResourceType
 
 # Exception imports
-from api.exceptions import (
+from src.interfaces.api.exceptions import (
     TopicNotFoundError, ResourceNotFoundError, 
     InvalidTopicDataError, ResourceUploadError,
     raise_not_found, raise_validation_error
 )
 
 # Unified file service for bridge functionality
-from api.unified_file_service import get_unified_files_for_topic, get_unified_file_stats_for_topic
+from src.interfaces.api.unified_file_service import get_unified_files_for_topic, get_unified_file_stats_for_topic
 
 logger = logging.getLogger(__name__)
 
@@ -124,54 +124,7 @@ class TopicSearchParams(BaseModel):
 
 
 
-# Dependency injection with proper session management
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def get_topic_controller_session():
-    """Context manager for topic controller with proper session cleanup."""
-    from infrastructure.database.config import AsyncSessionLocal
-    
-    async with AsyncSessionLocal() as session:
-        try:
-            # Get configuration
-            from infrastructure import get_config, MinIOStorage, MinIOFileManager
-            config = get_config()
-            
-            # Create repositories with the session
-            from infrastructure.database.repositories.topic import (
-                TopicRepository, TagRepository, TopicResourceRepository, ConversationRepository
-            )
-            topic_repo = TopicRepository(session)
-            tag_repo = TagRepository(session)
-            resource_repo = TopicResourceRepository(session)
-            conversation_repo = ConversationRepository(session)
-            
-            # Create storage components
-            storage = MinIOStorage(**config.storage.minio_config)
-            file_manager = MinIOFileManager(storage, config.storage.default_bucket)
-            
-            # Create application service
-            from application.topic import TopicApplicationService, TopicController
-            service = TopicApplicationService(
-                topic_repo=topic_repo,
-                tag_repo=tag_repo,
-                resource_repo=resource_repo,
-                conversation_repo=conversation_repo,
-                message_broker=None,  # Temporarily disabled
-                storage=storage,
-                file_manager=file_manager
-            )
-            
-            # Create and yield controller
-            controller = TopicController(service)
-            yield controller
-            
-        except Exception as e:
-            logger.error(f"Failed to create topic controller: {e}")
-            raise HTTPException(status_code=500, detail="Failed to initialize topic service")
-
-# Legacy dependency function (will be replaced)
+# Dependency injection
 async def get_topic_controller() -> TopicController:
     """Get topic controller instance."""
     try:
@@ -384,7 +337,8 @@ async def list_topics(
     status: Optional[TopicStatus] = Query(None, description="Filter by status"),
     user_id: Optional[int] = Query(None, description="Filter by user ID"),
     limit: int = Query(50, ge=1, le=100, description="Number of results"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    controller: TopicController = Depends(get_topic_controller)
 ) -> List[TopicResponseAPI]:
     """
     List topics with optional filtering.
@@ -396,18 +350,17 @@ async def list_topics(
     - **offset**: Number of results to skip for pagination
     """
     try:
-        async with get_topic_controller_session() as controller:
-            # Use search with empty query to list all topics
-            responses = await controller.search_topics(
-                query="",  # Empty query matches all
-                category=category,
-                status=status.value if status else None,
-                user_id=user_id,
-                limit=limit,
-                offset=offset
-            )
-            
-            return [TopicResponseAPI(**response.__dict__) for response in responses]
+        # Use search with empty query to list all topics
+        responses = await controller.search_topics(
+            query="",  # Empty query matches all
+            category=category,
+            status=status.value if status else None,
+            user_id=user_id,
+            limit=limit,
+            offset=offset
+        )
+        
+        return [TopicResponseAPI(**response.__dict__) for response in responses]
         
     except Exception as e:
         logger.error(f"Error listing topics: {e}")
