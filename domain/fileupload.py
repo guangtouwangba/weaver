@@ -1,21 +1,139 @@
 """
-Domain entities for file upload application.
+File upload domain entities and value objects.
 
-This module contains the core business entities that represent
-the main concepts in the file management domain.
+This module contains the core business entities and value objects
+for the file management domain, following DDD principles.
 """
 
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List, Set
 from dataclasses import dataclass, field
-
-from .value_objects import (
-    FileMetadata, AccessPermission, StorageLocation, FileStatus,
-    AccessLevel, UploadStatus, UploadConfiguration, FileValidationResult
-)
+from enum import Enum
 
 
+# Value Objects
+class AccessLevel(str, Enum):
+    """File access level enumeration."""
+    PRIVATE = "private"
+    SHARED = "shared"
+    PUBLIC = "public"
+    RESTRICTED = "restricted"
+
+
+class FileStatus(str, Enum):
+    """File status enumeration."""
+    UPLOADING = "uploading"
+    AVAILABLE = "available"
+    PROCESSING = "processing"
+    FAILED = "failed"
+    DELETED = "deleted"
+    QUARANTINED = "quarantined"
+
+
+class UploadStatus(str, Enum):
+    """Upload session status enumeration."""
+    INITIATED = "initiated"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+@dataclass
+class FileMetadata:
+    """File metadata value object."""
+    original_name: str
+    file_size: int
+    content_type: str
+    file_hash: Optional[str] = None
+    category: Optional[str] = None
+    tags: List[str] = field(default_factory=list)
+    custom_metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    @property
+    def file_extension(self) -> str:
+        """Get file extension from original name."""
+        return self.original_name.split('.')[-1].lower() if '.' in self.original_name else ''
+    
+    @property
+    def is_image(self) -> bool:
+        """Check if file is an image."""
+        return self.content_type.startswith('image/')
+    
+    @property
+    def is_document(self) -> bool:
+        """Check if file is a document."""
+        document_types = [
+            'application/pdf', 'application/msword',
+            'application/vnd.openxmlformats-officedocument',
+            'text/plain', 'text/csv'
+        ]
+        return any(self.content_type.startswith(dt) for dt in document_types)
+
+
+@dataclass
+class StorageLocation:
+    """Storage location value object."""
+    bucket: str
+    key: str
+    provider: str = "minio"
+    region: Optional[str] = None
+    
+    @property
+    def full_path(self) -> str:
+        """Get full storage path."""
+        return f"{self.provider}://{self.bucket}/{self.key}"
+
+
+@dataclass
+class AccessPermission:
+    """Access permission value object."""
+    level: AccessLevel = AccessLevel.PRIVATE
+    allowed_users: Set[str] = field(default_factory=set)
+    allowed_groups: Set[str] = field(default_factory=set)
+    expires_at: Optional[datetime] = None
+    max_downloads: Optional[int] = None
+    current_downloads: int = 0
+    
+    @property
+    def is_expired(self) -> bool:
+        """Check if permission has expired."""
+        if self.expires_at:
+            return datetime.utcnow() > self.expires_at
+        return False
+    
+    @property
+    def is_public(self) -> bool:
+        """Check if permission allows public access."""
+        return self.level == AccessLevel.PUBLIC
+    
+    @property
+    def downloads_exceeded(self) -> bool:
+        """Check if download limit exceeded."""
+        if self.max_downloads:
+            return self.current_downloads >= self.max_downloads
+        return False
+    
+    def can_read(self, user_id: Optional[str] = None, groups: Set[str] = None) -> bool:
+        """Check if user can read with this permission."""
+        if self.is_expired or self.downloads_exceeded:
+            return False
+        
+        if self.level == AccessLevel.PUBLIC:
+            return True
+        
+        if user_id and user_id in self.allowed_users:
+            return True
+        
+        if groups and self.allowed_groups.intersection(groups):
+            return True
+        
+        return False
+
+
+# Domain Entities
 @dataclass
 class FileEntity:
     """
@@ -30,7 +148,7 @@ class FileEntity:
     owner_id: Optional[str] = None
     
     # Core attributes
-    metadata: FileMetadata = None
+    metadata: Optional[FileMetadata] = None
     storage_location: Optional[StorageLocation] = None
     status: FileStatus = FileStatus.UPLOADING
     
@@ -43,6 +161,9 @@ class FileEntity:
     upload_session_id: Optional[str] = None
     download_count: int = 0
     last_accessed_at: Optional[datetime] = None
+    
+    # Topic relationship
+    topic_id: Optional[int] = None
     
     # Timestamps
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -92,6 +213,7 @@ class FileEntity:
         """Record file access."""
         self.last_accessed_at = datetime.utcnow()
         self.download_count += 1
+        self.access_permission.current_downloads += 1
         self.updated_at = datetime.utcnow()
     
     def update_access_permission(self, permission: AccessPermission) -> None:
@@ -126,24 +248,6 @@ class FileEntity:
     def generate_download_key(self) -> str:
         """Generate a unique download tracking key."""
         return f"{self.id}_{uuid.uuid4().hex[:8]}_{int(datetime.utcnow().timestamp())}"
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert entity to dictionary."""
-        return {
-            "id": self.id,
-            "owner_id": self.owner_id,
-            "original_name": self.metadata.original_name if self.metadata else None,
-            "file_size": self.metadata.file_size if self.metadata else None,
-            "content_type": self.metadata.content_type if self.metadata else None,
-            "status": self.status.value,
-            "access_level": self.access_permission.level.value,
-            "download_count": self.download_count,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-            "last_accessed_at": self.last_accessed_at.isoformat() if self.last_accessed_at else None,
-            "is_available": self.is_available,
-            "is_public": self.is_public
-        }
 
 
 @dataclass
@@ -273,157 +377,3 @@ class UploadSession:
         """Cancel the upload."""
         self.status = UploadStatus.CANCELLED
         self.updated_at = datetime.utcnow()
-    
-    def extend_expiration(self, hours: int = 24) -> None:
-        """Extend the session expiration time."""
-        self.expires_at = datetime.utcnow() + timedelta(hours=hours)
-        self.updated_at = datetime.utcnow()
-    
-    def increment_retry(self) -> None:
-        """Increment retry counter."""
-        self.retry_count += 1
-        self.updated_at = datetime.utcnow()
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert session to dictionary."""
-        return {
-            "id": self.id,
-            "file_id": self.file_id,
-            "user_id": self.user_id,
-            "original_filename": self.original_filename,
-            "expected_size": self.expected_size,
-            "uploaded_size": self.uploaded_size,
-            "progress_percentage": self.progress_percentage,
-            "status": self.status.value,
-            "uploaded_chunks": len(self.uploaded_chunks),
-            "total_chunks": self.max_chunks or 0,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-            "expires_at": self.expires_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
-            "is_expired": self.is_expired,
-            "is_resumable": self.is_resumable
-        }
-
-
-@dataclass
-class AccessPolicy:
-    """
-    Entity representing access policies for files and collections.
-    
-    This entity allows for complex access control scenarios including
-    time-based access, conditional permissions, and audit requirements.
-    """
-    
-    # Identity
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    name: str = ""
-    description: Optional[str] = None
-    
-    # Core permission
-    base_permission: AccessPermission = field(
-        default_factory=lambda: AccessPermission(level=AccessLevel.PRIVATE)
-    )
-    
-    # Advanced controls
-    conditions: Dict[str, Any] = field(default_factory=dict)
-    requirements: Set[str] = field(default_factory=set)
-    
-    # Scope
-    applies_to_file_ids: Set[str] = field(default_factory=set)
-    applies_to_categories: Set[str] = field(default_factory=set)
-    applies_to_content_types: Set[str] = field(default_factory=set)
-    
-    # Management
-    is_active: bool = True
-    priority: int = 0  # Higher priority policies override lower ones
-    
-    # Timestamps
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    
-    @property
-    def is_effective(self) -> bool:
-        """Check if policy is currently effective."""
-        return (
-            self.is_active and
-            not self.base_permission.is_expired
-        )
-    
-    def applies_to_file(self, file_entity: FileEntity) -> bool:
-        """Check if this policy applies to a given file."""
-        if not self.is_effective:
-            return False
-        
-        # Check file ID
-        if self.applies_to_file_ids and file_entity.id not in self.applies_to_file_ids:
-            return False
-        
-        # Check category
-        if self.applies_to_categories and file_entity.metadata:
-            if file_entity.metadata.category not in self.applies_to_categories:
-                return False
-        
-        # Check content type
-        if self.applies_to_content_types and file_entity.metadata:
-            if file_entity.metadata.content_type not in self.applies_to_content_types:
-                return False
-        
-        return True
-    
-    def evaluate_access(self, user_id: Optional[str], groups: Set[str] = None, 
-                       context: Dict[str, Any] = None) -> bool:
-        """Evaluate if access should be granted based on this policy."""
-        if not self.is_effective:
-            return False
-        
-        # Check base permission
-        if not self.base_permission.can_read(user_id, groups):
-            return False
-        
-        # Check additional conditions
-        if self.conditions and context:
-            for condition_key, condition_value in self.conditions.items():
-                if condition_key not in context:
-                    return False
-                if context[condition_key] != condition_value:
-                    return False
-        
-        return True
-    
-    def add_file(self, file_id: str) -> None:
-        """Add a file to this policy's scope."""
-        self.applies_to_file_ids.add(file_id)
-        self.updated_at = datetime.utcnow()
-    
-    def remove_file(self, file_id: str) -> None:
-        """Remove a file from this policy's scope."""
-        self.applies_to_file_ids.discard(file_id)
-        self.updated_at = datetime.utcnow()
-    
-    def activate(self) -> None:
-        """Activate this policy."""
-        self.is_active = True
-        self.updated_at = datetime.utcnow()
-    
-    def deactivate(self) -> None:
-        """Deactivate this policy."""
-        self.is_active = False
-        self.updated_at = datetime.utcnow()
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert policy to dictionary."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "access_level": self.base_permission.level.value,
-            "is_active": self.is_active,
-            "is_effective": self.is_effective,
-            "priority": self.priority,
-            "file_count": len(self.applies_to_file_ids),
-            "categories": list(self.applies_to_categories),
-            "content_types": list(self.applies_to_content_types),
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
-        }
