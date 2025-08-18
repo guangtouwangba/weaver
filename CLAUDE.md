@@ -60,13 +60,14 @@ domain/           # Core business logic and interfaces
 ├── fileupload.py # File upload domain models
 └── rag_interfaces.py # RAG system contracts (SOLID interfaces)
 
-application/      # Use cases and DTOs (DEPRECATED - moved to services/)
+application/      # Application layer (primary business logic)
+├── topic.py      # Complete topic management with controllers
+├── fileupload_controller.py # File upload application logic  
 └── dtos/         # Data Transfer Objects
     ├── fileupload/ # File upload request/response DTOs
     └── rag/        # RAG operation DTOs
 
-services/         # Application services (business orchestration)
-├── topic_service.py      # Topic management
+services/         # Service layer (workflow orchestration)
 ├── fileupload_services.py # File upload workflows
 └── rag_services.py       # RAG document processing
 
@@ -173,3 +174,23 @@ Comprehensive testing approach:
 - **Error Boundaries**: Structured error handling with custom exceptions
 - **Observability**: Integrated logging, metrics, and health checks
 - **Security**: Input validation, content type verification, access controls
+
+## Architecture Cleanup Notes
+
+Recent architecture cleanup (2025-08-18):
+
+### Removed Components
+- `services/user_services.py` - No references, safely removed
+- `services/topic_service.py` - Invalid dependencies, minimal functionality
+- `rag/main.py` - Demo program moved to `examples/rag_demo/`
+- `temp/` directory - Empty, cleaned up
+
+### Activated Components  
+- **RAG API Routes**: `api/rag_routes.py` now included in main application
+- **Complete RAG functionality**: 12 RAG endpoints now available at `/api/v1/rag/*`
+
+### Current Architecture Status
+- **Primary Layer**: `application/` - Complete business logic with controllers
+- **Service Layer**: `services/` - Workflow orchestration (fileupload, rag)
+- **RAG Engine**: `rag/` - Modular RAG components (core functionality)
+- **Examples**: `examples/rag_demo/` - Demonstration code

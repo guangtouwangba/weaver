@@ -518,3 +518,5 @@ target/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml 
+# Cleanup backups
+cleanup_backup/
