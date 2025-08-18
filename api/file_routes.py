@@ -7,20 +7,19 @@ and management operations with comprehensive documentation and validation.
 
 import logging
 from typing import Optional, List, Dict, Any, Set
-from fastapi import APIRouter, HTTPException, Depends, Query, Path, Form, UploadFile, File
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import APIRouter, HTTPException, Depends, Path
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
 # Application layer imports
-from application.fileupload.controllers.file_controller import FileController
-from application.fileupload.dtos.file_dtos import (
-    GetSignedUrlRequest, InitiateUploadRequest, CompleteUploadRequest,
-    DownloadFileRequest, UpdateFileAccessRequest, FileSearchRequest,
-    SignedUrlResponse, UploadSessionResponse, FileResponse, DownloadResponse,
-    FileListResponse, FileStatsResponse, ErrorResponse
+from application.fileupload_controller import FileController
+from application.dtos.fileupload import (
+    GetSignedUrlRequest, InitiateUploadRequest, DownloadFileRequest, SignedUrlResponse, UploadSessionResponse, FileResponse, DownloadResponse
 )
-from application.fileupload.domain.value_objects import AccessLevel, FileStatus
+from domain.fileupload import AccessLevel, FileStatus
+from infrastructure.tasks.models import TaskPriority
+from infrastructure.tasks.service import process_file_complete
 
 logger = logging.getLogger(__name__)
 
@@ -131,10 +130,10 @@ async def get_user_groups(user_id: str = Depends(get_current_user_id)) -> Set[st
 
 async def get_file_controller() -> FileController:
     """Get file controller instance with real MinIO dependencies."""
-    from application.fileupload.controllers.file_controller import FileController
+    from application.fileupload_controller import FileController
+    from services.fileupload_services import FileUploadService, FileAccessService
     from infrastructure.config import get_config
     from infrastructure.storage.factory import create_storage_from_env
-    from infrastructure.storage.interfaces import UploadOptions, AccessLevel as StorageAccessLevel
     
     # Get configuration
     config = get_config()
@@ -162,32 +161,18 @@ async def get_file_controller() -> FileController:
     except Exception as e:
         logger.warning(f"Could not ensure bucket exists: {e}")
     
-    # Create real services with MinIO integration
-    class RealUploadService:
-        async def get_signed_upload_url(self, request, user_id):
-            """Generate real MinIO presigned upload URL and save file metadata."""
-            from application.fileupload.dtos.file_dtos import SignedUrlResponse
-            from datetime import datetime, timedelta
-            import uuid
-            import asyncpg
-            
-            # Generate unique file ID and storage key
-            file_id = str(uuid.uuid4())
-            storage_key = f"uploads/{user_id}/{file_id}/{request.filename}"
-            
-            # Generate real presigned URL from storage provider
-            from datetime import timedelta
-            expires_in = timedelta(hours=request.expires_in_hours or 1)
-            upload_url = await storage.generate_presigned_url(
-                bucket=config.storage.default_bucket,
-                key=storage_key,
-                expiration=expires_in,
-                method="PUT"
-            )
-            
-            # Save file metadata to database
+    # Mock repositories for now - in real implementation these would be injected
+    class MockFileRepository:
+        async def save(self, entity): 
+            """Save file entity and trigger RAG processing."""
             try:
+                # Save to database (simplified - would use real repository)
+                import asyncpg
                 import json
+                import uuid
+                
+                file_id = entity.id if hasattr(entity, 'id') else str(uuid.uuid4())
+                
                 conn = await asyncpg.connect('postgresql://rag_user:rag_password@localhost:5432/rag_db')
                 await conn.execute('''
                     INSERT INTO files (
@@ -197,270 +182,70 @@ async def get_file_controller() -> FileController:
                         created_at, updated_at, is_deleted
                     ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::file_status_enum, 
                              $11::access_level_enum, $12, $13, $14::jsonb, $15, $16, $17)
+                    ON CONFLICT (id) DO UPDATE SET
+                        status = EXCLUDED.status,
+                        updated_at = EXCLUDED.updated_at
                 ''', 
-                    file_id, user_id, request.filename, request.file_size, request.content_type,
-                    config.storage.default_bucket, storage_key, request.category, request.tags,
-                    'uploading', request.access_level.value, 0, request.topic_id, 
-                    json.dumps(request.metadata) if request.metadata else '{}', datetime.now(), datetime.now(), False
+                    file_id, 
+                    entity.owner_id, 
+                    entity.metadata.original_name if entity.metadata else "unknown",
+                    entity.metadata.file_size if entity.metadata else 0,
+                    entity.metadata.content_type if entity.metadata else "application/octet-stream",
+                    entity.storage_location.bucket if entity.storage_location else config.storage.default_bucket,
+                    entity.storage_location.key if entity.storage_location else f"uploads/{file_id}",
+                    entity.metadata.category if entity.metadata else None,
+                    entity.metadata.tags if entity.metadata else [],
+                    entity.status.value,
+                    entity.access_permission.level.value,
+                    entity.download_count,
+                    entity.topic_id,
+                    json.dumps(entity.metadata.custom_metadata if entity.metadata else {}),
+                    entity.created_at, 
+                    entity.updated_at, 
+                    False
                 )
                 await conn.close()
-                logger.info(f"Saved file metadata for {file_id} with topic_id: {request.topic_id}")
+                logger.info(f"Saved file metadata for {file_id} with topic_id: {entity.topic_id}")
+                
+                # Trigger async RAG task creation after file metadata is saved
+                if entity.status == FileStatus.AVAILABLE and entity.storage_location:
+                    await process_file_complete(
+                        file_id=file_id,
+                        file_path=entity.storage_location.key,
+                        file_name=entity.metadata.original_name if entity.metadata else "unknown",
+                        file_size=entity.metadata.file_size if entity.metadata else 0,
+                        mime_type=entity.metadata.content_type if entity.metadata else "application/octet-stream",
+                        topic_id=entity.topic_id,
+                        user_id=entity.owner_id,
+                        priority=TaskPriority.NORMAL
+                    )
+                    logger.info(f"Triggered RAG task for file {file_id} with topic_id: {entity.topic_id}")
+                
             except Exception as e:
                 logger.error(f"Failed to save file metadata: {e}")
-                # Continue anyway - presigned URL is still valid
-            
-            # Calculate multipart upload parameters
-            chunk_size = 5 * 1024 * 1024  # 5MB default
-            max_chunks = (request.file_size + chunk_size - 1) // chunk_size if request.file_size > chunk_size else 1
-            
-            return SignedUrlResponse(
-                file_id=file_id,
-                upload_url=upload_url,
-                upload_session_id=f"session_{file_id}",
-                expires_at=datetime.now() + expires_in,
-                multipart_upload_id=f"multipart_{file_id}" if request.enable_multipart else None,
-                chunk_size=chunk_size,
-                max_chunks=max_chunks
-            )
+                # Continue anyway
         
-        # Note: Other upload methods would be implemented here for full functionality
-        # For now, returning basic responses to maintain API compatibility
-        async def initiate_upload(self, request, user_id):
-            from application.fileupload.dtos.file_dtos import UploadSessionResponse
-            from datetime import datetime, timedelta
-            import uuid
-            
-            session_id = str(uuid.uuid4())
-            total_chunks = (request.file_size + request.chunk_size - 1) // request.chunk_size
-            
-            return UploadSessionResponse(
-                session_id=session_id,
-                file_id=f"file_{session_id}",
-                status="initiated",
-                progress_percentage=0.0,
-                uploaded_size=0,
-                expected_size=request.file_size,
-                uploaded_chunks=0,
-                total_chunks=total_chunks,
-                next_chunk_number=0,
-                expires_at=datetime.now() + timedelta(hours=24),
-                is_resumable=True
-            )
-        
-        async def get_chunk_upload_url(self, session_id, chunk_number, user_id):
-            # Generate presigned URL for specific chunk upload
-            storage_key = f"uploads/{user_id}/chunks/{session_id}/chunk_{chunk_number}"
-            chunk_url = await storage.generate_presigned_url(
-                bucket=config.storage.default_bucket,
-                key=storage_key,
-                expiration=timedelta(hours=1),
-                method="PUT"
-            )
-            return {
-                "chunk_url": chunk_url,
-                "expires_at": (datetime.now() + timedelta(hours=1)).isoformat()
-            }
-        
-        async def complete_upload(self, request, user_id):
-            # For now, return success - full implementation would verify upload
-            from application.fileupload.dtos.file_dtos import FileResponse
-            from datetime import datetime
-            
-            return FileResponse(
-                id=request.upload_session_id.replace("session_", ""),
-                original_name="uploaded_file.txt",
-                file_size=1024*1024,
-                content_type="application/octet-stream",
-                status="available",
-                access_level="private",
-                download_count=0,
-                owner_id=user_id,
-                category=None,
-                tags=[],
-                metadata={},
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-                last_accessed_at=None,
-                is_available=True,
-                is_public=False,
-                file_size_mb=1.0,
-                age_days=0
-            )
-        
-        async def get_upload_status(self, session_id, user_id):
-            # Basic implementation - would check actual upload status
-            from application.fileupload.dtos.file_dtos import UploadSessionResponse
-            from datetime import datetime, timedelta
-            
-            return UploadSessionResponse(
-                session_id=session_id,
-                file_id=f"file_{session_id}",
-                status="uploading",
-                progress_percentage=50.0,
-                uploaded_size=512*1024,
-                expected_size=1024*1024,
-                uploaded_chunks=2,
-                total_chunks=4,
-                next_chunk_number=2,
-                expires_at=datetime.now() + timedelta(hours=12),
-                is_resumable=True
-            )
-        
-        async def cancel_upload(self, session_id, user_id):
-            return {"message": "Upload cancelled successfully"}
+        async def get_by_id(self, id): 
+            return None
     
-    class RealAccessService:
-        async def get_download_url(self, request, user_id, user_groups):
-            """Generate real MinIO presigned download URL."""
-            from application.fileupload.dtos.file_dtos import DownloadResponse
-            from datetime import datetime, timedelta
-            
-            # Generate storage key based on file ID
-            storage_key = f"uploads/{user_id}/{request.file_id}/file"
-            
-            # Generate real presigned download URL
-            expires_in = timedelta(hours=request.expires_in_hours)
-            download_url = await storage.generate_presigned_url(
-                bucket=config.storage.default_bucket,
-                key=storage_key,
-                expiration=expires_in,
-                method="GET"
-            )
-            
-            expires_at = datetime.now() + expires_in
-            return DownloadResponse(
-                file_id=request.file_id,
-                download_url=download_url,
-                expires_at=expires_at,
-                file_metadata={
-                    "original_name": "uploaded_file.txt",
-                    "file_size": 1024*1024,
-                    "content_type": "application/octet-stream",
-                    "uploaded_at": datetime.now().isoformat()
-                },
-                access_type=request.access_type,
-                content_disposition="attachment" if request.force_download else "inline"
-            )
-        
-        async def stream_file(self, file_id, user_id, user_groups):
-            # Generate streaming URL for the file
-            storage_key = f"uploads/{user_id}/{file_id}/file"
-            stream_url = await storage.generate_presigned_url(
-                bucket=config.storage.default_bucket,
-                key=storage_key,
-                expiration=timedelta(hours=1),
-                method="GET"
-            )
-            return {"stream_url": stream_url}
-        
-        async def get_file_info(self, file_id, user_id, user_groups):
-            """Get file information - basic implementation."""
-            from application.fileupload.dtos.file_dtos import FileResponse
-            from datetime import datetime
-            
-            return FileResponse(
-                id=file_id,
-                original_name="uploaded_file.txt",
-                file_size=1024*1024,  # 1MB
-                content_type="application/octet-stream",
-                status="available",
-                access_level="private",
-                download_count=0,
-                owner_id=user_id,
-                category="uploaded",
-                tags=["real", "minio"],
-                metadata={"storage": "minio"},
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-                last_accessed_at=datetime.now(),
-                is_available=True,
-                is_public=False,
-                file_size_mb=1.0,
-                age_days=0
-            )
-        
-        # Basic implementations for remaining methods
-        async def update_file_access(self, request, user_id):
-            from application.fileupload.dtos.file_dtos import FileResponse
-            from datetime import datetime
-            
-            return FileResponse(
-                id=request.file_id,
-                original_name="uploaded_file.txt",
-                file_size=1024*1024,
-                content_type="application/octet-stream",
-                status="available",
-                access_level=request.access_level.value,
-                download_count=0,
-                owner_id=user_id,
-                category="uploaded",
-                tags=["real", "minio"],
-                metadata={"storage": "minio", "access_updated": True},
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-                last_accessed_at=datetime.now(),
-                is_available=True,
-                is_public=(request.access_level.value == "public"),
-                file_size_mb=1.0,
-                age_days=0
-            )
-        
-        async def delete_file(self, file_id, user_id, hard_delete):
-            return {"message": "File deleted successfully"}
-        
-        async def search_files(self, request, user_id, user_groups):
-            from application.fileupload.dtos.file_dtos import FileListResponse
-            
-            return FileListResponse(
-                files=[],
-                total_count=0,
-                limit=request.limit,
-                offset=request.offset,
-                has_more=False
-            )
-        
-        async def list_user_files(self, user_id, limit, offset):
-            from application.fileupload.dtos.file_dtos import FileListResponse
-            
-            return FileListResponse(
-                files=[],
-                total_count=0,
-                limit=limit,
-                offset=offset,
-                has_more=False
-            )
-        
-        async def get_public_files(self, limit, offset):
-            from application.fileupload.dtos.file_dtos import FileListResponse
-            
-            return FileListResponse(
-                files=[],
-                total_count=0,
-                limit=limit,
-                offset=offset,
-                has_more=False
-            )
-        
-        async def get_file_stats(self, user_id):
-            from application.fileupload.dtos.file_dtos import FileStatsResponse
-            
-            return FileStatsResponse(
-                total_files=0,
-                total_size_bytes=0,
-                total_size_mb=0.0,
-                files_by_status={},
-                files_by_access_level={},
-                files_by_content_type={},
-                average_file_size_mb=0.0,
-                total_downloads=0,
-                most_downloaded_files=[],
-                recent_uploads=[],
-                storage_usage_by_category={}
-            )
+    class MockUploadSessionRepository:
+        async def save(self, entity): 
+            pass
+        async def get_by_id(self, id): 
+            return None
     
-    # Create real service instances
-    upload_service = RealUploadService()
-    access_service = RealAccessService()
+    # Create service instances
+    upload_service = FileUploadService(
+        storage=storage,
+        file_repository=MockFileRepository(),
+        upload_session_repository=MockUploadSessionRepository(),
+        default_bucket=config.storage.default_bucket
+    )
+    
+    access_service = FileAccessService(
+        storage=storage,
+        file_repository=MockFileRepository()
+    )
     
     return FileController(upload_service, access_service)
 
@@ -477,19 +262,6 @@ async def get_signed_upload_url(
     Generate a signed URL for file upload.
     
     This is the core **getSignedURL** endpoint that generates secure upload URLs.
-    
-    **Features:**
-    - Supports both single and multipart uploads
-    - Configurable expiration time (1-24 hours)
-    - Access level control (private, public, shared)
-    - Custom metadata and tagging
-    - File size validation and content type checking
-    
-    **Usage:**
-    1. Call this endpoint to get an upload URL
-    2. Use the returned URL to upload your file directly to storage
-    3. Monitor upload progress via the upload session ID
-    4. Complete the upload using the complete-upload endpoint
     """
     try:
         # Convert API model to DTO
@@ -522,12 +294,7 @@ async def initiate_upload(
     user_id: str = Depends(get_current_user_id),
     controller: FileController = Depends(get_file_controller)
 ):
-    """
-    Initiate a new upload session for chunked uploads.
-    
-    Use this endpoint for large files that need to be uploaded in chunks
-    or when you want more control over the upload process.
-    """
+    """Initiate a new upload session for chunked uploads."""
     try:
         upload_request = InitiateUploadRequest(
             filename=request.filename,
@@ -550,99 +317,6 @@ async def initiate_upload(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/upload/{session_id}/chunk/{chunk_number}")
-async def get_chunk_upload_url(
-    session_id: str = Path(..., description="Upload session ID"),
-    chunk_number: int = Path(..., ge=0, description="Chunk number to upload"),
-    user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
-):
-    """
-    Get a signed URL for uploading a specific chunk.
-    
-    Use this for resumable uploads where you upload the file in chunks.
-    """
-    try:
-        response = await controller.get_chunk_upload_url(session_id, chunk_number, user_id)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in get_chunk_upload_url: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post("/upload/{session_id}/complete", response_model=FileResponse)
-async def complete_upload(
-    session_id: str = Path(..., description="Upload session ID"),
-    user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller),
-    request: CompleteUploadAPI = None
-):
-    """
-    Complete an upload session and finalize the file.
-    
-    Call this after all chunks have been uploaded successfully.
-    """
-    try:
-        complete_request = CompleteUploadRequest(
-            upload_session_id=session_id,
-            file_hash=request.file_hash
-        )
-        
-        response = await controller.complete_upload(complete_request, user_id)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in complete_upload: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/upload/{session_id}/status", response_model=UploadSessionResponse)
-async def get_upload_status(
-    session_id: str = Path(..., description="Upload session ID"),
-    user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
-):
-    """Get the current status of an upload session."""
-    try:
-        response = await controller.get_upload_status(session_id, user_id)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in get_upload_status: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.delete("/upload/{session_id}")
-async def cancel_upload(
-    session_id: str = Path(..., description="Upload session ID"),
-    user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
-):
-    """Cancel an upload session."""
-    try:
-        response = await controller.cancel_upload(session_id, user_id)
-        return response
-        
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in cancel_upload: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
 @router.post("/{file_id}/download", response_model=DownloadResponse)
 async def get_download_url(
     file_id: str = Path(..., description="File ID"),
@@ -651,23 +325,7 @@ async def get_download_url(
     user_groups: Set[str] = Depends(get_user_groups),
     controller: FileController = Depends(get_file_controller)
 ):
-    """
-    Generate a download URL for a file.
-    
-    This is the core **downloadFile** endpoint that provides secure file access.
-    
-    **Features:**
-    - Multiple access types (direct, redirect, inline)
-    - Configurable expiration time (1-168 hours)
-    - Access control validation
-    - Audit logging
-    - Support for both authenticated and public files
-    
-    **Access Types:**
-    - `direct`: Returns a direct presigned URL to the file
-    - `redirect`: Returns a URL that redirects through your API
-    - `inline`: Returns a URL for inline viewing (not download)
-    """
+    """Generate a download URL for a file."""
     try:
         download_request = DownloadFileRequest(
             file_id=file_id,
@@ -685,33 +343,6 @@ async def get_download_url(
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         logger.error(f"Error in get_download_url: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/{file_id}/stream")
-async def stream_file(
-    file_id: str = Path(..., description="File ID"),
-    user_id: Optional[str] = Depends(get_optional_user),
-    user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileController = Depends(get_file_controller)
-):
-    """
-    Stream a file directly (redirect access type).
-    
-    This endpoint redirects to the actual file URL for streaming.
-    """
-    try:
-        response = await controller.stream_file(file_id, user_id, user_groups)
-        
-        # This would typically redirect to the actual file URL
-        return RedirectResponse(url=response["stream_url"], status_code=302)
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in stream_file: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -736,159 +367,6 @@ async def get_file_info(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.put("/{file_id}/access", response_model=FileResponse)
-async def update_file_access(
-    file_id: str = Path(..., description="File ID"),
-    user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller),
-    request: UpdateFileAccessAPI = None
-):
-    """Update file access permissions (owner only)."""
-    try:
-        access_request = UpdateFileAccessRequest(
-            file_id=file_id,
-            access_level=request.access_level,
-            expires_at=request.expires_at,
-            allowed_users=request.allowed_users,
-            allowed_groups=request.allowed_groups,
-            max_downloads=request.max_downloads
-        )
-        
-        response = await controller.update_file_access(access_request, user_id)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in update_file_access: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.delete("/{file_id}")
-async def delete_file(
-    file_id: str = Path(..., description="File ID"),
-    hard_delete: bool = Query(False, description="Permanently delete file"),
-    user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
-):
-    """Delete a file (soft delete by default)."""
-    try:
-        response = await controller.delete_file(file_id, user_id, hard_delete)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in delete_file: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post("/search", response_model=FileListResponse)
-async def search_files(
-    request: FileSearchAPI,
-    user_id: Optional[str] = Depends(get_optional_user),
-    user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileController = Depends(get_file_controller)
-):
-    """Search files with various filters."""
-    try:
-        search_request = FileSearchRequest(
-            query=request.query,
-            category=request.category,
-            content_type=request.content_type,
-            status=request.status,
-            access_level=request.access_level,
-            owner_id=request.owner_id,
-            created_after=request.created_after,
-            created_before=request.created_before,
-            size_min=request.size_min,
-            size_max=request.size_max,
-            tags=request.tags,
-            limit=request.limit,
-            offset=request.offset,
-            sort_by=request.sort_by,
-            sort_order=request.sort_order
-        )
-        
-        response = await controller.search_files(search_request, user_id, user_groups)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in search_files: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/user/{user_id}/files", response_model=FileListResponse)
-async def list_user_files(
-    user_id: str = Path(..., description="User ID"),
-    limit: int = Query(50, ge=1, le=1000, description="Number of files to return"),
-    offset: int = Query(0, ge=0, description="Number of files to skip"),
-    current_user: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
-):
-    """List files owned by a specific user."""
-    try:
-        # Users can only list their own files unless they have admin privileges
-        if user_id != current_user:
-            # TODO: Add admin privilege check
-            raise HTTPException(status_code=403, detail="Can only list your own files")
-        
-        response = await controller.list_user_files(user_id, limit, offset)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in list_user_files: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/public", response_model=FileListResponse)
-async def get_public_files(
-    limit: int = Query(50, ge=1, le=1000, description="Number of files to return"),
-    offset: int = Query(0, ge=0, description="Number of files to skip"),
-    controller: FileController = Depends(get_file_controller)
-):
-    """Get publicly accessible files."""
-    try:
-        response = await controller.get_public_files(limit, offset)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in get_public_files: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get("/stats", response_model=FileStatsResponse)
-async def get_file_stats(
-    user_id: Optional[str] = Query(None, description="Get stats for specific user"),
-    current_user: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
-):
-    """Get file statistics."""
-    try:
-        # Users can only get their own stats unless they have admin privileges
-        if user_id and user_id != current_user:
-            # TODO: Add admin privilege check
-            raise HTTPException(status_code=403, detail="Can only get your own stats")
-        
-        target_user = user_id if user_id else current_user
-        response = await controller.get_file_stats(target_user)
-        return response
-        
-    except Exception as e:
-        logger.error(f"Error in get_file_stats: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
 @router.get("/health")
 async def health_check(controller: FileController = Depends(get_file_controller)):
     """Health check endpoint for file upload service."""
@@ -908,33 +386,3 @@ async def health_check(controller: FileController = Depends(get_file_controller)
                 "error": str(e)
             }
         )
-
-
-# Additional utility endpoints
-
-@router.post("/upload/simple", response_model=FileResponse)
-async def simple_file_upload(
-    file: UploadFile = File(..., description="File to upload"),
-    category: Optional[str] = Form(None, description="File category"),
-    access_level: AccessLevel = Form(AccessLevel.PRIVATE, description="Access level"),
-    tags: Optional[str] = Form(None, description="Comma-separated tags"),
-    user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
-):
-    """
-    Simple file upload endpoint for direct file uploads.
-    
-    This is a convenience endpoint that handles the entire upload process
-    in a single request. For large files, use the signed URL approach instead.
-    """
-    try:
-        # This would implement direct file upload handling
-        # For now, return a placeholder response
-        return JSONResponse(
-            status_code=501,
-            content={"detail": "Simple upload not implemented yet. Use signed URL upload instead."}
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in simple_file_upload: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
