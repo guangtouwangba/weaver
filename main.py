@@ -28,6 +28,7 @@ from infrastructure import (
 # API routes
 from api.topic_routes import router as topic_router
 from api.file_routes import router as file_router
+from api.resource_routes import router as resource_router
 from api.topic_files_routes import router as topic_files_router
 from api.topic_stats_routes import router as topic_stats_router
 from api.task_routes import router as task_router
@@ -181,6 +182,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(topic_router)
     app.include_router(file_router)
+    app.include_router(resource_router)
     app.include_router(topic_files_router)
     app.include_router(topic_stats_router)
     app.include_router(task_router)
@@ -201,18 +203,19 @@ def create_app() -> FastAPI:
         <html>
         <head>
             <title>RAG Knowledge Management API - Swagger UI</title>
-            <link rel="stylesheet" type="text/css" href="/static/swagger-ui/swagger-ui.css" />
+            <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
             <link rel="icon" type="image/png" href="https://fastapi.tiangolo.com/img/favicon.png"/>
             <style>
                 html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
                 *, *:before, *:after { box-sizing: inherit; }
                 body { margin:0; background: #fafafa; }
+                .swagger-ui .topbar { display: none; }
             </style>
         </head>
         <body>
             <div id="swagger-ui"></div>
-            <script src="/static/swagger-ui/swagger-ui-bundle.js"></script>
-            <script src="/static/swagger-ui/swagger-ui-standalone-preset.js"></script>
+            <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+            <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
             <script>
                 window.onload = function() {
                     const ui = SwaggerUIBundle({
