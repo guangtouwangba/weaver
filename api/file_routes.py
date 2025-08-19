@@ -23,8 +23,6 @@ from application.dtos.fileupload import (
 )
 from domain.file import AccessLevel, FileStatus
 from infrastructure.messaging.redis_event_bus import RedisEventBus
-from infrastructure.tasks.models import TaskPriority
-from infrastructure.tasks.service import process_file_complete
 
 logger = logging.getLogger(__name__)
 
@@ -50,26 +48,10 @@ class GetSignedUrlAPI(BaseModel):
     topic_id: Optional[int] = Field(None, description="Link file to a specific topic")
 
 
-class InitiateUploadAPI(BaseModel):
-    """API model for upload session initiation."""
-    model_config = ConfigDict(from_attributes=True)
-    
-    filename: str = Field(..., min_length=1, max_length=255)
-    file_size: int = Field(..., gt=0, le=1024*1024*1024)
-    content_type: str = Field(..., min_length=1)
-    access_level: AccessLevel = Field(AccessLevel.PRIVATE)
-    chunk_size: int = Field(5*1024*1024, ge=1024*1024, le=100*1024*1024)  # 1MB - 100MB
-    category: Optional[str] = Field(None, max_length=100)
-    tags: List[str] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
-class CompleteUploadAPI(BaseModel):
-    """API model for upload completion."""
-    model_config = ConfigDict(from_attributes=True)
-    
-    upload_session_id: str = Field(..., description="Upload session ID")
-    file_hash: Optional[str] = Field(None, description="SHA256 hash for verification")
+
+
 
 
 class ConfirmUploadCompletionAPI(BaseModel):
@@ -80,45 +62,13 @@ class ConfirmUploadCompletionAPI(BaseModel):
     actual_file_size: Optional[int] = Field(None, ge=0, description="Actual uploaded file size in bytes")
 
 
-class DownloadFileAPI(BaseModel):
-    """API model for download request."""
-    model_config = ConfigDict(from_attributes=True)
-    
-    expires_in_hours: int = Field(1, ge=1, le=168, description="URL expiration in hours")
-    access_type: str = Field("direct", pattern="^(direct|redirect|inline)$")
-    force_download: bool = Field(False, description="Force download instead of inline display")
 
 
-class UpdateFileAccessAPI(BaseModel):
-    """API model for access permission updates."""
-    model_config = ConfigDict(from_attributes=True)
-    
-    access_level: AccessLevel
-    expires_at: Optional[datetime] = None
-    allowed_users: List[str] = Field(default_factory=list)
-    allowed_groups: List[str] = Field(default_factory=list)
-    max_downloads: Optional[int] = Field(None, ge=0)
 
 
-class FileSearchAPI(BaseModel):
-    """API model for file search."""
-    model_config = ConfigDict(from_attributes=True)
-    
-    query: Optional[str] = Field(None, description="Search query")
-    category: Optional[str] = None
-    content_type: Optional[str] = None
-    status: Optional[FileStatus] = None
-    access_level: Optional[AccessLevel] = None
-    owner_id: Optional[str] = None
-    created_after: Optional[datetime] = None
-    created_before: Optional[datetime] = None
-    size_min: Optional[int] = Field(None, ge=0)
-    size_max: Optional[int] = Field(None, ge=0)
-    tags: List[str] = Field(default_factory=list)
-    limit: int = Field(50, ge=1, le=1000)
-    offset: int = Field(0, ge=0)
-    sort_by: str = Field("created_at", pattern="^(created_at|updated_at|file_size|download_count|name)$")
-    sort_order: str = Field("desc", pattern="^(asc|desc)$")
+
+
+
 
 
 # Mock dependency functions (to be replaced with actual authentication)
@@ -310,101 +260,12 @@ async def confirm_upload_completion(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/upload/initiate", response_model=UploadSessionResponse, status_code=201)
-async def initiate_upload(
-    request: InitiateUploadAPI,
-    user_id: str = Depends(get_current_user_id),
-    controller: FileApplication = DependsFileApplication
-):
-    """Initiate a new upload session for chunked uploads."""
-    try:
-        upload_request = InitiateUploadRequest(
-            filename=request.filename,
-            file_size=request.file_size,
-            content_type=request.content_type,
-            access_level=request.access_level,
-            chunk_size=request.chunk_size,
-            category=request.category,
-            tags=request.tags,
-            metadata=request.metadata
-        )
-        
-        response = await controller.initiate_upload(upload_request, user_id)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in initiate_upload: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/{file_id}/download", response_model=DownloadResponse)
-async def get_download_url(
-    file_id: str = Path(..., description="File ID"),
-    request: DownloadFileAPI = DownloadFileAPI(),
-    user_id: Optional[str] = Depends(get_optional_user),
-    user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileApplication = DependsFileApplication
-):
-    """Generate a download URL for a file."""
-    try:
-        download_request = DownloadFileRequest(
-            file_id=file_id,
-            expires_in_hours=request.expires_in_hours,
-            access_type=request.access_type,
-            force_download=request.force_download
-        )
-        
-        response = await controller.get_download_url(download_request, user_id, user_groups)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in get_download_url: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/{file_id}", response_model=FileResponse)
-async def get_file_info(
-    file_id: str = Path(..., description="File ID"),
-    user_id: Optional[str] = Depends(get_optional_user),
-    user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileApplication = DependsFileApplication
-):
-    """Get detailed information about a file."""
-    try:
-        response = await controller.get_file_info(file_id, user_id, user_groups)
-        return response
-        
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error in get_file_info: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/health")
-async def health_check(controller: FileApplication = DependsFileApplication):
-    """Health check endpoint for file upload service."""
-    try:
-        response = await controller.health_check()
-        status_code = 200 if response["status"] == "healthy" else 503
-        return JSONResponse(status_code=status_code, content=response)
-        
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "service": "file_upload_api",
-                "timestamp": datetime.utcnow().isoformat(),
-                "error": str(e)
-            }
-        )
+
+
+

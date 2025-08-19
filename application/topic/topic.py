@@ -20,7 +20,7 @@ from domain.topic import Topic, TopicResource, Tag, Conversation, TopicStatus, R
 from infrastructure import (
     get_database_session, RedisMessageBroker, MinIOStorage, MinIOFileManager,
     IMessageBroker, IObjectStorage, IFileManager, 
-    Message, SystemEvents, SystemTasks, MessagePriority,
+    Message, SystemEvents, MessagePriority,
     StorageObject, UploadOptions, AccessLevel,
     get_config, get_async_database_session
 )
@@ -374,16 +374,7 @@ class TopicApplicationService:
                     'updated_at': datetime.utcnow()
                 })
             
-            # Enqueue parsing task
-            await self.message_broker.enqueue_task(
-                task_name=SystemTasks.PARSE_RESOURCE,
-                task_args={
-                    'resource_id': resource.id,
-                    'topic_id': request.topic_id,
-                    'file_id': file_id
-                },
-                priority=MessagePriority.NORMAL
-            )
+
             
             # Generate access URL
             access_url = await self.file_manager.get_file_url(file_id)
@@ -417,49 +408,12 @@ class TopicApplicationService:
             logger.error(f"Failed to get resources for topic {topic_id}: {e}")
             raise
     
-    async def search_topics(
-        self,
-        query: str,
-        category: Optional[str] = None,
-        status: Optional[TopicStatus] = None,
-        user_id: Optional[int] = None,
-        limit: int = 50,
-        offset: int = 0
-    ) -> List[TopicResponse]:
-        """Search topics with various filters."""
+    async def get_all_topics(self) -> List[TopicResponse]:
+        """Get all topics."""
         try:
-            # Build filters
-            filters = {}
-            if category:
-                filters['category'] = category
-            if status:
-                filters['status'] = status.value
-            if user_id:
-                filters['user_id'] = user_id
-            
-            # Search by name and description
-            topics = await self.topic_repo.search(
-                search_term=query,
-                search_fields=['name', 'description'],
-                limit=limit,
-                offset=offset
-            )
-            
-            # Apply additional filters
-            if filters:
-                filtered_topics = []
-                for topic in topics:
-                    match = True
-                    for key, value in filters.items():
-                        if not hasattr(topic, key) or getattr(topic, key) != value:
-                            match = False
-                            break
-                    if match:
-                        filtered_topics.append(topic)
-                topics = filtered_topics
-            
-            # Convert to domain entities and responses
+            topics = await self.topic_repo.get_all()
             results = []
+            
             for topic_entity in topics:
                 topic = self._entity_to_domain(topic_entity)
                 results.append(TopicResponse.from_domain(topic))
@@ -467,8 +421,10 @@ class TopicApplicationService:
             return results
             
         except Exception as e:
-            logger.error(f"Failed to search topics: {e}")
+            logger.error(f"Failed to get all topics: {e}")
             raise
+    
+
     
     def _entity_to_domain(self, entity) -> Topic:
         """Convert database entity to domain entity."""
@@ -612,18 +568,11 @@ class TopicController:
         """Get all resources for a topic."""
         return await self.service.get_topic_resources(topic_id)
     
-    async def search_topics(
-        self,
-        query: str,
-        category: Optional[str] = None,
-        status: Optional[str] = None,
-        user_id: Optional[int] = None,
-        limit: int = 50,
-        offset: int = 0
-    ) -> List[TopicResponse]:
-        """Search topics."""
-        status_enum = TopicStatus(status) if status else None
-        return await self.service.search_topics(query, category, status_enum, user_id, limit, offset)
+    async def get_all_topics(self) -> List[TopicResponse]:
+        """Get all topics."""
+        return await self.service.get_all_topics()
+    
+
 
 
 # Factory function for creating a configured topic controller

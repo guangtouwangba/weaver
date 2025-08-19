@@ -30,8 +30,7 @@ from api.topic_routes import router as topic_router
 from api.file_routes import router as file_router
 from api.resource_routes import router as resource_router
 from api.topic_files_routes import router as topic_files_router
-from api.topic_stats_routes import router as topic_stats_router
-from api.task_routes import router as task_router
+
 
 # Configure logging
 logging.basicConfig(
@@ -74,14 +73,7 @@ async def lifespan(app: FastAPI):
         health_checker = get_health_checker()
         # await health_checker.start_background_monitoring()
         
-        # Initialize task processing service
-        from infrastructure.tasks import get_task_service
-        task_service = await get_task_service()
-        logger.info("Task processing service initialized")
-        
-        # Initialize upload monitoring service
-        from infrastructure.tasks.upload_monitor import start_upload_monitor
-        await start_upload_monitor()
+
         logger.info("Upload monitoring service initialized")
         
         logger.info("RAG API application started successfully")
@@ -106,15 +98,7 @@ async def lifespan(app: FastAPI):
             health_checker = get_health_checker()
             await health_checker.stop_background_monitoring()
             
-            # Shutdown task processing service
-            from infrastructure.tasks import shutdown_task_service
-            await shutdown_task_service()
-            logger.info("Task processing service shutdown")
-            
-            # Shutdown upload monitoring service
-            from infrastructure.tasks.upload_monitor import stop_upload_monitor
-            await stop_upload_monitor()
-            logger.info("Upload monitoring service shutdown")
+
             
             logger.info("RAG API application shutdown complete")
         except Exception as e:
@@ -138,8 +122,8 @@ def create_app() -> FastAPI:
         * **Topic Management**: Create, update, and organize knowledge topics
         * **Resource Upload**: Upload and manage documents, images, and other resources
         * **Content Processing**: Automatic parsing and analysis of uploaded content
-        * **Task Processing**: Asynchronous file embedding and processing pipeline
-        * **Real-time Updates**: WebSocket and SSE support for live status tracking
+
+
         * **Search & Discovery**: Advanced search across topics and resources
         * **Event-Driven Architecture**: Real-time notifications and processing
         * **Storage Integration**: Scalable object storage with MinIO/S3
@@ -212,8 +196,7 @@ def create_app() -> FastAPI:
     app.include_router(file_router)
     app.include_router(resource_router)
     app.include_router(topic_files_router)
-    app.include_router(topic_stats_router)
-    app.include_router(task_router)
+
     
     # Mount static files for Swagger UI
     try:
@@ -334,9 +317,7 @@ def create_app() -> FastAPI:
         if "components" not in openapi_schema:
             openapi_schema["components"] = {}
         
-        # Enhance OpenAPI schema with task processing documentation
-        from api.swagger_docs import enhance_openapi_schema
-        openapi_schema = enhance_openapi_schema(openapi_schema)
+
         
         app.openapi_schema = openapi_schema
         return app.openapi_schema
@@ -442,8 +423,6 @@ async def get_info():
             "topic_management": True,
             "resource_upload": True,
             "content_processing": True,
-            "task_processing": True,
-            "real_time_updates": True,
             "search": True,
             "messaging": True,
             "storage": True,
@@ -453,9 +432,6 @@ async def get_info():
         "endpoints": {
             "topics": "/api/v1/topics",
             "files": "/api/v1/files",
-            "tasks": "/api/v1/tasks",
-            "websocket": "/api/v1/tasks/ws/{topic_id}/{client_id}",
-            "sse": "/api/v1/tasks/events/{topic_id}",
             "health": "/health",
             "metrics": "/metrics",
             "services": "/services",

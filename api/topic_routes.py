@@ -115,14 +115,7 @@ class ResourceResponseAPI(BaseModel):
     access_url: Optional[str] = None
 
 
-class TopicSearchParams(BaseModel):
-    """API model for topic search parameters."""
-    query: str = Field(..., min_length=1, description="Search query")
-    category: Optional[str] = Field(None, description="Filter by category")
-    status: Optional[TopicStatus] = Field(None, description="Filter by status")
-    user_id: Optional[int] = Field(None, description="Filter by user ID")
-    limit: int = Field(50, ge=1, le=100, description="Number of results to return")
-    offset: int = Field(0, ge=0, description="Number of results to skip")
+
 
 
 
@@ -343,68 +336,26 @@ async def delete_topic(
         raise
 
 
-@router.post("/search", response_model=List[TopicResponseAPI])
-async def search_topics(
-    search_params: TopicSearchParams,
+
+
+
+
+
+
+# Topic listing endpoint
+@router.get("", response_model=List[TopicResponseAPI])
+async def list_topics(
     controller: TopicController = DependsTopicController
 ) -> List[TopicResponseAPI]:
     """
-    Search topics.
+    Get all topics.
     
-    - **query**: Search query to match against topic names and descriptions
-    - **category**: Filter by category
-    - **status**: Filter by status
-    - **user_id**: Filter by user ID
-    - **limit**: Maximum number of results (1-100)
-    - **offset**: Number of results to skip for pagination
+    Returns a list of all available topics.
     """
     try:
-        responses = await controller.search_topics(
-            query=search_params.query,
-            category=search_params.category,
-            status=search_params.status.value if search_params.status else None,
-            user_id=search_params.user_id,
-            limit=search_params.limit,
-            offset=search_params.offset
-        )
-        
-        return [TopicResponseAPI(**response.__dict__) for response in responses]
-        
-    except Exception as e:
-        logger.error(f"Error searching topics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/", response_model=List[TopicResponseAPI])
-async def list_topics(
-    category: Optional[str] = Query(None, description="Filter by category"),
-    status: Optional[TopicStatus] = Query(None, description="Filter by status"),
-    user_id: Optional[int] = Query(None, description="Filter by user ID"),
-    limit: int = Query(50, ge=1, le=100, description="Number of results"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
-) -> List[TopicResponseAPI]:
-    """
-    List topics with optional filtering.
-    
-    - **category**: Filter by category
-    - **status**: Filter by status
-    - **user_id**: Filter by user ID
-    - **limit**: Maximum number of results (1-100)
-    - **offset**: Number of results to skip for pagination
-    """
-    try:
-        async with get_topic_controller_session() as controller:
-            # Use search with empty query to list all topics
-            responses = await controller.search_topics(
-                query="",  # Empty query matches all
-                category=category,
-                status=status.value if status else None,
-                user_id=user_id,
-                limit=limit,
-                offset=offset
-            )
-            
-            return [TopicResponseAPI(**response.__dict__) for response in responses]
+        # Get all topics from the controller
+        topics = await controller.get_all_topics()
+        return [TopicResponseAPI(**topic.__dict__) for topic in topics]
         
     except Exception as e:
         logger.error(f"Error listing topics: {e}")
@@ -485,16 +436,7 @@ async def get_topic_resources(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Health check endpoint
-@router.get("/health", include_in_schema=False)
-async def health_check():
-    """Health check endpoint for topic service."""
-    try:
-        controller = await get_topic_controller()
-        return {"status": "healthy", "service": "topic_api", "timestamp": datetime.now().isoformat()}
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail="Service unavailable")
+
 
 
 # Note: Error handlers are registered globally in main.py
