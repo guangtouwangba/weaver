@@ -1,21 +1,20 @@
 """
 Messaging Infrastructure
 
-Provides messaging, event bus, and task queue functionality using Redis.
-Includes interfaces for message brokers, event buses, task queues, and message stores.
+Provides messaging and event bus functionality using Redis.
+Includes interfaces for message brokers, event buses, and message stores.
 """
 
 from .interfaces import (
-    IMessageBroker, IEventBus, ITaskQueue, IMessageStore,
+    IMessageBroker, IEventBus, IMessageStore,
     Message, MessageHandler, MessagePriority, MessageStatus,
-    SubscriptionConfig, SystemEvents, SystemTasks
+    SubscriptionConfig, SystemEvents
 )
 from .redis_broker import RedisMessageBroker
 
 __all__ = [
     "IMessageBroker",
     "IEventBus", 
-    "ITaskQueue",
     "IMessageStore",
     "Message",
     "MessageHandler",
@@ -23,6 +22,5 @@ __all__ = [
     "MessageStatus",
     "SubscriptionConfig",
     "SystemEvents",
-    "SystemTasks",
     "RedisMessageBroker",
 ]

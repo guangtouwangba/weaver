@@ -15,8 +15,6 @@ from enum import Enum
 
 # File service imports
 from api.unified_file_service import (
-    get_unified_files_for_topic, 
-    get_unified_file_stats_for_topic,
     get_unified_files_paginated
 )
 
@@ -93,15 +91,7 @@ class FileListResponse(BaseModel):
     pagination: PaginationInfo = Field(..., description="Pagination information")
     total_size: Optional[int] = Field(None, description="Total size of all files in bytes")
 
-class FileStatsResponse(BaseModel):
-    """Response model for file statistics."""
-    total_files: int = Field(..., description="Total number of files")
-    total_size: Optional[int] = Field(None, description="Total size in bytes")
-    file_types: Dict[str, int] = Field(default_factory=dict, description="File type distribution")
-    source_breakdown: Dict[str, int] = Field(default_factory=dict, description="Files by source")
-    recent_uploads: int = Field(..., description="Files uploaded in last 24 hours")
-    processing_status: Dict[str, int] = Field(default_factory=dict, description="Processing status breakdown")
-    last_upload: Optional[datetime] = Field(None, description="Last upload timestamp")
+
 
 # API Routes
 
@@ -202,160 +192,9 @@ async def get_topic_files(
         raise HTTPException(status_code=500, detail=f"Failed to get topic files: {str(e)}")
 
 
-@router.get("/{topic_id}/files/stats", response_model=FileStatsResponse)
-async def get_topic_file_stats(
-    topic_id: int = Path(..., description="Topic ID")
-) -> FileStatsResponse:
-    """
-    Get comprehensive statistics for topic files.
-    
-    Returns detailed statistics including:
-    - **Total file count and size**
-    - **File type distribution**
-    - **Source breakdown** (legacy vs new system)
-    - **Processing status** distribution
-    - **Recent activity** metrics
-    
-    This endpoint is optimized for dashboard displays and overview widgets.
-    """
-    try:
-        logger.info(f"Getting file statistics for topic {topic_id}")
-        
-        # Get basic stats
-        stats = await get_unified_file_stats_for_topic(topic_id)
-        
-        # Get detailed files for analysis
-        files = await get_unified_files_for_topic(topic_id)
-        
-        # Analyze file types
-        file_types = {}
-        source_breakdown = {}
-        processing_status = {}
-        total_size = 0
-        recent_uploads = 0
-        last_upload = None
-        
-        now = datetime.now()
-        twenty_four_hours_ago = now.timestamp() - (24 * 60 * 60)
-        
-        for file_data in files:
-            # File type analysis
-            file_type = file_data.get('file_type', file_data.get('resource_type', 'unknown'))
-            file_types[file_type] = file_types.get(file_type, 0) + 1
-            
-            # Source breakdown
-            source = file_data.get('source', 'unknown')
-            source_breakdown[source] = source_breakdown.get(source, 0) + 1
-            
-            # Processing status
-            status = file_data.get('parse_status', 'unknown')
-            processing_status[status] = processing_status.get(status, 0) + 1
-            
-            # Size calculation
-            size = file_data.get('file_size', 0)
-            if size:
-                total_size += size
-            
-            # Recent uploads (last 24 hours)
-            created_at = file_data.get('created_at', file_data.get('uploaded_at'))
-            if created_at:
-                if isinstance(created_at, str):
-                    created_timestamp = datetime.fromisoformat(created_at.replace('Z', '+00:00')).timestamp()
-                else:
-                    created_timestamp = created_at.timestamp()
-                
-                if created_timestamp > twenty_four_hours_ago:
-                    recent_uploads += 1
-                
-                # Track last upload
-                if last_upload is None or created_timestamp > last_upload.timestamp():
-                    last_upload = created_at if isinstance(created_at, datetime) else datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-        
-        return FileStatsResponse(
-            total_files=stats.get('total_files', 0),
-            total_size=total_size if total_size > 0 else None,
-            file_types=file_types,
-            source_breakdown=source_breakdown,
-            recent_uploads=recent_uploads,
-            processing_status=processing_status,
-            last_upload=last_upload
-        )
-        
-    except Exception as e:
-        logger.error(f"Error getting file statistics for topic {topic_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get file statistics: {str(e)}")
 
 
-@router.get("/{topic_id}/files/{file_id}", response_model=FileInfo)
-async def get_topic_file(
-    topic_id: int = Path(..., description="Topic ID"),
-    file_id: str = Path(..., description="File ID")
-) -> FileInfo:
-    """
-    Get detailed information about a specific file.
-    
-    - **topic_id**: ID of the topic
-    - **file_id**: ID of the file
-    """
-    try:
-        logger.info(f"Getting file {file_id} for topic {topic_id}")
-        
-        # Get all files for the topic (could be optimized with direct file lookup)
-        files = await get_unified_files_for_topic(topic_id)
-        
-        # Find the specific file
-        file_data = None
-        for f in files:
-            if str(f.get('id', '')) == file_id:
-                file_data = f
-                break
-        
-        if not file_data:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"File {file_id} not found in topic {topic_id}"
-            )
-        
-        return FileInfo(
-            id=str(file_data.get('id', '')),
-            name=file_data.get('file_name', file_data.get('name', '')),
-            original_name=file_data.get('original_name', ''),
-            size=file_data.get('file_size'),
-            mime_type=file_data.get('mime_type'),
-            file_type=file_data.get('file_type', file_data.get('resource_type')),
-            source=file_data.get('source', 'unknown'),
-            upload_url=file_data.get('upload_url'),
-            download_url=file_data.get('download_url'),
-            preview_url=file_data.get('preview_url'),
-            is_processed=file_data.get('is_parsed', False),
-            process_status=file_data.get('parse_status'),
-            content_preview=file_data.get('content_preview'),
-            metadata=_parse_metadata(file_data.get('metadata', {})),
-            created_at=file_data.get('created_at', file_data.get('uploaded_at', datetime.now())),
-            updated_at=file_data.get('updated_at')
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting file {file_id} for topic {topic_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get file: {str(e)}")
 
 
-# Health check for file service
-@router.get("/{topic_id}/files/health", include_in_schema=False)
-async def topic_files_health_check(topic_id: int):
-    """Health check endpoint for topic files service."""
-    try:
-        # Quick test of the unified file service
-        stats = await get_unified_file_stats_for_topic(topic_id)
-        return {
-            "status": "healthy", 
-            "service": "topic_files_api", 
-            "timestamp": datetime.now().isoformat(),
-            "test_topic_id": topic_id,
-            "file_count": stats.get('total_files', 0)
-        }
-    except Exception as e:
-        logger.error(f"Topic files health check failed: {e}")
-        raise HTTPException(status_code=503, detail="Topic files service unavailable")
+
+

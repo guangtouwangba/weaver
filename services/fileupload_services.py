@@ -440,31 +440,14 @@ class FileUploadService:
             # Save updated entity
             await self.file_repository.update_by_id(file_entity.id, file_entity)
             
-            # Trigger RAG processing pipeline
-            task_ids = []
-            if file_entity.storage_location:
-                try:
-                    from infrastructure.tasks.service import process_file_complete
-                    task_ids = await process_file_complete(
-                        file_id=file_entity.id,
-                        file_path=file_entity.storage_location.key,
-                        file_name=file_entity.metadata.original_name if file_entity.metadata else "unknown",
-                        file_size=file_entity.metadata.file_size if file_entity.metadata else 0,
-                        mime_type=file_entity.metadata.content_type if file_entity.metadata else "application/octet-stream",
-                        topic_id=file_entity.topic_id,
-                        user_id=user_id
-                    )
-                    logger.info(f"Started processing pipeline for file {request.file_id} with task IDs: {task_ids}")
-                except Exception as e:
-                    logger.error(f"Failed to start processing pipeline for file {request.file_id}: {e}")
-                    # Don't fail the completion - the file is uploaded successfully
+
             
             return UploadCompletionResponse(
                 file_id=request.file_id,
                 status=FileStatus.AVAILABLE.value,
-                processing_started=len(task_ids) > 0,
-                task_ids=task_ids,
-                message="Upload completion confirmed and processing started" if task_ids else "Upload completion confirmed",
+                processing_started=False,
+                task_ids=[],
+                message="Upload completion confirmed",
                 verification_result=verification_result
             )
             

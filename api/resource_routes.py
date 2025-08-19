@@ -35,44 +35,10 @@ class DeleteResourceResponse(BaseModel):
     topic_id: Optional[int] = Field(None, description="ID of the topic the resource belonged to")
 
 
-class FileResponseAPI(BaseModel):
-    """API response model for file."""
-    model_config = ConfigDict(from_attributes=True)
-    
-    id: str = Field(description="File UUID")
-    original_name: str
-    file_size: Optional[int] = None
-    content_type: Optional[str] = None
-    topic_id: Optional[int] = None
-    status: str
-    created_at: str
-    updated_at: str
 
 
-@router.get("/{file_id}", response_model=FileResponseAPI)
-async def get_file(
-    file_id: str = Path(..., description="File ID (UUID format)")
-) -> FileResponseAPI:
-    """
-    Get a specific file by ID.
-    
-    This endpoint allows access to individual files across all topics.
-    
-    - **file_id**: UUID of the file to retrieve
-    """
-    try:
-        file_info = await _get_file_by_id(file_id)
-        
-        if file_info is None:
-            raise_not_found("file", file_id)
-            
-        return FileResponseAPI(**file_info)
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting file {file_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 
 @router.delete("/{file_id}", response_model=DeleteResourceResponse)
@@ -121,45 +87,7 @@ async def delete_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def _get_file_by_id(file_id: str) -> Optional[dict]:
-    """
-    Helper function to find a file by UUID.
-    """
-    try:
-        from infrastructure.database.config import AsyncSessionLocal
-        from sqlalchemy import text
-        
-        async with AsyncSessionLocal() as session:
-            # Get the file directly from the files table
-            result = await session.execute(
-                text("""
-                    SELECT id, original_name, file_size, content_type, topic_id, 
-                           status, created_at, updated_at, is_deleted
-                    FROM files 
-                    WHERE id = :file_id AND is_deleted = FALSE
-                """),
-                {"file_id": file_id}
-            )
-            
-            file_row = result.fetchone()
-            
-            if not file_row:
-                return None
-                
-            return {
-                "id": str(file_row[0]),
-                "original_name": file_row[1],
-                "file_size": file_row[2],
-                "content_type": file_row[3],
-                "topic_id": file_row[4],
-                "status": file_row[5],
-                "created_at": file_row[6].isoformat() if file_row[6] else "",
-                "updated_at": file_row[7].isoformat() if file_row[7] else ""
-            }
-    
-    except Exception as e:
-        logger.error(f"Error finding file {file_id}: {e}")
-        return None
+
 
 
 async def _delete_resource_by_id(
@@ -235,21 +163,7 @@ async def _delete_resource_by_id(
 
 
 # Health check endpoint
-@router.get("/health", include_in_schema=False)
-async def health_check():
-    """Health check endpoint for resource service."""
-    try:
-        # Simple health check - try to access the database
-        from infrastructure.database.config import AsyncSessionLocal
-        from sqlalchemy import text
-        
-        async with AsyncSessionLocal() as session:
-            await session.execute(text("SELECT 1"))
-        
-        return {"status": "healthy", "service": "resource_api"}
-    except Exception as e:
-        logger.error(f"Resource service health check failed: {e}")
-        raise HTTPException(status_code=503, detail="Service unavailable")
+
 
 
 async def _delete_file_by_id(file_id: str, topic_id: Optional[int], hard_delete: bool = False) -> bool:

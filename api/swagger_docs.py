@@ -2,7 +2,7 @@
 Enhanced Swagger documentation for the RAG API.
 
 Provides detailed documentation, examples, and schemas
-for all API endpoints including the new task processing system.
+for all API endpoints.
 """
 
 from typing import Dict, Any

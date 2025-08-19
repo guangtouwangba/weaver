@@ -17,9 +17,9 @@ from .database import get_database_session, get_database_config, get_async_datab
 from .config import InfrastructureConfig, get_config, validate_config
 from .messaging.redis_broker import RedisMessageBroker
 from .messaging.interfaces import (
-    IMessageBroker, IEventBus, ITaskQueue, IMessageStore,
+    IMessageBroker, IEventBus, IMessageStore,
     Message, MessageHandler, MessagePriority, MessageStatus,
-    SubscriptionConfig, SystemEvents, SystemTasks
+    SubscriptionConfig, SystemEvents
 )
 from .storage.minio_storage import MinIOStorage, MinIOFileManager
 from .storage.interfaces import (
@@ -50,7 +50,6 @@ __all__ = [
     "RedisMessageBroker",
     "IMessageBroker",
     "IEventBus", 
-    "ITaskQueue",
     "IMessageStore",
     "Message",
     "MessageHandler",
@@ -58,7 +57,6 @@ __all__ = [
     "MessageStatus",
     "SubscriptionConfig",
     "SystemEvents",
-    "SystemTasks",
     
     # Storage
     "MinIOStorage",
