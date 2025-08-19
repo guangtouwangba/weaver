@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
 # Application layer imports
-from application.fileupload_controller import FileController
+from application.file_upload import FileApplication
 from application.dtos.fileupload import (
     GetSignedUrlRequest, InitiateUploadRequest, ConfirmUploadCompletionRequest, DownloadFileRequest, 
     SignedUrlResponse, UploadSessionResponse, UploadCompletionResponse, FileResponse, DownloadResponse
@@ -137,9 +137,9 @@ async def get_user_groups(user_id: str = Depends(get_current_user_id)) -> Set[st
     return {"default_group"}  # Mock groups
 
 
-async def get_file_controller() -> FileController:
+async def get_file_controller() -> FileApplication:
     """Get file controller instance with real MinIO dependencies."""
-    from application.fileupload_controller import FileController
+    from application.file_upload import FileApplication
     from services.fileupload_services import FileUploadService, FileAccessService
     from infrastructure.config import get_config
     from infrastructure.storage.factory import create_storage_from_env
@@ -342,7 +342,7 @@ async def get_file_controller() -> FileController:
         file_repository=MockFileRepository()
     )
     
-    return FileController(upload_service, access_service)
+    return FileApplication(upload_service, access_service)
 
 
 # API Routes
@@ -351,7 +351,7 @@ async def get_file_controller() -> FileController:
 async def get_signed_upload_url(
     request: GetSignedUrlAPI,
     user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
+    controller: FileApplication = Depends(get_file_controller)
 ):
     """
     Generate a signed URL for file upload.
@@ -446,7 +446,7 @@ async def confirm_upload_completion(
     file_id: str = Path(..., description="UUID of the file to confirm upload completion", example="a2385d89-8824-474c-8740-8a93ef0d5469"),
     request: ConfirmUploadCompletionAPI = ConfirmUploadCompletionAPI(),
     user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
+    controller: FileApplication = Depends(get_file_controller)
 ):
     """
     ## Confirm Upload Completion and Trigger Processing
@@ -494,6 +494,8 @@ async def confirm_upload_completion(
             file_hash=request.file_hash,
             actual_file_size=request.actual_file_size
         )
+
+        logger.info(f"Confirming upload completion for file {file_id} with request {completion_request}")
         
         response = await controller.confirm_upload_completion(completion_request, user_id)
         return response
@@ -511,7 +513,7 @@ async def confirm_upload_completion(
 async def initiate_upload(
     request: InitiateUploadAPI,
     user_id: str = Depends(get_current_user_id),
-    controller: FileController = Depends(get_file_controller)
+    controller: FileApplication = Depends(get_file_controller)
 ):
     """Initiate a new upload session for chunked uploads."""
     try:
@@ -542,7 +544,7 @@ async def get_download_url(
     request: DownloadFileAPI = DownloadFileAPI(),
     user_id: Optional[str] = Depends(get_optional_user),
     user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileController = Depends(get_file_controller)
+    controller: FileApplication = Depends(get_file_controller)
 ):
     """Generate a download URL for a file."""
     try:
@@ -570,7 +572,7 @@ async def get_file_info(
     file_id: str = Path(..., description="File ID"),
     user_id: Optional[str] = Depends(get_optional_user),
     user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileController = Depends(get_file_controller)
+    controller: FileApplication = Depends(get_file_controller)
 ):
     """Get detailed information about a file."""
     try:
@@ -587,7 +589,7 @@ async def get_file_info(
 
 
 @router.get("/health")
-async def health_check(controller: FileController = Depends(get_file_controller)):
+async def health_check(controller: FileApplication = Depends(get_file_controller)):
     """Health check endpoint for file upload service."""
     try:
         response = await controller.health_check()
