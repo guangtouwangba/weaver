@@ -19,6 +19,9 @@ from application.topic import (
     TopicResponse, ResourceResponse,
     create_topic_controller
 )
+
+# Registry dependency injection
+from infrastructure.denpendency_injection import DependsTopicController
 from domain.topic import TopicStatus, ResourceType
 
 # Exception imports
@@ -171,14 +174,8 @@ async def get_topic_controller_session():
             logger.error(f"Failed to create topic controller: {e}")
             raise HTTPException(status_code=500, detail="Failed to initialize topic service")
 
-# Legacy dependency function (will be replaced)
-async def get_topic_controller() -> TopicController:
-    """Get topic controller instance."""
-    try:
-        return await create_topic_controller()
-    except Exception as e:
-        logger.error(f"Failed to create topic controller: {e}")
-        raise HTTPException(status_code=500, detail="Failed to initialize topic service")
+# Legacy factory function has been replaced by Registry dependency injection
+# All routes now use DependsTopicController for automatic dependency injection
 
 
 # API Routes
@@ -186,7 +183,7 @@ async def get_topic_controller() -> TopicController:
 @router.post("/", response_model=TopicResponseAPI, status_code=201)
 async def create_topic(
     topic_data: CreateTopicAPI,
-    controller: TopicController = Depends(get_topic_controller)
+    controller: TopicController = DependsTopicController
 ) -> TopicResponseAPI:
     """
     Create a new topic.
@@ -225,7 +222,7 @@ async def get_topic(
     topic_id: int = Path(..., description="Topic ID"),
     include_resources: bool = Query(False, description="[Deprecated] Include topic resources - use /topics/{id}/files instead"),
     include_conversations: bool = Query(False, description="[Deprecated] Include topic conversations"),
-    controller: TopicController = Depends(get_topic_controller)
+    controller: TopicController = DependsTopicController
 ) -> TopicResponseAPI:
     """
     Get a topic by ID (optimized for performance).
@@ -286,7 +283,7 @@ async def get_topic(
 async def update_topic(
     topic_id: int = Path(..., description="Topic ID"),
     topic_data: UpdateTopicAPI = ...,
-    controller: TopicController = Depends(get_topic_controller)
+    controller: TopicController = DependsTopicController
 ) -> TopicResponseAPI:
     """
     Update a topic.
@@ -326,7 +323,7 @@ async def update_topic(
 async def delete_topic(
     topic_id: int = Path(..., description="Topic ID"),
     hard_delete: bool = Query(False, description="Permanently delete (default: soft delete)"),
-    controller: TopicController = Depends(get_topic_controller)
+    controller: TopicController = DependsTopicController
 ):
     """
     Delete a topic.
@@ -349,7 +346,7 @@ async def delete_topic(
 @router.post("/search", response_model=List[TopicResponseAPI])
 async def search_topics(
     search_params: TopicSearchParams,
-    controller: TopicController = Depends(get_topic_controller)
+    controller: TopicController = DependsTopicController
 ) -> List[TopicResponseAPI]:
     """
     Search topics.
@@ -424,7 +421,7 @@ async def upload_resource(
     source_url: Optional[str] = Form(None, description="Source URL if imported from web"),
     is_public: bool = Form(False, description="Whether resource is publicly accessible"),
     metadata: Optional[str] = Form(None, description="Additional metadata as JSON string"),
-    controller: TopicController = Depends(get_topic_controller)
+    controller: TopicController = DependsTopicController
 ) -> ResourceResponseAPI:
     """
     Upload a resource to a topic.
@@ -472,7 +469,7 @@ async def upload_resource(
 @router.get("/{topic_id}/resources", response_model=List[ResourceResponseAPI])
 async def get_topic_resources(
     topic_id: int = Path(..., description="Topic ID"),
-    controller: TopicController = Depends(get_topic_controller)
+    controller: TopicController = DependsTopicController
 ) -> List[ResourceResponseAPI]:
     """
     Get all resources for a topic.

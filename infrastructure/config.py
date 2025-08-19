@@ -112,6 +112,9 @@ class MessagingConfig:
     # Redis-based messaging
     redis: RedisConfig = field(default_factory=RedisConfig)
     
+    # Event Bus configuration
+    event_bus_type: str = "redis"  # Options: "redis", "mock", "rabbitmq", "kafka"
+    
     # Message settings
     default_message_ttl: timedelta = field(default_factory=lambda: timedelta(hours=24))
     dead_letter_ttl: timedelta = field(default_factory=lambda: timedelta(days=7))
@@ -132,6 +135,7 @@ class MessagingConfig:
         """Create configuration from environment variables."""
         return cls(
             redis=RedisConfig.from_env(),
+            event_bus_type=os.getenv('EVENT_BUS_TYPE', 'redis'),
             default_message_ttl=timedelta(hours=int(os.getenv('MSG_DEFAULT_TTL_HOURS', 24))),
             dead_letter_ttl=timedelta(days=int(os.getenv('MSG_DLQ_TTL_DAYS', 7))),
             max_retries=int(os.getenv('MSG_MAX_RETRIES', 3)),

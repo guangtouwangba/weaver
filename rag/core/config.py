@@ -8,6 +8,17 @@ from pydantic import BaseSettings, Field, validator
 from pydantic_settings import BaseSettings as PydanticBaseSettings
 
 
+class RedisConfig(BaseSettings):
+    """Redis configuration settings."""
+
+    url: str = Field(default="redis://localhost:6379/0")
+    password: Optional[str] = Field(default=None)
+    db: int = Field(default=0, ge=0, le=15)
+
+    class Config:
+        env_prefix = "REDIS_"
+
+
 class DatabaseConfig(BaseSettings):
     """Database configuration settings."""
     
@@ -86,6 +97,12 @@ class Config(PydanticBaseSettings):
     # Security
     secret_key: str = Field(default="your-secret-key-change-in-production")
     access_token_expire_minutes: int = Field(default=30, ge=1)
+
+    # redis
+    redis_config: RedisConfig = Field(default_factory=RedisConfig)
+
+    event_bus: str = Field(default="redis")  # Options: "redis", "rabbitmq", "kafka"
+
     
     class Config:
         env_file = ".env"

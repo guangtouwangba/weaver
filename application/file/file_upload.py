@@ -14,6 +14,7 @@ from application.dtos.fileupload import (
     SignedUrlResponse, UploadSessionResponse, UploadCompletionResponse, FileResponse, DownloadResponse,
     FileListResponse, FileStatsResponse
 )
+from application.event.event_bus import EventBus
 from services.fileupload_services import FileUploadService, FileAccessService
 
 logger = logging.getLogger(__name__)
@@ -30,10 +31,12 @@ class FileApplication:
     def __init__(
         self,
         upload_service: FileUploadService,
-        access_service: FileAccessService
+        access_service: FileAccessService,
+        event_bus: EventBus,
     ):
         self.upload_service = upload_service
         self.access_service = access_service
+        self.event_bus = event_bus
     
     async def get_signed_upload_url(
         self,
@@ -317,7 +320,20 @@ class FileApplication:
         """Confirm that a file upload has completed and trigger processing."""
         try:
             logger.info(f"Controller: Confirming upload completion for file {request.file_id}")
-            return await self.upload_service.confirm_upload_completion(request, user_id)
+            
+            # First confirm upload completion with the service
+            result = await self.upload_service.confirm_upload_completion(request, user_id)
+            
+            # Then publish file upload completed event (if the result contains file entity)
+            if hasattr(result, 'file') and result.file:
+                from domain.file.event import FileUploadedConfirmEvent
+                event = FileUploadedConfirmEvent(file=result.file)
+                await self.event_bus.publish(event)
+                logger.info(f"Published FileUploadedConfirmEvent for file {request.file_id}")
+            else:
+                logger.debug(f"No file entity available to publish event for {request.file_id}")
+            
+            return result
         except Exception as e:
             logger.error(f"Controller error in confirm_upload_completion: {e}")
             raise
