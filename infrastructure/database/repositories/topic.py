@@ -16,7 +16,6 @@ class TopicRepository(BaseRepository[Topic]):
     def __init__(self, session: Union[Session, AsyncSession]):
         super().__init__(session, Topic)
 
-
 class TagRepository(BaseRepository[Tag]):
     """Repository for Tag entities."""
     

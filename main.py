@@ -51,6 +51,7 @@ async def lifespan(app: FastAPI):
     
     Handles startup and shutdown operations including:
     - Configuration validation
+    - Registry dependency injection setup
     - Infrastructure health checks
     - Background monitoring startup
     """
@@ -62,6 +63,12 @@ async def lifespan(app: FastAPI):
         if not validate_config():
             logger.error("Configuration validation failed")
             raise RuntimeError("Invalid configuration")
+        
+        # Configure Registry dependency injection system
+        logger.info("Configuring dependency injection...")
+        from infrastructure.denpendency_injection import configure_all_services
+        await configure_all_services()
+        logger.info("Dependency injection configured successfully")
         
         # Initialize monitoring
         health_checker = get_health_checker()
@@ -89,6 +96,12 @@ async def lifespan(app: FastAPI):
         logger.info("Shutting down RAG API application...")
         
         try:
+            # Cleanup Registry services
+            logger.info("Cleaning up dependency injection services...")
+            from infrastructure.denpendency_injection import cleanup_services
+            await cleanup_services()
+            logger.info("Dependency injection cleanup completed")
+            
             # Stop background monitoring
             health_checker = get_health_checker()
             await health_checker.stop_background_monitoring()
@@ -165,6 +178,11 @@ def create_app() -> FastAPI:
             "syntaxHighlight.theme": "monokai"
         }
     )
+    
+    # Setup Registry integration with FastAPI
+    from infrastructure.denpendency_injection import setup_fastapi_integration
+    setup_fastapi_integration(app)
+    logger.info("Registry FastAPI integration configured")
     
     # Add middleware
     app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -391,6 +409,21 @@ async def get_metrics():
         raise HTTPException(status_code=500, detail="Metrics unavailable")
 
 
+@app.get("/services", tags=["monitoring"], include_in_schema=False)
+async def get_services_status():
+    """
+    Registry services status endpoint.
+    
+    Returns information about all registered services in the dependency injection system.
+    """
+    try:
+        from infrastructure.denpendency_injection import get_service_status
+        return get_service_status()
+    except Exception as e:
+        logger.error(f"Failed to get services status: {e}")
+        raise HTTPException(status_code=500, detail="Services status unavailable")
+
+
 @app.get("/info", tags=["info"])
 async def get_info():
     """
@@ -414,7 +447,8 @@ async def get_info():
             "search": True,
             "messaging": True,
             "storage": True,
-            "monitoring": True
+            "monitoring": True,
+            "dependency_injection": True
         },
         "endpoints": {
             "topics": "/api/v1/topics",
@@ -424,6 +458,7 @@ async def get_info():
             "sse": "/api/v1/tasks/events/{topic_id}",
             "health": "/health",
             "metrics": "/metrics",
+            "services": "/services",
             "docs": "/docs" if config.debug else None,
             "redoc": "/redoc" if config.debug else None
         }

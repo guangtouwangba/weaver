@@ -13,12 +13,16 @@ from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
 # Application layer imports
-from application.file_upload import FileApplication
+from application.file.file_upload import FileApplication
+
+# Registry dependency injection
+from infrastructure.denpendency_injection import DependsFileApplication
 from application.dtos.fileupload import (
     GetSignedUrlRequest, InitiateUploadRequest, ConfirmUploadCompletionRequest, DownloadFileRequest, 
     SignedUrlResponse, UploadSessionResponse, UploadCompletionResponse, FileResponse, DownloadResponse
 )
 from domain.file import AccessLevel, FileStatus
+from infrastructure.messaging.redis_event_bus import RedisEventBus
 from infrastructure.tasks.models import TaskPriority
 from infrastructure.tasks.service import process_file_complete
 
@@ -137,212 +141,9 @@ async def get_user_groups(user_id: str = Depends(get_current_user_id)) -> Set[st
     return {"default_group"}  # Mock groups
 
 
-async def get_file_controller() -> FileApplication:
-    """Get file controller instance with real MinIO dependencies."""
-    from application.file_upload import FileApplication
-    from services.fileupload_services import FileUploadService, FileAccessService
-    from infrastructure.config import get_config
-    from infrastructure.storage.factory import create_storage_from_env
-    
-    # Get configuration
-    config = get_config()
-    
-    # Initialize storage with multi-provider support
-    storage = create_storage_from_env()
-    
-    # Helper function to ensure bucket exists
-    async def ensure_bucket_exists(storage, bucket_name: str):
-        """Ensure the specified bucket exists, create if not."""
-        try:
-            # Check if bucket exists and create if not
-            if not await storage.bucket_exists(bucket_name):
-                await storage.create_bucket(bucket_name)
-                logger.info(f"Created bucket: {bucket_name}")
-            else:
-                logger.debug(f"Bucket exists: {bucket_name}")
-        except Exception as e:
-            logger.error(f"Failed to ensure bucket exists: {e}")
-            raise
-    
-    # Ensure bucket exists
-    try:
-        await ensure_bucket_exists(storage, config.storage.default_bucket)
-    except Exception as e:
-        logger.warning(f"Could not ensure bucket exists: {e}")
-    
-    # Mock repositories for now - in real implementation these would be injected
-    class MockFileRepository:
-        async def save(self, entity): 
-            """Save file entity and trigger RAG processing."""
-            try:
-                # Save to database (simplified - would use real repository)
-                import asyncpg
-                import json
-                import uuid
-                
-                file_id = entity.id if hasattr(entity, 'id') else str(uuid.uuid4())
-                
-                conn = await asyncpg.connect('postgresql://rag_user:rag_password@localhost:5432/rag_db')
-                await conn.execute('''
-                    INSERT INTO files (
-                        id, owner_id, original_name, file_size, content_type, 
-                        storage_bucket, storage_key, category, tags, status, 
-                        access_level, download_count, topic_id, custom_metadata,
-                        created_at, updated_at, is_deleted
-                    ) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::file_status_enum, 
-                             $11::access_level_enum, $12, $13, $14::jsonb, $15, $16, $17)
-                    ON CONFLICT (id) DO UPDATE SET
-                        status = EXCLUDED.status,
-                        updated_at = EXCLUDED.updated_at
-                ''', 
-                    file_id, 
-                    entity.owner_id, 
-                    entity.metadata.original_name if entity.metadata else "unknown",
-                    entity.metadata.file_size if entity.metadata else 0,
-                    entity.metadata.content_type if entity.metadata else "application/octet-stream",
-                    entity.storage_location.bucket if entity.storage_location else config.storage.default_bucket,
-                    entity.storage_location.key if entity.storage_location else f"uploads/{file_id}",
-                    entity.metadata.category if entity.metadata else None,
-                    entity.metadata.tags if entity.metadata else [],
-                    entity.status.value,
-                    entity.access_permission.level.value,
-                    entity.download_count,
-                    entity.topic_id,
-                    json.dumps(entity.metadata.custom_metadata if entity.metadata else {}),
-                    entity.created_at, 
-                    entity.updated_at, 
-                    False
-                )
-                await conn.close()
-                logger.info(f"Saved file metadata for {file_id} with topic_id: {entity.topic_id}")
-                
-                # Trigger async RAG task creation after file metadata is saved
-                if entity.status == FileStatus.AVAILABLE and entity.storage_location:
-                    await process_file_complete(
-                        file_id=file_id,
-                        file_path=entity.storage_location.key,
-                        file_name=entity.metadata.original_name if entity.metadata else "unknown",
-                        file_size=entity.metadata.file_size if entity.metadata else 0,
-                        mime_type=entity.metadata.content_type if entity.metadata else "application/octet-stream",
-                        topic_id=entity.topic_id,
-                        user_id=entity.owner_id,
-                        priority=TaskPriority.NORMAL
-                    )
-                    logger.info(f"Triggered RAG task for file {file_id} with topic_id: {entity.topic_id}")
-                
-            except Exception as e:
-                logger.error(f"Failed to save file metadata: {e}")
-                # Continue anyway
-        
-        async def get_by_id(self, id):
-            """Get file entity by ID from database."""
-            try:
-                import asyncpg
-                from datetime import datetime
-                from domain.file import FileEntity, FileMetadata, AccessPermission, StorageLocation, FileStatus, AccessLevel
-                
-                logger.debug(f"Attempting to retrieve file {id} from database")
-                
-                conn = None
-                try:
-                    conn = await asyncpg.connect('postgresql://rag_user:rag_password@localhost:5432/rag_db')
-                    logger.debug(f"Database connection established for file {id}")
-                    
-                    row = await conn.fetchrow('''
-                        SELECT 
-                            id, owner_id, original_name, file_size, content_type,
-                            storage_bucket, storage_key, category, tags, status,
-                            access_level, download_count, topic_id, custom_metadata,
-                            created_at, updated_at, is_deleted
-                        FROM files 
-                        WHERE id = $1::uuid AND is_deleted = false
-                    ''', id)
-                    
-                    logger.debug(f"Database query completed for file {id}, found: {row is not None}")
-                    
-                except Exception as db_error:
-                    logger.error(f"Database error for file {id}: {db_error}")
-                    return None
-                finally:
-                    if conn:
-                        await conn.close()
-                        logger.debug(f"Database connection closed for file {id}")
-                
-                if not row:
-                    logger.warning(f"File {id} not found in database")
-                    return None
-                
-                try:
-                    # Create file metadata
-                    metadata = FileMetadata(
-                        original_name=row['original_name'],
-                        file_size=row['file_size'],
-                        content_type=row['content_type'],
-                        category=row['category'],
-                        tags=row['tags'] or [],
-                        custom_metadata=row['custom_metadata'] or {}
-                    )
-                    
-                    # Create access permission
-                    access_permission = AccessPermission(
-                        level=AccessLevel(row['access_level']),
-                        allowed_users={row['owner_id']} if row['owner_id'] else set()
-                    )
-                    
-                    # Create storage location
-                    storage_location = StorageLocation(
-                        bucket=row['storage_bucket'],
-                        key=row['storage_key'],
-                        provider="minio"
-                    ) if row['storage_bucket'] and row['storage_key'] else None
-                    
-                    # Create file entity
-                    entity = FileEntity(
-                        owner_id=row['owner_id'],
-                        metadata=metadata,
-                        status=FileStatus(row['status']),
-                        access_permission=access_permission,
-                        topic_id=row['topic_id'],
-                        download_count=row['download_count'] or 0,
-                        created_at=row['created_at'],
-                        updated_at=row['updated_at']
-                    )
-                    
-                    # Set ID and storage location
-                    entity.id = str(row['id'])
-                    entity.storage_location = storage_location
-                    
-                    logger.info(f"Successfully retrieved file entity {id} with status {entity.status.value}")
-                    return entity
-                    
-                except Exception as entity_error:
-                    logger.error(f"Failed to create entity for file {id}: {entity_error}")
-                    return None
-                
-            except Exception as e:
-                logger.error(f"Unexpected error in get_by_id for file {id}: {e}")
-                return None
-    
-    class MockUploadSessionRepository:
-        async def save(self, entity): 
-            pass
-        async def get_by_id(self, id): 
-            return None
-    
-    # Create service instances
-    upload_service = FileUploadService(
-        storage=storage,
-        file_repository=MockFileRepository(),
-        upload_session_repository=MockUploadSessionRepository(),
-        default_bucket=config.storage.default_bucket
-    )
-    
-    access_service = FileAccessService(
-        storage=storage,
-        file_repository=MockFileRepository()
-    )
-    
-    return FileApplication(upload_service, access_service)
+# Legacy factory function has been replaced by Registry dependency injection
+# All routes now use DependsFileApplication for automatic dependency injection
+# The complex mock implementation has been moved to services.py with proper DI support
 
 
 # API Routes
@@ -351,7 +152,7 @@ async def get_file_controller() -> FileApplication:
 async def get_signed_upload_url(
     request: GetSignedUrlAPI,
     user_id: str = Depends(get_current_user_id),
-    controller: FileApplication = Depends(get_file_controller)
+    controller: FileApplication = DependsFileApplication
 ):
     """
     Generate a signed URL for file upload.
@@ -446,7 +247,7 @@ async def confirm_upload_completion(
     file_id: str = Path(..., description="UUID of the file to confirm upload completion", example="a2385d89-8824-474c-8740-8a93ef0d5469"),
     request: ConfirmUploadCompletionAPI = ConfirmUploadCompletionAPI(),
     user_id: str = Depends(get_current_user_id),
-    controller: FileApplication = Depends(get_file_controller)
+    controller: FileApplication = DependsFileApplication
 ):
     """
     ## Confirm Upload Completion and Trigger Processing
@@ -513,7 +314,7 @@ async def confirm_upload_completion(
 async def initiate_upload(
     request: InitiateUploadAPI,
     user_id: str = Depends(get_current_user_id),
-    controller: FileApplication = Depends(get_file_controller)
+    controller: FileApplication = DependsFileApplication
 ):
     """Initiate a new upload session for chunked uploads."""
     try:
@@ -544,7 +345,7 @@ async def get_download_url(
     request: DownloadFileAPI = DownloadFileAPI(),
     user_id: Optional[str] = Depends(get_optional_user),
     user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileApplication = Depends(get_file_controller)
+    controller: FileApplication = DependsFileApplication
 ):
     """Generate a download URL for a file."""
     try:
@@ -572,7 +373,7 @@ async def get_file_info(
     file_id: str = Path(..., description="File ID"),
     user_id: Optional[str] = Depends(get_optional_user),
     user_groups: Set[str] = Depends(get_user_groups),
-    controller: FileApplication = Depends(get_file_controller)
+    controller: FileApplication = DependsFileApplication
 ):
     """Get detailed information about a file."""
     try:
@@ -589,7 +390,7 @@ async def get_file_info(
 
 
 @router.get("/health")
-async def health_check(controller: FileApplication = Depends(get_file_controller)):
+async def health_check(controller: FileApplication = DependsFileApplication):
     """Health check endpoint for file upload service."""
     try:
         response = await controller.health_check()
