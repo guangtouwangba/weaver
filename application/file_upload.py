@@ -19,7 +19,7 @@ from services.fileupload_services import FileUploadService, FileAccessService
 logger = logging.getLogger(__name__)
 
 
-class FileController:
+class FileApplication:
     """
     Application controller for file upload operations.
     
