@@ -364,7 +364,6 @@ id_rsa.pub
 *.weights
 
 # Model files
-models/
 *.pt
 *.pth
 *.onnx
