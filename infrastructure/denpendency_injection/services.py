@@ -19,6 +19,7 @@ from application.event.event_bus import EventBus
 from infrastructure.storage.interfaces import IObjectStorage
 from application.topic.topic import TopicController
 from application.file.file_upload import FileApplication
+from ..database.repositories.file import FileRepository, UploadSessionRepository
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,8 @@ async def create_topic_controller_with_di(
 
 async def create_file_application_with_di(
     event_bus: EventBus,           # 自动注入事件总线
-    storage: IObjectStorage        # 自动注入存储服务
+    storage: IObjectStorage,       # 自动注入存储服务
+    session: AsyncSession          # 自动注入数据库会话
 ) -> FileApplication:
     """
     创建FileApplication，所有依赖自动注入
@@ -144,6 +146,7 @@ async def create_file_application_with_di(
     Args:
         event_bus: 事件总线（单例，全局共享）
         storage: 对象存储服务（单例，全局共享）
+        session: 数据库会话（作用域级别，每个请求独立）
         
     Returns:
         配置完整的FileApplication实例
@@ -151,56 +154,32 @@ async def create_file_application_with_di(
     from application.file.file_upload import FileApplication
     from services.fileupload_services import FileUploadService, FileAccessService
     from infrastructure.config import get_config
-    
+
     # 获取配置
     config = get_config()
     
-    # 创建mock repositories（在实际项目中应该使用真实的repositories）
-    class MockFileRepository:
-        def __init__(self):
-            self._files = {}  # In-memory storage for mock
-        
-        async def save(self, entity): 
-            # 确保实体有ID
-            if not hasattr(entity, 'id') or not entity.id:
-                import uuid
-                entity.id = str(uuid.uuid4())
-            
-            # 保存到内存存储
-            self._files[entity.id] = entity
-            logger.debug(f"Mock: Saved file entity {entity.id}")
-        
-        async def get_by_id(self, file_id):
-            # 从内存存储检索
-            entity = self._files.get(file_id)
-            logger.debug(f"Mock: Retrieved file entity {file_id}, found: {entity is not None}")
-            return entity
-    
-    class MockUploadSessionRepository:
-        async def save(self, entity): 
-            logger.debug("Mock: Saved upload session")
-        
-        async def get_by_id(self, session_id): 
-            logger.debug(f"Mock: Retrieved upload session {session_id}")
-            return None
+    # 创建Mock repository实现（实现了Domain接口）
+    # 注意：这是临时解决方案，实际项目中应该使用真正的数据库Repository
+    file_repository = FileRepository(session)
+    upload_session_repository = UploadSessionRepository(session)
     
     # 创建服务实例（使用注入的依赖）
     upload_service = FileUploadService(
         storage=storage,
-        file_repository=MockFileRepository(),
-        upload_session_repository=MockUploadSessionRepository(),
+        file_repository=file_repository,  # 使用Domain接口
+        upload_session_repository=upload_session_repository,  # 使用Domain接口
         default_bucket=config.storage.default_bucket
     )
     
     access_service = FileAccessService(
         storage=storage,
-        file_repository=MockFileRepository()
+        file_repository=file_repository  # 使用Domain接口
     )
     
     # 创建应用实例
     application = FileApplication(upload_service, access_service, event_bus)
     
-    logger.debug("Created FileApplication with injected dependencies")
+    logger.debug("Created FileApplication with proper Repository pattern dependencies")
     return application
 
 
