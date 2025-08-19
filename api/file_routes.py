@@ -18,7 +18,7 @@ from application.dtos.fileupload import (
     GetSignedUrlRequest, InitiateUploadRequest, ConfirmUploadCompletionRequest, DownloadFileRequest, 
     SignedUrlResponse, UploadSessionResponse, UploadCompletionResponse, FileResponse, DownloadResponse
 )
-from domain.fileupload import AccessLevel, FileStatus
+from domain.file import AccessLevel, FileStatus
 from infrastructure.tasks.models import TaskPriority
 from infrastructure.tasks.service import process_file_complete
 
@@ -239,7 +239,7 @@ async def get_file_controller() -> FileApplication:
             try:
                 import asyncpg
                 from datetime import datetime
-                from domain.fileupload import FileEntity, FileMetadata, AccessPermission, StorageLocation, FileStatus, AccessLevel
+                from domain.file import FileEntity, FileMetadata, AccessPermission, StorageLocation, FileStatus, AccessLevel
                 
                 logger.debug(f"Attempting to retrieve file {id} from database")
                 

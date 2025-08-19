@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import uuid
 
-from domain.fileupload import FileStatus
+from domain.file import FileStatus
 from infrastructure.tasks.service import process_file_complete
 from infrastructure.tasks.models import TaskPriority
 

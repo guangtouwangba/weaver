@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
 
-from domain.fileupload import AccessLevel, FileStatus
+from domain.file import AccessLevel, FileStatus
 
 
 @dataclass

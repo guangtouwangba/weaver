@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Dict, Any, Set
 from datetime import datetime, timedelta
 
-from domain.fileupload import (
+from domain.file import (
     FileEntity, UploadSession, FileMetadata, AccessPermission, 
     StorageLocation, FileStatus
 )
