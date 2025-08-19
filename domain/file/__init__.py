@@ -18,13 +18,23 @@ from .file import (
     UploadSession
 )
 
+# Repository interfaces
+from .repository import IFileRepository, IUploadSessionRepository
+
 __all__ = [
+    # Enums
     'AccessLevel',
     'FileStatus',
     'UploadStatus',
+    
+    # Entities and Value Objects
     'FileMetadata',
     'StorageLocation',
     'AccessPermission',
     'FileEntity',
-    'UploadSession'
+    'UploadSession',
+    
+    # Repository Interfaces
+    'IFileRepository',
+    'IUploadSessionRepository'
 ]
