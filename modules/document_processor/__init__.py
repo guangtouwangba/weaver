@@ -1,22 +1,17 @@
 """
-Document Processor Module
+文档处理模块
 
-Responsible for processing documents - parsing, cleaning, and chunking.
-Provides intelligent document segmentation strategies.
-
-Key Features:
-- Multiple chunking strategies (fixed size, sentence-based, semantic)
-- Content preprocessing and cleaning
-- Metadata preservation
-- Configurable chunk sizes and overlaps
+负责对文档进行各种处理操作，如分块、清理、转换等。
+提供灵活的处理策略和可配置的参数。
 """
 
-from .interface import IDocumentProcessor
+from .interface import IDocumentProcessor, DocumentProcessorError
 from .text_processor import TextProcessor
 from .chunking_processor import ChunkingProcessor
 
 __all__ = [
     "IDocumentProcessor",
-    "TextProcessor",
+    "DocumentProcessorError",
+    "TextProcessor", 
     "ChunkingProcessor",
 ]

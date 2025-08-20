@@ -8,7 +8,7 @@ from typing import List, AsyncIterator, Dict, Any
 from datetime import datetime
 
 from .interface import IRouter
-from ..file_loader import IFileLoader, MultiFormatLoader
+from ..file_loader import IFileLoader, MultiFormatFileLoader
 from ..document_processor import IDocumentProcessor, ChunkingProcessor
 from ..models import (
     Document, SearchQuery, SearchResponse, ProcessingResult, SearchResult,
@@ -26,7 +26,7 @@ class DocumentRouter(IRouter):
         super().__init__(config or ModuleConfig())
         
         # Initialize components
-        self.file_loader = file_loader or MultiFormatLoader(self.config)
+        self.file_loader = file_loader or MultiFormatFileLoader(self.config)
         self.document_processor = document_processor or ChunkingProcessor(self.config)
         
         # Document storage (in-memory for now)

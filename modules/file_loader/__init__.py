@@ -1,24 +1,17 @@
 """
-File Loader Module
+文件加载模块
 
-Responsible for loading and parsing documents from various sources and formats.
-Provides a unified interface for file loading operations.
-
-Key Features:
-- Multi-format support (PDF, Word, Text, Markdown, etc.)
-- Metadata extraction
-- Error handling and validation
-- Async batch processing
+负责从各种来源加载文档内容。
+提供统一的接口和多种加载策略。
 """
 
-from .interface import IFileLoader
+from .interface import IFileLoader, FileLoaderError
 from .text_loader import TextFileLoader
-from .pdf_loader import PDFFileLoader
-from .multi_format_loader import MultiFormatLoader
+from .multi_format_loader import MultiFormatFileLoader
 
 __all__ = [
     "IFileLoader",
-    "TextFileLoader", 
-    "PDFFileLoader",
-    "MultiFormatLoader",
+    "FileLoaderError", 
+    "TextFileLoader",
+    "MultiFormatFileLoader",
 ]
