@@ -10,7 +10,7 @@ from uuid import uuid4
 from datetime import datetime
 
 from .interface import IFileUploadService
-from ..storage import IStorage, MockStorage
+from ..storage import IStorage, MockStorage, MinIOStorage
 from ..database import DatabaseService, get_session, FileRepository
 from ..database.models import FileStatus
 
@@ -24,9 +24,9 @@ class FileUploadService(IFileUploadService):
         初始化文件上传服务
         
         Args:
-            storage: 存储后端，如果不提供则使用默认的MockStorage
+            storage: 存储后端，如果不提供则使用默认的MinIOStorage
         """
-        self.storage = storage or MockStorage()
+        self.storage = storage or MinIOStorage()
         self.db_service = DatabaseService()
     
     async def generate_upload_url(self,
@@ -58,7 +58,7 @@ class FileUploadService(IFileUploadService):
                 storage_bucket=upload_info.get('bucket'),
                 storage_key=file_key,
                 topic_id=topic_id,
-                status=FileStatus.PENDING,
+                status=FileStatus.UPLOADING,
                 metadata={
                     "upload_method": "signed_url",
                     "expires_at": upload_info.get('expires_at')
@@ -124,7 +124,7 @@ class FileUploadService(IFileUploadService):
             
             # 更新文件状态和信息
             update_data = {
-                "status": FileStatus.COMPLETED,
+                "status": FileStatus.AVAILABLE,
                 "processing_status": "上传完成",
                 "file_size": actual_size or storage_info.get('size', 0),
                 "file_hash": file_hash or storage_info.get('hash'),
@@ -225,7 +225,7 @@ class FileUploadService(IFileUploadService):
             result = {
                 **file_info,
                 "storage_info": storage_info,
-                "is_downloadable": file_info.get('status') == FileStatus.COMPLETED
+                "is_downloadable": file_info.get('status') == FileStatus.AVAILABLE
             }
             
             return result

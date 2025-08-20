@@ -27,6 +27,14 @@ class MockStorage(IStorage):
         self.bucket_name = "rag-uploads"
         self._files = {}  # 模拟文件存储
         
+    async def generate_presigned_url(self, 
+                                    key: str,
+                                    content_type: str = None,
+                                    expires_in: int = 3600) -> str:
+        """生成预签名上传URL（兼容方法）"""
+        result = await self.generate_signed_upload_url(key, content_type or "application/octet-stream", expires_in)
+        return result["upload_url"]
+    
     async def generate_signed_upload_url(self, 
                                        file_key: str,
                                        content_type: str,

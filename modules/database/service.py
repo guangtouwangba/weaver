@@ -10,7 +10,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from .connection import get_session
-from .repositories import TopicRepository, FileRepository, DocumentRepository
+from ..repository import TopicRepository, FileRepository, DocumentRepository
 from .models import Topic, File, Document, FileStatus, TopicStatus
 
 logger = logging.getLogger(__name__)
@@ -90,6 +90,7 @@ class DatabaseService:
             async with get_session() as session:
                 repo = TopicRepository(session)
                 topics = await repo.get_topics(page, page_size, **filters)
+                total_count = await repo.get_topics_count(**filters)
                 
                 return {
                     "topics": [
@@ -100,18 +101,53 @@ class DatabaseService:
                             "status": topic.status,
                             "category": topic.category,
                             "total_resources": topic.total_resources,
-                            "created_at": topic.created_at.isoformat()
+                            "file_count": len([f for f in topic.files if not f.is_deleted]) if topic.files else 0,
+                            "created_at": topic.created_at.isoformat(),
+                            "updated_at": topic.updated_at.isoformat()
                         }
                         for topic in topics
                     ],
                     "page": page,
                     "page_size": page_size,
-                    "total": len(topics),
-                    "has_next": len(topics) == page_size
+                    "total": total_count,
+                    "has_next": (page * page_size) < total_count
                 }
         except Exception as e:
             logger.error(f"获取主题列表失败: {e}")
             return {"topics": [], "error": str(e)}
+    
+    async def update_topic(self, topic_id: int, **updates) -> Optional[Dict[str, Any]]:
+        """更新主题"""
+        try:
+            async with get_session() as session:
+                repo = TopicRepository(session)
+                topic = await repo.update_topic(topic_id, **updates)
+                
+                if not topic:
+                    return None
+                
+                return {
+                    "id": topic.id,
+                    "name": topic.name,
+                    "description": topic.description,
+                    "status": topic.status,
+                    "category": topic.category,
+                    "updated_at": topic.updated_at.isoformat(),
+                    "success": True
+                }
+        except Exception as e:
+            logger.error(f"更新主题失败: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def delete_topic(self, topic_id: int) -> bool:
+        """删除主题"""
+        try:
+            async with get_session() as session:
+                repo = TopicRepository(session)
+                return await repo.delete_topic(topic_id)
+        except Exception as e:
+            logger.error(f"删除主题失败: {e}")
+            return False
     
     # ===== 文件管理 =====
     
@@ -155,6 +191,10 @@ class DatabaseService:
                     "original_name": file_record.original_name,
                     "content_type": file_record.content_type,
                     "file_size": file_record.file_size,
+                    "file_hash": file_record.file_hash,
+                    "storage_bucket": file_record.storage_bucket,
+                    "storage_key": file_record.storage_key,
+                    "storage_url": file_record.storage_url,
                     "status": file_record.status,
                     "processing_status": file_record.processing_status,
                     "topic_id": file_record.topic_id,

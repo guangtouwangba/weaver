@@ -4,13 +4,15 @@
 提供简单的数据库连接和会话管理。
 """
 
-import os
 import logging
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+
+# 导入配置模块
+from ..config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -25,39 +27,43 @@ class DatabaseConnection:
         初始化数据库连接
         
         Args:
-            database_url: 数据库连接URL，如果不提供则从环境变量读取
+            database_url: 数据库连接URL，如果不提供则从配置读取
         """
-        self.database_url = database_url or self._get_database_url()
+        if database_url:
+            self.database_url = database_url
+        else:
+            # 从配置模块获取数据库配置
+            config = get_config()
+            self.database_url = config.database.url
+            self.database_config = config.database
+        
         self._engine = None
         self._session_factory = None
-        
-    def _get_database_url(self) -> str:
-        """从环境变量获取数据库URL"""
-        default_url = "postgresql+asyncpg://user:password@localhost:5432/ragdb"
-        
-        # 尝试多个环境变量
-        for env_var in ['DATABASE_URL', 'DB_URL', 'POSTGRES_URL']:
-            url = os.getenv(env_var)
-            if url:
-                # 确保使用异步驱动
-                if url.startswith('postgresql://'):
-                    url = url.replace('postgresql://', 'postgresql+asyncpg://', 1)
-                return url
-        
-        logger.warning(f"未找到数据库配置，使用默认URL: {default_url}")
-        return default_url
     
     async def initialize(self) -> None:
         """初始化数据库连接"""
         try:
-            self._engine = create_async_engine(
-                self.database_url,
-                echo=False,  # 设为True可以看到SQL日志
-                pool_size=5,
-                max_overflow=10,
-                pool_timeout=30,
-                pool_recycle=3600
-            )
+            # 如果使用配置模块，应用配置参数
+            if hasattr(self, 'database_config'):
+                config = self.database_config
+                self._engine = create_async_engine(
+                    self.database_url,
+                    echo=config.echo,
+                    pool_size=config.pool_size,
+                    max_overflow=config.max_overflow,
+                    pool_timeout=config.pool_timeout,
+                    pool_recycle=config.pool_recycle
+                )
+            else:
+                # 使用默认配置
+                self._engine = create_async_engine(
+                    self.database_url,
+                    echo=False,  # 设为True可以看到SQL日志
+                    pool_size=5,
+                    max_overflow=10,
+                    pool_timeout=30,
+                    pool_recycle=3600
+                )
             
             self._session_factory = async_sessionmaker(
                 self._engine,
@@ -99,9 +105,10 @@ class DatabaseConnection:
         try:
             if not self._engine:
                 return False
-                
+            
+            from sqlalchemy import text
             async with self.get_session() as session:
-                result = await session.execute("SELECT 1")
+                result = await session.execute(text("SELECT 1"))
                 return result.scalar() == 1
                 
         except Exception as e:
@@ -124,6 +131,12 @@ async def get_database_connection() -> DatabaseConnection:
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """获取数据库会话的便捷函数"""
+    db = await get_database_connection()
+    async with db.get_session() as session:
+        yield session
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI依赖注入专用：获取数据库会话"""
     db = await get_database_connection()
     async with db.get_session() as session:
         yield session

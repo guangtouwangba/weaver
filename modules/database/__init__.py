@@ -4,20 +4,26 @@
 提供简单、直接的数据库交互功能，支持RAG系统的数据持久化需求。
 """
 
-from .connection import DatabaseConnection, get_session
+from .connection import DatabaseConnection, get_session, get_db_session, get_database_connection
 from .models import Topic, File, Document, DocumentChunk
-from .repositories import TopicRepository, FileRepository, DocumentRepository
 from .service import DatabaseService
+
+# Repository classes are now in modules.repository
+# Import them for backward compatibility
+from ..repository import TopicRepository, FileRepository, DocumentRepository
 
 __all__ = [
     'DatabaseConnection',
     'get_session',
+    'get_db_session',
+    'get_database_connection',
     'Topic',
     'File', 
     'Document',
     'DocumentChunk',
+    'DatabaseService',
+    # Backward compatibility for repository classes
     'TopicRepository',
     'FileRepository',
-    'DocumentRepository',
-    'DatabaseService'
+    'DocumentRepository'
 ]

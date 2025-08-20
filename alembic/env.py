@@ -11,15 +11,19 @@ from alembic import context
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 # 导入数据库配置和模型
-from infrastructure.database.config import db_config
-from infrastructure.database.models import Base
+from modules.database.connection import Base
+from modules.database.models import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
 # 设置数据库连接URL
-config.set_main_option('sqlalchemy.url', db_config.alembic_url)
+database_url = os.getenv('DATABASE_URL', 'postgresql://rag_user:rag_password@localhost:5432/rag_db')
+# 确保URL使用同步驱动进行迁移
+if database_url.startswith('postgresql+asyncpg://'):
+    database_url = database_url.replace('postgresql+asyncpg://', 'postgresql://', 1)
+config.set_main_option('sqlalchemy.url', database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

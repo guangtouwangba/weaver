@@ -8,7 +8,8 @@ import logging
 from typing import List, Dict, Any, Optional, AsyncIterator
 from datetime import datetime
 
-from ..api import RagAPI
+# 注意：RagAPI已被新的api_router替代
+# from ..api import api_router
 from ..models import Document, ContentType, ChunkingStrategy
 
 logger = logging.getLogger(__name__)
@@ -22,14 +23,16 @@ class APIAdapter:
     同时内部使用新的模块化架构。
     """
     
-    def __init__(self, rag_api: Optional[RagAPI] = None):
+    def __init__(self):
         """
         初始化API适配器
         
         Args:
             rag_api: RAG API实例（可选，会自动创建）
         """
-        self.rag_api = rag_api or RagAPI()
+        # 新架构不再需要RagAPI实例
+        # 改为使用Service层进行操作
+        self._initialized = True
         self._initialized = False
         
         logger.info("API适配器初始化完成")
