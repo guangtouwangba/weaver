@@ -5,9 +5,9 @@
 
 使用示例:
     # 简单使用
-    from modules import SimpleAPI
+    from modules import RagAPI
     
-    api = SimpleAPI()
+    api = RagAPI()
     result = await api.process_file("document.pdf")
     search_results = await api.search("查询内容")
     
@@ -45,11 +45,24 @@ from .orchestrator import (
 
 # API模块
 from .api import (
-    IModularAPI, SimpleAPI, APIError
+    IModularAPI, RagAPI, APIError
 )
 
 # 兼容层
 from .compatibility import APIAdapter
+
+# 数据库模块
+from .database import (
+    DatabaseConnection, get_session, DatabaseService,
+    Topic, File, Document, DocumentChunk,
+    TopicRepository, FileRepository, DocumentRepository
+)
+
+# 存储模块
+from .storage import IStorage, MockStorage, LocalStorage
+
+# 文件上传模块
+from .file_upload import FileUploadService, IFileUploadService
 
 # 便捷导入
 __all__ = [
@@ -68,13 +81,24 @@ __all__ = [
     'TextFileLoader', 'MultiFormatFileLoader',
     'TextProcessor', 'ChunkingProcessor',
     'DocumentOrchestrator',
-    'SimpleAPI',
+    'RagAPI',
     
     # 异常
     'APIError', 'FileLoaderError', 'DocumentProcessorError',
     
     # 兼容层
-    'APIAdapter'
+    'APIAdapter',
+    
+    # 数据库
+    'DatabaseConnection', 'get_session', 'DatabaseService',
+    'Topic', 'File', 'Document', 'DocumentChunk',
+    'TopicRepository', 'FileRepository', 'DocumentRepository',
+    
+    # 存储
+    'IStorage', 'MockStorage', 'LocalStorage',
+    
+    # 文件上传
+    'FileUploadService', 'IFileUploadService'
 ]
 
 # 版本信息

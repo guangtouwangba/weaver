@@ -384,10 +384,15 @@ class DocumentOrchestrator(IOrchestrator):
     async def _load_file(self, request: OrchestrationRequest) -> Document:
         """加载文件"""
         try:
-            document = await self.file_loader.load_file(
+            from ..models import FileLoadRequest
+            
+            # 创建FileLoadRequest对象
+            file_request = FileLoadRequest(
                 file_path=request.source_path,
-                metadata=request.metadata
+                metadata=request.metadata or {}
             )
+            
+            document = await self.file_loader.load_document(file_request)
             
             if not document:
                 raise OrchestrationError(

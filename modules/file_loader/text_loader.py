@@ -56,7 +56,7 @@ class TextFileLoader(IFileLoader):
     
     def supported_types(self) -> list:
         """获取支持的内容类型（接口方法）"""
-        return [ContentType.TEXT]
+        return [ContentType.TXT]
     
     def supports_content_type(self, content_type: ContentType) -> bool:
         """检查是否支持指定的内容类型"""

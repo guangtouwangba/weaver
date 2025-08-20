@@ -8,7 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional, AsyncIterator
 from datetime import datetime
 
-from ..api import SimpleAPI
+from ..api import RagAPI
 from ..models import Document, ContentType, ChunkingStrategy
 
 logger = logging.getLogger(__name__)
@@ -22,14 +22,14 @@ class APIAdapter:
     同时内部使用新的模块化架构。
     """
     
-    def __init__(self, simple_api: Optional[SimpleAPI] = None):
+    def __init__(self, rag_api: Optional[RagAPI] = None):
         """
         初始化API适配器
         
         Args:
-            simple_api: 简单API实例（可选，会自动创建）
+            rag_api: RAG API实例（可选，会自动创建）
         """
-        self.simple_api = simple_api or SimpleAPI()
+        self.rag_api = rag_api or RagAPI()
         self._initialized = False
         
         logger.info("API适配器初始化完成")
@@ -37,7 +37,7 @@ class APIAdapter:
     async def initialize(self) -> None:
         """初始化适配器"""
         if not self._initialized:
-            await self.simple_api.initialize()
+            await self.rag_api.initialize()
             self._initialized = True
             logger.info("API适配器已初始化")
     
@@ -62,7 +62,7 @@ class APIAdapter:
             await self.initialize()
             
             # 使用新的API处理文件
-            result = await self.simple_api.process_file(
+            result = await self.rag_api.process_file(
                 file_path=file_path,
                 metadata=metadata or {}
             )
@@ -104,7 +104,7 @@ class APIAdapter:
             await self.initialize()
             
             # 使用新的API进行搜索
-            result = await self.simple_api.search(
+            result = await self.rag_api.search(
                 query=query,
                 limit=limit,
                 **(filters or {})
@@ -152,7 +152,7 @@ class APIAdapter:
         try:
             await self.initialize()
             
-            document = await self.simple_api.get_document(document_id)
+            document = await self.rag_api.get_document(document_id)
             
             if not document:
                 return None
@@ -188,7 +188,7 @@ class APIAdapter:
         try:
             await self.initialize()
             
-            success = await self.simple_api.delete_document(document_id)
+            success = await self.rag_api.delete_document(document_id)
             
             return {
                 "document_id": document_id,
@@ -251,7 +251,7 @@ class APIAdapter:
             
             # 使用标签搜索相关文档
             # 这里简化处理，实际可以根据topic_id的映射关系查找
-            result = await self.simple_api.search(
+            result = await self.rag_api.search(
                 query=f"topic:{topic_id}",
                 limit=100
             )
@@ -283,7 +283,7 @@ class APIAdapter:
         try:
             await self.initialize()
             
-            status = await self.simple_api.get_status()
+            status = await self.rag_api.get_status()
             
             # 转换为原有接口格式
             overall_healthy = status["components"].get("overall_status") == "healthy"
@@ -326,7 +326,7 @@ class APIAdapter:
         try:
             await self.initialize()
             
-            formats = await self.simple_api.get_supported_formats()
+            formats = await self.rag_api.get_supported_formats()
             
             # 转换为MIME类型格式（如果需要）
             mime_types = []
