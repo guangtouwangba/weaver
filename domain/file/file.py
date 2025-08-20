@@ -72,6 +72,18 @@ class FileMetadata:
         ]
         return any(self.content_type.startswith(dt) for dt in document_types)
 
+    @property
+    def get(self):
+        return {
+            "original_name": self.original_name,
+            "file_size": self.file_size,
+            "content_type": self.content_type,
+            "file_hash": self.file_hash,
+            "category": self.category,
+            "tags": self.tags,
+            "custom_metadata": self.custom_metadata
+        }
+
 
 @dataclass
 class StorageLocation:

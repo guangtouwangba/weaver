@@ -324,14 +324,20 @@ class FileApplication:
             # First confirm upload completion with the service
             result = await self.upload_service.confirm_upload_completion(request, user_id)
             
-            # Then publish file upload completed event (if the result contains file entity)
-            if hasattr(result, 'file') and result.file:
-                from domain.file.event import FileUploadedConfirmEvent
-                event = FileUploadedConfirmEvent(file=result.file)
-                await self.event_bus.publish(event)
-                logger.info(f"Published FileUploadedConfirmEvent for file {request.file_id}")
-            else:
-                logger.debug(f"No file entity available to publish event for {request.file_id}")
+            # Get the file entity and publish event
+            try:
+                # 获取文件实体以发布事件
+                file_entity = await self.upload_service.file_repository.get_by_id(request.file_id)
+                if file_entity:
+                    from domain.file.event import FileUploadedConfirmEvent
+                    event = FileUploadedConfirmEvent(file=file_entity)
+                    await self.event_bus.publish(event)
+                    logger.info(f"Published FileUploadedConfirmEvent for file {request.file_id}")
+                else:
+                    logger.warning(f"File entity not found for {request.file_id}, cannot publish event")
+            except Exception as e:
+                logger.error(f"Failed to publish FileUploadedConfirmEvent: {e}")
+                # 不抛出异常，因为文件确认已经成功
             
             return result
         except Exception as e:

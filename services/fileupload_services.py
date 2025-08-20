@@ -439,7 +439,14 @@ class FileUploadService:
             
             # Save updated entity
             await self.file_repository.update_by_id(file_entity.id, file_entity)
+
+            # 发布文件上传确认事件
+            from domain.file.event import FileUploadedConfirmEvent
+            from application.event.event_bus import EventBus
             
+            # Note: 这里需要从依赖注入容器获取EventBus
+            # 当前作为临时解决方案，在更高层（Application层）发布事件
+                        
 
             
             return UploadCompletionResponse(
