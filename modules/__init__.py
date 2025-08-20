@@ -1,34 +1,83 @@
 """
-Simple Modular RAG Architecture
+模块化RAG系统
 
-This package provides a clean, modular architecture for RAG (Retrieval-Augmented Generation)
-system with clear responsibilities and interfaces between modules.
+一个简单、解耦的文档处理和检索系统。
 
-Core Modules:
-- file_loader: File loading and parsing
-- document_processor: Document processing and chunking
-- vector_store: Vector storage and similarity search
-- knowledge_store: Knowledge metadata management
-- retriever: Multi-strategy information retrieval
-- router: Request routing and orchestration
-- index: Index building and management
-
-Each module has:
-1. Clear responsibility scope
-2. Well-defined interfaces
-3. Minimal dependencies
-4. Easy testability
+使用示例:
+    # 简单使用
+    from modules import SimpleAPI
+    
+    api = SimpleAPI()
+    result = await api.process_file("document.pdf")
+    search_results = await api.search("查询内容")
+    
+    # 兼容原有API
+    from modules import APIAdapter
+    
+    adapter = APIAdapter()
+    result = await adapter.confirm_upload_completion("file_id", "document.pdf")
 """
 
-__version__ = "0.1.0"
+# 核心模块
+from .models import (
+    Document, DocumentChunk, ContentType, ChunkingStrategy,
+    ProcessingStatus, ProcessingRequest, ProcessingResult,
+    SearchRequest, SearchResult, OrchestrationRequest, OrchestrationResult,
+    # 兼容性模型
+    SearchQuery, SearchResponse, ModuleConfig, ModuleInterface,
+    FileLoaderError, DocumentProcessorError
+)
 
-# Module exports - lazy loading to avoid circular imports
+# 文件加载模块
+from .file_loader import (
+    IFileLoader, TextFileLoader, MultiFormatFileLoader
+)
+
+# 文档处理模块
+from .document_processor import (
+    IDocumentProcessor, TextProcessor, ChunkingProcessor
+)
+
+# 编排模块
+from .orchestrator import (
+    IOrchestrator, DocumentOrchestrator
+)
+
+# API模块
+from .api import (
+    IModularAPI, SimpleAPI, APIError
+)
+
+# 兼容层
+from .compatibility import APIAdapter
+
+# 便捷导入
 __all__ = [
-    "file_loader",
-    "document_processor", 
-    "vector_store",
-    "knowledge_store",
-    "retriever",
-    "router",
-    "index",
+    # 核心模型
+    'Document', 'DocumentChunk', 'ContentType', 'ChunkingStrategy',
+    'ProcessingStatus', 'ProcessingRequest', 'ProcessingResult',
+    'SearchRequest', 'SearchResult', 'OrchestrationRequest', 'OrchestrationResult',
+    
+    # 兼容性模型
+    'SearchQuery', 'SearchResponse', 'ModuleConfig', 'ModuleInterface',
+    
+    # 接口
+    'IFileLoader', 'IDocumentProcessor', 'IOrchestrator', 'IModularAPI',
+    
+    # 实现
+    'TextFileLoader', 'MultiFormatFileLoader',
+    'TextProcessor', 'ChunkingProcessor',
+    'DocumentOrchestrator',
+    'SimpleAPI',
+    
+    # 异常
+    'APIError', 'FileLoaderError', 'DocumentProcessorError',
+    
+    # 兼容层
+    'APIAdapter'
 ]
+
+# 版本信息
+__version__ = "1.0.0"
+__author__ = "RAG System Team"
+__description__ = "模块化RAG文档处理系统"

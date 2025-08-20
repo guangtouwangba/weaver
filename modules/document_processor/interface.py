@@ -1,138 +1,103 @@
 """
-Document Processor Interface
+文档处理器接口定义
 
-Defines the contract for document processing implementations.
+定义文档处理的标准接口和异常处理。
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
-from enum import Enum
-
-from ..models import (
-    Document, DocumentChunk, ProcessingResult, ModuleInterface, 
-    ModuleConfig, DocumentProcessorError
-)
+from typing import List, Optional, Dict, Any
+from ..models import Document, DocumentChunk, ProcessingRequest, ProcessingResult
 
 
-class ChunkingStrategy(Enum):
-    """Document chunking strategies."""
-    FIXED_SIZE = "fixed_size"
-    SENTENCE_BASED = "sentence_based"
-    PARAGRAPH_BASED = "paragraph_based"
-    SEMANTIC = "semantic"
+class DocumentProcessorError(Exception):
+    """文档处理错误"""
+    
+    def __init__(self, message: str, document_id: Optional[str] = None, error_code: Optional[str] = None):
+        self.document_id = document_id
+        self.error_code = error_code
+        super().__init__(message)
 
 
-class IDocumentProcessor(ModuleInterface):
-    """Document processor interface."""
+class IDocumentProcessor(ABC):
+    """文档处理器接口"""
     
     @abstractmethod
-    async def process_document(self, document: Document) -> ProcessingResult:
+    async def process_document(self, request: ProcessingRequest) -> ProcessingResult:
         """
-        Process a document and create chunks.
+        处理文档
         
         Args:
-            document: Document to process
+            request: 处理请求
             
         Returns:
-            ProcessingResult: Processing result with chunks
+            ProcessingResult: 处理结果
             
         Raises:
-            DocumentProcessorError: If processing fails
+            DocumentProcessorError: 文档处理失败时抛出
         """
         pass
     
     @abstractmethod
-    async def create_chunks(self, document: Document) -> List[DocumentChunk]:
+    async def create_chunks(self, document: Document, **kwargs) -> List[DocumentChunk]:
         """
-        Create chunks from a document.
+        创建文档块
         
         Args:
-            document: Document to chunk
+            document: 文档对象
+            **kwargs: 其他参数
             
         Returns:
-            List[DocumentChunk]: List of document chunks
+            List[DocumentChunk]: 文档块列表
             
         Raises:
-            DocumentProcessorError: If chunking fails
+            DocumentProcessorError: 分块失败时抛出
         """
         pass
     
     @abstractmethod
-    def get_chunking_strategy(self) -> ChunkingStrategy:
+    async def validate_document(self, document: Document) -> bool:
         """
-        Get the chunking strategy used by this processor.
+        验证文档是否可以处理
         
+        Args:
+            document: 文档对象
+            
         Returns:
-            ChunkingStrategy: The chunking strategy
+            bool: 文档是否有效
         """
         pass
     
-    def estimate_chunk_count(self, document: Document) -> int:
+    @abstractmethod
+    async def clean_content(self, content: str) -> str:
         """
-        Estimate the number of chunks that will be created.
+        清理文档内容
         
         Args:
-            document: Document to estimate for
+            content: 原始内容
             
         Returns:
-            int: Estimated number of chunks
+            str: 清理后的内容
         """
-        if not document.content:
-            return 0
-        
-        # Default estimation based on fixed size
-        chunk_size = self.config.custom_params.get('chunk_size', 1000)
-        chunk_overlap = self.config.custom_params.get('chunk_overlap', 100)
-        
-        content_length = len(document.content)
-        effective_chunk_size = max(1, chunk_size - chunk_overlap)
-        
-        return max(1, (content_length + effective_chunk_size - 1) // effective_chunk_size)
+        pass
     
-    def validate_document(self, document: Document) -> List[str]:
+    @property
+    @abstractmethod
+    def processor_name(self) -> str:
         """
-        Validate document for processing.
+        获取处理器名称
         
-        Args:
-            document: Document to validate
-            
         Returns:
-            List[str]: List of validation errors (empty if valid)
+            str: 处理器名称
         """
-        errors = []
-        
-        if not document.content:
-            errors.append("Document content is empty")
-        
-        if not document.content.strip():
-            errors.append("Document content contains only whitespace")
-        
-        # Check minimum content length
-        min_length = self.config.custom_params.get('min_content_length', 10)
-        if len(document.content.strip()) < min_length:
-            errors.append(f"Document content too short (minimum: {min_length} characters)")
-        
-        return errors
+        pass
     
-    def preprocess_content(self, content: str) -> str:
+    @property
+    @abstractmethod
+    def supported_strategies(self) -> List[str]:
         """
-        Preprocess document content before chunking.
+        获取支持的处理策略
         
-        Args:
-            content: Raw document content
-            
         Returns:
-            str: Preprocessed content
+            List[str]: 支持的策略列表
         """
-        if not content:
-            return content
-        
-        # Basic preprocessing
-        processed = content.strip()
-        
-        # Remove excessive whitespace
-        import re
-        processed = re.sub(r'\s+', ' ', processed)
-        processed = re.sub(r'\n\s*\n', '\n\n', processed)
-        
-        return processed
+        pass

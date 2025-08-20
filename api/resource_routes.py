@@ -90,6 +90,49 @@ async def delete_file(
 
 
 
+async def _get_file_by_id(file_id: str) -> Optional[dict]:
+    """
+    Helper function to get file information by ID.
+    
+    Returns file details including topic_id for proper deletion handling.
+    """
+    try:
+        from infrastructure.database.config import AsyncSessionLocal
+        from sqlalchemy import text
+        
+        async with AsyncSessionLocal() as session:
+            # Query the file details
+            result = await session.execute(
+                text("""
+                    SELECT f.id, f.topic_id, f.original_name, f.storage_bucket, f.storage_key, 
+                           f.is_deleted, f.created_at, t.name as topic_name
+                    FROM files f
+                    LEFT JOIN topics t ON f.topic_id = t.id
+                    WHERE f.id = :file_id AND f.is_deleted = FALSE
+                """),
+                {"file_id": file_id}
+            )
+            file_row = result.fetchone()
+            
+            if not file_row:
+                return None
+            
+            return {
+                'id': file_row[0],
+                'topic_id': file_row[1],
+                'original_name': file_row[2],
+                'storage_bucket': file_row[3],
+                'storage_key': file_row[4],
+                'is_deleted': file_row[5],
+                'created_at': file_row[6],
+                'topic_name': file_row[7]
+            }
+    
+    except Exception as e:
+        logger.error(f"Error getting file {file_id}: {e}")
+        return None
+
+
 async def _delete_resource_by_id(
     controller: TopicController, 
     resource_id: int, 
