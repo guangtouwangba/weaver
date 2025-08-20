@@ -53,11 +53,11 @@ modules/
 
 ```python
 import asyncio
-from modules import SimpleAPI
+from modules import RagAPI
 
 async def main():
     # 创建API实例
-    api = SimpleAPI()
+    api = RagAPI()
     
     # 处理文档
     result = await api.process_file(
@@ -140,7 +140,7 @@ search_result = await adapter.search_knowledge(
 ### API配置
 
 ```python
-api = SimpleAPI(
+api = RagAPI(
     enable_caching=True,          # 启用缓存
     default_chunk_size=1000,      # 默认块大小
     default_chunk_overlap=200     # 默认重叠大小
@@ -228,7 +228,7 @@ class CustomDocumentProcessor(IDocumentProcessor):
 
 1. **评估当前使用**：确定使用了哪些原有API
 2. **使用兼容层**：通过`APIAdapter`保持功能正常
-3. **逐步替换**：将调用替换为新的`SimpleAPI`
+3. **逐步替换**：将调用替换为新的`RagAPI`
 4. **验证功能**：确保所有功能正常工作
 5. **移除兼容层**：完全迁移到新架构
 
