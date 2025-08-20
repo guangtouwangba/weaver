@@ -8,8 +8,9 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
-from sqlalchemy import Column, String, Integer, BigInteger, Text, DateTime, Boolean, ForeignKey, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Integer, BigInteger, Text, DateTime, Boolean, ForeignKey, JSON, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID, ENUM, JSONB
+import uuid
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -25,11 +26,13 @@ from .connection import Base
 # 枚举类型
 class FileStatus(str, Enum):
     """文件状态"""
-    PENDING = "pending"
+    UPLOADING = "uploading"
+    AVAILABLE = "available"
     PROCESSING = "processing" 
-    COMPLETED = "completed"
     FAILED = "failed"
+    ARCHIVED = "archived"
     DELETED = "deleted"
+    QUARANTINED = "quarantined"
 
 class TopicStatus(str, Enum):
     """主题状态"""
@@ -66,7 +69,7 @@ class Topic(Base):
     total_resources: Mapped[int] = mapped_column(Integer, default=0)
     total_conversations: Mapped[int] = mapped_column(Integer, default=0)
     core_concepts_discovered: Mapped[int] = mapped_column(Integer, default=0)
-    concept_relationships: Mapped[int] = mapped_column(Integer, default=0)
+    concept_relationships: Mapped[Optional[dict]] = mapped_column(JSONB, default=lambda: {})
     missing_materials_count: Mapped[int] = mapped_column(Integer, default=0)
     
     # 关联信息
@@ -97,46 +100,41 @@ class Topic(Base):
     )
 
 class File(Base):
-    """文件模型"""
+    """文件模型 - 匹配实际数据库结构"""
     __tablename__ = "files"
     
     # 主键
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     
-    # 基础信息
-    original_name: Mapped[str] = mapped_column(String(500), nullable=False)
-    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    file_size: Mapped[int] = mapped_column(BigInteger, default=0)
-    file_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    
-    # 存储信息
-    storage_bucket: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    storage_key: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    storage_url: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
-    
-    # 处理状态
-    status: Mapped[str] = mapped_column(String(20), default=FileStatus.PENDING)
-    processing_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
-    # 关联信息
+    # 关联信息 - 添加外键约束
     topic_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger, ForeignKey("topics.id"), nullable=True
+        Integer, ForeignKey("topics.id"), nullable=True
     )
-    user_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     
-    # 元数据
-    file_metadata: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
+    # 文件信息 - 匹配实际数据库字段
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    file_size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     
-    # 软删除
+    # 存储信息 - 匹配实际数据库字段
+    storage_bucket: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    storage_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    storage_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    file_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # 状态 - 匹配实际数据库字段
+    status: Mapped[str] = mapped_column(String(50), default='active')
+    
+    # 软删除 - 匹配实际数据库字段
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     
-    # 时间戳
+    # 时间戳 - 匹配实际数据库字段
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=False), server_default=func.current_timestamp()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=False), server_default=func.current_timestamp()
     )
     
     # 关系

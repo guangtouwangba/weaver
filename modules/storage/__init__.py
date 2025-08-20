@@ -7,10 +7,12 @@
 from .interface import IStorage, StorageError
 from .local_storage import LocalStorage
 from .mock_storage import MockStorage
+from .minio_storage import MinIOStorage
 
 __all__ = [
     'IStorage',
     'StorageError',
     'LocalStorage', 
-    'MockStorage'
+    'MockStorage',
+    'MinIOStorage'
 ]
