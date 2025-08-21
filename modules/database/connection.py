@@ -4,9 +4,10 @@
 提供简单的数据库连接和会话管理。
 """
 
-import logging
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
+
+from logging_system import get_logger, log_execution_time, log_errors
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
@@ -14,7 +15,7 @@ from sqlalchemy.orm import declarative_base
 # 导入配置模块
 from config import get_config
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # 数据库基础模型
 Base = declarative_base()
@@ -40,6 +41,8 @@ class DatabaseConnection:
         self._engine = None
         self._session_factory = None
     
+    @log_execution_time(threshold_ms=1000)
+    @log_errors()
     async def initialize(self) -> None:
         """初始化数据库连接"""
         try:
@@ -77,6 +80,7 @@ class DatabaseConnection:
             logger.error(f"数据库连接初始化失败: {e}")
             raise
     
+    @log_execution_time(threshold_ms=200)
     async def close(self) -> None:
         """关闭数据库连接"""
         if self._engine:

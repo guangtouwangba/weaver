@@ -175,7 +175,7 @@ class DatabaseConfig(BaseModel):
     host: str = Field(default="localhost", description="数据库主机")
     port: int = Field(default=5432, description="数据库端口") 
     name: str = Field(default="ragdb", description="数据库名称")
-    user: str = Field(default_factory=getpass.getuser, description="数据库用户")
+    user: str = Field(default="rag_user", description="数据库用户")
     password: Optional[str] = Field(default=None, description="数据库密码")
     driver: str = Field(default="asyncpg", description="数据库驱动")
     
@@ -191,8 +191,11 @@ class DatabaseConfig(BaseModel):
     @property
     def url(self) -> str:
         """构建数据库连接URL"""
+        from urllib.parse import quote_plus
         if self.password:
-            return f"postgresql+{self.driver}://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+            # URL编码密码以处理特殊字符
+            encoded_password = quote_plus(self.password)
+            return f"postgresql+{self.driver}://{self.user}:{encoded_password}@{self.host}:{self.port}/{self.name}"
         else:
             return f"postgresql+{self.driver}://{self.user}@{self.host}:{self.port}/{self.name}"
     
@@ -203,6 +206,60 @@ class DatabaseConfig(BaseModel):
         if v not in allowed_drivers:
             raise ValueError(f"Driver must be one of {allowed_drivers}")
         return v
+    
+    @validator('password')
+    def validate_password(cls, v, values):
+        """验证密码安全性"""
+        import os
+        environment = os.getenv('ENVIRONMENT', 'development')
+        
+        # 生产环境必须设置密码
+        if environment == 'production' and not v:
+            raise ValueError("生产环境必须设置数据库密码")
+        
+        # 密码强度检查（如果设置了密码）
+        if v:
+            if len(v) < 8:
+                raise ValueError("密码长度不能少于8位")
+            
+            # 检查密码复杂度（至少包含字母和数字）
+            has_letter = any(c.isalpha() for c in v)
+            has_digit = any(c.isdigit() for c in v)
+            
+            if not (has_letter and has_digit):
+                import warnings
+                warnings.warn("建议密码包含字母和数字，提高安全性", UserWarning)
+        
+        return v
+    
+    @validator('user')
+    def validate_user(cls, v):
+        """验证用户名"""
+        if not v or v.strip() == "":
+            # 如果用户名为空，使用系统用户名作为后备
+            import getpass
+            return getpass.getuser()
+        return v.strip()
+    
+    def validate_security(self) -> List[str]:
+        """检查配置安全性，返回警告列表"""
+        warnings = []
+        import os
+        environment = os.getenv('ENVIRONMENT', 'development')
+        
+        if not self.password:
+            if environment == 'production':
+                warnings.append("生产环境未设置数据库密码，存在安全风险")
+            else:
+                warnings.append("未设置数据库密码，建议设置以提高安全性")
+        
+        if self.host == "localhost" and environment == 'production':
+            warnings.append("生产环境使用localhost可能导致连接问题")
+        
+        if self.user in ['postgres', 'root', 'admin'] and environment == 'production':
+            warnings.append("生产环境建议使用专用数据库用户，而非管理员账户")
+        
+        return warnings
 
 
 class StorageConfig(BaseModel):

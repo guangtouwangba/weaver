@@ -9,7 +9,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
-import logging
+
+from logging_system import get_logger, log_execution_time, log_errors, log_context
 
 from .. import schemas
 from ..database import get_db_session
@@ -23,7 +24,7 @@ from ..schemas import (
 )
 
 router = APIRouter(prefix="/files", tags=["files"])
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 async def _submit_task_async(task_service: CeleryTaskService, task_name: str, **kwargs) -> None:
@@ -70,6 +71,8 @@ async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> C
 
 
 @router.post("/upload/signed-url", response_model=APIResponse, summary="获取文件上传签名URL")
+@log_execution_time(threshold_ms=200)
+@log_errors()
 async def generate_upload_url(
     request: UploadUrlRequest,
     service: FileService = Depends(get_file_service)
@@ -116,8 +119,13 @@ async def generate_upload_url(
     - 自动病毒扫描（如果开启）
     """
     try:
-        async with service:
-            upload_response = await service.generate_upload_url(request)
+        with log_context(
+            request_id=str(uuid.uuid4()),
+            operation="generate_upload_url",
+            component="file_api"
+        ):
+            async with service:
+                upload_response = await service.generate_upload_url(request)
             
             return APIResponse(
                 success=True,
@@ -130,6 +138,8 @@ async def generate_upload_url(
         raise HTTPException(status_code=500, detail=f"生成上传URL失败: {str(e)}")
 
 @router.post("/confirm", response_model=APIResponse, summary="确认文件上传完成")
+@log_execution_time(threshold_ms=500)
+@log_errors()
 async def confirm_upload(
     request: ConfirmUploadRequest,
     file_service: FileService = Depends(get_file_service),

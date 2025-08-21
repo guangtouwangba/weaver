@@ -8,7 +8,6 @@ RAG相关任务处理器
 - 文档搜索
 """
 
-import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -17,8 +16,9 @@ from ...services.task_service import task_handler, register_task_handler
 from ...rag.pipeline import DocumentProcessingRequest, PipelineConfig, PipelineStatus
 from ...rag.embedding import EmbeddingProvider
 from ...rag.vector_store import VectorStoreProvider, VectorDocument
+from logging_system import get_logger, log_execution_time, log_errors, request_context, task_context
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @task_handler("rag.process_document", 
@@ -34,6 +34,7 @@ class DocumentProcessingHandler(ITaskHandler):
     def task_name(self) -> str:
         return "rag.process_document"
     
+    @log_execution_time(threshold_ms=1000)
     async def handle(self, 
                     file_id: str, 
                     file_path: str, 
@@ -56,7 +57,15 @@ class DocumentProcessingHandler(ITaskHandler):
             Dict[str, Any]: 处理结果
         """
         try:
-            logger.info(f"开始RAG文档处理: {file_id} at {file_path}")
+            with task_context(
+                task_id=f"rag-{file_id}",
+                task_name="rag.process_document",
+                queue="rag_queue"
+            ):
+                logger.info(f"开始RAG文档处理: {file_id} at {file_path}")
+                
+                # 更新文件状态为处理中
+                await self._update_file_status(file_id, "processing", "RAG处理中: 初始化组件")
             
             # 动态导入以避免循环依赖
             from ...services.rag_service import create_document_pipeline
@@ -77,6 +86,9 @@ class DocumentProcessingHandler(ITaskHandler):
                 batch_size=config.get("batch_size", 50),
                 **config.get("pipeline_config", {})
             )
+            
+            # 更新文件状态
+            await self._update_file_status(file_id, "processing", "RAG处理中: 创建管道组件")
             
             # 创建RAG管道组件
             from ...services.rag_service import (
@@ -110,6 +122,7 @@ class DocumentProcessingHandler(ITaskHandler):
             
             # 更新进度: 初始化管道
             await self._update_progress("初始化处理管道", 20, 100)
+            await self._update_file_status(file_id, "processing", "RAG处理中: 初始化处理管道")
             
             # 初始化管道
             await pipeline.initialize()
@@ -130,12 +143,28 @@ class DocumentProcessingHandler(ITaskHandler):
             
             # 更新进度: 开始处理
             await self._update_progress("开始文档处理", 30, 100)
+            await self._update_file_status(file_id, "processing", "RAG处理中: 文档解析和分块")
             
             # 执行处理
             result = await pipeline.process_document(request)
             
-            # 更新进度: 处理完成
-            await self._update_progress("处理完成", 100, 100)
+            # 检查处理结果
+            if result.status == PipelineStatus.COMPLETED:
+                # 更新进度: 处理完成
+                await self._update_progress("处理完成", 100, 100)
+                await self._update_file_status(
+                    file_id, 
+                    "processed", 
+                    f"RAG处理完成: {result.total_chunks}块, {result.stored_vectors}向量"
+                )
+            else:
+                # 处理失败
+                await self._update_file_status(
+                    file_id, 
+                    "failed", 
+                    "RAG处理失败",
+                    error_message=result.error_message
+                )
             
             # 清理资源
             await pipeline.cleanup()
@@ -171,6 +200,15 @@ class DocumentProcessingHandler(ITaskHandler):
             
         except Exception as e:
             logger.error(f"RAG文档处理失败: {file_id}, {e}")
+            
+            # 更新文件状态为失败
+            await self._update_file_status(
+                file_id, 
+                "failed", 
+                "RAG处理失败",
+                error_message=str(e)
+            )
+            
             return {
                 "success": False,
                 "file_id": file_id,
@@ -193,6 +231,25 @@ class DocumentProcessingHandler(ITaskHandler):
             logger.info(f"进度更新: {description} ({current}/{total})")
         except Exception as e:
             logger.debug(f"进度更新失败: {e}")
+    
+    async def _update_file_status(self, file_id: str, status: str, processing_status: str, error_message: Optional[str] = None):
+        """更新文件处理状态"""
+        try:
+            from ...database import get_session
+            from ...repository import FileRepository
+            
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                await file_repo.update_file_status(
+                    file_id=file_id,
+                    status=status,
+                    processing_status=processing_status,
+                    error_message=error_message
+                )
+            logger.info(f"文件状态更新: {file_id} -> {status}: {processing_status}")
+        except Exception as e:
+            logger.warning(f"文件状态更新失败: {file_id}, {e}")
+            # 不让状态更新失败影响主流程
 
 
 @task_handler("rag.generate_embeddings",
@@ -208,6 +265,8 @@ class EmbeddingGenerationHandler(ITaskHandler):
     def task_name(self) -> str:
         return "rag.generate_embeddings"
     
+    @log_execution_time(threshold_ms=500)
+    @log_errors()
     async def handle(self, 
                     texts: List[str], 
                     provider: str = "openai",
@@ -226,7 +285,12 @@ class EmbeddingGenerationHandler(ITaskHandler):
             Dict[str, Any]: 嵌入结果
         """
         try:
-            logger.info(f"开始生成嵌入向量: {len(texts)} 个文本")
+            with task_context(
+                task_id=f"embedding-{len(texts)}-texts",
+                task_name="rag.generate_embeddings",
+                queue="rag_queue"
+            ):
+                logger.info(f"开始生成嵌入向量: {len(texts)} 个文本")
             
             from ...services.rag_service import create_embedding_service
             from ...rag.embedding import EmbeddingProvider
@@ -285,6 +349,8 @@ class VectorStorageHandler(ITaskHandler):
     def task_name(self) -> str:
         return "rag.store_vectors"
     
+    @log_execution_time(threshold_ms=800)
+    @log_errors()
     async def handle(self,
                     vectors: List[List[float]],
                     contents: List[str],
@@ -307,7 +373,12 @@ class VectorStorageHandler(ITaskHandler):
             Dict[str, Any]: 存储结果
         """
         try:
-            logger.info(f"开始存储向量: {len(vectors)} 个向量")
+            with task_context(
+                task_id=f"store-{document_id}-vectors",
+                task_name="rag.store_vectors",
+                queue="rag_queue"
+            ):
+                logger.info(f"开始存储向量: {len(vectors)} 个向量")
             
             from ...services.rag_service import create_vector_store
             from ...rag.vector_store import VectorStoreProvider, VectorDocument
@@ -383,6 +454,8 @@ class SemanticSearchHandler(ITaskHandler):
     def task_name(self) -> str:
         return "rag.semantic_search"
     
+    @log_execution_time(threshold_ms=300)
+    @log_errors()
     async def handle(self,
                     query: str,
                     limit: int = 10,
@@ -405,7 +478,12 @@ class SemanticSearchHandler(ITaskHandler):
             Dict[str, Any]: 搜索结果
         """
         try:
-            logger.info(f"开始语义搜索: {query}")
+            with task_context(
+                task_id=f"search-{hash(query) % 10000}",
+                task_name="rag.semantic_search",
+                queue="search_queue"
+            ):
+                logger.info(f"开始语义搜索: {query}")
             
             from ...services.rag_service import create_embedding_service, create_vector_store
             from ...rag.embedding import EmbeddingProvider
@@ -493,6 +571,8 @@ class DocumentCleanupHandler(ITaskHandler):
     def task_name(self) -> str:
         return "rag.cleanup_document"
     
+    @log_execution_time(threshold_ms=400)
+    @log_errors()
     async def handle(self,
                     document_id: str,
                     vector_store_provider: str = "weaviate",
@@ -509,7 +589,12 @@ class DocumentCleanupHandler(ITaskHandler):
             Dict[str, Any]: 清理结果
         """
         try:
-            logger.info(f"开始清理文档: {document_id}")
+            with task_context(
+                task_id=f"cleanup-{document_id}",
+                task_name="rag.cleanup_document",
+                queue="cleanup_queue"
+            ):
+                logger.info(f"开始清理文档: {document_id}")
             
             from ...services.rag_service import create_vector_store
             from ...rag.vector_store import VectorStoreProvider

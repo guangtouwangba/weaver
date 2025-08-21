@@ -12,7 +12,7 @@ import asyncio
 import json
 from pathlib import Path
 from modules.tasks.config import RedisConfig, TaskConfigManager
-from services.redis_service import RedisService
+from modules.services.redis_service import RedisService
 
 async def example_basic_redis_config():
     """基础Redis配置示例"""

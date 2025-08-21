@@ -4,18 +4,19 @@ MinIO存储实现
 基于MinIO的真实存储服务实现。
 """
 
-import logging
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import hashlib
 import urllib.parse
 from io import BytesIO
 
+from logging_system import get_logger, log_execution_time, log_errors
+
 from minio import Minio
 from minio.error import S3Error
 from .base import IStorage, StorageError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class MinIOStorage(IStorage):
     """MinIO存储实现"""
@@ -71,6 +72,8 @@ class MinIOStorage(IStorage):
         result = await self.generate_signed_upload_url(key, content_type or "application/octet-stream", expires_in)
         return result["upload_url"]
     
+    @log_execution_time(threshold_ms=100)
+    @log_errors()
     async def generate_signed_upload_url(self, 
                                        file_key: str,
                                        content_type: str,
@@ -108,6 +111,8 @@ class MinIOStorage(IStorage):
             logger.error(f"Failed to generate signed upload URL for {file_key}: {e}")
             raise StorageError(f"Signed URL generation failed: {e}")
     
+    @log_execution_time(threshold_ms=100)
+    @log_errors()
     async def generate_signed_download_url(self,
                                          file_key: str,
                                          expires_in: int = 3600) -> str:
@@ -127,6 +132,8 @@ class MinIOStorage(IStorage):
             logger.error(f"Failed to generate signed download URL for {file_key}: {e}")
             raise StorageError(f"Download URL generation failed: {e}")
     
+    @log_execution_time(threshold_ms=1000)
+    @log_errors()
     async def upload_file(self,
                          file_key: str,
                          file_data: bytes,

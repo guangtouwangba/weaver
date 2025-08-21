@@ -581,3 +581,9 @@ class DocumentService(BaseService):
             
         except Exception as e:
             self._handle_error(e, "create_document_with_rag")
+
+
+
+def create_document_service(session: AsyncSession, enable_rag: bool = True) -> DocumentService:
+    """创建文档服务实例"""
+    return DocumentService(session=session, enable_rag=enable_rag)

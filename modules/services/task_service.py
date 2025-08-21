@@ -4,13 +4,14 @@
 基于Celery实现的异步任务处理服务，提供任务提交、状态跟踪、错误处理等功能。
 """
 
-import logging
 import asyncio
 import pickle
 import json
 from typing import Dict, Optional, List, Any, Type, Union
 from datetime import datetime, timedelta
 from uuid import uuid4
+
+from logging_system import get_logger, log_execution_time, log_errors, log_operation
 
 try:
     from celery import Celery
@@ -27,7 +28,7 @@ from ..tasks.base import (
     TaskError, TaskTimeoutError, TaskRetryError
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TaskRegistry(ITaskRegistry):
@@ -38,6 +39,7 @@ class TaskRegistry(ITaskRegistry):
         self._configs: Dict[str, TaskConfig] = {}
         self._lock = asyncio.Lock()
     
+    @log_execution_time(threshold_ms=50)
     def register(self, task_name: str, handler: ITaskHandler) -> None:
         """注册任务处理器"""
         if self.is_registered(task_name):
@@ -132,6 +134,8 @@ class CeleryTaskService(ITaskService):
         
         logger.info(f"Celery任务服务初始化: {app_name}")
     
+    @log_execution_time(threshold_ms=2000)
+    @log_errors()
     async def initialize(self) -> None:
         """初始化任务服务"""
         if self._initialized:
@@ -141,8 +145,14 @@ class CeleryTaskService(ITaskService):
             # 测试连接
             await self._test_connection()
             
+            # 导入任务处理器模块以触发装饰器注册
+            self._import_task_handlers()
+            
             # 注册内置任务
             self._register_builtin_tasks()
+            
+            # 自动注册全局任务处理器
+            await auto_register_handlers(self)
             
             self._initialized = True
             logger.info("Celery任务服务初始化完成")
@@ -167,6 +177,8 @@ class CeleryTaskService(ITaskService):
         except Exception as e:
             logger.error(f"Celery任务服务清理失败: {e}")
     
+    @log_execution_time(threshold_ms=100)
+    @log_errors()
     async def submit_task(self,
                          task_name: str,
                          *args,
@@ -231,6 +243,7 @@ class CeleryTaskService(ITaskService):
             logger.error(f"任务提交失败: {task_name}, {e}")
             raise TaskError(f"任务提交失败: {e}", task_name=task_name)
     
+    @log_execution_time(threshold_ms=50)
     async def get_task_result(self, task_id: str) -> Optional[TaskResult]:
         """获取任务结果"""
         try:
@@ -466,6 +479,16 @@ class CeleryTaskService(ITaskService):
         # 设置队列优先级
         self.app.conf.task_queue_max_priority = 10
         self.app.conf.worker_prefetch_multiplier = 1
+    
+    def _import_task_handlers(self) -> None:
+        """导入任务处理器模块以触发装饰器注册"""
+        try:
+            # 导入所有任务处理器模块
+            from ..tasks.handlers import file_handlers
+            from ..tasks.handlers import rag_handlers
+            logger.info("任务处理器模块导入完成")
+        except Exception as e:
+            logger.warning(f"导入任务处理器模块失败: {e}")
     
     def _register_builtin_tasks(self) -> None:
         """注册内置任务"""

@@ -17,7 +17,7 @@ from config.tasks.monitoring import (
     ITaskMonitoringService, ITaskConfiguration, ITaskAlerting,
     QueueMetrics, TaskMetrics, SystemHealth, AlertRule
 )
-from config import WorkerConfig, TaskConfig, RetryConfig
+from config import WorkerConfig, TaskConfig, RetryConfig, get_config
 
 logger = logging.getLogger(__name__)
 
@@ -348,7 +348,7 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
         """获取所有任务名称"""
         try:
             # 从注册表获取任务名称
-            from modules.services.task_service import task_registry
+            from .task_service import task_registry
             return list(task_registry.handlers.keys())
         except Exception as e:
             logger.error(f"获取任务列表失败: {e}")
@@ -359,7 +359,7 @@ class TaskConfigurationService(ITaskConfiguration):
     
     def __init__(self):
         """初始化配置服务"""
-        self.config_manager = config_manager
+        self.config_manager = get_config()
     
     async def get_worker_config(self) -> Dict[str, Any]:
         """获取工作进程配置"""
