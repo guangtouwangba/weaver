@@ -14,20 +14,25 @@ from ..storage import IStorage, MockStorage, MinIOStorage
 from ..database import get_session
 from ..repository import FileRepository
 from ..database.models import FileStatus
+from ..tasks.base import ITaskService, TaskPriority
 
 logger = logging.getLogger(__name__)
 
 class FileUploadService(IFileUploadService):
     """文件上传服务实现"""
     
-    def __init__(self, storage: Optional[IStorage] = None):
+    def __init__(self, 
+                 storage: Optional[IStorage] = None,
+                 task_service: Optional[ITaskService] = None):
         """
         初始化文件上传服务
         
         Args:
             storage: 存储后端，如果不提供则使用默认的MinIOStorage
+            task_service: 任务服务，用于触发异步处理任务
         """
         self.storage = storage or MinIOStorage()
+        self.task_service = task_service
     
     async def generate_upload_url(self,
                                 filename: str,
@@ -106,49 +111,67 @@ class FileUploadService(IFileUploadService):
         
         try:
             # 获取文件记录
-            file_info = await self.db_service.get_file(file_id)
-            if not file_info:
-                return {
-                    "success": False,
-                    "error": f"文件记录不存在: {file_id}"
-                }
-            
-            # 验证文件是否真的存在于存储中
-            file_exists = await self.storage.file_exists(file_info['storage_key'])
-            if not file_exists:
-                return {
-                    "success": False,
-                    "error": "文件未找到，上传可能失败"
-                }
-            
-            # 获取存储中的文件信息
-            storage_info = await self.storage.get_file_info(file_info['storage_key'])
-            
-            # 更新文件状态和信息
-            update_data = {
-                "status": FileStatus.AVAILABLE,
-                "processing_status": "上传完成",
-                "file_size": actual_size or storage_info.get('size', 0),
-                "file_hash": file_hash or storage_info.get('hash'),
-                "storage_url": storage_info.get('access_url')
-            }
-            
-            success = await self.db_service.update_file_status(file_id, **update_data)
-            
-            if success:
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                file_info = await file_repo.get_file_by_id(file_id)
+                
+                if not file_info:
+                    return {
+                        "success": False,
+                        "error": f"文件记录不存在: {file_id}"
+                    }
+                
+                # 验证文件是否真的存在于存储中
+                file_exists = await self.storage.file_exists(file_info.storage_key)
+                if not file_exists:
+                    return {
+                        "success": False,
+                        "error": "文件未找到，上传可能失败"
+                    }
+                
+                # 获取存储中的文件信息
+                storage_info = await self.storage.get_file_info(file_info.storage_key)
+                
+                # 更新文件状态和信息
+                update_result = await file_repo.update_file_status(
+                    file_id=file_id,
+                    status=FileStatus.AVAILABLE,
+                    processing_status="上传完成",
+                    file_size=actual_size or storage_info.get('size', 0),
+                    file_hash=file_hash or storage_info.get('hash'),
+                    storage_url=storage_info.get('access_url')
+                )
+                
+                if not update_result.get('success'):
+                    return {
+                        "success": False,
+                        "error": "更新文件状态失败"
+                    }
+                
+                # 触发异步RAG处理任务（如果文件类型支持RAG处理）
+                if self.task_service and self._is_rag_supported_file(file_info.content_type):
+                    try:
+                        task_id = await self.task_service.submit_task(
+                            "rag.process_document",
+                            file_id=file_id,
+                            file_path=file_info.storage_key,
+                            content_type=file_info.content_type,
+                            topic_id=file_info.topic_id,
+                            priority=TaskPriority.NORMAL
+                        )
+                        logger.info(f"已提交RAG处理任务: {task_id} for file: {file_id}")
+                    except Exception as task_error:
+                        logger.warning(f"提交RAG处理任务失败: {task_error}")
+                        # 不影响文件上传确认的成功
+                
                 logger.info(f"确认文件上传完成: {file_id}")
                 return {
                     "success": True,
                     "file_id": file_id,
                     "status": "completed",
                     "message": "文件上传确认成功",
-                    "file_size": update_data["file_size"],
+                    "file_size": actual_size or storage_info.get('size', 0),
                     "download_url": await self.get_download_url(file_id)
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "更新文件状态失败"
                 }
                 
         except Exception as e:
@@ -158,6 +181,19 @@ class FileUploadService(IFileUploadService):
                 "error": str(e)
             }
     
+    def _is_rag_supported_file(self, content_type: str) -> bool:
+        """检查文件类型是否支持RAG处理"""
+        supported_types = {
+            "application/pdf",
+            "application/msword", 
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+            "text/markdown",
+            "text/html",
+            "text/csv"
+        }
+        return content_type in supported_types
+    
     async def get_download_url(self,
                              file_id: str,
                              expires_in: int = 3600) -> str:
@@ -165,18 +201,21 @@ class FileUploadService(IFileUploadService):
         
         try:
             # 获取文件记录
-            file_info = await self.db_service.get_file(file_id)
-            if not file_info:
-                raise Exception(f"文件记录不存在: {file_id}")
-            
-            # 生成签名下载URL
-            download_url = await self.storage.generate_signed_download_url(
-                file_key=file_info['storage_key'],
-                expires_in=expires_in
-            )
-            
-            logger.info(f"生成下载URL: {file_id}")
-            return download_url
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                file_info = await file_repo.get_file_by_id(file_id)
+                
+                if not file_info:
+                    raise Exception(f"文件记录不存在: {file_id}")
+                
+                # 生成签名下载URL
+                download_url = await self.storage.generate_signed_download_url(
+                    file_key=file_info.storage_key,
+                    expires_in=expires_in
+                )
+                
+                logger.info(f"生成下载URL: {file_id}")
+                return download_url
             
         except Exception as e:
             logger.error(f"生成下载URL失败: {e}")
@@ -187,25 +226,29 @@ class FileUploadService(IFileUploadService):
         
         try:
             # 获取文件记录
-            file_info = await self.db_service.get_file(file_id)
-            if not file_info:
-                logger.warning(f"文件记录不存在: {file_id}")
-                return False
-            
-            # 从存储中删除文件
-            storage_deleted = await self.storage.delete_file(file_info['storage_key'])
-            
-            # 软删除数据库记录
-            db_deleted = await self.db_service.delete_file(file_id)
-            
-            success = storage_deleted and db_deleted
-            
-            if success:
-                logger.info(f"删除文件成功: {file_id}")
-            else:
-                logger.warning(f"删除文件部分失败: {file_id} (存储: {storage_deleted}, 数据库: {db_deleted})")
-            
-            return success
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                file_info = await file_repo.get_file_by_id(file_id)
+                
+                if not file_info:
+                    logger.warning(f"文件记录不存在: {file_id}")
+                    return False
+                
+                # 从存储中删除文件
+                storage_deleted = await self.storage.delete_file(file_info.storage_key)
+                
+                # 软删除数据库记录
+                delete_result = await file_repo.delete_file(file_id)
+                db_deleted = delete_result.get('success', False)
+                
+                success = storage_deleted and db_deleted
+                
+                if success:
+                    logger.info(f"删除文件成功: {file_id}")
+                else:
+                    logger.warning(f"删除文件部分失败: {file_id} (存储: {storage_deleted}, 数据库: {db_deleted})")
+                
+                return success
             
         except Exception as e:
             logger.error(f"删除文件失败: {e}")
@@ -216,21 +259,32 @@ class FileUploadService(IFileUploadService):
         
         try:
             # 从数据库获取文件信息
-            file_info = await self.db_service.get_file(file_id)
-            if not file_info:
-                return None
-            
-            # 从存储获取额外信息
-            storage_info = await self.storage.get_file_info(file_info.get('storage_key', ''))
-            
-            # 合并信息
-            result = {
-                **file_info,
-                "storage_info": storage_info,
-                "is_downloadable": file_info.get('status') == FileStatus.AVAILABLE
-            }
-            
-            return result
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                file_info = await file_repo.get_file_by_id(file_id)
+                
+                if not file_info:
+                    return None
+                
+                # 从存储获取额外信息
+                storage_info = await self.storage.get_file_info(file_info.storage_key)
+                
+                # 合并信息
+                result = {
+                    "file_id": file_info.file_id,
+                    "original_name": file_info.original_name,
+                    "content_type": file_info.content_type,
+                    "file_size": file_info.file_size,
+                    "status": file_info.status,
+                    "storage_key": file_info.storage_key,
+                    "topic_id": file_info.topic_id,
+                    "created_at": file_info.created_at,
+                    "updated_at": file_info.updated_at,
+                    "storage_info": storage_info,
+                    "is_downloadable": file_info.status == FileStatus.AVAILABLE
+                }
+                
+                return result
             
         except Exception as e:
             logger.error(f"获取文件信息失败: {e}")
@@ -244,19 +298,22 @@ class FileUploadService(IFileUploadService):
         """列出文件"""
         
         try:
-            if topic_id:
-                return await self.db_service.list_topic_files(
-                    topic_id=topic_id,
-                    page=page,
-                    page_size=page_size,
-                    status=status
-                )
-            else:
-                # 这里可以扩展为列出所有文件
-                return {
-                    "files": [],
-                    "message": "列出全部文件功能待实现"
-                }
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                
+                if topic_id:
+                    return await file_repo.list_topic_files(
+                        topic_id=topic_id,
+                        page=page,
+                        page_size=page_size,
+                        status=status
+                    )
+                else:
+                    # 这里可以扩展为列出所有文件
+                    return {
+                        "files": [],
+                        "message": "列出全部文件功能待实现"
+                    }
                 
         except Exception as e:
             logger.error(f"列出文件失败: {e}")

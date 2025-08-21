@@ -19,7 +19,7 @@ from modules.api.error_handlers import (
     request_validation_error_handler,
     general_exception_handler
 )
-from modules.config.docs import SWAGGER_UI_PARAMETERS
+from config.docs import SWAGGER_UI_PARAMETERS
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)

@@ -12,6 +12,7 @@ import logging
 
 from ..database import get_db_session
 from ..services import FileService
+from ..services.task_service import CeleryTaskService as TaskService
 from ..storage import IStorage, MinIOStorage
 from ..schemas import (
     FileUpdate, FileResponse, FileList,
@@ -36,6 +37,14 @@ async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> F
         bucket_name=config.storage.bucket_name or "rag-uploads"
     )
     return FileService(session, storage)
+
+async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> TaskService:
+    """获取任务服务实例"""
+    from ..config import get_config
+
+    config = get_config()
+    return TaskService(broker_url=config.celery.broker_url, result_backend=config.celery.result_backend)
+
 
 @router.post("/upload/signed-url", response_model=APIResponse, summary="获取文件上传签名URL")
 async def generate_upload_url(
@@ -100,7 +109,8 @@ async def generate_upload_url(
 @router.post("/confirm", response_model=APIResponse, summary="确认文件上传完成")
 async def confirm_upload(
     request: ConfirmUploadRequest,
-    service: FileService = Depends(get_file_service)
+    file_service: FileService = Depends(get_file_service),
+    task_service: TaskService = Depends(get_task_service)
 ):
     """
     # 确认文件上传完成并触发处理
@@ -145,8 +155,8 @@ async def confirm_upload(
     - 通过WebSocket获取实时处理状态
     """
     try:
-        async with service:
-            confirm_response = await service.confirm_upload(request)
+        async with file_service:
+            confirm_response = await file_service.confirm_upload(request)
             
             return APIResponse(
                 success=True,
