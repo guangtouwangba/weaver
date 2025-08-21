@@ -9,7 +9,7 @@ import logging
 from typing import Dict, List, Optional
 import asyncio
 
-from .interface import IFileLoader, FileLoaderError
+from .base import IFileLoader, FileLoaderError
 from .text_loader import TextFileLoader
 from ..models import Document, FileLoadRequest, ContentType
 

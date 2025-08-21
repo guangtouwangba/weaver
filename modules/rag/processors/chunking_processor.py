@@ -9,9 +9,9 @@ from typing import List, Optional, Dict, Any, Union
 import asyncio
 import math
 
-from .interface import IDocumentProcessor, DocumentProcessorError
+from .base import IDocumentProcessor, DocumentProcessorError
 from .text_processor import TextProcessor
-from ..models import (
+from ...models import (
     Document, DocumentChunk, ProcessingRequest, ProcessingResult,
     ProcessingStatus, ChunkingStrategy
 )

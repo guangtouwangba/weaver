@@ -11,9 +11,8 @@
     # API系统
     from modules import api_router
     
-    # 兼容原有API
-    from modules import APIAdapter
-    adapter = APIAdapter()
+    # 兼容层已移除，直接使用新的API路由
+    from modules import api_router
 """
 
 # 导入配置模块
@@ -22,8 +21,6 @@ from .config import get_config, AppConfig, DatabaseConfig, StorageConfig
 # 导入新的Service层API
 from .api import api_router
 
-# 导入兼容性层  
-from .compatibility import APIAdapter
 
 # 导入数据库相关
 from .database import DatabaseConnection, get_session, get_db_session
@@ -31,8 +28,8 @@ from .database import DatabaseConnection, get_session, get_db_session
 # 导入存储相关
 from .storage import IStorage, MockStorage, LocalStorage
 
-# 导入文件上传
-from .file_upload import FileUploadService
+# 文件上传服务暂时禁用以避免循环导入
+# from .file_upload import FileUploadService
 
 # 导入Schema层
 from .schemas import (
@@ -87,15 +84,8 @@ from .file_loader import (
     IFileLoader, TextFileLoader, MultiFormatFileLoader
 )
 
-# 导入文档处理模块
-from .document_processor import (
-    IDocumentProcessor, TextProcessor, ChunkingProcessor
-)
-
-# 导入编排模块
-from .orchestrator import (
-    IOrchestrator, DocumentOrchestrator
-)
+# RAG模块 (document_processor, orchestrator, router已移至rag子模块)
+from . import rag
 
 __all__ = [
     # 配置相关
@@ -107,8 +97,6 @@ __all__ = [
     # API层
     'api_router',
     
-    # 兼容性层
-    'APIAdapter',
     
     # 数据库相关
     'DatabaseConnection',
@@ -120,8 +108,6 @@ __all__ = [
     'MockStorage',
     'LocalStorage',
     
-    # 文件上传
-    'FileUploadService',
     
     # Schema层
     'BaseSchema', 'TimestampMixin', 'PaginationSchema', 'ErrorSchema',
@@ -157,9 +143,6 @@ __all__ = [
     # 文件加载模块
     'IFileLoader', 'TextFileLoader', 'MultiFormatFileLoader',
     
-    # 文档处理模块
-    'IDocumentProcessor', 'TextProcessor', 'ChunkingProcessor',
-    
-    # 编排模块
-    'IOrchestrator', 'DocumentOrchestrator',
+    # RAG模块
+    'rag',
 ]

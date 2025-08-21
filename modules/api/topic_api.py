@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, 
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
+from ..services import DocumentService
 from ..database import get_db_session
 from ..services import TopicService, FileService
 from ..schemas import (
@@ -23,6 +24,10 @@ logger = logging.getLogger(__name__)
 async def get_topic_service(session: AsyncSession = Depends(get_db_session)) -> TopicService:
     """获取主题服务实例"""
     return TopicService(session)
+
+async def get_document_service(session: AsyncSession = Depends(get_db_session)) -> DocumentService:
+    """获取文档服务实例"""
+    return DocumentService(session)
 
 async def get_file_service_for_topic(session: AsyncSession = Depends(get_db_session)) -> FileService:
     """获取文件服务实例（用于主题相关操作）"""
@@ -498,7 +503,8 @@ async def upload_file_to_topic(
     tags: Optional[str] = Form(None, description="标签，用逗号分隔"),
     is_public: Optional[bool] = Form(False, description="是否公开"),
     priority: Optional[int] = Form(0, description="优先级(0-10)"),
-    service: TopicService = Depends(get_topic_service)
+    topic_service: TopicService = Depends(get_topic_service),
+    document_service: DocumentService = Depends(get_document_service)
 ):
     """
     # 上传文件并直接关联到主题
@@ -573,7 +579,7 @@ async def upload_file_to_topic(
             tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
         
         # 验证主题存在
-        topic = await service.get_topic(topic_id)
+        topic = await topic_service.get_topic(topic_id)
         if not topic:
             raise ValueError(f"主题 {topic_id} 不存在")
         
@@ -591,7 +597,7 @@ async def upload_file_to_topic(
             bucket_name=config.storage.bucket_name or "rag-uploads"
         )
         
-        file_service = FileService(service.topic_repo.session, storage)
+        file_service = FileService(topic_service.topic_repo.session, storage)
         
         # 创建文件记录
         await file_service.file_repo.create_file(
@@ -604,7 +610,7 @@ async def upload_file_to_topic(
             topic_id=topic_id,
             storage_key=f"uploads/{file_id}/{file.filename}"
         )
-        
+
         # 存储文件（简化实现，记录日志）
         logger.info(f"文件已上传到主题 {topic_id}: {file.filename} (ID: {file_id})")
         

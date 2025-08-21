@@ -18,7 +18,7 @@ except ImportError:
     HAS_CHARDET = False
     chardet = None
 
-from .interface import IFileLoader, FileLoaderError
+from .base import IFileLoader, FileLoaderError
 from ..models import Document, ContentType, create_document_from_path
 
 logger = logging.getLogger(__name__)

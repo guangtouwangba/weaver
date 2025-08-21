@@ -6,11 +6,10 @@
 
 from .connection import DatabaseConnection, get_session, get_db_session, get_database_connection
 from .models import Topic, File, Document, DocumentChunk
-from .service import DatabaseService
+# DatabaseService removed to avoid circular imports
 
-# Repository classes are now in modules.repository
-# Import them for backward compatibility
-from ..repository import TopicRepository, FileRepository, DocumentRepository
+# Repository classes removed to avoid circular imports
+# Use: from modules.repository import TopicRepository
 
 __all__ = [
     'DatabaseConnection',
@@ -21,9 +20,4 @@ __all__ = [
     'File', 
     'Document',
     'DocumentChunk',
-    'DatabaseService',
-    # Backward compatibility for repository classes
-    'TopicRepository',
-    'FileRepository',
-    'DocumentRepository'
 ]

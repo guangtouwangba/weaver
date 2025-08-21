@@ -5,7 +5,7 @@
 """
 
 from .service import FileUploadService
-from .interface import IFileUploadService
+from .base import IFileUploadService
 
 __all__ = [
     'FileUploadService',

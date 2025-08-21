@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any, Union
-from ..models import (
+from ...models import (
     Document, DocumentChunk, ProcessingRequest, ProcessingResult,
     SearchRequest, SearchResult, OrchestrationRequest, OrchestrationResult
 )

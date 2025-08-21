@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from ..models import Document, DocumentChunk, ProcessingRequest, ProcessingResult
+from ...models import Document, DocumentChunk, ProcessingRequest, ProcessingResult
 
 
 class DocumentProcessorError(Exception):

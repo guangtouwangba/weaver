@@ -10,7 +10,7 @@ from typing import List, AsyncIterator
 from pathlib import Path
 from datetime import datetime
 
-from .interface import IFileLoader
+from .base import IFileLoader
 from ..models import (
     Document, ProcessingResult, ContentType, ModuleConfig, FileLoaderError
 )

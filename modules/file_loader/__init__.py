@@ -5,7 +5,7 @@
 提供统一的接口和多种加载策略。
 """
 
-from .interface import IFileLoader, FileLoaderError
+from .base import IFileLoader, FileLoaderError
 from .text_loader import TextFileLoader
 from .multi_format_loader import MultiFormatFileLoader
 

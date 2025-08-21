@@ -9,10 +9,16 @@ import asyncio
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 
-from .interface import IOrchestrator, OrchestrationError
-from ..file_loader.interface import IFileLoader
-from ..document_processor.interface import IDocumentProcessor
-from ..models import (
+from .base import IOrchestrator, OrchestrationError
+from ...file_loader.base import IFileLoader
+from ..processors.base import IDocumentProcessor
+# RAG service imports will be done dynamically to avoid circular imports
+from ..pipeline import (
+    DocumentProcessingRequest, PipelineConfig, PipelineStatus
+)
+from ..embedding import EmbeddingProvider
+from ..vector_store import VectorStoreProvider
+from ...models import (
     Document, DocumentChunk, ProcessingRequest, ProcessingResult,
     SearchRequest, SearchResult, OrchestrationRequest, OrchestrationResult,
     ProcessingStatus, ContentType, ChunkingStrategy
@@ -30,7 +36,11 @@ class DocumentOrchestrator(IOrchestrator):
                  storage_backend: Optional[Any] = None,
                  search_backend: Optional[Any] = None,
                  enable_caching: bool = True,
-                 max_concurrent_operations: int = 5):
+                 max_concurrent_operations: int = 5,
+                 enable_rag_pipeline: bool = True,
+                 embedding_provider: str = "openai",
+                 vector_store_provider: str = "weaviate",
+                 rag_config: Optional[Dict[str, Any]] = None):
         """
         初始化文档编排器
         
@@ -41,6 +51,10 @@ class DocumentOrchestrator(IOrchestrator):
             search_backend: 搜索后端（可选）
             enable_caching: 是否启用缓存
             max_concurrent_operations: 最大并发操作数
+            enable_rag_pipeline: 是否启用RAG管道
+            embedding_provider: 嵌入服务提供商
+            vector_store_provider: 向量存储提供商
+            rag_config: RAG配置
         """
         self.file_loader = file_loader
         self.document_processor = document_processor
@@ -48,6 +62,14 @@ class DocumentOrchestrator(IOrchestrator):
         self.search_backend = search_backend
         self.enable_caching = enable_caching
         self.max_concurrent_operations = max_concurrent_operations
+        
+        # RAG Pipeline
+        self.enable_rag_pipeline = enable_rag_pipeline
+        self.embedding_provider = embedding_provider
+        self.vector_store_provider = vector_store_provider
+        self.rag_config = rag_config or {}
+        self._rag_pipeline = None
+        self._rag_initialized = False
         
         # 内部状态
         self._document_cache: Dict[str, Document] = {}
@@ -74,6 +96,54 @@ class DocumentOrchestrator(IOrchestrator):
             "health_check"
         ]
     
+    async def initialize_rag_pipeline(self) -> None:
+        """初始化RAG处理管道"""
+        if not self.enable_rag_pipeline:
+            logger.info("RAG管道已禁用，跳过初始化")
+            return
+        
+        try:
+            # Import dynamically to avoid circular import
+            from ...services.rag_service import (
+                create_embedding_service, create_vector_store, create_document_pipeline
+            )
+            
+            # Create embedding service
+            embedding_service = create_embedding_service(
+                provider=EmbeddingProvider(self.embedding_provider),
+                **self.rag_config.get("embedding", {})
+            )
+            
+            # Create vector store
+            vector_store = create_vector_store(
+                provider=VectorStoreProvider(self.vector_store_provider),
+                **self.rag_config.get("vector_store", {})
+            )
+            
+            # Create RAG pipeline
+            self._rag_pipeline = create_document_pipeline(
+                file_loader=self.file_loader,
+                document_processor=self.document_processor,
+                embedding_service=embedding_service,
+                vector_store=vector_store,
+                **self.rag_config.get("pipeline", {})
+            )
+            
+            # Initialize the pipeline
+            await self._rag_pipeline.initialize()
+            self._rag_initialized = True
+            
+            logger.info(f"RAG管道初始化完成: {self.embedding_provider} + {self.vector_store_provider}")
+            
+        except Exception as e:
+            logger.error(f"RAG管道初始化失败: {e}")
+            raise OrchestrationError(
+                f"RAG管道初始化失败: {str(e)}",
+                operation="initialize_rag_pipeline",
+                error_code="RAG_INIT_FAILED",
+                original_error=e
+            )
+    
     async def process_document_end_to_end(self, request: OrchestrationRequest) -> OrchestrationResult:
         """端到端处理文档"""
         start_time = asyncio.get_event_loop().time()
@@ -82,6 +152,14 @@ class DocumentOrchestrator(IOrchestrator):
         try:
             async with self._processing_semaphore:
                 logger.info(f"开始端到端处理: {operation_id}")
+                
+                # 检查是否使用RAG管道
+                if self.enable_rag_pipeline and self._rag_initialized:
+                    logger.info(f"使用RAG管道处理: {operation_id}")
+                    return await self._process_with_rag_pipeline(request, operation_id, start_time)
+                
+                # 原有的处理流程
+                logger.info(f"使用传统处理流程: {operation_id}")
                 
                 # 步骤1: 加载文件
                 logger.debug(f"步骤1: 加载文件 {request.source_path}")
@@ -467,4 +545,100 @@ class DocumentOrchestrator(IOrchestrator):
                 operation="build_search_index",
                 error_code="INDEX_BUILD_ERROR", 
                 original_error=e
+            )
+    
+    async def _process_with_rag_pipeline(self, request: OrchestrationRequest, 
+                                       operation_id: str, start_time: float) -> OrchestrationResult:
+        """使用RAG管道处理文档"""
+        try:
+            # 创建RAG管道处理请求
+            rag_request = DocumentProcessingRequest(
+                file_id=operation_id,
+                file_path=request.source_path,
+                topic_id=getattr(request, 'topic_id', None),
+                config=PipelineConfig(
+                    chunk_size=request.chunk_size,
+                    chunk_overlap=request.chunk_overlap,
+                    enable_embeddings=request.generate_embeddings,
+                    enable_vector_storage=True
+                ),
+                metadata=request.metadata or {}
+            )
+            
+            # 通过RAG管道处理
+            rag_result = await self._rag_pipeline.process_document(rag_request)
+            
+            # 转换结果格式
+            total_time = (asyncio.get_event_loop().time() - start_time) * 1000
+            
+            if rag_result.status == PipelineStatus.COMPLETED:
+                # 构建步骤完成信息
+                steps_completed = []
+                for stage_result in rag_result.stage_results:
+                    steps_completed.append({
+                        "step": stage_result.stage.value,
+                        "status": "completed",
+                        "time_ms": stage_result.processing_time_ms,
+                        "items_processed": stage_result.items_processed
+                    })
+                
+                result = OrchestrationResult(
+                    operation_id=operation_id,
+                    document_id=rag_result.document_id or operation_id,
+                    status=ProcessingStatus.COMPLETED,
+                    chunks_created=rag_result.total_chunks,
+                    total_processing_time_ms=total_time,
+                    steps_completed=steps_completed,
+                    metadata={
+                        "orchestrator": self.orchestrator_name,
+                        "processing_method": "rag_pipeline",
+                        "embedding_provider": self.embedding_provider,
+                        "vector_store_provider": self.vector_store_provider,
+                        "embedded_chunks": rag_result.embedded_chunks,
+                        "stored_vectors": rag_result.stored_vectors,
+                        "rag_metadata": rag_result.metadata
+                    }
+                )
+                
+                logger.info(f"RAG管道处理完成: {operation_id}, "
+                          f"块数: {rag_result.total_chunks}, "
+                          f"嵌入向量: {rag_result.embedded_chunks}, "
+                          f"存储向量: {rag_result.stored_vectors}, "
+                          f"耗时: {total_time:.2f}ms")
+                return result
+                
+            else:
+                # 处理失败
+                return OrchestrationResult(
+                    operation_id=operation_id,
+                    document_id=rag_result.document_id or operation_id,
+                    status=ProcessingStatus.FAILED,
+                    chunks_created=0,
+                    total_processing_time_ms=total_time,
+                    error_message=rag_result.error_message,
+                    steps_completed=[],
+                    metadata={
+                        "orchestrator": self.orchestrator_name,
+                        "processing_method": "rag_pipeline",
+                        "failure_reason": "rag_pipeline_failed"
+                    }
+                )
+            
+        except Exception as e:
+            total_time = (asyncio.get_event_loop().time() - start_time) * 1000
+            logger.error(f"RAG管道处理失败: {operation_id}, {e}")
+            
+            return OrchestrationResult(
+                operation_id=operation_id,
+                document_id=request.source_path,
+                status=ProcessingStatus.FAILED,
+                chunks_created=0,
+                total_processing_time_ms=total_time,
+                error_message=str(e),
+                steps_completed=[],
+                metadata={
+                    "orchestrator": self.orchestrator_name,
+                    "processing_method": "rag_pipeline",
+                    "failure_reason": "rag_pipeline_exception"
+                }
             )
