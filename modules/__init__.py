@@ -16,7 +16,7 @@
 """
 
 # 导入配置模块
-from .config import get_config, AppConfig, DatabaseConfig, StorageConfig
+from config import get_config, PydanticAppConfig as AppConfig, PydanticDatabaseConfig as DatabaseConfig, PydanticStorageConfig as StorageConfig
 
 # 导入新的Service层API
 from .api import api_router

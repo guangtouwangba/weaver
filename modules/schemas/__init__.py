@@ -10,7 +10,7 @@ from .topic import TopicSchema, TopicCreate, TopicUpdate, TopicResponse, TopicLi
 from .file import FileSchema, FileCreate, FileUpdate, FileResponse, FileList
 from .document import DocumentSchema, DocumentCreate, DocumentUpdate, DocumentResponse, DocumentList
 from .document import DocumentChunkSchema, DocumentChunkCreate, DocumentChunkResponse
-from .enums import FileStatus, TopicStatus, ContentType, ChunkingStrategy, ProcessingStatus, SearchType
+from .enums import FileStatus, TopicStatus, ContentType, ChunkingStrategy, ProcessingStatus, SearchType, TaskName
 from .requests import (
     FileLoadRequest, ProcessingRequest, SearchRequest, 
     OrchestrationRequest, UploadUrlRequest, ConfirmUploadRequest,
@@ -66,6 +66,7 @@ __all__ = [
     'ChunkingStrategy',
     'ProcessingStatus',
     'SearchType',
+    'TaskName',
     
     # 请求响应Schema
     'FileLoadRequest',

@@ -4,19 +4,7 @@
 包含任务系统相关的所有配置管理功能。
 """
 
-from .config import (
-    # 配置数据类
-    WorkerConfig,
-    QueueConfig,
-    TaskConfig,
-    RetryConfig,
-    MonitoringConfig,
-    RedisConfig,
-    
-    # 配置管理器
-    TaskConfigManager,
-    config_manager
-)
+# 配置数据类已移动到 config.settings 中
 
 from .monitoring import (
     # 监控接口
@@ -36,18 +24,6 @@ from .monitoring import (
 )
 
 __all__ = [
-    # 配置数据类
-    "WorkerConfig",
-    "QueueConfig",
-    "TaskConfig", 
-    "RetryConfig",
-    "MonitoringConfig",
-    "RedisConfig",
-    
-    # 配置管理器
-    "TaskConfigManager",
-    "config_manager",
-    
     # 监控接口
     "ITaskMonitoringService",
     "ITaskConfiguration", 

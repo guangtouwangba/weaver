@@ -6,22 +6,25 @@
 
 from enum import Enum
 
+
 class FileStatus(str, Enum):
     """文件状态枚举"""
-    PENDING = "pending"           # 待处理
-    UPLOADING = "uploading"       # 上传中
-    UPLOADED = "uploaded"         # 已上传
-    PROCESSING = "processing"     # 处理中
-    PROCESSED = "processed"       # 已处理
-    FAILED = "failed"            # 处理失败
-    DELETED = "deleted"          # 已删除
+    PENDING = "pending"  # 待处理
+    UPLOADING = "uploading"  # 上传中
+    UPLOADED = "uploaded"  # 已上传
+    PROCESSING = "processing"  # 处理中
+    PROCESSED = "processed"  # 已处理
+    FAILED = "failed"  # 处理失败
+    DELETED = "deleted"  # 已删除
+
 
 class TopicStatus(str, Enum):
     """主题状态枚举"""
-    ACTIVE = "active"            # 活跃
-    INACTIVE = "inactive"        # 非活跃
-    ARCHIVED = "archived"        # 已归档
-    DELETED = "deleted"          # 已删除
+    ACTIVE = "active"  # 活跃
+    INACTIVE = "inactive"  # 非活跃
+    ARCHIVED = "archived"  # 已归档
+    DELETED = "deleted"  # 已删除
+
 
 class ContentType(str, Enum):
     """内容类型枚举"""
@@ -37,13 +40,15 @@ class ContentType(str, Enum):
     XML = "xml"
     RTF = "rtf"
 
+
 class ChunkingStrategy(str, Enum):
     """分块策略枚举"""
-    FIXED_SIZE = "fixed_size"         # 固定大小
-    SENTENCE = "sentence"             # 按句子
-    PARAGRAPH = "paragraph"           # 按段落
-    SEMANTIC = "semantic"             # 语义分块
-    RECURSIVE = "recursive"           # 递归分块
+    FIXED_SIZE = "fixed_size"  # 固定大小
+    SENTENCE = "sentence"  # 按句子
+    PARAGRAPH = "paragraph"  # 按段落
+    SEMANTIC = "semantic"  # 语义分块
+    RECURSIVE = "recursive"  # 递归分块
+
 
 class ProcessingStatus(str, Enum):
     """处理状态枚举"""
@@ -53,9 +58,21 @@ class ProcessingStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+
 class SearchType(str, Enum):
     """搜索类型枚举"""
-    SEMANTIC = "semantic"            # 语义搜索
-    KEYWORD = "keyword"              # 关键词搜索
-    HYBRID = "hybrid"                # 混合搜索
-    EXACT = "exact"                  # 精确搜索
+    SEMANTIC = "semantic"  # 语义搜索
+    KEYWORD = "keyword"  # 关键词搜索
+    HYBRID = "hybrid"  # 混合搜索
+    EXACT = "exact"  # 精确搜索
+
+
+class TaskName(str, Enum):
+    """任务名称枚举"""
+    FILE_UPLOAD = "file_upload"  # 文件上传
+    FILE_UPLOAD_CONFIRM = "file_upload_confirm"  # 文件上传确认
+    FILE_PROCESSING = "file_processing"  # 文件处理
+    TOPIC_CREATION = "topic_creation"  # 主题创建
+    TOPIC_PROCESSING = "topic_processing"  # 主题处理
+    SEARCH = "search"  # 搜索
+    ORCHESTRATION = "orchestration"  # 编排处理

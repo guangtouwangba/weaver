@@ -38,7 +38,14 @@ from .settings import (
     StorageConfig as PydanticStorageConfig,
     LoggingConfig,
     get_config,
-    reload_config
+    reload_config,
+    # 任务配置（从config.tasks合并过来）
+    RedisConfig,
+    WorkerConfig,
+    TaskConfig,
+    RetryConfig,
+    MonitoringConfig,
+    CeleryConfig
 )
 
 # API文档配置（从modules.config合并过来）
@@ -50,22 +57,7 @@ from .docs import (
     get_openapi_config
 )
 
-# 任务系统配置
-from .tasks.config import (
-    # 配置数据类
-    WorkerConfig,
-    QueueConfig,
-    TaskConfig,
-    RetryConfig,
-    MonitoringConfig,
-    RedisConfig,
-    
-    # 配置管理器
-    TaskConfigManager,
-    config_manager
-)
-
-# 任务监控配置
+# 任务监控配置（保留监控相关功能）
 from .tasks.monitoring import (
     # 监控接口
     ITaskMonitoringService,
@@ -113,17 +105,13 @@ __all__ = [
     "CUSTOM_SWAGGER_JS",
     "get_openapi_config",
     
-    # 任务配置数据类
+    # 任务配置数据类（从config.tasks合并过来）
+    "RedisConfig",
     "WorkerConfig",
-    "QueueConfig", 
     "TaskConfig",
     "RetryConfig",
     "MonitoringConfig",
-    "RedisConfig",
-    
-    # 任务配置管理器
-    "TaskConfigManager",
-    "config_manager",
+    "CeleryConfig",
     
     # 任务监控接口
     "ITaskMonitoringService",

@@ -148,21 +148,16 @@ class FileUploadService(IFileUploadService):
                         "error": "更新文件状态失败"
                     }
                 
-                # 触发异步RAG处理任务（如果文件类型支持RAG处理）
+                # 异步触发RAG处理任务（如果文件类型支持RAG处理）
                 if self.task_service and self._is_rag_supported_file(file_info.content_type):
-                    try:
-                        task_id = await self.task_service.submit_task(
-                            "rag.process_document",
-                            file_id=file_id,
-                            file_path=file_info.storage_key,
-                            content_type=file_info.content_type,
-                            topic_id=file_info.topic_id,
-                            priority=TaskPriority.NORMAL
-                        )
-                        logger.info(f"已提交RAG处理任务: {task_id} for file: {file_id}")
-                    except Exception as task_error:
-                        logger.warning(f"提交RAG处理任务失败: {task_error}")
-                        # 不影响文件上传确认的成功
+                    # 使用asyncio.create_task在后台异步提交任务，不阻塞主流程
+                    import asyncio
+                    asyncio.create_task(self._submit_rag_task_async(
+                        file_id=file_id,
+                        file_path=file_info.storage_key,
+                        content_type=file_info.content_type,
+                        topic_id=file_info.topic_id
+                    ))
                 
                 logger.info(f"确认文件上传完成: {file_id}")
                 return {
@@ -181,6 +176,30 @@ class FileUploadService(IFileUploadService):
                 "error": str(e)
             }
     
+    async def _submit_rag_task_async(self, file_id: str, file_path: str, content_type: str, topic_id: Optional[int]) -> None:
+        """
+        异步提交RAG处理任务的后台函数，不阻塞主流程
+        
+        Args:
+            file_id: 文件ID
+            file_path: 文件路径
+            content_type: 文件类型
+            topic_id: 主题ID
+        """
+        try:
+            task_id = await self.task_service.submit_task(
+                "rag.process_document",
+                file_id=file_id,
+                file_path=file_path,
+                content_type=content_type,
+                topic_id=topic_id,
+                priority=TaskPriority.NORMAL
+            )
+            logger.info(f"后台RAG任务提交成功: {task_id} for file: {file_id}")
+        except Exception as task_error:
+            logger.warning(f"后台RAG任务提交失败: {task_error} for file: {file_id}")
+            # 任务提交失败不影响文件上传确认成功
+
     def _is_rag_supported_file(self, content_type: str) -> bool:
         """检查文件类型是否支持RAG处理"""
         supported_types = {

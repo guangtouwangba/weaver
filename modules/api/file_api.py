@@ -4,15 +4,17 @@
 使用FileService进行业务逻辑编排的API接口。
 """
 
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 import logging
 
+from .. import schemas
 from ..database import get_db_session
 from ..services import FileService
-from ..services.task_service import CeleryTaskService as TaskService
+from ..services.task_service import CeleryTaskService
 from ..storage import IStorage, MinIOStorage
 from ..schemas import (
     FileUpdate, FileResponse, FileList,
@@ -23,10 +25,27 @@ from ..schemas import (
 router = APIRouter(prefix="/files", tags=["files"])
 logger = logging.getLogger(__name__)
 
+
+async def _submit_task_async(task_service: CeleryTaskService, task_name: str, **kwargs) -> None:
+    """
+    异步提交任务的后台函数，不阻塞主流程
+    
+    Args:
+        task_service: 任务服务实例
+        task_name: 任务名称
+        **kwargs: 任务参数
+    """
+    try:
+        task_id = await task_service.submit_task(task_name, **kwargs)
+        logger.info(f"后台任务提交成功: {task_name} (ID: {task_id})")
+    except Exception as e:
+        logger.warning(f"后台任务提交失败: {task_name}, 错误: {e}")
+        # 任务提交失败不影响主流程，只记录警告日志
+
 # 依赖注入
 async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> FileService:
     """获取文件服务实例"""
-    from ..config import get_config
+    from config import get_config
     
     config = get_config()
     storage = MinIOStorage(
@@ -38,12 +57,16 @@ async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> F
     )
     return FileService(session, storage)
 
-async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> TaskService:
+async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> CeleryTaskService:
     """获取任务服务实例"""
-    from ..config import get_config
+    from config import get_config
 
     config = get_config()
-    return TaskService(broker_url=config.celery.broker_url, result_backend=config.celery.result_backend)
+    return CeleryTaskService(
+        broker_url=config.celery.broker_url, 
+        result_backend=config.celery.result_backend,
+        app_name=config.celery.app_name
+    )
 
 
 @router.post("/upload/signed-url", response_model=APIResponse, summary="获取文件上传签名URL")
@@ -110,7 +133,7 @@ async def generate_upload_url(
 async def confirm_upload(
     request: ConfirmUploadRequest,
     file_service: FileService = Depends(get_file_service),
-    task_service: TaskService = Depends(get_task_service)
+    task_service: CeleryTaskService = Depends(get_task_service)
 ):
     """
     # 确认文件上传完成并触发处理
@@ -157,6 +180,15 @@ async def confirm_upload(
     try:
         async with file_service:
             confirm_response = await file_service.confirm_upload(request)
+
+            # 异步提交任务，不阻塞主流程
+            asyncio.create_task(_submit_task_async(
+                task_service,
+                schemas.TaskName.FILE_UPLOAD_CONFIRM,
+                file_id=confirm_response.file_id,
+                file_path=confirm_response.file_path,
+            ))
+
             
             return APIResponse(
                 success=True,

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # 依赖注入
 async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> FileService:
     """获取文件服务实例"""
-    from ..config import get_config
+    from config import get_config
     
     config = get_config()
     storage = MinIOStorage(

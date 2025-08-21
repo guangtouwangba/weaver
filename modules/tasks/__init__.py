@@ -50,18 +50,14 @@ from config.tasks.monitoring import (
     DEFAULT_ALERT_RULES
 )
 
-from config.tasks.config import (
+from config import (
     # 配置数据类
     WorkerConfig,
-    QueueConfig,
     TaskConfig as TaskConfigClass,
     RetryConfig,
     MonitoringConfig,
     RedisConfig,
-    
-    # 配置管理器
-    TaskConfigManager,
-    config_manager
+    CeleryConfig
 )
 
 __all__ = [
@@ -92,11 +88,11 @@ __all__ = [
     
     # 配置数据类
     "WorkerConfig",
-    "QueueConfig",
     "TaskConfigClass",
     "RetryConfig",
     "MonitoringConfig",
     "RedisConfig",
+    "CeleryConfig",
     
     # 异常
     "TaskError",
@@ -105,10 +101,6 @@ __all__ = [
     
     # 类型
     "TaskHandlerDecorator",
-    
-    # 配置管理器
-    "TaskConfigManager",
-    "config_manager",
     
     # 预定义常量
     "MONITORING_METRICS",
