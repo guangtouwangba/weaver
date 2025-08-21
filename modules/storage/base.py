@@ -111,6 +111,22 @@ class IStorage(ABC):
             文件信息字典或None
         """
         pass
+    
+    @abstractmethod
+    async def read_file(self, file_key: str) -> bytes:
+        """
+        读取文件内容
+        
+        Args:
+            file_key: 文件标识
+            
+        Returns:
+            文件内容字节数据
+            
+        Raises:
+            StorageError: 文件不存在或读取失败
+        """
+        pass
 
 
 def create_storage_service() -> IStorage:

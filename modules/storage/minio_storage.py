@@ -245,6 +245,33 @@ class MinIOStorage(IStorage):
             logger.error(f"Failed to get file info for {file_key}: {e}")
             return None
     
+    async def read_file(self, file_key: str) -> bytes:
+        """读取文件内容"""
+        
+        try:
+            # 获取文件对象
+            response = self.client.get_object(
+                bucket_name=self.bucket_name,
+                object_name=file_key
+            )
+            
+            # 读取所有内容
+            file_content = response.read()
+            
+            logger.debug(f"Successfully read file {file_key} ({len(file_content)} bytes)")
+            return file_content
+            
+        except S3Error as e:
+            if e.code == 'NoSuchKey':
+                raise StorageError(f"文件不存在: {file_key}")
+            logger.error(f"Failed to read file {file_key}: {e}")
+            raise StorageError(f"读取文件失败: {e}")
+        finally:
+            # 确保响应被关闭
+            if 'response' in locals():
+                response.close()
+                response.release_conn()
+    
     def get_bucket_info(self) -> Dict[str, Any]:
         """获取存储桶信息"""
         

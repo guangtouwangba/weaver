@@ -184,3 +184,25 @@ class LocalStorage(IStorage):
         except Exception as e:
             logger.error(f"获取本地文件信息失败: {e}")
             return None
+    
+    async def read_file(self, file_key: str) -> bytes:
+        """读取本地文件内容"""
+        
+        try:
+            file_path = self._get_file_path(file_key)
+            
+            if not file_path.exists():
+                raise StorageError(f"文件不存在: {file_key}")
+            
+            # 读取文件内容
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+            
+            logger.debug(f"成功读取本地文件: {file_key} ({len(file_content)} bytes)")
+            return file_content
+            
+        except Exception as e:
+            if isinstance(e, StorageError):
+                raise
+            logger.error(f"读取本地文件失败: {e}")
+            raise StorageError(f"读取本地文件失败: {e}")
