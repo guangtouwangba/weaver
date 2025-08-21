@@ -14,7 +14,8 @@ from sqlalchemy.orm import selectinload
 
 from .base_repository import BaseRepository
 from .interfaces import IFileRepository
-from ..database.models import File, FileStatus
+from ..database.models import File
+from ..schemas.enums import FileStatus
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,10 @@ class FileRepository(BaseRepository, IFileRepository):
                          file_size: int = 0,
                          **kwargs) -> File:
         """创建文件记录"""
+        # 提供必需字段的默认值
+        storage_bucket = kwargs.get('storage_bucket') or 'rag-uploads'  # 默认存储桶
+        storage_key = kwargs.get('storage_key') or f"uploads/{file_id}/{original_name}"  # 默认存储键
+        
         file_record = File(
             id=file_id,
             filename=kwargs.get('filename', original_name),
@@ -35,11 +40,13 @@ class FileRepository(BaseRepository, IFileRepository):
             content_type=content_type,
             file_size=file_size,
             file_hash=kwargs.get('file_hash'),
-            storage_bucket=kwargs.get('storage_bucket'),
-            storage_key=kwargs.get('storage_key'),
+            storage_bucket=storage_bucket,
+            storage_key=storage_key,
             storage_url=kwargs.get('storage_url'),
-            status=kwargs.get('status', "pending"),  # 使用字符串而不是枚举
-            topic_id=kwargs.get('topic_id')
+            status=kwargs.get('status', FileStatus.UPLOADING),  # 使用枚举值
+            topic_id=kwargs.get('topic_id'),
+            access_level=kwargs.get('access_level', 'private'),  # 默认访问级别
+            download_count=0  # 初始下载次数
             # 移除user_id和file_metadata，因为数据库模型中没有这些字段
         )
         

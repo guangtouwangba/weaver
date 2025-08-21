@@ -11,7 +11,8 @@ from uuid import uuid4
 
 from .connection import get_session
 # Repository imports moved to method level to avoid circular import
-from .models import Topic, File, Document, FileStatus, TopicStatus
+from .models import Topic, File, Document
+from ..schemas.enums import FileStatus, TopicStatus
 
 logger = logging.getLogger(__name__)
 

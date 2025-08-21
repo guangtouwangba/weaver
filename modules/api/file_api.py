@@ -20,7 +20,7 @@ from ..storage import IStorage, MinIOStorage
 from ..schemas import (
     FileUpdate, FileResponse, FileList,
     UploadUrlRequest, UploadUrlResponse, ConfirmUploadRequest, ConfirmUploadResponse,
-    APIResponse
+    APIResponse, FileStatus
 )
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -479,7 +479,7 @@ async def upload_file_direct(
                 content_type=file.content_type or "application/octet-stream",
                 file_size=len(file_content),
                 filename=title or file.filename,
-                status="uploaded",
+                status=FileStatus.AVAILABLE,
                 topic_id=topic_id,
                 storage_key=f"uploads/{file_id}/{file.filename}"
             )

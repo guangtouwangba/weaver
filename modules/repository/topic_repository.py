@@ -14,7 +14,8 @@ from sqlalchemy.orm import selectinload
 
 from .base_repository import BaseRepository
 from .interfaces import ITopicRepository
-from ..database.models import Topic, TopicStatus
+from ..database.models import Topic
+from ..schemas.enums import TopicStatus
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,8 @@ class TopicRepository(BaseRepository, ITopicRepository):
             conversation_id=kwargs.get('conversation_id'),
             parent_topic_id=kwargs.get('parent_topic_id'),
             settings=kwargs.get('settings', {}),
-            # 显式设置JSONB字段为空对象而不是None或integer
-            concept_relationships={},
+            # 统计信息字段
+            concept_relationships=0,
             total_resources=0,
             total_conversations=0,
             core_concepts_discovered=0,

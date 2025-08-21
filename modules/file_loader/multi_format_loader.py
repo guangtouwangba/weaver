@@ -11,7 +11,8 @@ import asyncio
 
 from .base import IFileLoader, FileLoaderError
 from .text_loader import TextFileLoader
-from ..models import Document, FileLoadRequest, ContentType
+from ..models import Document, FileLoadRequest
+from ..schemas.enums import ContentType
 
 logger = logging.getLogger(__name__)
 

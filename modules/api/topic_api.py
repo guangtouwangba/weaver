@@ -14,7 +14,7 @@ from ..database import get_db_session
 from ..services import TopicService, FileService
 from ..schemas import (
     TopicCreate, TopicUpdate, TopicResponse, TopicList,
-    FileList, APIResponse, AddResourceRequest, FileResponse
+    FileList, APIResponse, AddResourceRequest, FileResponse, FileStatus
 )
 
 router = APIRouter(prefix="/topics", tags=["topics"])
@@ -606,7 +606,7 @@ async def upload_file_to_topic(
             content_type=file.content_type or "application/octet-stream",
             file_size=len(file_content),
             filename=title or file.filename,
-            status="uploaded",
+            status=FileStatus.AVAILABLE,
             topic_id=topic_id,
             storage_key=f"uploads/{file_id}/{file.filename}"
         )
