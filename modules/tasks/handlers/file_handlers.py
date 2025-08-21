@@ -14,12 +14,13 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from ..base import ITaskHandler, TaskConfig, TaskPriority
+from ... import schemas
 from ...services.task_service import task_handler, register_task_handler
 
 logger = logging.getLogger(__name__)
 
 
-@task_handler("file.upload_complete",
+@task_handler(schemas.TaskName.FILE_UPLOAD_CONFIRM,
               priority=TaskPriority.HIGH,
               max_retries=3,
               timeout=300,
@@ -30,35 +31,23 @@ class FileUploadCompleteHandler(ITaskHandler):
     
     @property
     def task_name(self) -> str:
-        return "file.upload_complete"
+        return schemas.TaskName.FILE_UPLOAD_CONFIRM
     
     async def handle(self,
                     file_id: str,
-                    file_path: str,
-                    original_name: str,
-                    content_type: str,
-                    file_size: int,
-                    topic_id: Optional[int] = None,
-                    enable_rag_processing: bool = True,
                     **metadata) -> Dict[str, Any]:
         """
         处理文件上传完成事件
         
         Args:
             file_id: 文件ID
-            file_path: 文件路径
-            original_name: 原始文件名
-            content_type: 内容类型
-            file_size: 文件大小
-            topic_id: 主题ID
-            enable_rag_processing: 是否启用RAG处理
             **metadata: 其他元数据
             
         Returns:
             Dict[str, Any]: 处理结果
         """
         try:
-            logger.info(f"处理文件上传完成: {file_id} - {original_name}")
+            logger.info(f"处理文件上传完成: {file_id} ")
             
             # 验证文件存在
             if not os.path.exists(file_path):
@@ -72,63 +61,9 @@ class FileUploadCompleteHandler(ITaskHandler):
             result = {
                 "success": True,
                 "file_id": file_id,
-                "file_path": file_path,
-                "original_name": original_name,
-                "content_type": content_type,
-                "file_size": actual_size,
-                "topic_id": topic_id,
-                "processed_at": datetime.utcnow().isoformat(),
                 "tasks_triggered": []
             }
-            
-            # 如果启用RAG处理，触发文档处理任务
-            if enable_rag_processing and self._should_process_with_rag(content_type):
-                try:
-                    # 动态导入任务服务以避免循环依赖
-                    from ...services.task_service import CeleryTaskService
-                    
-                    # 这里需要一个全局的任务服务实例
-                    # 在实际使用中，可以通过依赖注入获取
-                    logger.info(f"准备触发RAG处理任务: {file_id}")
-                    
-                    # 构建RAG处理配置
-                    rag_config = {
-                        "embedding_provider": metadata.get("embedding_provider", "openai"),
-                        "vector_store_provider": metadata.get("vector_store_provider", "weaviate"),
-                        "chunk_size": metadata.get("chunk_size", 1000),
-                        "chunk_overlap": metadata.get("chunk_overlap", 200)
-                    }
-                    
-                    # 记录待触发的任务(实际触发需要在外部进行)
-                    result["rag_task_config"] = {
-                        "task_name": "rag.process_document",
-                        "args": [file_id, file_path],
-                        "kwargs": {
-                            "topic_id": topic_id,
-                            **rag_config
-                        }
-                    }
-                    result["tasks_triggered"].append("rag.process_document")
-                    
-                except Exception as e:
-                    logger.error(f"准备RAG处理任务失败: {e}")
-                    result["rag_error"] = str(e)
-            
-            # 触发文件分析任务
-            if self._should_analyze_file(content_type):
-                result["analysis_task_config"] = {
-                    "task_name": "file.analyze_content",
-                    "args": [file_id, file_path],
-                    "kwargs": {
-                        "content_type": content_type,
-                        "original_name": original_name
-                    }
-                }
-                result["tasks_triggered"].append("file.analyze_content")
-            
-            logger.info(f"文件上传完成处理成功: {file_id}")
-            return result
-            
+
         except Exception as e:
             logger.error(f"文件上传完成处理失败: {file_id}, {e}")
             return {
@@ -138,25 +73,6 @@ class FileUploadCompleteHandler(ITaskHandler):
                 "error_type": type(e).__name__,
                 "failed_at": datetime.utcnow().isoformat()
             }
-    
-    def _should_process_with_rag(self, content_type: str) -> bool:
-        """判断是否应该进行RAG处理"""
-        rag_supported_types = [
-            "application/pdf",
-            "text/plain",
-            "text/markdown",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "text/html",
-            "application/json"
-        ]
-        return content_type in rag_supported_types
-    
-    def _should_analyze_file(self, content_type: str) -> bool:
-        """判断是否应该分析文件"""
-        # 大部分文件类型都可以进行基本分析
-        return True
-
 
 @task_handler("file.analyze_content",
               priority=TaskPriority.NORMAL,

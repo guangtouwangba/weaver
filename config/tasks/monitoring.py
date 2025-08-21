@@ -9,8 +9,24 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from enum import Enum
 
-from modules.tasks.base import TaskStatus, TaskPriority
+# 定义任务状态和优先级枚举（避免循环导入）
+class TaskStatus(Enum):
+    """任务状态枚举"""
+    PENDING = "pending"      # 等待执行
+    RUNNING = "running"      # 正在执行
+    SUCCESS = "success"      # 执行成功
+    FAILURE = "failure"      # 执行失败
+    RETRY = "retry"          # 重试中
+    REVOKED = "revoked"      # 已取消
+
+class TaskPriority(Enum):
+    """任务优先级枚举"""
+    LOW = 1          # 低优先级
+    NORMAL = 5       # 普通优先级
+    HIGH = 8         # 高优先级
+    CRITICAL = 10    # 关键优先级
 
 logger = logging.getLogger(__name__)
 

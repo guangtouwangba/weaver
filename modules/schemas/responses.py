@@ -121,6 +121,10 @@ class ConfirmUploadResponse(BaseSchema):
         default=None,
         description="预计处理时间（秒）"
     )
+    file_path: Optional[str] = Field(
+        default=None,
+        description="文件存储路径"
+    )
 
 class HealthCheckResponse(BaseSchema):
     """健康检查响应Schema"""

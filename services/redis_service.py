@@ -25,7 +25,7 @@ try:
 except ImportError:
     MSGPACK_AVAILABLE = False
 
-from config.tasks.config import config_manager, RedisConfig
+from config import RedisConfig, get_config
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ class RedisService(IRedisService):
         if not REDIS_AVAILABLE:
             raise ImportError("Redis not available. Please install redis: pip install redis")
         
-        self.config = config or config_manager.get_redis_config()
+        self.config = config or get_config().redis
         self.client: Optional[redis.Redis] = None
         self.cluster_client: Optional[redis.RedisCluster] = None
         self.sentinel_client: Optional[redis.Sentinel] = None
@@ -199,7 +199,7 @@ class RedisService(IRedisService):
     
     async def _connect_single(self):
         """连接单实例Redis"""
-        connection_params = config_manager.get_redis_connection_params()
+        connection_params = self._get_redis_connection_params()
         self.client = redis.Redis(**connection_params)
         
         # 测试连接
@@ -207,7 +207,7 @@ class RedisService(IRedisService):
     
     async def _connect_cluster(self):
         """连接Redis集群"""
-        cluster_config = config_manager.build_redis_cluster_config()
+        cluster_config = self._build_redis_cluster_config()
         if not cluster_config:
             raise ValueError("Redis集群配置无效")
         
@@ -219,7 +219,7 @@ class RedisService(IRedisService):
     
     async def _connect_sentinel(self):
         """连接Redis哨兵"""
-        sentinel_config = config_manager.build_redis_sentinel_config()
+        sentinel_config = self._build_redis_sentinel_config()
         if not sentinel_config:
             raise ValueError("Redis哨兵配置无效")
         
@@ -232,6 +232,73 @@ class RedisService(IRedisService):
         # 测试连接
         master = self.sentinel_client.master_for(sentinel_config["service_name"])
         await master.ping()
+    
+    def _get_redis_connection_params(self) -> Dict[str, Any]:
+        """获取Redis连接参数字典"""
+        params = {
+            "host": self.config.host,
+            "port": self.config.port,
+            "db": self.config.db,
+            "decode_responses": self.config.decode_responses,
+            "encoding": self.config.encoding,
+            "encoding_errors": self.config.encoding_errors,
+            "socket_timeout": self.config.socket_timeout,
+            "socket_connect_timeout": self.config.socket_connect_timeout,
+            "socket_keepalive": self.config.socket_keepalive,
+            "retry_on_timeout": self.config.retry_on_timeout,
+            "max_connections": self.config.max_connections,
+            "health_check_interval": self.config.health_check_interval,
+        }
+        
+        # 添加认证信息
+        if self.config.password:
+            params["password"] = self.config.password
+        if self.config.username:
+            params["username"] = self.config.username
+        
+        # 添加SSL配置
+        if self.config.ssl:
+            params["ssl"] = True
+            if self.config.ssl_keyfile:
+                params["ssl_keyfile"] = self.config.ssl_keyfile
+            if self.config.ssl_certfile:
+                params["ssl_certfile"] = self.config.ssl_certfile
+            if self.config.ssl_ca_certs:
+                params["ssl_ca_certs"] = self.config.ssl_ca_certs
+            params["ssl_cert_reqs"] = self.config.ssl_cert_reqs
+            params["ssl_check_hostname"] = self.config.ssl_check_hostname
+        
+        return params
+    
+    def _build_redis_cluster_config(self) -> Optional[Dict[str, Any]]:
+        """构建Redis集群配置"""
+        if not self.config.cluster_enabled:
+            return None
+        
+        return {
+            "startup_nodes": getattr(self.config, 'cluster_nodes', []),
+            "decode_responses": self.config.decode_responses,
+            "socket_timeout": self.config.socket_timeout,
+            "socket_connect_timeout": self.config.socket_connect_timeout,
+            "retry_on_timeout": self.config.retry_on_timeout,
+            "password": self.config.password,
+            "username": self.config.username,
+        }
+    
+    def _build_redis_sentinel_config(self) -> Optional[Dict[str, Any]]:
+        """构建Redis哨兵配置"""
+        if not self.config.sentinel_enabled:
+            return None
+        
+        return {
+            "sentinels": getattr(self.config, 'sentinel_hosts', []),
+            "service_name": getattr(self.config, 'sentinel_master_name', 'mymaster'),
+            "socket_timeout": getattr(self.config, 'sentinel_socket_timeout', 0.1),
+            "password": self.config.password,
+            "username": self.config.username,
+            "db": self.config.db,
+            "decode_responses": self.config.decode_responses,
+        }
     
     def _serialize(self, value: Any) -> Union[str, bytes]:
         """序列化数据"""

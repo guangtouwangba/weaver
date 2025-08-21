@@ -32,7 +32,7 @@ async def get_document_service(session: AsyncSession = Depends(get_db_session)) 
 async def get_file_service_for_topic(session: AsyncSession = Depends(get_db_session)) -> FileService:
     """获取文件服务实例（用于主题相关操作）"""
     from ..storage import MinIOStorage  # 使用MinIOStorage作为默认存储
-    from ..config import get_config
+    from config import get_config
     
     config = get_config()
     storage = MinIOStorage(
@@ -586,7 +586,7 @@ async def upload_file_to_topic(
         # 通过FileService创建文件记录
         from ..services import FileService
         from ..storage import MinIOStorage
-        from ..config import get_config
+        from config import get_config
         
         config = get_config()
         storage = MinIOStorage(

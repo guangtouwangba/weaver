@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 
 # 导入配置模块
-from ..config import get_config
+from config import get_config
 
 logger = logging.getLogger(__name__)
 

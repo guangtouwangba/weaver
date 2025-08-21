@@ -102,7 +102,8 @@ class FileService(BaseService):
                 file_id=request.file_id,
                 status=FileStatus.UPLOADED,
                 processing_queued=True,
-                estimated_processing_time=60  # 预计60秒
+                estimated_processing_time=60,  # 预计60秒
+                file_path=file_record.storage_key  # 文件存储路径
             )
             
         except Exception as e:
