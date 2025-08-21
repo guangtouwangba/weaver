@@ -9,11 +9,48 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
+# Pytest configuration hooks
+def pytest_configure(config):
+    """Configure pytest markers."""
+    config.addinivalue_line("markers", "integration: mark test as integration test")
+    config.addinivalue_line("markers", "slow: mark test as slow running")
+    config.addinivalue_line("markers", "database: mark test as database integration test")
+    config.addinivalue_line("markers", "api: mark test as API integration test")
+    config.addinivalue_line("markers", "fullstack: mark test as full stack integration test")
+
+def pytest_collection_modifyitems(config, items):
+    """Add markers to tests based on their location or name."""
+    for item in items:
+        # Mark integration tests
+        if "integration" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        
+        # Mark database tests
+        if "database" in str(item.fspath) or "database" in item.name:
+            item.add_marker(pytest.mark.database)
+        
+        # Mark API tests
+        if "_api.py" in str(item.fspath):
+            item.add_marker(pytest.mark.api)
+        
+        # Mark full stack tests
+        if "full_stack" in str(item.fspath):
+            item.add_marker(pytest.mark.fullstack)
+            item.add_marker(pytest.mark.slow)
+
+def pytest_runtest_setup(item):
+    """Setup function run before each test."""
+    # Skip integration tests if running in unit test mode
+    if item.get_closest_marker("integration"):
+        if item.config.getoption("-m") == "unit":
+            pytest.skip("Skipping integration test in unit test mode")
+
 # Import the main application
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from main import app
-from modules.database import Base, get_db_session
+from modules.database.connection import Base
+from modules.database import get_db_session
 
 # Test database configuration
 TEST_DATABASE_URL = "postgresql+asyncpg://rag_user:rag_password@localhost:5432/rag_test_db"
