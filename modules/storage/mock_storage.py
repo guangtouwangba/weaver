@@ -124,3 +124,15 @@ class MockStorage(IStorage):
         file_info['access_url'] = f"{self.base_url}/{self.bucket_name}/{file_key}"
         
         return file_info
+    
+    async def read_file(self, file_key: str) -> bytes:
+        """读取模拟文件内容"""
+        
+        if file_key not in self._files:
+            raise StorageError(f"文件不存在: {file_key}")
+        
+        file_info = self._files[file_key]
+        file_content = file_info.get('data', b'')
+        
+        logger.debug(f"模拟读取文件: {file_key} ({len(file_content)} bytes)")
+        return file_content

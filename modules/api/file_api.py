@@ -505,7 +505,7 @@ async def upload_file_direct(
                     "size": file_info["file_size"],
                     "content_type": file_info["content_type"],
                     "topic_id": topic_id,
-                    "status": "uploaded",
+                    "status": FileStatus.AVAILABLE,
                     "processing_status": "pending"
                 }
             )

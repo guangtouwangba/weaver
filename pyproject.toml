@@ -89,6 +89,7 @@ dependencies = [
     "greenlet>=3.2.4",
     "celery>=5.5.3",
     "psutil>=7.0.0",
+    "pypdf2>=3.0.1",
 ]
 
 [project.optional-dependencies]

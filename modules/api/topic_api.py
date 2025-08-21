@@ -624,7 +624,7 @@ async def upload_file_to_topic(
                 "size": len(file_content),
                 "content_type": file.content_type or "application/octet-stream",
                 "topic_id": topic_id,
-                "status": "uploaded",
+                "status": FileStatus.AVAILABLE,
                 "processing_status": "pending",
                 "tags": tag_list,
                 "priority": priority or 0

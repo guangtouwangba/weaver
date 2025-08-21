@@ -42,6 +42,9 @@ class MultiFormatFileLoader(IFileLoader):
         
         # 这里可以注册更多专用加载器
         # PDF加载器、Word加载器等
+        from .pdf_loader import PDFFileLoader
+        pdf_loader = PDFFileLoader(max_file_size=self.max_file_size_mb * 1024 * 1024)
+        self._loaders[ContentType.PDF] = pdf_loader
     
     @property
     def loader_name(self) -> str:
@@ -85,6 +88,14 @@ class MultiFormatFileLoader(IFileLoader):
                 from ..models import detect_content_type
                 content_type = detect_content_type(request.file_path)
             
+            # 如果content_type是字符串，转换为ContentType枚举
+            if isinstance(content_type, str):
+                try:
+                    content_type = ContentType(content_type)
+                except ValueError:
+                    # 如果字符串不匹配任何枚举值，尝试转换为TEXT类型
+                    content_type = ContentType.TXT
+            
             # 检查是否支持
             if not self.supports_content_type(content_type):
                 raise FileLoaderError(
@@ -101,7 +112,7 @@ class MultiFormatFileLoader(IFileLoader):
             document.metadata.update({
                 "multi_format_loader": True,
                 "delegate_loader": loader.loader_name,
-                "detected_type": content_type.value
+                "detected_type": content_type.value if hasattr(content_type, 'value') else str(content_type)
             })
             
             logger.info(f"使用 {loader.loader_name} 加载文档: {request.file_path}")
@@ -158,16 +169,41 @@ async def load_document_from_path(file_path: str, **kwargs) -> Document:
     Returns:
         Document: 加载的文档
     """
+    # 构建元数据，包含所有额外参数
+    metadata = kwargs.get('metadata', {})
+    metadata.update({
+        'encoding': kwargs.get('encoding', 'utf-8'),
+        'max_file_size_mb': kwargs.get('max_file_size_mb', 100),
+        'extract_metadata': kwargs.get('extract_metadata', True),
+        'custom_params': kwargs.get('custom_params', {})
+    })
+    
+    # 确定内容类型
+    content_type = kwargs.get('content_type')
+    logger.info(f"加载文档: {file_path}, 内容类型: {content_type}, 元数据: {metadata}")
+    if content_type is None:
+        # 根据文件扩展名推断内容类型
+        import os
+        ext = os.path.splitext(file_path)[1].lower()
+        content_type_mapping = {
+            '.pdf': 'pdf',
+            '.txt': 'txt', 
+            '.doc': 'doc',
+            '.docx': 'docx',
+            '.html': 'html',
+            '.md': 'md',
+            '.json': 'json',
+            '.csv': 'csv',
+        }
+        content_type = content_type_mapping.get(ext, 'text')
+    
     request = FileLoadRequest(
         file_path=file_path,
-        content_type=kwargs.get('content_type'),
-        encoding=kwargs.get('encoding', 'utf-8'),
-        max_file_size_mb=kwargs.get('max_file_size_mb', 100),
-        extract_metadata=kwargs.get('extract_metadata', True),
-        custom_params=kwargs.get('custom_params', {})
+        content_type=content_type,
+        metadata=metadata
     )
     
-    loader = MultiFormatFileLoader(max_file_size_mb=request.max_file_size_mb)
+    loader = MultiFormatFileLoader(max_file_size_mb=metadata.get('max_file_size_mb', 100))
     return await loader.load_document(request)
 
 
@@ -182,17 +218,41 @@ async def load_documents_from_paths(file_paths: List[str], **kwargs) -> List[Doc
     Returns:
         List[Document]: 加载的文档列表
     """
-    requests = [
-        FileLoadRequest(
-            file_path=path,
-            content_type=kwargs.get('content_type'),
-            encoding=kwargs.get('encoding', 'utf-8'),
-            max_file_size_mb=kwargs.get('max_file_size_mb', 100),
-            extract_metadata=kwargs.get('extract_metadata', True),
-            custom_params=kwargs.get('custom_params', {})
-        )
-        for path in file_paths
-    ]
+    # 构建元数据，包含所有额外参数
+    metadata = kwargs.get('metadata', {})
+    metadata.update({
+        'encoding': kwargs.get('encoding', 'utf-8'),
+        'max_file_size_mb': kwargs.get('max_file_size_mb', 100),
+        'extract_metadata': kwargs.get('extract_metadata', True),
+        'custom_params': kwargs.get('custom_params', {})
+    })
     
-    loader = MultiFormatFileLoader(max_file_size_mb=kwargs.get('max_file_size_mb', 100))
+    # 确定内容类型映射
+    import os
+    content_type_mapping = {
+        '.pdf': 'pdf',
+        '.txt': 'txt', 
+        '.doc': 'doc',
+        '.docx': 'docx',
+        '.html': 'html',
+        '.md': 'md',
+        '.json': 'json',
+        '.csv': 'csv',
+    }
+    
+    requests = []
+    for path in file_paths:
+        # 为每个文件确定内容类型
+        content_type = kwargs.get('content_type')
+        if content_type is None:
+            ext = os.path.splitext(path)[1].lower()
+            content_type = content_type_mapping.get(ext, 'text')
+        
+        requests.append(FileLoadRequest(
+            file_path=path,
+            content_type=content_type,
+            metadata=metadata.copy()  # 为每个请求复制一份元数据
+        ))
+    
+    loader = MultiFormatFileLoader(max_file_size_mb=metadata.get('max_file_size_mb', 100))
     return await loader.load_documents_batch(requests)
