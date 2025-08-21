@@ -10,6 +10,8 @@ from typing import Optional, List
 from pydantic import BaseModel, Field, validator
 from pydantic_settings import BaseSettings
 
+from config import RedisConfig
+
 
 class DatabaseConfig(BaseModel):
     """数据库配置"""
@@ -111,6 +113,9 @@ class AppConfig(BaseSettings):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig, description="数据库配置")
     storage: StorageConfig = Field(default_factory=StorageConfig, description="存储配置")
     logging: LoggingConfig = Field(default_factory=LoggingConfig, description="日志配置")
+
+    redis: RedisConfig = Field(default_factory=RedisConfig)
+
     
     class Config:
         # 从.env文件读取环境变量
