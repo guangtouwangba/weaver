@@ -6,7 +6,11 @@
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+
+from logging_system import get_logger
+
+logger = get_logger(__name__)
+
 
 class StorageError(Exception):
     """存储操作异常"""
@@ -107,3 +111,40 @@ class IStorage(ABC):
             文件信息字典或None
         """
         pass
+
+
+def create_storage_service() -> IStorage:
+    """创建存储服务实例"""
+    try:
+        from config import get_config
+        config = get_config()
+
+        if config.storage.provider == "local":
+            # Import locally to avoid circular imports
+            from .local_storage import LocalStorage
+            return LocalStorage(
+                storage_path=config.storage.local_path,
+                base_url="http://localhost:8000"
+            )
+        elif config.storage.provider == "minio":
+            # Import locally to avoid circular imports
+            from .minio_storage import MinIOStorage
+            logger.info("Using MinIO storage service")
+            return MinIOStorage(
+                endpoint=config.storage.minio_endpoint,
+                access_key=config.storage.minio_access_key,
+                secret_key=config.storage.minio_secret_key,
+                secure=config.storage.minio_secure,
+                bucket_name=config.storage.bucket_name
+            )
+        else:
+            # 默认使用本地存储
+            from .local_storage import LocalStorage
+            logger.warning(f"Unknown storage provider: {config.storage.provider}, falling back to local storage")
+            return LocalStorage()
+    except Exception as e:
+        logger.error(f"Failed to create storage service: {e}")
+        # 如果配置加载失败，使用默认的本地存储
+        from .local_storage import LocalStorage
+        return LocalStorage()
+

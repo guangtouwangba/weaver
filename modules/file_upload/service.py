@@ -4,7 +4,6 @@
 提供完整的文件上传管理功能。
 """
 
-import logging
 from typing import Dict, Any, Optional
 from uuid import uuid4
 from datetime import datetime
@@ -15,8 +14,9 @@ from ..database import get_session
 from ..repository import FileRepository
 from ..database.models import FileStatus
 from ..tasks.base import ITaskService, TaskPriority
+from logging_system import get_logger, log_execution_time, log_errors
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class FileUploadService(IFileUploadService):
     """文件上传服务实现"""
@@ -34,6 +34,8 @@ class FileUploadService(IFileUploadService):
         self.storage = storage or MinIOStorage()
         self.task_service = task_service
     
+    @log_execution_time(threshold_ms=100)
+    @log_errors()
     async def generate_upload_url(self,
                                 filename: str,
                                 content_type: str,
@@ -58,22 +60,22 @@ class FileUploadService(IFileUploadService):
             # 在数据库中创建文件记录
             async with get_session() as session:
                 file_repo = FileRepository(session)
-                file_result = await file_repo.create_file(
+                file_record = await file_repo.create_file(
                     file_id=file_id,
                     original_name=filename,
                     content_type=content_type,
-                storage_bucket=upload_info.get('bucket'),
-                storage_key=file_key,
-                topic_id=topic_id,
-                status=FileStatus.UPLOADING,
-                metadata={
-                    "upload_method": "signed_url",
-                    "expires_at": upload_info.get('expires_at')
-                }
-            )
+                    storage_bucket=upload_info.get('bucket'),
+                    storage_key=file_key,
+                    topic_id=topic_id,
+                    status=FileStatus.UPLOADING,
+                    metadata={
+                        "upload_method": "signed_url",
+                        "expires_at": upload_info.get('expires_at')
+                    }
+                )
             
-            if not file_result.get('success'):
-                raise Exception(f"创建文件记录失败: {file_result.get('error')}")
+            if not file_record:
+                raise Exception(f"创建文件记录失败: 返回None")
             
             # 组装返回结果
             result = {
@@ -103,6 +105,8 @@ class FileUploadService(IFileUploadService):
             logger.error(f"生成上传URL失败: {e}")
             raise
     
+    @log_execution_time(threshold_ms=200)
+    @log_errors()
     async def confirm_upload(self,
                            file_id: str,
                            actual_size: Optional[int] = None,
@@ -133,7 +137,7 @@ class FileUploadService(IFileUploadService):
                 storage_info = await self.storage.get_file_info(file_info.storage_key)
                 
                 # 更新文件状态和信息
-                update_result = await file_repo.update_file_status(
+                updated_file = await file_repo.update_file_status(
                     file_id=file_id,
                     status=FileStatus.AVAILABLE,
                     processing_status="上传完成",
@@ -142,7 +146,7 @@ class FileUploadService(IFileUploadService):
                     storage_url=storage_info.get('access_url')
                 )
                 
-                if not update_result.get('success'):
+                if not updated_file:
                     return {
                         "success": False,
                         "error": "更新文件状态失败"
@@ -257,8 +261,7 @@ class FileUploadService(IFileUploadService):
                 storage_deleted = await self.storage.delete_file(file_info.storage_key)
                 
                 # 软删除数据库记录
-                delete_result = await file_repo.delete_file(file_id)
-                db_deleted = delete_result.get('success', False)
+                db_deleted = await file_repo.delete_file(file_id)
                 
                 success = storage_deleted and db_deleted
                 
