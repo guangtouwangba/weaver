@@ -7,12 +7,12 @@ Main router implementation that orchestrates the document processing pipeline.
 from typing import List, AsyncIterator, Dict, Any
 from datetime import datetime
 
-from .interface import IRouter
-from ..file_loader import IFileLoader, MultiFormatFileLoader
-from ..document_processor import IDocumentProcessor, ChunkingProcessor
-from ..models import (
+from .base import IRouter, RouterError
+from ...file_loader import IFileLoader, MultiFormatFileLoader
+from ..processors import IDocumentProcessor, ChunkingProcessor
+from ...models import (
     Document, SearchQuery, SearchResponse, ProcessingResult, SearchResult,
-    ModuleConfig, RouterError, DocumentProcessorError, FileLoaderError
+    ModuleConfig, DocumentProcessorError, FileLoaderError
 )
 
 

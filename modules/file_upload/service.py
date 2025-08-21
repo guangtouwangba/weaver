@@ -9,9 +9,10 @@ from typing import Dict, Any, Optional
 from uuid import uuid4
 from datetime import datetime
 
-from .interface import IFileUploadService
+from .base import IFileUploadService
 from ..storage import IStorage, MockStorage, MinIOStorage
-from ..database import DatabaseService, get_session, FileRepository
+from ..database import get_session
+from ..repository import FileRepository
 from ..database.models import FileStatus
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,6 @@ class FileUploadService(IFileUploadService):
             storage: 存储后端，如果不提供则使用默认的MinIOStorage
         """
         self.storage = storage or MinIOStorage()
-        self.db_service = DatabaseService()
     
     async def generate_upload_url(self,
                                 filename: str,
@@ -51,10 +51,12 @@ class FileUploadService(IFileUploadService):
             )
             
             # 在数据库中创建文件记录
-            file_result = await self.db_service.create_file(
-                file_id=file_id,
-                original_name=filename,
-                content_type=content_type,
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                file_result = await file_repo.create_file(
+                    file_id=file_id,
+                    original_name=filename,
+                    content_type=content_type,
                 storage_bucket=upload_info.get('bucket'),
                 storage_key=file_key,
                 topic_id=topic_id,

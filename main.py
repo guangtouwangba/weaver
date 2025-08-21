@@ -12,7 +12,6 @@ import logging
 
 # 导入新的Service层API
 from modules.api import api_router
-from modules.compatibility import APIAdapter
 from modules.database import DatabaseConnection
 from modules.schemas import APIResponse, HealthCheckResponse
 from modules.api.error_handlers import (

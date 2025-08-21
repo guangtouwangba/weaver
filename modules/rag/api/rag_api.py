@@ -9,11 +9,11 @@ import asyncio
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 
-from .interface import IModularAPI, APIError
+from ...api.base import IModularAPI, APIError
 from ..orchestrator import DocumentOrchestrator
-from ..file_loader import MultiFormatFileLoader
-from ..document_processor import ChunkingProcessor
-from ..models import (
+from ...file_loader import MultiFormatFileLoader
+from ..processors import ChunkingProcessor
+from ...models import (
     OrchestrationRequest, SearchRequest, ChunkingStrategy,
     ContentType, ProcessingStatus
 )

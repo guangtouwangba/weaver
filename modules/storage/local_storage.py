@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from .interface import IStorage, StorageError
+from .base import IStorage, StorageError
 
 logger = logging.getLogger(__name__)
 

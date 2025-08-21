@@ -5,12 +5,20 @@ Defines the contract for routing and orchestration implementations.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, AsyncIterator
+from typing import List, AsyncIterator, Optional
 
-from ..models import (
+from ...models import (
     Document, SearchQuery, SearchResponse, ProcessingResult,
-    ModuleInterface, ModuleConfig, RouterError
+    ModuleInterface, ModuleConfig
 )
+
+
+class RouterError(Exception):
+    """Router错误"""
+    
+    def __init__(self, message: str, error_code: Optional[str] = None):
+        self.error_code = error_code
+        super().__init__(message)
 
 
 class IRouter(ModuleInterface):

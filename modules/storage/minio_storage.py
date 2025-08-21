@@ -13,7 +13,7 @@ from io import BytesIO
 
 from minio import Minio
 from minio.error import S3Error
-from .interface import IStorage, StorageError
+from .base import IStorage, StorageError
 
 logger = logging.getLogger(__name__)
 

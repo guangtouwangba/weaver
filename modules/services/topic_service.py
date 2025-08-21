@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .base_service import BaseService
+from ..repository import DocumentRepository
 from ..repository import TopicRepository, FileRepository
 from ..schemas import (
     TopicCreate, TopicUpdate, TopicResponse, TopicList,
@@ -27,7 +28,7 @@ class TopicService(BaseService):
         super().__init__(session)
         self.topic_repo = TopicRepository(session)
         self.file_repo = FileRepository(session)
-    
+
     async def create_topic(self, topic_data: TopicCreate) -> TopicResponse:
         """创建主题"""
         try:

@@ -7,6 +7,7 @@
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,15 +20,30 @@ from ..schemas import (
     document_to_response, documents_to_responses, ProcessingStatus
 )
 
+# RAG pipeline imports will be imported dynamically to avoid circular import
+from ..rag.pipeline import (
+    DocumentProcessingRequest, PipelineConfig, PipelineStatus,
+    ProcessingStage
+)
+from ..rag.embedding import EmbeddingProvider
+from ..rag.vector_store import VectorStoreProvider
+from ..file_loader import MultiFormatFileLoader
+from ..rag.processors import ChunkingProcessor
+
 logger = logging.getLogger(__name__)
 
 class DocumentService(BaseService):
     """文档业务服务"""
     
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, enable_rag: bool = True):
         super().__init__(session)
         self.document_repo = DocumentRepository(session)
         self.file_repo = FileRepository(session)
+        
+        # RAG pipeline components
+        self.enable_rag = enable_rag
+        self._rag_pipeline = None
+        self._rag_initialized = False
     
     async def create_document(self, document_data: DocumentCreate) -> DocumentResponse:
         """创建文档"""
@@ -311,3 +327,257 @@ class DocumentService(BaseService):
                 break
         
         return len(chunks)
+    
+    # ========================
+    # RAG Pipeline Integration
+    # ========================
+    
+    async def initialize_rag_pipeline(self, 
+                                    embedding_provider: str = "openai",
+                                    vector_store_provider: str = "weaviate",
+                                    **config_kwargs) -> None:
+        """初始化RAG处理管道"""
+        if not self.enable_rag:
+            logger.info("RAG功能已禁用，跳过初始化")
+            return
+        
+        try:
+            # Import dynamically to avoid circular import
+            from .rag_service import (
+                create_embedding_service, create_vector_store, create_document_pipeline
+            )
+            from ..models import ModuleConfig
+            
+            # File loader
+            file_loader = MultiFormatFileLoader(ModuleConfig())
+            
+            # Document processor
+            document_processor = ChunkingProcessor(ModuleConfig())
+            
+            # Embedding service
+            embedding_service = create_embedding_service(
+                provider=EmbeddingProvider(embedding_provider),
+                **config_kwargs.get("embedding", {})
+            )
+            
+            # Vector store
+            vector_store = create_vector_store(
+                provider=VectorStoreProvider(vector_store_provider),
+                **config_kwargs.get("vector_store", {})
+            )
+            
+            # Create pipeline
+            self._rag_pipeline = create_document_pipeline(
+                file_loader=file_loader,
+                document_processor=document_processor,
+                embedding_service=embedding_service,
+                vector_store=vector_store,
+                **config_kwargs.get("pipeline", {})
+            )
+            
+            # Initialize pipeline
+            await self._rag_pipeline.initialize()
+            self._rag_initialized = True
+            
+            logger.info("RAG处理管道初始化完成")
+            
+        except Exception as e:
+            logger.error(f"RAG管道初始化失败: {e}")
+            raise
+    
+    async def process_file_through_rag_pipeline(self, 
+                                              file_id: str, 
+                                              file_path: str, 
+                                              topic_id: Optional[int] = None,
+                                              priority: int = 0) -> Optional[str]:
+        """通过RAG管道处理文件"""
+        if not self.enable_rag or not self._rag_initialized:
+            logger.warning("RAG管道未初始化，跳过RAG处理")
+            return None
+        
+        try:
+            # Create processing request
+            request = DocumentProcessingRequest(
+                file_id=file_id,
+                file_path=file_path,
+                topic_id=topic_id,
+                priority=priority,
+                metadata={
+                    "processed_by": "DocumentService",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
+            
+            # Process through pipeline
+            result = await self._rag_pipeline.process_document(request)
+            
+            # Log result
+            if result.status == PipelineStatus.COMPLETED:
+                logger.info(f"RAG处理完成: {file_id}, 创建了 {result.total_chunks} 个块, "
+                          f"生成了 {result.embedded_chunks} 个嵌入向量, "
+                          f"存储了 {result.stored_vectors} 个向量")
+            else:
+                logger.error(f"RAG处理失败: {file_id}, 错误: {result.error_message}")
+            
+            return result.request_id
+            
+        except Exception as e:
+            logger.error(f"RAG管道处理失败: {e}")
+            raise
+    
+    async def get_rag_processing_status(self, request_id: str) -> Optional[Dict[str, Any]]:
+        """获取RAG处理状态"""
+        if not self.enable_rag or not self._rag_initialized:
+            return None
+        
+        try:
+            progress = await self._rag_pipeline.get_processing_status(request_id)
+            if progress:
+                return {
+                    "request_id": progress.request_id,
+                    "current_stage": progress.current_stage.value,
+                    "progress_percentage": progress.progress_percentage,
+                    "status": progress.current_status.value,
+                    "estimated_remaining_ms": progress.estimated_remaining_ms,
+                    "message": progress.message,
+                    "timestamp": progress.timestamp.isoformat()
+                }
+            return None
+            
+        except Exception as e:
+            logger.error(f"获取RAG处理状态失败: {e}")
+            return None
+    
+    async def cancel_rag_processing(self, request_id: str) -> bool:
+        """取消RAG处理"""
+        if not self.enable_rag or not self._rag_initialized:
+            return False
+        
+        try:
+            return await self._rag_pipeline.cancel_processing(request_id)
+        except Exception as e:
+            logger.error(f"取消RAG处理失败: {e}")
+            return False
+    
+    async def search_documents_with_rag(self, 
+                                      query: str,
+                                      limit: int = 10,
+                                      score_threshold: Optional[float] = None,
+                                      document_ids: Optional[List[str]] = None,
+                                      topic_id: Optional[int] = None) -> SearchResponse:
+        """使用RAG进行语义搜索"""
+        if not self.enable_rag or not self._rag_initialized:
+            # Fallback to traditional search
+            logger.warning("RAG未初始化，回退到传统搜索")
+            request = SearchRequest(query=query, limit=limit)
+            return await self.search_documents(request)
+        
+        try:
+            start_time = datetime.utcnow()
+            
+            # Generate query embedding
+            embedding_service = self._rag_pipeline._embedding_service
+            query_vector = await embedding_service.generate_single_embedding(query)
+            
+            # Search in vector store
+            from ..rag.vector_store import SearchFilter
+            filters = SearchFilter()
+            if document_ids:
+                filters.document_ids = document_ids
+            if topic_id:
+                filters.metadata_filters = {"topic_id": topic_id}
+            
+            vector_store = self._rag_pipeline._vector_store
+            vector_results = await vector_store.search_similar(
+                query_vector=query_vector,
+                limit=limit,
+                score_threshold=score_threshold,
+                filters=filters
+            )
+            
+            # Convert to SearchResponse format
+            from ..schemas.responses import SearchResult
+            results = []
+            for vector_result in vector_results:
+                results.append(SearchResult(
+                    document_id=vector_result.document.document_id or "",
+                    title=vector_result.document.metadata.get("document_title", ""),
+                    content=vector_result.document.content,
+                    score=vector_result.score,
+                    content_type="text",
+                    file_id=vector_result.document.metadata.get("file_id", ""),
+                    metadata=vector_result.document.metadata
+                ))
+            
+            search_time = (datetime.utcnow() - start_time).total_seconds()
+            
+            return SearchResponse(
+                query=query,
+                results=results,
+                total_results=len(results),
+                search_time=search_time,
+                search_type="semantic_rag"
+            )
+            
+        except Exception as e:
+            logger.error(f"RAG搜索失败: {e}")
+            # Fallback to traditional search
+            request = SearchRequest(query=query, limit=limit)
+            return await self.search_documents(request)
+    
+    async def get_rag_pipeline_health(self) -> Dict[str, Any]:
+        """获取RAG管道健康状态"""
+        if not self.enable_rag or not self._rag_initialized:
+            return {"status": "disabled", "message": "RAG功能未启用或未初始化"}
+        
+        try:
+            return await self._rag_pipeline.health_check()
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+    
+    async def cleanup_rag_pipeline(self) -> None:
+        """清理RAG管道资源"""
+        if self._rag_pipeline:
+            try:
+                await self._rag_pipeline.cleanup()
+                self._rag_initialized = False
+                logger.info("RAG管道资源清理完成")
+            except Exception as e:
+                logger.error(f"RAG管道清理失败: {e}")
+    
+    # ========================
+    # Enhanced Document Methods
+    # ========================
+    
+    async def create_document_with_rag(self, 
+                                     document_data: DocumentCreate,
+                                     trigger_rag_processing: bool = True,
+                                     topic_id: Optional[int] = None) -> DocumentResponse:
+        """创建文档并可选择触发RAG处理"""
+        try:
+            # Create document normally
+            document_response = await self.create_document(document_data)
+            
+            # Trigger RAG processing if enabled
+            if trigger_rag_processing and self.enable_rag and document_data.file_path:
+                try:
+                    request_id = await self.process_file_through_rag_pipeline(
+                        file_id=document_data.file_id or document_response.id,
+                        file_path=document_data.file_path,
+                        topic_id=topic_id
+                    )
+                    
+                    if request_id:
+                        # Add RAG processing info to metadata
+                        document_response.doc_metadata = document_response.doc_metadata or {}
+                        document_response.doc_metadata["rag_request_id"] = request_id
+                        document_response.doc_metadata["rag_processing_triggered"] = True
+                        
+                except Exception as e:
+                    logger.error(f"RAG处理触发失败: {e}")
+                    # Don't fail the document creation, just log the error
+            
+            return document_response
+            
+        except Exception as e:
+            self._handle_error(e, "create_document_with_rag")

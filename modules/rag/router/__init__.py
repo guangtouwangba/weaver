@@ -11,7 +11,7 @@ Key Features:
 - Error handling and recovery
 """
 
-from .interface import IRouter
+from .base import IRouter
 from .document_router import DocumentRouter
 
 __all__ = [

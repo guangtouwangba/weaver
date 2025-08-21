@@ -8,9 +8,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db_session
-from ..services import DocumentService
-from ..schemas import (
+from ...database import get_db_session
+from ...services import DocumentService
+from ...schemas import (
     DocumentCreate, DocumentUpdate, DocumentResponse, DocumentList,
     ProcessingRequest, ProcessingResult, SearchRequest, SearchResponse,
     APIResponse

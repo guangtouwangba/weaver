@@ -9,8 +9,8 @@ import logging
 from typing import List, Optional, Dict, Any
 import asyncio
 
-from .interface import IDocumentProcessor, DocumentProcessorError
-from ..models import (
+from .base import IDocumentProcessor, DocumentProcessorError
+from ...models import (
     Document, DocumentChunk, ProcessingRequest, ProcessingResult, 
     ProcessingStatus, ChunkingStrategy
 )

@@ -10,7 +10,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from .connection import get_session
-from ..repository import TopicRepository, FileRepository, DocumentRepository
+# Repository imports moved to method level to avoid circular import
 from .models import Topic, File, Document, FileStatus, TopicStatus
 
 logger = logging.getLogger(__name__)
