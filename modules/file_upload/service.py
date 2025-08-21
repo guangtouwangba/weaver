@@ -12,7 +12,7 @@ from .base import IFileUploadService
 from ..storage import IStorage, MockStorage, MinIOStorage
 from ..database import get_session
 from ..repository import FileRepository
-from ..database.models import FileStatus
+from ..schemas.enums import FileStatus
 from ..tasks.base import ITaskService, TaskPriority
 from logging_system import get_logger, log_execution_time, log_errors
 

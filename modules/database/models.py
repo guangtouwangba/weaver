@@ -23,34 +23,7 @@ except ImportError:
 
 from .connection import Base
 
-# 枚举类型
-class FileStatus(str, Enum):
-    """文件状态"""
-    UPLOADING = "uploading"
-    AVAILABLE = "available"
-    PROCESSING = "processing" 
-    FAILED = "failed"
-    ARCHIVED = "archived"
-    DELETED = "deleted"
-    QUARANTINED = "quarantined"
-
-class TopicStatus(str, Enum):
-    """主题状态"""
-    ACTIVE = "active"
-    ARCHIVED = "archived"
-    DRAFT = "draft"
-    COMPLETED = "completed"
-
-class ContentType(str, Enum):
-    """内容类型"""
-    PDF = "pdf"
-    DOC = "doc"
-    DOCX = "docx"
-    TXT = "txt"
-    HTML = "html"
-    MD = "md"
-    JSON = "json"
-    CSV = "csv"
+# Import enums will be done at the class level to avoid circular imports
 
 class Topic(Base):
     """主题模型"""
@@ -63,13 +36,13 @@ class Topic(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default=TopicStatus.ACTIVE)
+    status: Mapped[str] = mapped_column(ENUM('active', 'archived', 'draft', 'completed', name='topic_status_enum'), default='active')
     
     # 统计信息
     total_resources: Mapped[int] = mapped_column(Integer, default=0)
     total_conversations: Mapped[int] = mapped_column(Integer, default=0)
     core_concepts_discovered: Mapped[int] = mapped_column(Integer, default=0)
-    concept_relationships: Mapped[Optional[dict]] = mapped_column(JSONB, default=lambda: {})
+    concept_relationships: Mapped[int] = mapped_column(Integer, default=0)
     missing_materials_count: Mapped[int] = mapped_column(Integer, default=0)
     
     # 关联信息
@@ -113,28 +86,30 @@ class File(Base):
     
     # 文件信息 - 匹配实际数据库字段
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    original_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    file_size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
-    content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    original_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(200), nullable=False)
     
     # 存储信息 - 匹配实际数据库字段
-    storage_bucket: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    storage_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    storage_bucket: Mapped[str] = mapped_column(String(100), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(1000), nullable=False)
     storage_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    file_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    file_hash: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     
     # 状态 - 匹配实际数据库字段
-    status: Mapped[str] = mapped_column(String(50), default='active')
+    status: Mapped[str] = mapped_column(ENUM('uploading', 'available', 'processing', 'failed', 'deleted', 'quarantined', name='file_status_enum'), default='uploading')
+    access_level: Mapped[str] = mapped_column(ENUM('private', 'public_read', 'shared', 'authenticated', name='access_level_enum'), default='private')
+    download_count: Mapped[int] = mapped_column(Integer, default=0)
     
     # 软删除 - 匹配实际数据库字段
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # 时间戳 - 匹配实际数据库字段
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False), server_default=func.current_timestamp()
+        DateTime(timezone=True), server_default=func.current_timestamp()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=False), server_default=func.current_timestamp()
+        DateTime(timezone=True), server_default=func.current_timestamp()
     )
     
     # 关系

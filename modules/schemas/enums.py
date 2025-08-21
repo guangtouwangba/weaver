@@ -8,22 +8,21 @@ from enum import Enum
 
 
 class FileStatus(str, Enum):
-    """文件状态枚举"""
-    PENDING = "pending"  # 待处理
+    """文件状态枚举 - 匹配数据库file_status_enum"""
     UPLOADING = "uploading"  # 上传中
-    UPLOADED = "uploaded"  # 已上传
+    AVAILABLE = "available"  # 可用
     PROCESSING = "processing"  # 处理中
-    PROCESSED = "processed"  # 已处理
     FAILED = "failed"  # 处理失败
     DELETED = "deleted"  # 已删除
+    QUARANTINED = "quarantined"  # 隔离
 
 
 class TopicStatus(str, Enum):
-    """主题状态枚举"""
+    """主题状态枚举 - 匹配数据库topic_status_enum"""
     ACTIVE = "active"  # 活跃
-    INACTIVE = "inactive"  # 非活跃
     ARCHIVED = "archived"  # 已归档
-    DELETED = "deleted"  # 已删除
+    DRAFT = "draft"  # 草稿
+    COMPLETED = "completed"  # 已完成
 
 
 class ContentType(str, Enum):

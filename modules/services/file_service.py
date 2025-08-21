@@ -15,8 +15,9 @@ from ..repository import FileRepository, TopicRepository
 from ..schemas import (
     FileCreate, FileUpdate, FileResponse, FileList,
     UploadUrlRequest, UploadUrlResponse, ConfirmUploadRequest, ConfirmUploadResponse,
-    file_to_response, files_to_responses, FileStatus
+    file_to_response, files_to_responses
 )
+from ..schemas.enums import FileStatus
 from ..storage import IStorage
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ class FileService(BaseService):
                 original_name=request.filename,
                 content_type=request.content_type,
                 file_size=request.file_size or 0,
-                status="pending",  # 使用字符串而不是枚举
+                status=FileStatus.UPLOADING,  # 使用枚举值
                 topic_id=topic_id,  # 使用验证后的topic_id或None
                 storage_key=f"uploads/{file_id}/{request.filename}"
             )
@@ -82,7 +83,7 @@ class FileService(BaseService):
             # 更新文件状态
             file_record = await self.file_repo.update_file_status(
                 file_id=request.file_id,
-                status=FileStatus.UPLOADED,
+                status=FileStatus.AVAILABLE,
                 processing_status="pending"
             )
             
@@ -100,7 +101,7 @@ class FileService(BaseService):
             
             return ConfirmUploadResponse(
                 file_id=request.file_id,
-                status=FileStatus.UPLOADED,
+                status=FileStatus.AVAILABLE,
                 processing_queued=True,
                 estimated_processing_time=60,  # 预计60秒
                 file_path=file_record.storage_key  # 文件存储路径

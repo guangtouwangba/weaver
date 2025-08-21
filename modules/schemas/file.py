@@ -46,7 +46,7 @@ class FileSchema(BaseSchema, TimestampMixin):
         description="存储URL"
     )
     status: FileStatus = Field(
-        default=FileStatus.PENDING,
+        default=FileStatus.UPLOADING,
         description="文件状态"
     )
     processing_status: Optional[str] = Field(

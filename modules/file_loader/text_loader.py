@@ -19,7 +19,8 @@ except ImportError:
     chardet = None
 
 from .base import IFileLoader, FileLoaderError
-from ..models import Document, ContentType, create_document_from_path
+from ..models import Document, create_document_from_path
+from ..schemas.enums import ContentType
 
 logger = logging.getLogger(__name__)
 
