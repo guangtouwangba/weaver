@@ -1,7 +1,7 @@
 """
-日志格式化器模块
+Log formatter module
 
-提供多种日志格式化器，支持不同的输出格式和场景。
+Provides various log formatters supporting different output formats and scenarios.
 """
 
 import json
@@ -15,7 +15,7 @@ from .context import LogContext
 
 
 class BaseFormatter(logging.Formatter):
-    """基础格式化器"""
+    """Base formatter"""
     
     def __init__(self, 
                  include_context: bool = True,
@@ -27,7 +27,7 @@ class BaseFormatter(logging.Formatter):
         self.sensitive_fields = sensitive_fields or []
     
     def _sanitize_data(self, data: Any) -> Any:
-        """清理敏感数据"""
+        """Sanitize sensitive data"""
         if isinstance(data, dict):
             return {
                 k: "***MASKED***" if any(field in k.lower() for field in self.sensitive_fields) else self._sanitize_data(v)
@@ -38,10 +38,10 @@ class BaseFormatter(logging.Formatter):
         return data
     
     def _get_context_data(self, record: LogRecord) -> Dict[str, Any]:
-        """获取上下文数据"""
+        """Get context data"""
         context = {}
         
-        # 获取当前上下文
+        # Get current context
         if self.include_context:
             current_context = LogContext.get_current()
             if current_context:
@@ -62,7 +62,7 @@ class BaseFormatter(logging.Formatter):
                 if current_context.extra:
                     context.update(current_context.extra)
         
-        # 从record中获取额外属性
+        # Get additional attributes from record
         extra_attrs = {}
         for key, value in record.__dict__.items():
             if key not in ['name', 'msg', 'args', 'levelname', 'levelno', 'pathname', 
@@ -78,11 +78,11 @@ class BaseFormatter(logging.Formatter):
 
 
 class JSONFormatter(BaseFormatter):
-    """JSON格式化器"""
+    """JSON formatter"""
     
     def format(self, record: LogRecord) -> str:
-        """格式化为JSON"""
-        # 基础日志数据
+        """Format as JSON"""
+        # Basic log data
         log_data = {
             'timestamp': datetime.fromtimestamp(record.created).isoformat(),
             'level': record.levelname,
@@ -95,12 +95,12 @@ class JSONFormatter(BaseFormatter):
             'process': record.process
         }
         
-        # 添加上下文数据
+        # Add context data
         context_data = self._get_context_data(record)
         if context_data:
             log_data['context'] = context_data
         
-        # 添加异常信息
+        # Add exception information
         if record.exc_info and self.include_traceback:
             log_data['exception'] = {
                 'type': record.exc_info[0].__name__,
@@ -112,7 +112,7 @@ class JSONFormatter(BaseFormatter):
 
 
 class StructuredFormatter(BaseFormatter):
-    """结构化格式化器"""
+    """Structured formatter"""
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -122,8 +122,8 @@ class StructuredFormatter(BaseFormatter):
         )
     
     def format(self, record: LogRecord) -> str:
-        """格式化为结构化文本"""
-        # 基础格式化
+        """Format as structured text"""
+        # Basic formatting
         formatted = self.base_format.format(
             timestamp=datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],
             level=record.levelname,
@@ -134,13 +134,13 @@ class StructuredFormatter(BaseFormatter):
             message=record.getMessage()
         )
         
-        # 添加上下文信息
+        # Add context information
         context_data = self._get_context_data(record)
         if context_data:
             context_str = json.dumps(context_data, ensure_ascii=False, default=str)
             formatted += f" | Context: {context_str}"
         
-        # 添加异常信息
+        # Add exception information
         if record.exc_info and self.include_traceback:
             formatted += "\n" + self.formatException(record.exc_info)
         
@@ -148,16 +148,16 @@ class StructuredFormatter(BaseFormatter):
 
 
 class ColoredFormatter(BaseFormatter):
-    """彩色控制台格式化器"""
+    """Colored console formatter"""
     
-    # ANSI颜色代码
+    # ANSI color codes
     COLORS = {
-        'DEBUG': '\033[36m',      # 青色
-        'INFO': '\033[32m',       # 绿色
-        'WARNING': '\033[33m',    # 黄色
-        'ERROR': '\033[31m',      # 红色
-        'CRITICAL': '\033[35m',   # 紫色
-        'RESET': '\033[0m'        # 重置
+        'DEBUG': '\033[36m',      # Cyan
+        'INFO': '\033[32m',       # Green
+        'WARNING': '\033[33m',    # Yellow
+        'ERROR': '\033[31m',      # Red
+        'CRITICAL': '\033[35m',   # Purple
+        'RESET': '\033[0m'        # Reset
     }
     
     def __init__(self, use_colors: bool = True, *args, **kwargs):
@@ -165,31 +165,31 @@ class ColoredFormatter(BaseFormatter):
         self.use_colors = use_colors
     
     def format(self, record: LogRecord) -> str:
-        """格式化为彩色文本"""
-        # 选择颜色
+        """Format as colored text"""
+        # Select color
         color = self.COLORS.get(record.levelname, '') if self.use_colors else ''
         reset = self.COLORS['RESET'] if self.use_colors else ''
         
-        # 格式化时间戳
+        # Format timestamp
         timestamp = datetime.fromtimestamp(record.created).strftime('%H:%M:%S.%f')[:-3]
         
-        # 基础格式化
+        # Basic formatting
         formatted = (
             f"{timestamp} {color}[{record.levelname:<8}]{reset} "
             f"{record.name:<20} | {record.module}:{record.funcName}:{record.lineno} | "
             f"{record.getMessage()}"
         )
         
-        # 添加上下文信息（简化显示）
+        # Add context information (simplified display)
         context_data = self._get_context_data(record)
         if context_data and len(context_data) > 0:
-            context_keys = list(context_data.keys())[:3]  # 只显示前3个键
+            context_keys = list(context_data.keys())[:3]  # Only show first 3 keys
             context_summary = ', '.join(f"{k}={context_data[k]}" for k in context_keys)
             if len(context_data) > 3:
                 context_summary += f" (+{len(context_data) - 3} more)"
             formatted += f" {color}[{context_summary}]{reset}"
         
-        # 添加异常信息
+        # Add exception information
         if record.exc_info and self.include_traceback:
             formatted += f"\n{color}" + self.formatException(record.exc_info) + reset
         
@@ -197,24 +197,24 @@ class ColoredFormatter(BaseFormatter):
 
 
 class RequestFormatter(BaseFormatter):
-    """HTTP请求专用格式化器"""
+    """HTTP request specific formatter"""
     
     def format(self, record: LogRecord) -> str:
-        """格式化HTTP请求日志"""
-        # 基础格式化
+        """Format HTTP request logs"""
+        # Basic formatting
         timestamp = datetime.fromtimestamp(record.created).isoformat()
         
-        # 提取请求相关信息
+        # Extract request-related information
         context_data = self._get_context_data(record)
         
-        # 构建请求日志格式
+        # Build request log format
         parts = [
             f"[{timestamp}]",
             f"[{record.levelname}]",
             f"[{record.name}]"
         ]
         
-        # 添加HTTP相关信息
+        # Add HTTP-related information
         if context_data:
             if 'request_id' in context_data:
                 parts.append(f"[{context_data['request_id']}]")
@@ -232,7 +232,7 @@ class RequestFormatter(BaseFormatter):
         
         formatted = " ".join(parts)
         
-        # 添加异常信息
+        # Add exception information
         if record.exc_info and self.include_traceback:
             formatted += "\n" + self.formatException(record.exc_info)
         
@@ -240,18 +240,18 @@ class RequestFormatter(BaseFormatter):
 
 
 class CompactFormatter(BaseFormatter):
-    """紧凑格式化器 - 用于生产环境"""
+    """Compact formatter - for production environments"""
     
     def format(self, record: LogRecord) -> str:
-        """格式化为紧凑格式"""
+        """Format as compact format"""
         timestamp = datetime.fromtimestamp(record.created).strftime('%H:%M:%S')
         
-        # 紧凑格式
+        # Compact format
         formatted = f"{timestamp} {record.levelname[0]} {record.name.split('.')[-1]} {record.getMessage()}"
         
-        # 只在错误时添加异常信息
+        # Only add exception info for errors
         if record.exc_info and record.levelno >= logging.ERROR:
-            # 只显示异常类型和消息，不显示完整traceback
+            # Only show exception type and message, not full traceback
             exc_type = record.exc_info[0].__name__
             exc_msg = str(record.exc_info[1])
             formatted += f" [{exc_type}: {exc_msg}]"
@@ -259,9 +259,9 @@ class CompactFormatter(BaseFormatter):
         return formatted
 
 
-# 格式化器工厂
+# Formatter factory
 def create_formatter(format_type: str, **kwargs) -> logging.Formatter:
-    """创建格式化器"""
+    """Create formatter"""
     formatters = {
         'json': JSONFormatter,
         'structured': StructuredFormatter,

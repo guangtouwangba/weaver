@@ -1,34 +1,34 @@
 """
-枚举定义
+Enum definitions
 
-集中定义所有系统中使用的枚举类型。
+Centrally define all enum types used throughout the system.
 """
 
 from enum import Enum
 
 
 class FileStatus(str, Enum):
-    """文件状态枚举 - 匹配数据库file_status_enum"""
+    """File status enum - matches database file_status_enum"""
 
-    UPLOADING = "uploading"  # 上传中
-    AVAILABLE = "available"  # 可用
-    PROCESSING = "processing"  # 处理中
-    FAILED = "failed"  # 处理失败
-    DELETED = "deleted"  # 已删除
-    QUARANTINED = "quarantined"  # 隔离
+    UPLOADING = "uploading"  # Uploading
+    AVAILABLE = "available"  # Available
+    PROCESSING = "processing"  # Processing
+    FAILED = "failed"  # Processing failed
+    DELETED = "deleted"  # Deleted
+    QUARANTINED = "quarantined"  # Quarantined
 
 
 class TopicStatus(str, Enum):
-    """主题状态枚举 - 匹配数据库topic_status_enum"""
+    """Topic status enum - matches database topic_status_enum"""
 
-    ACTIVE = "active"  # 活跃
-    ARCHIVED = "archived"  # 已归档
-    DRAFT = "draft"  # 草稿
-    COMPLETED = "completed"  # 已完成
+    ACTIVE = "active"  # Active
+    ARCHIVED = "archived"  # Archived
+    DRAFT = "draft"  # Draft
+    COMPLETED = "completed"  # Completed
 
 
 class ContentType(str, Enum):
-    """内容类型枚举"""
+    """Content type enum"""
 
     TEXT = "text"
     TXT = "txt"
@@ -44,17 +44,17 @@ class ContentType(str, Enum):
 
 
 class ChunkingStrategy(str, Enum):
-    """分块策略枚举"""
+    """Chunking strategy enum"""
 
-    FIXED_SIZE = "fixed_size"  # 固定大小
-    SENTENCE = "sentence"  # 按句子
-    PARAGRAPH = "paragraph"  # 按段落
-    SEMANTIC = "semantic"  # 语义分块
-    RECURSIVE = "recursive"  # 递归分块
+    FIXED_SIZE = "fixed_size"  # Fixed size
+    SENTENCE = "sentence"  # By sentence
+    PARAGRAPH = "paragraph"  # By paragraph
+    SEMANTIC = "semantic"  # Semantic chunking
+    RECURSIVE = "recursive"  # Recursive chunking
 
 
 class ProcessingStatus(str, Enum):
-    """处理状态枚举"""
+    """Processing status enum"""
 
     PENDING = "pending"
     RUNNING = "running"
@@ -64,21 +64,21 @@ class ProcessingStatus(str, Enum):
 
 
 class SearchType(str, Enum):
-    """搜索类型枚举"""
+    """Search type enum"""
 
-    SEMANTIC = "semantic"  # 语义搜索
-    KEYWORD = "keyword"  # 关键词搜索
-    HYBRID = "hybrid"  # 混合搜索
-    EXACT = "exact"  # 精确搜索
+    SEMANTIC = "semantic"  # Semantic search
+    KEYWORD = "keyword"  # Keyword search
+    HYBRID = "hybrid"  # Hybrid search
+    EXACT = "exact"  # Exact search
 
 
 class TaskName(str, Enum):
-    """任务名称枚举"""
+    """Task name enum"""
 
-    FILE_UPLOAD = "file_upload"  # 文件上传
-    FILE_UPLOAD_CONFIRM = "file_upload_confirm"  # 文件上传确认
-    FILE_PROCESSING = "file_processing"  # 文件处理
-    TOPIC_CREATION = "topic_creation"  # 主题创建
-    TOPIC_PROCESSING = "topic_processing"  # 主题处理
-    SEARCH = "search"  # 搜索
-    ORCHESTRATION = "orchestration"  # 编排处理
+    FILE_UPLOAD = "file_upload"  # File upload
+    FILE_UPLOAD_CONFIRM = "file_upload_confirm"  # File upload confirmation
+    FILE_PROCESSING = "file_processing"  # File processing
+    TOPIC_CREATION = "topic_creation"  # Topic creation
+    TOPIC_PROCESSING = "topic_processing"  # Topic processing
+    SEARCH = "search"  # Search
+    ORCHESTRATION = "orchestration"  # Orchestration processing
