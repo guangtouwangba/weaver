@@ -9,10 +9,10 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from logging_system import get_logger, log_errors, log_execution_time
+from modules.schemas.enums import FileStatus
 
 from ..database import get_session
 from ..repository import FileRepository
-from ..schemas.enums import FileStatus
 from ..storage import IStorage, MinIOStorage, MockStorage
 from ..tasks.base import ITaskService, TaskPriority
 from .base import IFileUploadService

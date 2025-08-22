@@ -27,7 +27,6 @@ from .schemas import (
 from .services import (
     DocumentService,
     FileService,
-    TaskService,
     TopicService,
 )
 
@@ -49,7 +48,6 @@ __all__ = [
     "TopicService",
     "FileService",
     "DocumentService",
-    "TaskService",
     # Repositories
     "TopicRepository",
     "FileRepository",

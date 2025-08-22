@@ -9,7 +9,6 @@ import json
 import pickle
 from typing import Any, Dict, List, Optional, Type, Union
 
-
 try:
     from celery import Celery
     from celery.result import AsyncResult

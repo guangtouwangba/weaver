@@ -21,8 +21,9 @@ except ImportError:
     HAS_CHARDET = False
     chardet = None
 
-from ..models import Document, create_document_from_path
-from ..schemas.enums import ContentType
+from modules.models import Document, create_document_from_path
+from modules.schemas.enums import ContentType
+
 from .base import FileLoaderError, IFileLoader
 
 logger = logging.getLogger(__name__)

@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from ..schemas.enums import FileStatus, TopicStatus
+from modules.schemas.enums import FileStatus, TopicStatus
+
 from .connection import get_session
 
 # Repository imports moved to method level to avoid circular import

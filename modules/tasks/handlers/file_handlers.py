@@ -13,11 +13,11 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from modules import schemas
+from modules.file_loader.factory import FileLoaderFactory
+from modules.models import Document, FileLoadRequest
+from modules.schemas.enums import ContentType
 
-from ... import schemas
-from ...file_loader.factory import FileLoaderFactory
-from ...models import Document, FileLoadRequest
-from ...schemas.enums import ContentType
 from ...services.task_service import register_task_handler, task_handler
 from ...storage.base import create_storage_service
 
