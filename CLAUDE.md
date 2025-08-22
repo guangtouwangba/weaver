@@ -75,3 +75,4 @@ Alembic-based database migrations:
 - 遵循 SOLID 原则
 - 不要动不动就写Markdown文件进行总结
 - 使用TDD来进行开发，最小化代码变更
+- 所有的注释和文档都需要英文描述

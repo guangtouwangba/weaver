@@ -2,7 +2,7 @@
 Repository模块
 
 提供数据访问层的抽象接口和具体实现。
-遵循Repository模式，将数据访问逻辑与业务逻辑分离。
+遵循Repository模式，将数据访问逻辑与Business logic分离。
 """
 
 from .interfaces import (

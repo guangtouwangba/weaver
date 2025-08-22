@@ -1,7 +1,7 @@
 """
 文档Service层
 
-处理文档相关的业务逻辑。
+处理文档相关的Business logic。
 """
 
 import logging
@@ -33,7 +33,7 @@ from ..rag.processors import ChunkingProcessor
 logger = logging.getLogger(__name__)
 
 class DocumentService(BaseService):
-    """文档业务服务"""
+    """Document business service"""
     
     def __init__(self, session: AsyncSession, enable_rag: bool = True):
         super().__init__(session)
@@ -585,5 +585,5 @@ class DocumentService(BaseService):
 
 
 def create_document_service(session: AsyncSession, enable_rag: bool = True) -> DocumentService:
-    """创建文档服务实例"""
+    """创建Document service实例"""
     return DocumentService(session=session, enable_rag=enable_rag)

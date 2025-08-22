@@ -1,7 +1,7 @@
 """
-主题API层
+Topic API层
 
-使用TopicService进行业务逻辑编排的API接口。
+使用TopicService进行业务逻辑编排的API interface。
 """
 
 from typing import Optional
@@ -54,7 +54,7 @@ async def create_topic(
     
     创建一个新的知识主题，用于组织和管理相关的文档和内容。
     
-    ## 请求参数
+    ## Request parameters
     - **name**: 主题名称（必填，1-100个字符）
     - **description**: 主题描述（可选，最多500个字符）
     - **category**: 主题分类（可选）
@@ -137,7 +137,7 @@ async def update_topic(
     ## 路径参数
     - **topic_id**: 主题ID（整数，必填）
     
-    ## 请求参数
+    ## Request parameters
     所有字段都是可选的，只更新提供的字段:
     - **name**: 新的主题名称
     - **description**: 新的主题描述
@@ -149,7 +149,7 @@ async def update_topic(
     返回更新后的完整主题信息。
     
     ## 错误状态
-    - **400**: 请求参数不合法（如名称重复）
+    - **400**: Request parameters不合法（如名称重复）
     - **404**: 主题不存在
     - **500**: 服务器内部错误
     """
@@ -314,7 +314,7 @@ async def get_topic_files(
     - 批量操作相关文件
     
     ## 错误状态
-    - **400**: 请求参数不合法
+    - **400**: Request parameters不合法
     - **404**: 主题不存在
     - **500**: 服务器内部错误
     """
@@ -444,7 +444,7 @@ async def add_resource_to_topic(
     ## 路径参数
     - **topic_id**: 目标主题ID（整数，必填）
     
-    ## 请求参数
+    ## Request parameters
     - **file_id**: 文件ID（必填，来自文件上传接口）
     - **resource_type**: 资源类型（可选，默认为"file"）
     - **title**: 资源标题（可选，如果提供会更新文件显示名称）
@@ -469,7 +469,7 @@ async def add_resource_to_topic(
     返回更新后的文件信息，包含新的主题关联关系。
     
     ## 错误处理
-    - **400**: 请求参数错误或业务规则违反
+    - **400**: Request parameters错误或业务规则违反
     - **404**: 主题或文件不存在
     - **500**: 服务器处理错误
     

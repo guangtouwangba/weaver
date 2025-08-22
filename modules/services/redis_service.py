@@ -1,5 +1,5 @@
 """
-Redis服务实现
+RedisService implementation
 
 提供统一的Redis连接管理和操作接口，支持单实例、集群、哨兵等多种部署模式。
 """
@@ -30,7 +30,7 @@ from config import RedisConfig, get_config
 logger = logging.getLogger(__name__)
 
 class IRedisService(ABC):
-    """Redis服务接口"""
+    """RedisService interface"""
     
     @abstractmethod
     async def get(self, key: str) -> Optional[Any]:
@@ -148,7 +148,7 @@ class IRedisService(ABC):
         pass
 
 class RedisService(IRedisService):
-    """Redis服务实现"""
+    """RedisService implementation"""
     
     def __init__(self, config: Optional[RedisConfig] = None):
         """

@@ -1,5 +1,5 @@
 """
-基础Repository实现
+Base repository实现
 
 提供Repository模式的基础抽象类。
 """
@@ -15,7 +15,7 @@ from .interfaces import IBaseRepository
 logger = logging.getLogger(__name__)
 
 class BaseRepository(IBaseRepository):
-    """基础Repository实现"""
+    """Base repository实现"""
     
     def __init__(self, session: AsyncSession):
         self.session = session

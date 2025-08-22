@@ -592,3 +592,7 @@ info: ## Display project information
 version: ## Display project version
 	@echo "$(BLUE)Project version:$(NC)"
 	$(UV) run python -c "import rag; print(rag.__version__)"
+
+
+worker:
+	@python worker.py --queues=file_queue,rag_queue --concurrency=2

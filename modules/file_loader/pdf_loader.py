@@ -12,6 +12,8 @@ from pathlib import Path
 from datetime import datetime
 import asyncio
 
+from .factory import register_file_loader
+
 # PDF处理库
 try:
     import fitz  # pymupdf
@@ -34,6 +36,7 @@ from ..schemas.enums import ContentType
 logger = logging.getLogger(__name__)
 
 
+@register_file_loader(content_type=ContentType.PDF)
 class PDFFileLoader(IFileLoader):
     """PDF file loader implementation."""
 
@@ -63,10 +66,6 @@ class PDFFileLoader(IFileLoader):
     def supported_formats(self) -> List[str]:
         """获取支持的PDF格式"""
         return self._supported_formats.copy()
-
-    def supported_types(self) -> List[ContentType]:
-        """获取支持的内容类型"""
-        return [ContentType.PDF]
 
     def supports_content_type(self, content_type: ContentType) -> bool:
         """检查是否支持指定的内容类型"""
@@ -350,3 +349,4 @@ class PDFFileLoader(IFileLoader):
                 'extraction_method': 'PyPDF2_error',
                 'error': str(e)
         }
+

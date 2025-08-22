@@ -1,5 +1,5 @@
 """
-资源API层
+Resource API层
 
 提供统一的资源管理接口，简化前端调用。
 """
@@ -170,7 +170,7 @@ async def update_resource(
     
     ## 错误状态
     - **404**: 资源不存在
-    - **400**: 请求参数错误
+    - **400**: Request parameters错误
     - **500**: 更新失败
     """
     try:

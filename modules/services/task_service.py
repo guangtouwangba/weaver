@@ -1,7 +1,7 @@
 """
-异步任务服务实现
+Async taskService implementation
 
-基于Celery实现的异步任务处理服务，提供任务提交、状态跟踪、错误处理等功能。
+基于Celery实现的异步Task processing服务，提供任务提交、状态跟踪、错误处理等功能。
 """
 
 import asyncio
@@ -41,25 +41,25 @@ class TaskRegistry(ITaskRegistry):
     
     @log_execution_time(threshold_ms=50)
     def register(self, task_name: str, handler: ITaskHandler) -> None:
-        """注册任务处理器"""
+        """注册Task processing器"""
         if self.is_registered(task_name):
             logger.warning(f"任务 {task_name} 已存在，将被覆盖")
         
         self._handlers[task_name] = handler
         self._configs[task_name] = handler.task_config
-        logger.info(f"已注册任务处理器: {task_name}")
+        logger.info(f"已注册Task processing器: {task_name}")
     
     def unregister(self, task_name: str) -> bool:
-        """注销任务处理器"""
+        """注销Task processing器"""
         if task_name in self._handlers:
             del self._handlers[task_name]
             del self._configs[task_name]
-            logger.info(f"已注销任务处理器: {task_name}")
+            logger.info(f"已注销Task processing器: {task_name}")
             return True
         return False
     
     def get_handler(self, task_name: str) -> Optional[ITaskHandler]:
-        """获取任务处理器"""
+        """获取Task processing器"""
         return self._handlers.get(task_name)
     
     def get_config(self, task_name: str) -> Optional[TaskConfig]:
@@ -89,7 +89,7 @@ class TaskRegistry(ITaskRegistry):
 
 
 class CeleryTaskService(ITaskService):
-    """基于Celery的异步任务服务实现"""
+    """基于Celery的Async taskService implementation"""
     
     def __init__(self,
                  broker_url: str = "redis://localhost:6379/0",
@@ -132,12 +132,12 @@ class CeleryTaskService(ITaskService):
         # 设置任务路由
         self._setup_task_routing()
         
-        logger.info(f"Celery任务服务初始化: {app_name}")
+        logger.info(f"CeleryTask service初始化: {app_name}")
     
     @log_execution_time(threshold_ms=2000)
     @log_errors()
     async def initialize(self) -> None:
-        """初始化任务服务"""
+        """初始化Task service"""
         if self._initialized:
             return
         
@@ -145,24 +145,24 @@ class CeleryTaskService(ITaskService):
             # 测试连接
             await self._test_connection()
             
-            # 导入任务处理器模块以触发装饰器注册
+            # 导入Task processing器模块以触发装饰器注册
             self._import_task_handlers()
             
             # 注册内置任务
             self._register_builtin_tasks()
             
-            # 自动注册全局任务处理器
+            # 自动注册全局Task processing器
             await auto_register_handlers(self)
             
             self._initialized = True
-            logger.info("Celery任务服务初始化完成")
+            logger.info("CeleryTask service初始化完成")
             
         except Exception as e:
-            logger.error(f"Celery任务服务初始化失败: {e}")
+            logger.error(f"CeleryTask service初始化失败: {e}")
             raise TaskError(f"服务初始化失败: {e}")
     
     async def cleanup(self) -> None:
-        """清理任务服务资源"""
+        """清理Task service资源"""
         try:
             # 清理进度存储
             self._progress_store.clear()
@@ -172,10 +172,10 @@ class CeleryTaskService(ITaskService):
                 self.app.close()
             
             self._initialized = False
-            logger.info("Celery任务服务资源清理完成")
+            logger.info("CeleryTask service资源清理完成")
             
         except Exception as e:
-            logger.error(f"Celery任务服务清理失败: {e}")
+            logger.error(f"CeleryTask service清理失败: {e}")
     
     @log_execution_time(threshold_ms=100)
     @log_errors()
@@ -187,7 +187,7 @@ class CeleryTaskService(ITaskService):
                          eta: Optional[datetime] = None,
                          config: Optional[TaskConfig] = None,
                          **kwargs) -> str:
-        """提交异步任务"""
+        """提交Async task"""
         if not self._initialized:
             await self.initialize()
         
@@ -245,7 +245,7 @@ class CeleryTaskService(ITaskService):
     
     @log_execution_time(threshold_ms=50)
     async def get_task_result(self, task_id: str) -> Optional[TaskResult]:
-        """获取任务结果"""
+        """获取Task result"""
         try:
             async_result = AsyncResult(task_id, app=self.app)
             
@@ -296,7 +296,7 @@ class CeleryTaskService(ITaskService):
             )
             
         except Exception as e:
-            logger.error(f"获取任务结果失败: {task_id}, {e}")
+            logger.error(f"获取Task result失败: {task_id}, {e}")
             return None
     
     async def get_task_progress(self, task_id: str) -> Optional[TaskProgress]:
@@ -330,7 +330,7 @@ class CeleryTaskService(ITaskService):
             logger.info(f"任务已取消: {task_id}")
             return True
         except Exception as e:
-            logger.error(f"取消任务失败: {task_id}, {e}")
+            logger.error(f"取消Task failure: {task_id}, {e}")
             return False
     
     async def retry_task(self, task_id: str) -> str:
@@ -340,9 +340,9 @@ class CeleryTaskService(ITaskService):
         if not original_result:
             raise TaskError(f"找不到任务: {task_id}")
         
-        # TODO: 实现任务重试逻辑
+        # TODO: 实现Task retry逻辑
         # 这需要存储原始任务参数，当前简化实现
-        raise NotImplementedError("任务重试功能待实现")
+        raise NotImplementedError("Task retry功能待实现")
     
     async def list_active_tasks(self) -> List[str]:
         """列出活跃任务"""
@@ -358,7 +358,7 @@ class CeleryTaskService(ITaskService):
             
             return task_ids
         except Exception as e:
-            logger.error(f"获取活跃任务失败: {e}")
+            logger.error(f"获取活跃Task failure: {e}")
             return []
     
     async def get_task_stats(self) -> Dict[str, Any]:
@@ -396,7 +396,7 @@ class CeleryTaskService(ITaskService):
             }
     
     def register_handler(self, handler: ITaskHandler) -> None:
-        """注册任务处理器"""
+        """注册Task processing器"""
         task_name = handler.task_name
         
         # 注册到内部注册表
@@ -411,18 +411,18 @@ class CeleryTaskService(ITaskService):
         logger.info(f"Celery任务已注册: {task_name}")
     
     def unregister_handler(self, task_name: str) -> bool:
-        """注销任务处理器"""
+        """注销Task processing器"""
         # 从内部注册表注销
         success = self.registry.unregister(task_name)
         
         # TODO: 从Celery注销任务(Celery没有直接的注销方法)
         if success:
-            logger.info(f"任务处理器已注销: {task_name}")
+            logger.info(f"Task processing器已注销: {task_name}")
         
         return success
     
     def is_handler_registered(self, task_name: str) -> bool:
-        """检查任务处理器是否已注册"""
+        """检查Task processing器是否已注册"""
         return self.registry.is_registered(task_name)
     
     async def health_check(self) -> Dict[str, Any]:
@@ -481,14 +481,14 @@ class CeleryTaskService(ITaskService):
         self.app.conf.worker_prefetch_multiplier = 1
     
     def _import_task_handlers(self) -> None:
-        """导入任务处理器模块以触发装饰器注册"""
+        """导入Task processing器模块以触发装饰器注册"""
         try:
-            # 导入所有任务处理器模块
+            # 导入所有Task processing器模块
             from ..tasks.handlers import file_handlers
             from ..tasks.handlers import rag_handlers
-            logger.info("任务处理器模块导入完成")
+            logger.info("Task processing器模块导入完成")
         except Exception as e:
-            logger.warning(f"导入任务处理器模块失败: {e}")
+            logger.warning(f"导入Task processing器模块失败: {e}")
     
     def _register_builtin_tasks(self) -> None:
         """注册内置任务"""
@@ -500,32 +500,32 @@ class CeleryTaskService(ITaskService):
         logger.info("内置任务已注册")
     
     async def _execute_handler(self, celery_task, handler: ITaskHandler, *args, **kwargs) -> Any:
-        """执行任务处理器"""
+        """执行Task processing器"""
         task_id = celery_task.request.id
         
         try:
             logger.info(f"开始执行任务: {handler.task_name} (ID: {task_id})")
             
-            # 执行任务处理器
+            # 执行Task processing器
             result = await handler.handle(*args, **kwargs)
             
             # 调用成功回调
             try:
                 await handler.on_success(task_id, result)
             except Exception as e:
-                logger.warning(f"任务成功回调失败: {e}")
+                logger.warning(f"Task success回调失败: {e}")
             
-            logger.info(f"任务执行成功: {handler.task_name} (ID: {task_id})")
+            logger.info(f"Task execution成功: {handler.task_name} (ID: {task_id})")
             return result
             
         except Exception as e:
-            logger.error(f"任务执行失败: {handler.task_name} (ID: {task_id}), {e}")
+            logger.error(f"Task execution失败: {handler.task_name} (ID: {task_id}), {e}")
             
             # 调用失败回调
             try:
                 await handler.on_failure(task_id, e)
             except Exception as callback_error:
-                logger.warning(f"任务失败回调失败: {callback_error}")
+                logger.warning(f"Task failure回调失败: {callback_error}")
             
             # 检查是否需要重试
             config = handler.task_config
@@ -533,7 +533,7 @@ class CeleryTaskService(ITaskService):
                 try:
                     await handler.on_retry(task_id, e, celery_task.request.retries)
                 except Exception as retry_error:
-                    logger.warning(f"任务重试回调失败: {retry_error}")
+                    logger.warning(f"Task retry回调失败: {retry_error}")
                 
                 # 抛出重试异常
                 raise celery_task.retry(exc=e, countdown=config.retry_delay, max_retries=config.max_retries)
@@ -542,7 +542,7 @@ class CeleryTaskService(ITaskService):
             raise e
     
     def update_task_progress(self, task_id: str, progress: TaskProgress) -> None:
-        """更新任务进度(供任务处理器调用)"""
+        """更新任务进度(供Task processing器调用)"""
         self._progress_store[task_id] = progress
         
         # 同时更新到Celery的状态存储
@@ -561,7 +561,7 @@ class CeleryTaskService(ITaskService):
             logger.debug(f"更新Celery进度失败: {e}")
 
 
-# 任务处理器装饰器
+# Task processing器装饰器
 def task_handler(task_name: str, 
                 priority: TaskPriority = TaskPriority.NORMAL,
                 max_retries: int = 3,
@@ -569,7 +569,7 @@ def task_handler(task_name: str,
                 timeout: Optional[int] = None,
                 queue: Optional[str] = None):
     """
-    任务处理器装饰器
+    Task processing器装饰器
     
     Args:
         task_name: 任务名称
@@ -594,7 +594,7 @@ def task_handler(task_name: str,
             queue=queue
         ))
         
-        logger.info(f"任务处理器装饰器应用: {task_name}")
+        logger.info(f"Task processing器装饰器应用: {task_name}")
         return handler_class
     
     return decorator
@@ -604,21 +604,21 @@ def task_handler(task_name: str,
 _global_registry: Dict[str, Type[ITaskHandler]] = {}
 
 def register_task_handler(handler_class: Type[ITaskHandler]) -> Type[ITaskHandler]:
-    """注册任务处理器到全局注册表"""
+    """注册Task processing器到全局注册表"""
     if hasattr(handler_class, 'task_name'):
         task_name = handler_class.task_name.fget(None) if isinstance(handler_class.task_name, property) else handler_class.task_name
         _global_registry[task_name] = handler_class
-        logger.info(f"任务处理器已注册到全局注册表: {task_name}")
+        logger.info(f"Task processing器已注册到全局注册表: {task_name}")
     return handler_class
 
 
 def get_global_handlers() -> Dict[str, Type[ITaskHandler]]:
-    """获取所有全局注册的任务处理器"""
+    """获取所有全局注册的Task processing器"""
     return _global_registry.copy()
 
 
 async def auto_register_handlers(task_service: ITaskService) -> int:
-    """自动注册所有全局任务处理器"""
+    """自动注册所有全局Task processing器"""
     count = 0
     for task_name, handler_class in _global_registry.items():
         try:
@@ -626,7 +626,7 @@ async def auto_register_handlers(task_service: ITaskService) -> int:
             task_service.register_handler(handler_instance)
             count += 1
         except Exception as e:
-            logger.error(f"自动注册任务处理器失败: {task_name}, {e}")
+            logger.error(f"自动注册Task processing器失败: {task_name}, {e}")
     
-    logger.info(f"自动注册完成，共注册 {count} 个任务处理器")
+    logger.info(f"自动注册完成，共注册 {count} 个Task processing器")
     return count

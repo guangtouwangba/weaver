@@ -31,7 +31,7 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
     )
 
 async def request_validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-    """处理请求验证错误，特别是multipart数据错误"""
+    """处理Request validation错误，特别是multipart数据错误"""
     logger.warning(f"Request validation error at {request.url}: {exc}")
     
     # 检查是否是编码相关的错误
@@ -72,10 +72,10 @@ async def request_validation_error_handler(request: Request, exc: RequestValidat
         status_code=422,
         content={
             "success": False,
-            "message": "请求参数验证失败",
+            "message": "请求Parameter validation失败",
             "error": {
                 "type": "ValidationError",
-                "detail": "请求参数不符合API要求",
+                "detail": "Request parameters不符合API要求",
                 "errors": error_details
             }
         }

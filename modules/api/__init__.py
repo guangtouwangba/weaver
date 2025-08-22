@@ -1,7 +1,7 @@
 """
 API模块
 
-提供基于Service层编排的REST API接口。
+提供基于Service层编排的REST API interface。
 """
 
 from fastapi import APIRouter
@@ -9,7 +9,7 @@ from .topic_api import router as topic_router
 from .file_api import router as file_router
 from .resource_api import router as resource_router
 
-# 创建主API路由器
+# 创建主API route器
 api_router = APIRouter(prefix="/api/v1")
 
 # 注册共用子路由 (document_api已移至rag模块)

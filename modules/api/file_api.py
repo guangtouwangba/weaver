@@ -1,7 +1,7 @@
 """
-文件API层
+File API层
 
-使用FileService进行业务逻辑编排的API接口。
+使用FileService进行业务逻辑编排的API interface。
 """
 
 import asyncio
@@ -82,7 +82,7 @@ async def generate_upload_url(
     
     为文件上传创建一个临时的、安全的上传URL。客户端可以直接使用此URL上传文件到对象存储。
     
-    ## 请求参数
+    ## Request parameters
     - **filename**: 文件名称（必填，包含扩展名）
     - **content_type**: 文件MIME类型（如application/pdf）
     - **file_size**: 文件大小（字节数）
@@ -150,7 +150,7 @@ async def confirm_upload(
     
     在客户端使用签名URL上传文件后，通过此接口告知系统上传完成，并启动后续处理。
     
-    ## 请求参数
+    ## Request parameters
     - **file_id**: 从上传URL接口获取的文件ID（必填）
     - **actual_size**: 实际上传的文件大小（可选）
     - **checksum**: 文件校验和（可选，用于验证文件完整性）

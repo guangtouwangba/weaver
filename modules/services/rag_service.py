@@ -1,10 +1,10 @@
 """
-RAG服务实现
+RAGService implementation
 
-整合所有RAG相关的服务实现，包括：
-- 嵌入服务实现（OpenAI, HuggingFace, Local）
-- 向量存储服务实现（Weaviate, pgvector, ChromaDB）
-- 文档处理管道服务实现
+整合所有RAG相关的Service implementation，包括：
+- 嵌入Service implementation（OpenAI, HuggingFace, Local）
+- 向量存储Service implementation（Weaviate, pgvector, ChromaDB）
+- 文档处理管道Service implementation
 """
 
 import logging
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 # =================================
 
 class OpenAIEmbeddingService(IEmbeddingService):
-    """OpenAI嵌入服务实现"""
+    """OpenAI嵌入Service implementation"""
     
     def __init__(self, config: EmbeddingConfig):
         self._config = config
@@ -120,7 +120,7 @@ class OpenAIEmbeddingService(IEmbeddingService):
 
 
 class HuggingFaceEmbeddingService(IEmbeddingService):
-    """HuggingFace嵌入服务实现"""
+    """HuggingFace嵌入Service implementation"""
     
     def __init__(self, config: EmbeddingConfig):
         self._config = config
@@ -448,7 +448,7 @@ class WeaviateVectorStore(IVectorStore):
 # =================================
 
 class DocumentPipelineService(IDocumentPipeline):
-    """文档处理管道服务实现"""
+    """文档处理管道Service implementation"""
     
     def __init__(self,
                  config: PipelineConfig,

@@ -1,7 +1,7 @@
 """
-模块化API接口定义
+模块化API interface定义
 
-定义统一的、简化的API接口。
+定义统一的、简化的API interface。
 """
 
 from abc import ABC, abstractmethod
@@ -21,7 +21,7 @@ class APIError(Exception):
 
 
 class IModularAPI(ABC):
-    """模块化API接口"""
+    """模块化API interface"""
     
     @abstractmethod
     async def process_file(self, file_path: str, **options) -> Dict[str, Any]:

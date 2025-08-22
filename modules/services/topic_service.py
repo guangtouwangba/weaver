@@ -1,7 +1,7 @@
 """
 主题Service层
 
-处理主题相关的业务逻辑。
+处理主题相关的Business logic。
 """
 
 import logging
@@ -22,7 +22,7 @@ from ..schemas import (
 logger = logging.getLogger(__name__)
 
 class TopicService(BaseService):
-    """主题业务服务"""
+    """主题Business service"""
     
     def __init__(self, session: AsyncSession):
         super().__init__(session)
