@@ -9,26 +9,26 @@ This package contains all the core modules for the RAG system following DDD arch
 """
 
 from .database import DatabaseConnection
+from .repository import (
+    DocumentRepository,
+    FileRepository,
+    TopicRepository,
+)
 from .schemas import (
     APIResponse,
-    HealthCheckResponse,
-    TopicSchema,
-    FileSchema,
-    DocumentSchema,
-    ContentType,
     ChunkingStrategy,
+    ContentType,
+    DocumentSchema,
+    FileSchema,
+    HealthCheckResponse,
     ProcessingStatus,
+    TopicSchema,
 )
 from .services import (
-    TopicService,
-    FileService,
     DocumentService,
+    FileService,
     TaskService,
-)
-from .repository import (
-    TopicRepository,
-    FileRepository,
-    DocumentRepository,
+    TopicService,
 )
 
 __version__ = "0.1.0"
