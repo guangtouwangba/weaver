@@ -1,71 +1,71 @@
 """
-RAG (Retrieval-Augmented Generation) 模块
+RAG (Retrieval-Augmented Generation) Module
 
-包含RAG系统特有的组件：
-- processors: 文档处理器
-- orchestrator: RAG编排器  
-- router: 文档路由器
-- api: RAG专用API
-- embedding: 嵌入服务
-- vector_store: 向量存储
-- search: 搜索服务
+Contains RAG system-specific components:
+- processors: Document processors
+- orchestrator: RAG orchestrator  
+- router: Document router
+- api: RAG-specific API
+- embedding: Embedding service
+- vector_store: Vector storage
+- search: Search service
 """
 
-# RAG处理器
+# RAG processors
 from .processors import (
     IDocumentProcessor, DocumentProcessorError,
     TextProcessor, ChunkingProcessor
 )
 
-# RAG编排器
+# RAG orchestrator
 from .orchestrator import (
     IOrchestrator, OrchestrationError,
     DocumentOrchestrator
 )
 
-# RAG路由器
+# RAG router
 from .router import (
     IRouter, DocumentRouter
 )
 
-# RAG嵌入服务
+# RAG embedding service
 from .embedding import (
     IEmbeddingService, EmbeddingProvider, EmbeddingConfig, EmbeddingResult, EmbeddingError
 )
 
-# RAG向量存储
+# RAG vector storage
 from .vector_store import (
     IVectorStore, VectorStoreProvider, VectorStoreConfig, VectorDocument, 
     SearchResult, SearchFilter, VectorStoreError
 )
 
-# RAG处理管道
+# RAG processing pipeline
 from .pipeline import (
     IDocumentPipeline, PipelineConfig, DocumentProcessingRequest, 
     DocumentProcessingResult, PipelineStatus, ProcessingStage, PipelineError
 )
 
 __all__ = [
-    # 处理器
+    # Processors
     'IDocumentProcessor', 'DocumentProcessorError',
     'TextProcessor', 'ChunkingProcessor',
     
-    # 编排器
+    # Orchestrator
     'IOrchestrator', 'OrchestrationError', 
     'DocumentOrchestrator',
     
-    # 路由器
+    # Router
     'IRouter', 'DocumentRouter',
     
-    # 嵌入服务
+    # Embedding service
     'IEmbeddingService', 'EmbeddingProvider', 'EmbeddingConfig', 
     'EmbeddingResult', 'EmbeddingError',
     
-    # 向量存储
+    # Vector storage
     'IVectorStore', 'VectorStoreProvider', 'VectorStoreConfig', 
     'VectorDocument', 'SearchResult', 'SearchFilter', 'VectorStoreError',
     
-    # 处理管道
+    # Processing pipeline
     'IDocumentPipeline', 'PipelineConfig', 'DocumentProcessingRequest', 
     'DocumentProcessingResult', 'PipelineStatus', 'ProcessingStage', 'PipelineError',
 ]

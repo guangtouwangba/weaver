@@ -52,27 +52,27 @@ Alembic-based database migrations:
 
 ### Core Business Flows
 
-1. topic 管理
- - 用户可以创建、编辑和删除 topic
- - 用户可以将 topic 关联到文档
+1. Topic Management
+ - Users can create, edit and delete topics
+ - Users can associate topics with documents
 
 2. RAG
-  - 用户可以上传文档
-  - 系统会自动将文档转换为知识片段
-  - 用户可以和文档进行chat
-  - 用户可以对文档进行搜索
+  - Users can upload documents
+  - System automatically converts documents to knowledge chunks
+  - Users can chat with documents
+  - Users can search documents
 
-3. 知识图谱
-    - 用户可以创建、编辑和删除知识图谱
-    - 用户可以将知识片段关联到知识图谱
-    - 用户可以在知识图谱中进行搜索
+3. Knowledge Graph
+    - Users can create, edit and delete knowledge graphs
+    - Users can associate knowledge chunks with knowledge graphs
+    - Users can search within knowledge graphs
 
 
-## 开发指导
+## Development Guidelines
 
-- 确保内容是模块化的内容
-- 每个模块都有自己职责
-- 遵循 SOLID 原则
-- 不要动不动就写Markdown文件进行总结
-- 使用TDD来进行开发，最小化代码变更
-- 所有的注释和文档都需要英文描述
+- Ensure content is modular
+- Each module has its own responsibilities
+- Follow SOLID principles
+- Don't write Markdown files for summaries unnecessarily
+- Use TDD for development, minimize code changes
+- All comments and documentation should be in English

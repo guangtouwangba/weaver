@@ -1,8 +1,8 @@
--- 优化后的数据库架构设计
--- 修复了原始SQL中的所有问题并添加了性能优化
+-- Optimized Database Schema Design  
+-- Fixed all issues in the original SQL and added performance optimizations
 
 -- ======================
--- 1. 创建枚举类型 (必须在使用前定义)
+-- 1. Create Enum Types (must be defined before use)
 -- ======================
 
 CREATE TYPE resource_type_enum AS ENUM (
@@ -19,7 +19,7 @@ CREATE TYPE topic_status_enum AS ENUM (
 );
 
 -- ======================
--- 2. 主题表 (Topics)
+-- 2. Topics Table
 -- ======================
 
 CREATE TABLE topics (
@@ -57,7 +57,7 @@ CREATE TABLE topics (
 );
 
 -- ======================
--- 3. 标签表 (Tags)
+-- 3. Tags Table
 -- ======================
 
 CREATE TABLE tags (
@@ -65,7 +65,7 @@ CREATE TABLE tags (
     name VARCHAR(50) UNIQUE NOT NULL,
     category VARCHAR(30),
     description TEXT,
-    color VARCHAR(7), -- 用于前端显示的颜色代码
+    color VARCHAR(7), -- Color code for frontend display
     usage_count INTEGER DEFAULT 0 CHECK (usage_count >= 0),
     
     -- 时间戳
@@ -388,18 +388,18 @@ ON CONFLICT (name) DO NOTHING;
 --     USING (user_id = current_user_id());
 
 -- ======================
--- 13. 注释和文档
+-- 13. Comments and Documentation
 -- ======================
 
-COMMENT ON TABLE topics IS '主题表 - 存储知识管理的主要话题';
-COMMENT ON TABLE tags IS '标签表 - 用于分类和组织内容的标签系统';
-COMMENT ON TABLE topic_tags IS '主题标签关联表 - 多对多关系';
-COMMENT ON TABLE topic_resources IS '主题资源表 - 存储与主题相关的文件和资源';
-COMMENT ON TABLE conversations IS '对话表 - 存储与主题相关的对话记录';
+COMMENT ON TABLE topics IS 'Topics table - stores main topics for knowledge management';
+COMMENT ON TABLE tags IS 'Tags table - tag system for classifying and organizing content';
+COMMENT ON TABLE topic_tags IS 'Topic-tags association table - many-to-many relationship';
+COMMENT ON TABLE topic_resources IS 'Topic resources table - stores files and resources related to topics';
+COMMENT ON TABLE conversations IS 'Conversations table - stores conversation records related to topics';
 
-COMMENT ON COLUMN topics.core_concepts_discovered IS '发现的核心概念数量';
-COMMENT ON COLUMN topics.concept_relationships IS '概念关系数量';
-COMMENT ON COLUMN topics.missing_materials_count IS '缺失材料数量';
-COMMENT ON COLUMN topic_resources.file_hash IS '文件哈希值，用于去重';
-COMMENT ON COLUMN topic_resources.metadata IS 'JSONB格式的文件元数据';
-COMMENT ON COLUMN conversations.conversation_data IS 'JSONB格式的对话数据';
+COMMENT ON COLUMN topics.core_concepts_discovered IS 'Number of core concepts discovered';
+COMMENT ON COLUMN topics.concept_relationships IS 'Number of concept relationships';
+COMMENT ON COLUMN topics.missing_materials_count IS 'Number of missing materials';
+COMMENT ON COLUMN topic_resources.file_hash IS 'File hash value for deduplication';
+COMMENT ON COLUMN topic_resources.metadata IS 'File metadata in JSONB format';
+COMMENT ON COLUMN conversations.conversation_data IS 'Conversation data in JSONB format';
