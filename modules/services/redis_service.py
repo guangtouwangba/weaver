@@ -4,17 +4,14 @@ RedisService implementation
 提供统一的Redis连接管理和操作接口，支持单实例、集群、哨兵等多种部署模式。
 """
 
-import asyncio
 import json
 import logging
 import pickle
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 try:
     import redis.asyncio as redis
-    from redis.exceptions import ConnectionError, RedisError, TimeoutError
 
     REDIS_AVAILABLE = True
 except ImportError:
