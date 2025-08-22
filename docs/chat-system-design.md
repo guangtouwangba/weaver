@@ -618,7 +618,7 @@ sequenceDiagram
     CS-->>API: message_id
     API-->>UI: 202 Accepted
     
-    Note over CS: 异步处理开始
+    Note over CS: Asynchronous Processing开始
     CS->>CS: process_user_query()
     CS->>CS: retrieve_documents()
     CS->>CS: generate_response()
@@ -893,7 +893,7 @@ async def chat_stream(
 | **缓存** | Redis | 7.0+ | 内存缓存和消息队列 |
 | **异步任务** | Celery | 5.3+ | 分布式任务队列 |
 | **LLM接口** | OpenAI API | GPT-4 | 大语言模型服务 |
-| **Embedding** | OpenAI API | text-embedding-3-large | 向量嵌入服务 |
+| **Embedding** | OpenAI API | text-embedding-3-large | 向量Embedding Service |
 | **WebSocket** | FastAPI WebSocket | - | 原生WebSocket支持 |
 
 ### 2. 前端技术栈
@@ -901,7 +901,7 @@ async def chat_stream(
 | 组件 | 技术选型 | 版本 | 说明 |
 |------|----------|------|------|
 | **框架** | React | 18+ | 现代前端框架 |
-| **状态管理** | Zustand | 4.4+ | 轻量级状态管理 |
+| **State Management** | Zustand | 4.4+ | 轻量级State Management |
 | **UI组件** | Ant Design | 5.0+ | 企业级UI组件库 |
 | **WebSocket** | Socket.IO Client | 4.7+ | 实时通信客户端 |
 | **Markdown** | React Markdown | 8.0+ | Markdown渲染 |
@@ -1013,7 +1013,7 @@ LLM_CONFIGS = {
 - [ ] 优化文档检索算法
 - [ ] 实现结果重排序
 - [ ] 多模态搜索支持
-- [ ] 缓存和性能优化
+- [ ] 缓存和Performance Optimization
 
 #### Week 7: 用户体验
 - [ ] 上下文智能管理
@@ -1079,7 +1079,7 @@ class CacheStrategy:
         return context
 ```
 
-##### 异步处理
+##### Asynchronous Processing
 ```python
 # 异步任务处理
 class AsyncProcessing:
@@ -1087,7 +1087,7 @@ class AsyncProcessing:
         # 1. 立即返回确认
         response_id = await self.create_response_placeholder()
         
-        # 2. 异步处理
+        # 2. Asynchronous Processing
         asyncio.create_task(self._async_process(message, response_id))
         
         return response_id
@@ -1289,7 +1289,7 @@ class IPWhitelist:
 ### 核心特点
 
 1. **完整的架构设计**: 从数据模型到API接口的全栈设计
-2. **高性能实现**: 流式响应、缓存优化、异步处理
+2. **高性能实现**: 流式响应、缓存优化、Asynchronous Processing
 3. **智能检索**: 基于RAG的文档检索和上下文管理
 4. **安全可靠**: 完善的认证授权和数据保护机制
 5. **扩展性强**: 模块化设计，便于功能扩展
@@ -1309,6 +1309,6 @@ class IPWhitelist:
 3. **效率提升**: 大幅提升文档查询和理解效率
 4. **技术先进**: 采用最新的RAG和LLM技术
 
-该设计方案为文档Chat功能提供了完整的技术实现路径，确保功能的先进性、稳定性和可扩展性。
+该设计方案为文档Chat功能提供了完整的技术实现路径，确保功能的先进性、稳定性和Scalability。
 
 

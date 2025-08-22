@@ -46,12 +46,12 @@ CREATE TABLE topics (
     -- 配置信息
     settings JSONB DEFAULT '{}',
     
-    -- 时间戳
+    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    -- 软删除
+    -- Soft delete
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP WITH TIME ZONE
 );
@@ -68,29 +68,29 @@ CREATE TABLE tags (
     color VARCHAR(7), -- Color code for frontend display
     usage_count INTEGER DEFAULT 0 CHECK (usage_count >= 0),
     
-    -- 时间戳
+    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    -- 软删除
+    -- Soft delete
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- ======================
--- 4. 主题标签关联表
+-- 4. Topic-Tags Association Table
 -- ======================
 
 CREATE TABLE topic_tags (
     topic_id BIGINT REFERENCES topics(id) ON DELETE CASCADE,
     tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by BIGINT, -- 添加标签的用户ID
+    created_by BIGINT, -- User ID who added the tag
     PRIMARY KEY (topic_id, tag_id)
 );
 
 -- ======================
--- 5. 主题资源表
+-- 5. Topic Resources Table
 -- ======================
 
 CREATE TABLE topic_resources (
@@ -107,7 +107,7 @@ CREATE TABLE topic_resources (
     
     -- 资源分类
     resource_type resource_type_enum NOT NULL,
-    source_url TEXT, -- 如果是从URL导入的资源
+    source_url TEXT, -- If resource imported from URL
     
     -- 解析状态
     is_parsed BOOLEAN DEFAULT FALSE,
@@ -121,19 +121,19 @@ CREATE TABLE topic_resources (
     content_preview TEXT,
     content_summary TEXT,
     
-    -- 元数据 (使用JSONB以便高效查询)
+    -- Metadata (using JSONB for efficient queries)
     metadata JSONB DEFAULT '{}',
     
     -- 权限和访问控制
     is_public BOOLEAN DEFAULT FALSE,
     access_level VARCHAR(20) DEFAULT 'private',
     
-    -- 时间戳
+    -- Timestamps
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     parsed_at TIMESTAMP WITH TIME ZONE,
     last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    -- 软删除
+    -- Soft delete
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP WITH TIME ZONE,
     
@@ -142,19 +142,19 @@ CREATE TABLE topic_resources (
 );
 
 -- ======================
--- 6. 对话表
+-- 6. Conversations Table
 -- ======================
 
 CREATE TABLE conversations (
     id VARCHAR(255) PRIMARY KEY,
     topic_id BIGINT REFERENCES topics(id) ON DELETE SET NULL,
     
-    -- 对话基本信息
+    -- Conversation basic information
     title VARCHAR(255),
     description TEXT,
     message_count INTEGER DEFAULT 0 CHECK (message_count >= 0),
     
-    -- 对话数据存储 (支持多种存储方式)
+    -- Conversation data storage (supports multiple storage methods)
     conversation_data JSONB,
     external_conversation_url TEXT,
     storage_type VARCHAR(20) DEFAULT 'internal', -- internal, external, hybrid
@@ -163,24 +163,24 @@ CREATE TABLE conversations (
     total_tokens INTEGER DEFAULT 0,
     total_cost DECIMAL(10, 4) DEFAULT 0,
     
-    -- 标签和分类
-    conversation_tags TEXT[], -- 简单的标签数组
+    -- Tags and classification
+    conversation_tags TEXT[], -- Simple tag array
     
-    -- 时间戳
+    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_message_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    -- 软删除
+    -- Soft delete
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- ======================
--- 7. 性能优化索引
+-- 7. Performance Optimization Indexes
 -- ======================
 
--- Topics表索引
+-- Topics table indexes
 CREATE INDEX idx_topics_name ON topics(name) WHERE is_deleted = FALSE;
 CREATE INDEX idx_topics_category ON topics(category) WHERE is_deleted = FALSE;
 CREATE INDEX idx_topics_status ON topics(status) WHERE is_deleted = FALSE;
@@ -193,7 +193,7 @@ CREATE INDEX idx_topics_parent_topic_id ON topics(parent_topic_id) WHERE parent_
 -- 复合索引用于常见查询
 CREATE INDEX idx_topics_user_status ON topics(user_id, status) WHERE is_deleted = FALSE;
 
--- Tags表索引
+-- Tags table indexes
 CREATE INDEX idx_tags_category ON tags(category) WHERE is_deleted = FALSE;
 CREATE INDEX idx_tags_usage_count ON tags(usage_count DESC);
 CREATE INDEX idx_tags_name_gin ON tags USING gin(name gin_trgm_ops); -- 支持模糊搜索
@@ -211,7 +211,7 @@ CREATE INDEX idx_topic_resources_topic_parse ON topic_resources(topic_id, parse_
 -- JSONB索引用于元数据查询
 CREATE INDEX idx_topic_resources_metadata_gin ON topic_resources USING gin(metadata);
 
--- Conversations表索引
+-- Conversations table indexes
 CREATE INDEX idx_conversations_topic_id ON conversations(topic_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_conversations_created_at ON conversations(created_at DESC);
 CREATE INDEX idx_conversations_last_message_at ON conversations(last_message_at DESC);
@@ -225,7 +225,7 @@ CREATE INDEX idx_conversations_data_gin ON conversations USING gin(conversation_
 CREATE INDEX idx_conversations_tags_gin ON conversations USING gin(conversation_tags);
 
 -- ======================
--- 8. 触发器函数
+-- 8. Trigger Functions
 -- ======================
 
 -- 更新updated_at字段的通用函数
@@ -282,7 +282,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 软删除函数
+-- Soft delete函数
 CREATE OR REPLACE FUNCTION soft_delete_trigger()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -293,10 +293,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ======================
--- 9. 创建触发器
+-- 9. Create Triggers
 -- ======================
 
--- Updated_at触发器
+-- Updated_at triggers
 CREATE TRIGGER trigger_topics_updated_at 
     BEFORE UPDATE ON topics 
     FOR EACH ROW 
@@ -318,14 +318,14 @@ CREATE TRIGGER trigger_tag_usage_count
     FOR EACH ROW
     EXECUTE FUNCTION update_tag_usage_count();
 
--- 主题统计触发器
+-- Topic statistics trigger
 CREATE TRIGGER trigger_topic_stats
     AFTER INSERT OR DELETE ON topic_resources
     FOR EACH ROW
     EXECUTE FUNCTION update_topic_stats();
 
 -- ======================
--- 10. 视图 (便于查询)
+-- 10. Views (for easier queries)
 -- ======================
 
 -- 活跃主题视图
@@ -360,28 +360,28 @@ WHERE t.is_deleted = FALSE
 GROUP BY t.id;
 
 -- ======================
--- 11. 初始数据 (可选)
+-- 11. Initial Data (optional)
 -- ======================
 
 -- 插入默认标签
 INSERT INTO tags (name, category, description, color) VALUES
-('重要', 'priority', '标记为重要的内容', '#FF4136'),
-('进行中', 'status', '正在进行的项目', '#FF851B'),
-('已完成', 'status', '已完成的项目', '#2ECC40'),
-('参考', 'type', '参考资料', '#0074D9'),
-('草稿', 'status', '草稿状态', '#AAAAAA')
+('important', 'priority', 'Mark content as important', '#FF4136'),
+('in_progress', 'status', 'Projects in progress', '#FF851B'),
+('completed', 'status', 'Completed projects', '#2ECC40'),
+('reference', 'type', 'Reference materials', '#0074D9'),
+('draft', 'status', 'Draft status', '#AAAAAA')
 ON CONFLICT (name) DO NOTHING;
 
 -- ======================
--- 12. 安全策略 (Row Level Security - 如果需要)
+-- 12. Security Policies (Row Level Security - if needed)
 -- ======================
 
--- 启用RLS (根据需要启用)
+-- 启用RLS (enable as needed)
 -- ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE topic_resources ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
--- 创建策略示例 (根据user_id限制访问)
+-- 创建策略示例 (limit access based on user_id)
 -- CREATE POLICY topic_user_policy ON topics
 --     FOR ALL
 --     TO authenticated_user

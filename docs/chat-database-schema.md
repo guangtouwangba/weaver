@@ -574,7 +574,7 @@ def downgrade():
     op.drop_table('chat_sessions')
 ```
 
-## 📊 性能优化建议
+## 📊 Performance Optimization建议
 
 ### 1. 分区策略
 
@@ -608,7 +608,7 @@ WHERE status = 'deleted' AND updated_at < NOW() - INTERVAL '7 days';
 ### 3. 查询优化
 
 ```sql
--- 常用查询的性能优化
+-- 常用查询的Performance Optimization
 -- 1. 获取用户最近的会话
 SELECT s.*, COUNT(m.id) as message_count
 FROM chat_sessions s

@@ -1,33 +1,33 @@
-# 文件上传后RAG处理技术方案设计
+# RAG Processing Technical Design After File Upload
 
-## 1. 方案概述
+## 1. Solution Overview
 
-本文档描述了基于当前系统架构的文件上传后RAG（Retrieval-Augmented Generation）处理的完整技术方案。该方案设计了一个异步、可扩展、高可靠的文档处理流水线，支持多种文件格式的智能解析、语义分块、向量化和存储。
+This document describes the complete technical solution for RAG (Retrieval-Augmented Generation) processing after file upload based on the current system architecture. The solution designs an asynchronous, scalable, and highly reliable document processing pipeline that supports intelligent parsing, semantic chunking, vectorization, and storage of multiple file formats.
 
-### 1.1 设计目标
+### 1.1 Design Goals
 
-- **异步处理**: 文件上传后立即返回，后台异步进行RAG处理
-- **高可靠性**: 支持任务重试、状态跟踪和错误恢复
-- **可扩展性**: 支持多种文件格式、嵌入模型和向量存储
-- **性能优化**: 批量处理、并发控制和资源管理
-- **监控可观测**: 完整的日志、指标和进度追踪
+- **Asynchronous Processing**: Return immediately after file upload, perform RAG processing asynchronously in the background
+- **High Reliability**: Support task retry, state tracking, and error recovery
+- **Scalability**: Support multiple file formats, embedding models, and vector storage
+- **Performance Optimization**: Batch processing, concurrency control, and resource management
+- **Monitoring & Observability**: Complete logging, metrics, and progress tracking
 
-### 1.2 核心组件
+### 1.2 Core Components
 
-- **任务编排系统**: 基于Redis的异步任务队列
-- **文件加载器**: 多格式文件解析（PDF、Word、Text等）
-- **文档处理器**: 智能分块和质量评分
-- **嵌入服务**: 向量化服务（OpenAI、HuggingFace等）
-- **向量存储**: 向量数据库存储（Weaviate、pgvector等）
-- **状态管理**: 实时状态跟踪和进度报告
+- **Task Orchestration System**: Redis-based asynchronous task queue
+- **File Loader**: Multi-format file parsing (PDF, Word, Text, etc.)
+- **Document Processor**: Intelligent chunking and quality scoring
+- **Embedding Service**: Vectorization service (OpenAI, HuggingFace, etc.)
+- **Vector Storage**: Vector database storage (Weaviate, pgvector, etc.)
+- **State Management**: Real-time state tracking and progress reporting
 
-## 2. 系统架构
+## 2. System Architecture
 
-### 2.1 整体流程图
+### 2.1 Overall Flow Diagram
 
 ```mermaid
 graph TD
-    A[文件上传] --> B[上传完成事件]
+    A[File Upload] --> B[Upload Complete Event]
     B --> C[FileUploadCompleteHandler]
     C --> D[文档加载和解析]
     D --> E[创建Document记录]
@@ -36,7 +36,7 @@ graph TD
     G --> H[文档分块]
     H --> I[质量评分]
     I --> J[嵌入向量生成]
-    J --> K[向量存储]
+    J --> K[Vector Storage]
     K --> L[索引更新]
     L --> M[状态更新完成]
 ```
@@ -46,7 +46,7 @@ graph TD
 ```mermaid
 graph LR
     subgraph "API层"
-        A1[文件上传API]
+        A1[File UploadAPI]
         A2[RAG查询API]
         A3[状态查询API]
     end
@@ -58,10 +58,10 @@ graph LR
     end
     
     subgraph "处理层"
-        C1[文件加载器]
-        C2[文档处理器]
-        C3[嵌入服务]
-        C4[向量存储]
+        C1[File Loader]
+        C2[Document Processor]
+        C3[Embedding Service]
+        C4[Vector Storage]
     end
     
     subgraph "存储层"
@@ -83,12 +83,12 @@ graph LR
     B3 --> D4
 ```
 
-## 3. 详细技术设计
+## 3. Detailed Technical Design
 
-### 3.1 文件上传完成处理
+### 3.1 File Upload完成处理
 
 #### 3.1.1 触发机制
-- **事件源**: 文件上传API完成后触发
+- **事件源**: File UploadAPI完成后触发
 - **任务类型**: `FILE_UPLOAD_CONFIRM`
 - **处理器**: `FileUploadCompleteHandler`
 - **优先级**: 高
@@ -122,19 +122,19 @@ async def handle_file_upload_complete(file_id: str, file_path: str, **metadata):
 
 ### 3.2 文档加载和解析
 
-#### 3.2.1 多格式支持
-- **文本文件**: `.txt`, `.md`, `.csv`, `.log`
-- **文档文件**: `.pdf`, `.docx`, `.rtf`（扩展支持）
-- **代码文件**: `.py`, `.js`, `.java`（扩展支持）
+#### 3.2.1 Multi-format Support
+- **Text files**: `.txt`, `.md`, `.csv`, `.log`
+- **Document files**: `.pdf`, `.docx`, `.rtf`（Extended support）
+- **Code files**: `.py`, `.js`, `.java`（Extended support）
 
-#### 3.2.2 加载器架构
+#### 3.2.2 Loader Architecture
 ```python
 class MultiFormatFileLoader:
     def __init__(self):
         self._loaders = {
             ContentType.TXT: TextFileLoader(),
-            ContentType.PDF: PDFFileLoader(),  # 待实现
-            ContentType.DOCX: DocxFileLoader()  # 待实现
+            ContentType.PDF: PDFFileLoader(),  # To be implemented
+            ContentType.DOCX: DocxFileLoader()  # To be implemented
         }
     
     async def load_document(self, request: FileLoadRequest) -> Document:
@@ -143,11 +143,11 @@ class MultiFormatFileLoader:
         return await loader.load_document(request)
 ```
 
-#### 3.2.3 内容提取策略
-- **编码检测**: 自动检测文件编码（UTF-8、GBK等）
-- **元数据提取**: 文件大小、创建时间、修改时间
-- **内容清理**: 去除不必要的格式字符
-- **质量检查**: 内容完整性和可读性验证
+#### 3.2.3 Content Extraction Strategy
+- **Encoding detection**: Automatically detect file encoding (UTF-8, GBK, etc.)
+- **Metadata extraction**: File size, creation time, modification time
+- **Content cleaning**: Remove unnecessary format characters
+- **Quality check**: Content integrity and readability verification
 
 ### 3.3 RAG处理管道
 
@@ -157,33 +157,33 @@ class PipelineConfig:
     chunk_size: int = 1000           # 分块大小
     chunk_overlap: int = 200         # 重叠大小
     enable_embeddings: bool = True   # 启用嵌入
-    enable_vector_storage: bool = True # 启用向量存储
+    enable_vector_storage: bool = True # 启用Vector Storage
     batch_size: int = 50            # 批处理大小
     max_concurrent_chunks: int = 5   # 最大并发数
     retry_attempts: int = 3          # 重试次数
     timeout_seconds: int = 300       # 超时时间
 ```
 
-#### 3.3.2 处理阶段
-1. **文档解析** (`DOCUMENT_PARSING`)
-   - 文本提取和清理
-   - 结构化信息识别
-   - 元数据收集
+#### 3.3.2 Processing Stages
+1. **Document parsing** (`DOCUMENT_PARSING`)
+   - Text extraction and cleaning
+   - Structured information recognition
+   - Metadata collection
 
-2. **文本分块** (`TEXT_CHUNKING`)
-   - 智能分块算法
-   - 内容完整性保持
+2. **Text chunking** (`TEXT_CHUNKING`)
+   - Intelligent chunking algorithm
+   - Content integrity preservation
    - 质量评分
 
-3. **嵌入生成** (`EMBEDDING_GENERATION`)
-   - 批量向量化
-   - 多模型支持
-   - 错误处理和重试
+3. **Embedding generation** (`EMBEDDING_GENERATION`)
+   - Batch vectorization
+   - Multi-model support
+   - Error handling and retry
 
-4. **向量存储** (`VECTOR_STORAGE`)
-   - 批量插入优化
-   - 索引构建
-   - 元数据关联
+4. **Vector Storage** (`VECTOR_STORAGE`)
+   - Batch insertion optimization
+   - Index construction
+   - Metadata association
 
 5. **索引更新** (`INDEXING`)
    - 搜索索引更新
@@ -211,13 +211,13 @@ class ChunkingProcessor:
         return chunks
 ```
 
-#### 3.4.2 质量评分指标
-- **长度分数**: 基于理想长度范围
-- **完整性分数**: 句子和段落完整性
-- **内容密度**: 信息密度评估
-- **语义连贯性**: 上下文相关性
+#### 3.4.2 Quality Scoring Metrics
+- **Length score**: Based on ideal length range
+- **Integrity score**: Sentence and paragraph integrity
+- **Content density**: Information density assessment
+- **Semantic coherence**: Context relevance
 
-#### 3.4.3 分块元数据
+#### 3.4.3 Chunk Metadata
 ```python
 chunk_metadata = {
     "chunk_index": 0,
@@ -238,7 +238,7 @@ chunk_metadata = {
 - **HuggingFace**: 开源模型
 - **本地模型**: 自部署向量化服务
 
-#### 3.5.2 嵌入服务架构
+#### 3.5.2 Embedding Service架构
 ```python
 class EmbeddingService:
     async def generate_embeddings(self, texts: List[str]) -> EmbeddingResult:
@@ -257,13 +257,13 @@ class EmbeddingService:
         return self._merge_results(results)
 ```
 
-#### 3.5.3 性能优化
+#### 3.5.3 Performance Optimization
 - **批量处理**: 减少API调用次数
 - **并发控制**: 避免超出API限制
 - **缓存机制**: 相同文本的向量缓存
 - **降级策略**: 多提供商备份
 
-### 3.6 向量存储设计
+### 3.6 Vector Storage设计
 
 #### 3.6.1 支持的向量数据库
 - **Weaviate**: 企业级向量数据库
@@ -300,7 +300,7 @@ async def upsert_vectors(self, documents: List[VectorDocument]) -> BulkOperation
     return self._aggregate_results(results)
 ```
 
-### 3.7 状态管理和监控
+### 3.7 State Management和监控
 
 #### 3.7.1 处理状态
 ```python
@@ -361,10 +361,10 @@ erDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> UPLOADING: 文件上传开始
+    [*] --> UPLOADING: File Upload开始
     UPLOADING --> AVAILABLE: 上传完成
     AVAILABLE --> PROCESSING: 开始RAG处理
-    PROCESSING --> PARSED: 文档解析完成
+    PROCESSING --> PARSED: Document parsing完成
     PARSED --> CHUNKED: 分块完成
     CHUNKED --> EMBEDDED: 向量化完成
     EMBEDDED --> STORED: 存储完成
@@ -379,7 +379,7 @@ stateDiagram-v2
     FAILED --> PROCESSING: 重试处理
 ```
 
-## 5. 性能优化策略
+## 5. Performance Optimization策略
 
 ### 5.1 并发控制
 - **文件级并发**: 多个文件同时处理
@@ -423,8 +423,8 @@ class RetryConfig:
 ```
 
 ### 6.3 降级策略
-- **嵌入服务降级**: 多提供商备份
-- **向量存储降级**: 备用存储后端
+- **Embedding Service降级**: 多提供商备份
+- **Vector Storage降级**: 备用存储后端
 - **处理能力降级**: 减少并发数
 - **功能降级**: 关闭非核心功能
 
@@ -555,13 +555,13 @@ services:
 # 测试用例示例
 test_cases = [
     {
-        "name": "小文本文件处理",
+        "name": "小Text files处理",
         "file_type": "txt",
         "file_size": "1KB",
         "expected_chunks": 1
     },
     {
-        "name": "大PDF文件处理", 
+        "name": "Large PDF file processing", 
         "file_type": "pdf",
         "file_size": "10MB",
         "expected_chunks": 100
@@ -571,12 +571,12 @@ test_cases = [
 
 ## 12. 总结
 
-本技术方案设计了一个完整的文件上传后RAG处理系统，具有以下特点：
+本技术方案设计了一个完整的File Upload后RAG处理系统，具有以下特点：
 
 ### 12.1 技术优势
 - **异步架构**: 高性能、高并发处理能力
 - **模块化设计**: 组件解耦，易于维护和扩展
-- **多模型支持**: 灵活的嵌入和存储方案
+- **Multi-model support**: 灵活的嵌入和存储方案
 - **容错设计**: 完善的错误处理和恢复机制
 
 ### 12.2 业务价值

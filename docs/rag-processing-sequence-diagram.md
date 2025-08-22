@@ -1,24 +1,24 @@
 # RAG处理流程时序图
 
-## 完整的文件上传后RAG处理时序图
+## 完整的File Upload后RAG处理时序图
 
-以下是详细的时序图，展示了从文件上传到RAG处理完成的完整流程：
+以下是详细的时序图，展示了从File Upload到RAG处理完成的完整流程：
 
 ```mermaid
 sequenceDiagram
     participant User as 用户
-    participant API as 文件上传API
+    participant API as File UploadAPI
     participant FileHandler as 文件处理器
     participant Storage as 文件存储
     participant DocLoader as 文档加载器
     participant DB as 数据库
     participant RAGHandler as RAG处理器
     participant Chunker as 分块处理器
-    participant Embedder as 嵌入服务
+    participant Embedder as Embedding Service
     participant VectorDB as 向量数据库
     participant Queue as 任务队列
     
-    %% 文件上传阶段
+    %% File Upload阶段
     User->>API: 上传文件
     API->>Storage: 存储文件
     Storage-->>API: 返回存储路径
@@ -26,7 +26,7 @@ sequenceDiagram
     API->>Queue: 触发上传完成任务
     API-->>User: 返回文件ID和状态
     
-    %% 文件处理阶段
+    %% 文件Processing Stages
     Queue->>FileHandler: 执行上传完成处理
     FileHandler->>Storage: 验证文件存在
     Storage-->>FileHandler: 确认文件存在
@@ -45,7 +45,7 @@ sequenceDiagram
     FileHandler->>Queue: 触发RAG处理任务
     FileHandler->>FileHandler: 清理临时文件
     
-    %% RAG处理阶段
+    %% RAGProcessing Stages
     Queue->>RAGHandler: 执行RAG处理
     RAGHandler->>DB: 更新文件状态为"处理中"
     RAGHandler->>Chunker: 文档分块
@@ -56,14 +56,14 @@ sequenceDiagram
     Chunker->>DB: 保存文档块
     Chunker-->>RAGHandler: 返回分块结果
     
-    %% 嵌入生成
-    RAGHandler->>Queue: 触发嵌入生成任务
+    %% Embedding generation
+    RAGHandler->>Queue: 触发Embedding generation任务
     Queue->>Embedder: 生成嵌入向量
-    Embedder->>Embedder: 批量向量化
+    Embedder->>Embedder: Batch vectorization
     Embedder-->>RAGHandler: 返回嵌入向量
     
-    %% 向量存储
-    RAGHandler->>Queue: 触发向量存储任务
+    %% Vector Storage
+    RAGHandler->>Queue: 触发Vector Storage任务
     Queue->>VectorDB: 存储向量
     VectorDB->>VectorDB: 批量插入向量
     VectorDB->>VectorDB: 构建索引
@@ -116,7 +116,7 @@ sequenceDiagram
     participant Worker1 as 工作器1
     participant Worker2 as 工作器2
     participant Worker3 as 工作器3
-    participant Embedder as 嵌入服务
+    participant Embedder as Embedding Service
     participant VectorDB as 向量数据库
     
     Queue->>Worker1: 分配任务A
@@ -202,6 +202,6 @@ sequenceDiagram
     end
 ```
 
-这些图表展示了RAG处理系统的完整工作流程，包括正常处理流程、错误处理、并发处理、状态管理和监控等各个方面。通过这些可视化图表，可以更好地理解系统的设计和运行机制。
+这些图表展示了RAG处理系统的完整工作流程，包括正常处理流程、错误处理、并发处理、State Management和监控等各个方面。通过这些可视化图表，可以更好地理解系统的设计和运行机制。
 
 

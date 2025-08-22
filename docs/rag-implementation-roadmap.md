@@ -2,7 +2,7 @@
 
 ## 1. 项目概述
 
-基于当前系统架构，本路线图规划了文件上传后RAG处理功能的分阶段实施计划。整个项目将分为4个阶段，每个阶段都有明确的目标和可交付成果。
+基于当前系统架构，本路线图规划了File Upload后RAG处理功能的分阶段实施计划。整个项目将分为4个阶段，每个阶段都有明确的目标和可交付成果。
 
 ## 2. 实施阶段规划
 
@@ -10,15 +10,15 @@
 
 #### 目标
 - 实现基本的文档处理流程
-- 建立任务队列和状态管理
+- 建立任务队列和State Management
 - 完成核心组件集成
 
 #### 主要任务
 
-##### 2.1 完善文件加载器
-- [ ] 扩展PDF文件加载器实现
+##### 2.1 完善File Loader
+- [ ] 扩展PDFFile Loader实现
 - [ ] 添加Word文档加载器
-- [ ] 完善编码检测和错误处理
+- [ ] 完善Encoding detection和错误处理
 - [ ] 添加文件大小和格式验证
 
 ```python
@@ -40,13 +40,13 @@ class DocxFileLoader(IFileLoader):
 - [ ] 添加多语言支持
 - [ ] 优化内存使用和性能
 
-##### 2.3 集成嵌入服务
-- [ ] 实现OpenAI嵌入服务
+##### 2.3 集成Embedding Service
+- [ ] 实现OpenAIEmbedding Service
 - [ ] 添加HuggingFace本地模型支持
 - [ ] 实现批量处理和错误重试
 - [ ] 添加嵌入缓存机制
 
-##### 2.4 完善向量存储
+##### 2.4 完善Vector Storage
 - [ ] 完善Weaviate集成
 - [ ] 实现pgvector支持
 - [ ] 优化批量插入性能
@@ -55,10 +55,10 @@ class DocxFileLoader(IFileLoader):
 #### 交付成果
 - 基础RAG处理管道可运行
 - 支持文本和PDF文件处理
-- 基本的嵌入生成和向量存储
+- 基本的Embedding generation和Vector Storage
 - 简单的状态跟踪和错误处理
 
-### 阶段二：性能优化和监控 (2-3周)
+### 阶段二：Performance Optimization和监控 (2-3周)
 
 #### 目标
 - 优化处理性能和并发能力
@@ -67,14 +67,14 @@ class DocxFileLoader(IFileLoader):
 
 #### 主要任务
 
-##### 2.1 性能优化
+##### 2.1 Performance Optimization
 - [ ] 实现流式文档处理
-- [ ] 优化嵌入生成的批量处理
+- [ ] 优化Embedding generation的批量处理
 - [ ] 添加内存池和连接池
 - [ ] 实现并发控制和限流
 
 ```python
-# 性能优化示例
+# Performance Optimization示例
 class StreamingDocumentProcessor:
     async def process_large_document(self, document: Document) -> AsyncIterator[DocumentChunk]:
         async for chunk in self._stream_chunks(document):
@@ -114,10 +114,10 @@ class StreamingDocumentProcessor:
 
 #### 主要任务
 
-##### 3.1 多格式支持扩展
+##### 3.1 Multi-format Support扩展
 - [ ] 添加Excel和CSV处理
 - [ ] 支持图片文档OCR
-- [ ] 实现代码文件分析
+- [ ] 实现Code files分析
 - [ ] 添加压缩文件处理
 
 ##### 3.2 智能文档理解
@@ -204,7 +204,7 @@ class IntelligentDocumentAnalyzer:
 - **容器平台**: Docker和Docker Compose环境
 
 ### 3.2 外部服务依赖
-- **嵌入服务**: OpenAI API或HuggingFace模型服务
+- **Embedding Service**: OpenAI API或HuggingFace模型服务
 - **向量数据库**: Weaviate或支持pgvector的PostgreSQL
 - **任务队列**: Redis服务
 - **监控服务**: Prometheus和Grafana
@@ -232,7 +232,7 @@ dependencies = [
 ### 4.1 技术风险
 | 风险 | 影响 | 概率 | 缓解措施 |
 |------|------|------|----------|
-| 嵌入服务API限制 | 高 | 中 | 实现多提供商备份 |
+| Embedding ServiceAPI限制 | 高 | 中 | 实现多提供商备份 |
 | 向量数据库性能瓶颈 | 中 | 中 | 早期性能测试和优化 |
 | 大文件处理内存不足 | 高 | 低 | 实现流式处理 |
 | 并发处理资源竞争 | 中 | 中 | 完善资源管理和限流 |
@@ -240,7 +240,7 @@ dependencies = [
 ### 4.2 业务风险
 | 风险 | 影响 | 概率 | 缓解措施 |
 |------|------|------|----------|
-| 处理延迟过高 | 高 | 中 | 性能优化和容量规划 |
+| 处理延迟过高 | 高 | 中 | Performance Optimization和容量规划 |
 | 文件格式不支持 | 中 | 高 | 扩展文件格式支持 |
 | 数据丢失或损坏 | 高 | 低 | 完善备份和恢复 |
 | 安全漏洞 | 高 | 低 | 安全审计和加固 |

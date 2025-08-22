@@ -1,123 +1,123 @@
-# RAG系统设计文档
+# RAG System Design Documentation
 
-本目录包含了文件上传后RAG处理系统的完整技术设计文档。
+This directory contains complete technical design documentation for the file upload RAG processing system.
 
-## 📁 文档结构
+## 📁 Document Structure
 
-### 核心设计文档
+### Core Design Documents
 
-#### 1. [RAG处理技术方案设计](./rag-processing-technical-design.md)
-**主要内容**:
-- 系统整体架构设计
-- 核心组件详细设计
-- 数据流和处理流程
-- 性能优化策略
-- 安全性和监控方案
+#### 1. [RAG Processing Technical Design](./rag-processing-technical-design.md)
+**Main Content**:
+- Overall system architecture design
+- Detailed design of core components
+- Data flow and processing workflows
+- Performance optimization strategies
+- Security and monitoring solutions
 
-**适用人群**: 架构师、技术负责人、高级开发工程师
+**Target Audience**: Architects, technical leads, senior engineers
 
-#### 2. [RAG处理流程图表](./rag-processing-sequence-diagram.md)
-**主要内容**:
-- 完整时序图展示处理流程
-- 错误处理和并发处理流程
-- 状态流转图
-- 性能监控流程图
+#### 2. [RAG Processing Flow Diagrams](./rag-processing-sequence-diagram.md)
+**Main Content**:
+- Complete sequence diagrams showing processing flow
+- Error handling and concurrent processing flows
+- State transition diagrams
+- Performance monitoring flow diagrams
 
-**适用人群**: 所有技术人员、产品经理
+**Target Audience**: All technical staff, product managers
 
-#### 3. [实施路线图](./rag-implementation-roadmap.md)
-**主要内容**:
-- 4个阶段的详细实施计划
-- 技术依赖和前置条件
-- 风险管理和质量保证
-- 团队协作和成功指标
+#### 3. [Implementation Roadmap](./rag-implementation-roadmap.md)
+**Main Content**:
+- Detailed implementation plan for 4 phases
+- Technical dependencies and prerequisites
+- Risk management and quality assurance
+- Team collaboration and success metrics
 
-**适用人群**: 项目经理、技术负责人、开发团队
+**Target Audience**: Project managers, technical leads, development teams
 
-## 🎯 设计要点总结
+## 🎯 Design Summary
 
-### 系统特性
-- ✅ **异步处理**: 基于Redis任务队列的异步处理架构
-- ✅ **高可扩展**: 支持多种文件格式、嵌入模型和向量存储
-- ✅ **高可靠**: 完善的错误处理、重试机制和状态跟踪
-- ✅ **高性能**: 批量处理、并发控制和资源优化
-- ✅ **可观测**: 全链路监控、日志追踪和性能指标
+### System Features
+- ✅ **Asynchronous Processing**: Redis task queue-based asynchronous processing architecture
+- ✅ **High Scalability**: Support for multiple file formats, embedding models and vector storage
+- ✅ **High Reliability**: Comprehensive error handling, retry mechanisms and state tracking
+- ✅ **High Performance**: Batch processing, concurrency control and resource optimization
+- ✅ **Observability**: End-to-end monitoring, log tracing and performance metrics
 
-### 核心组件
-- **文件处理器**: `FileUploadCompleteHandler` - 处理文件上传完成事件
-- **RAG处理器**: `DocumentProcessingHandler` - 执行完整RAG处理流程
-- **文档加载器**: `MultiFormatFileLoader` - 多格式文件解析
-- **分块处理器**: `ChunkingProcessor` - 智能文档分块和质量评分
-- **嵌入服务**: 支持OpenAI、HuggingFace等多种提供商
-- **向量存储**: 支持Weaviate、pgvector等多种向量数据库
+### Core Components
+- **File Processor**: `FileUploadCompleteHandler` - handles file upload completion events
+- **RAG Processor**: `DocumentProcessingHandler` - executes complete RAG processing workflow
+- **Document Loader**: `MultiFormatFileLoader` - multi-format file parsing
+- **Chunking Processor**: `ChunkingProcessor` - intelligent document chunking and quality scoring
+- **Embedding Service**: supports multiple providers like OpenAI, HuggingFace
+- **Vector Storage**: supports multiple vector databases like Weaviate, pgvector
 
-### 处理流程
-1. **文件上传** → 触发上传完成事件
-2. **文档加载** → 多格式文件解析和内容提取
-3. **文档分块** → 智能分块和质量评分
-4. **向量生成** → 批量嵌入向量生成
-5. **向量存储** → 批量向量存储和索引构建
-6. **状态更新** → 实时状态跟踪和结果通知
+### Processing Workflow
+1. **File Upload** → triggers upload completion event
+2. **Document Loading** → multi-format file parsing and content extraction
+3. **Document Chunking** → intelligent chunking and quality scoring
+4. **Vector Generation** → batch embedding vector generation
+5. **Vector Storage** → batch vector storage and index construction
+6. **Status Updates** → real-time status tracking and result notification
 
-## 🔧 技术栈
+## 🔧 Technology Stack
 
-### 后端技术
-- **Web框架**: FastAPI
-- **数据库**: PostgreSQL + pgvector扩展
-- **任务队列**: Redis + Celery
-- **向量数据库**: Weaviate / ChromaDB
-- **嵌入服务**: OpenAI API / HuggingFace
-- **存储服务**: MinIO / 本地存储
+### Backend Technologies
+- **Web Framework**: FastAPI
+- **Database**: PostgreSQL + pgvector extension
+- **Task Queue**: Redis + Celery
+- **Vector Database**: Weaviate / ChromaDB
+- **Embedding Service**: OpenAI API / HuggingFace
+- **Storage Service**: MinIO / Local storage
 
-### 监控运维
-- **指标监控**: Prometheus + Grafana
-- **日志系统**: 结构化日志 + ELK Stack
-- **容器化**: Docker + Docker Compose
-- **CI/CD**: 自动化构建和部署
+### Monitoring & Operations
+- **Metrics Monitoring**: Prometheus + Grafana
+- **Logging System**: Structured logging + ELK Stack
+- **Containerization**: Docker + Docker Compose
+- **CI/CD**: Automated build and deployment
 
-### 开发工具
-- **代码质量**: pylint、mypy、black
-- **测试框架**: pytest、coverage
-- **文档工具**: Swagger UI、Markdown
-- **版本控制**: Git + GitHub
+### Development Tools
+- **Code Quality**: pylint, mypy, black
+- **Testing Framework**: pytest, coverage
+- **Documentation Tools**: Swagger UI, Markdown
+- **Version Control**: Git + GitHub
 
-## 📊 关键指标
+## 📊 Key Metrics
 
-### 性能目标
-- 文件处理延迟: < 30秒（平均）
-- 并发处理能力: >= 10个文件
-- 系统响应时间: < 2秒
-- 可用性: >= 99%
+### Performance Goals
+- File processing latency: < 30 seconds (average)
+- Concurrent processing capacity: >= 10 files
+- System response time: < 2 seconds
+- Availability: >= 99%
 
-### 质量目标
-- 代码测试覆盖率: >= 80%
-- 文档处理准确率: >= 95%
-- 搜索相关性: >= 0.8
-- 用户满意度: >= 4.0/5.0
+### Quality Goals
+- Code test coverage: >= 80%
+- Document processing accuracy: >= 95%
+- Search relevance: >= 0.8
+- User satisfaction: >= 4.0/5.0
 
-## 🚀 实施建议
+## 🚀 Implementation Recommendations
 
-### 阶段一优先级 (2-3周)
-1. 完善文件加载器（PDF、Word支持）
-2. 增强文档分块处理器
-3. 集成嵌入服务（OpenAI）
-4. 完善向量存储（Weaviate）
+### Phase 1 Priority (2-3 weeks)
+1. Improve file loaders (PDF, Word support)
+2. Enhance document chunking processor
+3. Integrate embedding service (OpenAI)
+4. Complete vector storage (Weaviate)
 
-### 风险缓解
-- **API限制**: 实现多提供商备份
-- **性能瓶颈**: 早期性能测试和优化
-- **内存问题**: 实现流式处理
-- **数据安全**: 完善访问控制和加密
+### Risk Mitigation
+- **API Limitations**: Implement multi-provider backup
+- **Performance Bottlenecks**: Early performance testing and optimization
+- **Memory Issues**: Implement streaming processing
+- **Data Security**: Comprehensive access control and encryption
 
-### 质量保证
-- 完善的单元测试和集成测试
-- 代码审查和静态分析
-- 自动化CI/CD流水线
-- 详细的文档和注释
+### Quality Assurance
+- Comprehensive unit tests and integration tests
+- Code review and static analysis
+- Automated CI/CD pipeline
+- Detailed documentation and comments
 
-## 📞 联系方式
+## 📞 Contact Information
 
-如有技术问题或建议，请通过以下方式联系：
+For technical questions or suggestions, please contact via:
 - 技术讨论: 创建GitHub Issue
 - 设计评审: 发起Pull Request
 - 紧急问题: 联系技术负责人

@@ -433,7 +433,7 @@ const MessageInput = ({ onSendMessage, disabled, placeholder }) => {
     };
     
     const handleFileUpload = (file) => {
-        // 文件上传逻辑
+        // File Upload逻辑
         console.log('上传文件:', file);
         return false; // 阻止默认上传行为
     };
@@ -502,7 +502,7 @@ const MessageInput = ({ onSendMessage, disabled, placeholder }) => {
 export default MessageInput;
 ```
 
-## 🔄 状态管理
+## 🔄 State Management
 
 ### Chat Store (Zustand)
 
@@ -1050,6 +1050,6 @@ export const useWebSocket = () => {
 }
 ```
 
-这个前端设计方案提供了完整的React组件架构、状态管理、WebSocket集成和样式设计，为用户提供现代化的聊天体验。
+这个前端设计方案提供了完整的React组件架构、State Management、WebSocket集成和样式设计，为用户提供现代化的聊天体验。
 
 
