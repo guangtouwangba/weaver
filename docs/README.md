@@ -1,33 +1,33 @@
-# RAG系统设计文档
+# RAG System Design Documentation
 
-本目录包含了文件上传后RAG处理系统的完整技术设计文档。
+This directory contains complete technical design documentation for the RAG processing system after file upload.
 
-## 📁 文档结构
+## 📁 Document Structure
 
-### 核心设计文档
+### Core Design Documents
 
-#### 1. [RAG处理技术方案设计](./rag-processing-technical-design.md)
-**主要内容**:
-- 系统整体架构设计
-- 核心组件详细设计
-- 数据流和处理流程
-- 性能优化策略
-- 安全性和监控方案
+#### 1. [RAG Processing Technical Design](./rag-processing-technical-design.md)
+**Main Content**:
+- Overall system architecture design
+- Detailed core component design
+- Data flow and processing workflows
+- Performance optimization strategies
+- Security and monitoring solutions
 
-**适用人群**: 架构师、技术负责人、高级开发工程师
+**Target Audience**: Architects, technical leads, senior development engineers
 
-#### 2. [RAG处理流程图表](./rag-processing-sequence-diagram.md)
-**主要内容**:
-- 完整时序图展示处理流程
-- 错误处理和并发处理流程
-- 状态流转图
-- 性能监控流程图
+#### 2. [RAG Processing Flow Charts](./rag-processing-sequence-diagram.md)
+**Main Content**:
+- Complete sequence diagrams showing processing flows
+- Error handling and concurrent processing flows
+- State transition diagrams
+- Performance monitoring flow charts
 
-**适用人群**: 所有技术人员、产品经理
+**Target Audience**: All technical personnel, product managers
 
-#### 3. [实施路线图](./rag-implementation-roadmap.md)
-**主要内容**:
-- 4个阶段的详细实施计划
+#### 3. [Implementation Roadmap](./rag-implementation-roadmap.md)
+**Main Content**:
+- Detailed implementation plan for 4 phases
 - 技术依赖和前置条件
 - 风险管理和质量保证
 - 团队协作和成功指标
