@@ -3,7 +3,7 @@ RAG Task Handlers
 
 Contains various async task handlers for the RAG system:
 - Document processing pipeline
-- Embedding vector generation  
+- Embedding vector generation
 - Vector storage operations
 - Document search functionality
 """
@@ -849,7 +849,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
             # 简化的RAG处理逻辑
             # 在实际环境中，这里会调用完整的RAG管道进行文档分块、嵌入生成和向量存储
 
-            logger.info(f"模拟RAG处理: 文档分块...")
+            logger.info("模拟RAG处理: 文档分块...")
             chunks_created = len(document.content) // 1000  # 模拟分块数量
 
             logger.info(f"模拟RAG处理: 生成嵌入...")
