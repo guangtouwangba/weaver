@@ -6,13 +6,7 @@
 
 from .base import IStorage, StorageError
 from .local_storage import LocalStorage
-from .mock_storage import MockStorage
 from .minio_storage import MinIOStorage
+from .mock_storage import MockStorage
 
-__all__ = [
-    'IStorage',
-    'StorageError',
-    'LocalStorage', 
-    'MockStorage',
-    'MinIOStorage'
-]
+__all__ = ["IStorage", "StorageError", "LocalStorage", "MockStorage", "MinIOStorage"]

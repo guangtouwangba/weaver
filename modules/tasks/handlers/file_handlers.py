@@ -10,21 +10,21 @@ Contains various async task handlers for file system operations:
 
 import logging
 import os
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..base import ITaskHandler, TaskConfig, TaskPriority
 from ... import schemas
-from ...services.task_service import task_handler, register_task_handler
-from ...storage import IStorage, MinIOStorage, LocalStorage
-from ...storage.base import create_storage_service
-from ...services.document_service import DocumentService
 from ...file_loader.factory import FileLoaderFactory
-from ...models import FileLoadRequest
-from ...models import Document
+from ...models import Document, FileLoadRequest
 from ...schemas.document import DocumentCreate
 from ...schemas.enums import ContentType
+from ...services.document_service import DocumentService
+from ...services.task_service import register_task_handler, task_handler
+from ...storage import IStorage, LocalStorage, MinIOStorage
+from ...storage.base import create_storage_service
+from ..base import ITaskHandler, TaskConfig, TaskPriority
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +80,7 @@ async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Docu
     # Build file load request
     request = FileLoadRequest(
         file_path=file_path,
-        content_type=(
-            content_type.value if hasattr(content_type, "value") else str(content_type)
-        ),
+        content_type=(content_type.value if hasattr(content_type, "value") else str(content_type)),
         metadata=metadata,
     )
 
@@ -97,23 +95,17 @@ async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Docu
                 "factory_loader": True,
                 "delegate_loader": loader.loader_name,
                 "detected_type": (
-                    content_type.value
-                    if hasattr(content_type, "value")
-                    else str(content_type)
+                    content_type.value if hasattr(content_type, "value") else str(content_type)
                 ),
             }
         )
 
-        logger.info(
-            f"Loading document using factory pattern {loader.loader_name}: {file_path}"
-        )
+        logger.info(f"Loading document using factory pattern {loader.loader_name}: {file_path}")
         return document
 
     except ValueError as e:
         # If no corresponding loader found, try using text loader as fallback
-        logger.warning(
-            f"No loader found for content type {content_type}, trying text loader: {e}"
-        )
+        logger.warning(f"No loader found for content type {content_type}, trying text loader: {e}")
         try:
             text_loader = FileLoaderFactory.get_loader(ContentType.TXT)
             request.content_type = ContentType.TXT.value
@@ -124,9 +116,7 @@ async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Docu
                     "delegate_loader": text_loader.loader_name,
                     "fallback_loader": True,
                     "original_type": (
-                        content_type.value
-                        if hasattr(content_type, "value")
-                        else str(content_type)
+                        content_type.value if hasattr(content_type, "value") else str(content_type)
                     ),
                     "detected_type": ContentType.TXT.value,
                 }
@@ -254,9 +244,7 @@ class FileUploadCompleteHandler(ITaskHandler):
             logger.info(f"Starting RAG document processing: {file_id}")
 
             # 1. Download file from storage to temporary location
-            temp_file_path = await self._download_file_to_temp(
-                storage, file_path, file_id
-            )
+            temp_file_path = await self._download_file_to_temp(storage, file_path, file_id)
 
             try:
                 # 2. Use file loader to read document content
@@ -307,18 +295,15 @@ class FileUploadCompleteHandler(ITaskHandler):
                 "failed_at": datetime.utcnow().isoformat(),
             }
 
-    async def _download_file_to_temp(
-        self, storage: IStorage, file_path: str, file_id: str
-    ) -> str:
+    async def _download_file_to_temp(self, storage: IStorage, file_path: str, file_id: str) -> str:
         """Download file from storage to temporary directory"""
         import tempfile
+
         import aiofiles
 
         # Create temporary file
         suffix = os.path.splitext(file_path)[1] or ".tmp"
-        temp_fd, temp_file_path = tempfile.mkstemp(
-            suffix=suffix, prefix=f"rag_process_{file_id}_"
-        )
+        temp_fd, temp_file_path = tempfile.mkstemp(suffix=suffix, prefix=f"rag_process_{file_id}_")
         os.close(temp_fd)
 
         try:
@@ -410,34 +395,37 @@ class FileUploadCompleteHandler(ITaskHandler):
         metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Helper method to create document using synchronous SQLAlchemy in worker context"""
+        import json
+        from uuid import uuid4
+
         import sqlalchemy as sa
         from sqlalchemy import create_engine, text
         from sqlalchemy.orm import sessionmaker
+
         from config import get_config
         from modules.database.models import Document as DocumentModel
-        from uuid import uuid4
-        import json
-        
+
         config = get_config()
-        
+
         # Use synchronous SQLAlchemy to avoid async context issues in Celery
         sync_engine = create_engine(
-            config.database.url.replace('postgresql+asyncpg', 'postgresql+psycopg2'),
-            echo=False
+            config.database.url.replace("postgresql+asyncpg", "postgresql+psycopg2"), echo=False
         )
-        
+
         SessionLocal = sessionmaker(bind=sync_engine)
-        
+
         with SessionLocal() as session:
             try:
                 # Create document record directly using synchronous SQLAlchemy
                 doc_metadata = document.metadata or {}
-                doc_metadata.update({
-                    "rag_processing_pending": True,
-                    "celery_processed": True,
-                    "created_in_worker": True
-                })
-                
+                doc_metadata.update(
+                    {
+                        "rag_processing_pending": True,
+                        "celery_processed": True,
+                        "created_in_worker": True,
+                    }
+                )
+
                 document_model = DocumentModel(
                     id=document.id,
                     title=document.title or f"Document from {file_id}",
@@ -446,39 +434,45 @@ class FileUploadCompleteHandler(ITaskHandler):
                     file_id=file_id,
                     file_path=file_path,
                     file_size=file_size,
-                    doc_metadata=doc_metadata
+                    doc_metadata=doc_metadata,
                 )
-                
+
                 session.add(document_model)
                 session.commit()
-                
-                logger.info(f"Document created using sync SQLAlchemy: {document_model.title} (ID: {document_model.id})")
+
+                logger.info(
+                    f"Document created using sync SQLAlchemy: {document_model.title} (ID: {document_model.id})"
+                )
 
                 # Trigger separate RAG processing task using Celery directly
                 topic_id = metadata.get("topic_id")
                 try:
                     from celery import current_app
-                    
+
                     # Use Celery directly to submit the RAG task
                     rag_task = current_app.send_task(
-                        'rag.process_document_async',
+                        "rag.process_document_async",
                         args=[],
                         kwargs={
-                            'file_id': file_id,
-                            'document_id': str(document_model.id),
-                            'file_path': file_path,
-                            'content_type': self._map_content_type(document.content_type),
-                            'topic_id': topic_id,
-                            'embedding_provider': 'openai',
-                            'vector_store_provider': 'weaviate'
+                            "file_id": file_id,
+                            "document_id": str(document_model.id),
+                            "file_path": file_path,
+                            "content_type": self._map_content_type(document.content_type),
+                            "topic_id": topic_id,
+                            "embedding_provider": "openai",
+                            "vector_store_provider": "weaviate",
                         },
-                        queue='rag_queue',
-                        priority=1
+                        queue="rag_queue",
+                        priority=1,
                     )
-                    logger.info(f"RAG processing task submitted for document {document_model.id}: {rag_task.id}")
+                    logger.info(
+                        f"RAG processing task submitted for document {document_model.id}: {rag_task.id}"
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to submit RAG processing task: {e}")
-                    logger.info(f"Document {document_model.id} created but RAG processing will need to be manually triggered.")
+                    logger.info(
+                        f"Document {document_model.id} created but RAG processing will need to be manually triggered."
+                    )
 
                 return {
                     "document_id": str(document_model.id),
@@ -653,9 +647,7 @@ class FileContentAnalysisHandler(ITaskHandler):
         except Exception as e:
             return {"image_analysis_error": str(e)}
 
-    async def _security_check(
-        self, file_path: str, content_type: str
-    ) -> Dict[str, Any]:
+    async def _security_check(self, file_path: str, content_type: str) -> Dict[str, Any]:
         """Security check"""
         try:
             file_size = os.path.getsize(file_path)
@@ -724,9 +716,7 @@ class TempFileCleanupHandler(ITaskHandler):
             for file_path in file_paths:
                 try:
                     if not os.path.exists(file_path):
-                        skipped_files.append(
-                            {"path": file_path, "reason": "File does not exist"}
-                        )
+                        skipped_files.append({"path": file_path, "reason": "File does not exist"})
                         continue
 
                     # Check file age
@@ -735,9 +725,7 @@ class TempFileCleanupHandler(ITaskHandler):
 
                     if file_age > max_age_seconds:
                         os.remove(file_path)
-                        deleted_files.append(
-                            {"path": file_path, "age_hours": file_age / 3600}
-                        )
+                        deleted_files.append({"path": file_path, "age_hours": file_age / 3600})
                         logger.debug(f"Temporary file deleted: {file_path}")
                     else:
                         skipped_files.append(
@@ -813,9 +801,7 @@ class FileFormatConversionHandler(ITaskHandler):
             Dict[str, Any]: Conversion result
         """
         try:
-            logger.info(
-                f"Start file format conversion: {source_file} -> {target_format}"
-            )
+            logger.info(f"Start file format conversion: {source_file} -> {target_format}")
 
             if not os.path.exists(source_file):
                 raise FileNotFoundError(f"Source file does not exist: {source_file}")

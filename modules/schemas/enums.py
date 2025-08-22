@@ -9,6 +9,7 @@ from enum import Enum
 
 class FileStatus(str, Enum):
     """文件状态枚举 - 匹配数据库file_status_enum"""
+
     UPLOADING = "uploading"  # 上传中
     AVAILABLE = "available"  # 可用
     PROCESSING = "processing"  # 处理中
@@ -19,6 +20,7 @@ class FileStatus(str, Enum):
 
 class TopicStatus(str, Enum):
     """主题状态枚举 - 匹配数据库topic_status_enum"""
+
     ACTIVE = "active"  # 活跃
     ARCHIVED = "archived"  # 已归档
     DRAFT = "draft"  # 草稿
@@ -27,6 +29,7 @@ class TopicStatus(str, Enum):
 
 class ContentType(str, Enum):
     """内容类型枚举"""
+
     TEXT = "text"
     TXT = "txt"
     PDF = "pdf"
@@ -42,6 +45,7 @@ class ContentType(str, Enum):
 
 class ChunkingStrategy(str, Enum):
     """分块策略枚举"""
+
     FIXED_SIZE = "fixed_size"  # 固定大小
     SENTENCE = "sentence"  # 按句子
     PARAGRAPH = "paragraph"  # 按段落
@@ -51,6 +55,7 @@ class ChunkingStrategy(str, Enum):
 
 class ProcessingStatus(str, Enum):
     """处理状态枚举"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -60,6 +65,7 @@ class ProcessingStatus(str, Enum):
 
 class SearchType(str, Enum):
     """搜索类型枚举"""
+
     SEMANTIC = "semantic"  # 语义搜索
     KEYWORD = "keyword"  # 关键词搜索
     HYBRID = "hybrid"  # 混合搜索
@@ -68,6 +74,7 @@ class SearchType(str, Enum):
 
 class TaskName(str, Enum):
     """任务名称枚举"""
+
     FILE_UPLOAD = "file_upload"  # 文件上传
     FILE_UPLOAD_CONFIRM = "file_upload_confirm"  # 文件上传确认
     FILE_PROCESSING = "file_processing"  # 文件处理

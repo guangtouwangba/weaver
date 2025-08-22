@@ -7,48 +7,48 @@ RAGService implementation
 - 文档处理管道Service implementation
 """
 
-import logging
 import asyncio
+import logging
 import time
-from typing import List, Dict, Any, Optional, AsyncIterator
 from datetime import datetime
+from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import uuid4
-
-# RAG interfaces
-from ..rag.embedding import (
-    IEmbeddingService,
-    EmbeddingConfig,
-    EmbeddingResult,
-    EmbeddingError,
-    EmbeddingProvider,
-)
-from ..rag.vector_store import (
-    IVectorStore,
-    VectorStoreConfig,
-    VectorDocument,
-    SearchResult,
-    SearchFilter,
-    BulkOperationResult,
-    VectorStoreError,
-    VectorStoreProvider,
-    SimilarityMetric,
-)
-from ..rag.pipeline import (
-    IDocumentPipeline,
-    PipelineConfig,
-    DocumentProcessingRequest,
-    DocumentProcessingResult,
-    ProcessingStageResult,
-    ProcessingProgress,
-    PipelineError,
-    PipelineStatus,
-    ProcessingStage,
-)
 
 # Other dependencies
 from ..file_loader import IFileLoader
-from ..rag.processors import IDocumentProcessor
 from ..models import Document, DocumentChunk, FileLoadRequest
+
+# RAG interfaces
+from ..rag.embedding import (
+    EmbeddingConfig,
+    EmbeddingError,
+    EmbeddingProvider,
+    EmbeddingResult,
+    IEmbeddingService,
+)
+from ..rag.pipeline import (
+    DocumentProcessingRequest,
+    DocumentProcessingResult,
+    IDocumentPipeline,
+    PipelineConfig,
+    PipelineError,
+    PipelineStatus,
+    ProcessingProgress,
+    ProcessingStage,
+    ProcessingStageResult,
+)
+from ..rag.processors import IDocumentProcessor
+from ..rag.vector_store import (
+    BulkOperationResult,
+    IVectorStore,
+    SearchFilter,
+    SearchResult,
+    SimilarityMetric,
+    VectorDocument,
+    VectorStoreConfig,
+    VectorStoreError,
+    VectorStoreProvider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -107,9 +107,7 @@ class OpenAIEmbeddingService(IEmbeddingService):
                 processing_time_ms=processing_time,
                 metadata={
                     "provider": "openai",
-                    "usage": (
-                        response.usage.dict() if hasattr(response, "usage") else None
-                    ),
+                    "usage": (response.usage.dict() if hasattr(response, "usage") else None),
                 },
             )
 
@@ -163,8 +161,8 @@ class HuggingFaceEmbeddingService(IEmbeddingService):
 
     async def initialize(self) -> None:
         try:
-            from transformers import AutoModel, AutoTokenizer
             import torch
+            from transformers import AutoModel, AutoTokenizer
 
             self._tokenizer = AutoTokenizer.from_pretrained(self._config.model_name)
             self._model = AutoModel.from_pretrained(self._config.model_name)
@@ -290,8 +288,8 @@ class WeaviateVectorStore(IVectorStore):
             # Try to determine Weaviate client version/compatibility
             try:
                 # Try v4 client initialization first
-                from weaviate.classes.init import Auth
                 import weaviate.classes as wvc
+                from weaviate.classes.init import Auth
 
                 # Parse connection string to extract host and port
                 connection_url = self._config.connection_string
@@ -303,15 +301,9 @@ class WeaviateVectorStore(IVectorStore):
                 # Use Weaviate v4 client initialization with init checks disabled for compatibility
                 self._client = weaviate.connect_to_local(
                     host=(
-                        connection_url.split(":")[0]
-                        if ":" in connection_url
-                        else connection_url
+                        connection_url.split(":")[0] if ":" in connection_url else connection_url
                     ),
-                    port=(
-                        int(connection_url.split(":")[1])
-                        if ":" in connection_url
-                        else 8080
-                    ),
+                    port=(int(connection_url.split(":")[1]) if ":" in connection_url else 8080),
                     grpc_port=50051,
                     skip_init_checks=True,  # Skip gRPC health checks for compatibility
                 )
@@ -319,21 +311,14 @@ class WeaviateVectorStore(IVectorStore):
 
                 # Test connection
                 if self._client.is_ready():
-                    logger.info(
-                        f"Weaviate v4向量存储初始化完成: {self._config.collection_name}"
-                    )
+                    logger.info(f"Weaviate v4向量存储初始化完成: {self._config.collection_name}")
                 else:
                     raise Exception("Weaviate v4 client is not ready")
 
             except Exception as v4_error:
                 # Log the compatibility issue
-                if (
-                    "version" in str(v4_error).lower()
-                    and "not supported" in str(v4_error).lower()
-                ):
-                    logger.warning(
-                        f"Weaviate server version incompatibility: {v4_error}"
-                    )
+                if "version" in str(v4_error).lower() and "not supported" in str(v4_error).lower():
+                    logger.warning(f"Weaviate server version incompatibility: {v4_error}")
                     logger.warning(
                         "Please upgrade Weaviate server to version 1.23.7 or higher for full compatibility"
                     )
@@ -345,9 +330,7 @@ class WeaviateVectorStore(IVectorStore):
                     )
                 else:
                     # Other initialization errors
-                    raise Exception(
-                        f"Weaviate v4 client initialization failed: {v4_error}"
-                    )
+                    raise Exception(f"Weaviate v4 client initialization failed: {v4_error}")
 
         except ImportError:
             raise VectorStoreError(
@@ -380,18 +363,10 @@ class WeaviateVectorStore(IVectorStore):
                 name=config.collection_name,
                 vectorizer_config=wvc.config.Configure.Vectorizer.none(),  # We provide our own vectors
                 properties=[
-                    wvc.config.Property(
-                        name="content", data_type=wvc.config.DataType.TEXT
-                    ),
-                    wvc.config.Property(
-                        name="document_id", data_type=wvc.config.DataType.TEXT
-                    ),
-                    wvc.config.Property(
-                        name="chunk_index", data_type=wvc.config.DataType.INT
-                    ),
-                    wvc.config.Property(
-                        name="metadata", data_type=wvc.config.DataType.OBJECT
-                    ),
+                    wvc.config.Property(name="content", data_type=wvc.config.DataType.TEXT),
+                    wvc.config.Property(name="document_id", data_type=wvc.config.DataType.TEXT),
+                    wvc.config.Property(name="chunk_index", data_type=wvc.config.DataType.INT),
+                    wvc.config.Property(name="metadata", data_type=wvc.config.DataType.OBJECT),
                 ],
             )
             return True
@@ -408,9 +383,7 @@ class WeaviateVectorStore(IVectorStore):
             logger.error(f"Weaviate collection deletion failed: {e}")
             return False
 
-    async def upsert_vectors(
-        self, documents: List[VectorDocument]
-    ) -> BulkOperationResult:
+    async def upsert_vectors(self, documents: List[VectorDocument]) -> BulkOperationResult:
         start_time = time.time()
         success_count = 0
         errors = []
@@ -492,9 +465,7 @@ class WeaviateVectorStore(IVectorStore):
 
             search_results = []
             for i, item in enumerate(
-                result.get("data", {})
-                .get("Get", {})
-                .get(self._config.collection_name, [])
+                result.get("data", {}).get("Get", {}).get(self._config.collection_name, [])
             ):
                 doc = VectorDocument(
                     id=item.get("_additional", {}).get("id", ""),
@@ -508,9 +479,7 @@ class WeaviateVectorStore(IVectorStore):
                 score = item.get("_additional", {}).get("certainty", 0.0)
 
                 if score_threshold is None or score >= score_threshold:
-                    search_results.append(
-                        SearchResult(document=doc, score=score, rank=i + 1)
-                    )
+                    search_results.append(SearchResult(document=doc, score=score, rank=i + 1))
 
             return search_results
 
@@ -524,9 +493,7 @@ class WeaviateVectorStore(IVectorStore):
 
     async def get_vector_by_id(self, vector_id: str) -> Optional[VectorDocument]:
         try:
-            result = self._client.data_object.get_by_id(
-                vector_id, self._config.collection_name
-            )
+            result = self._client.data_object.get_by_id(vector_id, self._config.collection_name)
 
             if result:
                 return VectorDocument(
@@ -566,9 +533,7 @@ class WeaviateVectorStore(IVectorStore):
             errors=errors,
         )
 
-    async def delete_vectors_by_document_id(
-        self, document_id: str
-    ) -> BulkOperationResult:
+    async def delete_vectors_by_document_id(self, document_id: str) -> BulkOperationResult:
         # TODO: Implement document ID-based deletion
         return BulkOperationResult(0, 0, 0, 0)
 
@@ -707,9 +672,7 @@ class DocumentPipelineService(IDocumentPipeline):
 
             # Stage 2: Document Processing (Chunking)
             stage_start = time.time()
-            processing_result = await self._document_processor.process_document(
-                document
-            )
+            processing_result = await self._document_processor.process_document(document)
             chunks = processing_result.chunks
             stage_time = (time.time() - stage_start) * 1000
 
@@ -737,9 +700,7 @@ class DocumentPipelineService(IDocumentPipeline):
                 # Stage 3: Embedding Generation
                 stage_start = time.time()
                 chunk_texts = [chunk.content for chunk in chunks]
-                embedding_result = await self._embedding_service.generate_embeddings(
-                    chunk_texts
-                )
+                embedding_result = await self._embedding_service.generate_embeddings(chunk_texts)
                 embedded_chunks = len(embedding_result.vectors)
                 stage_time = (time.time() - stage_start) * 1000
 
@@ -765,9 +726,7 @@ class DocumentPipelineService(IDocumentPipeline):
                     stage_start = time.time()
                     vector_docs = []
 
-                    for i, (chunk, vector) in enumerate(
-                        zip(chunks, embedding_result.vectors)
-                    ):
+                    for i, (chunk, vector) in enumerate(zip(chunks, embedding_result.vectors)):
                         vector_doc = VectorDocument(
                             id=f"{document.id}_chunk_{i}",
                             vector=vector,
@@ -783,9 +742,7 @@ class DocumentPipelineService(IDocumentPipeline):
                         )
                         vector_docs.append(vector_doc)
 
-                    storage_result = await self._vector_store.upsert_vectors(
-                        vector_docs
-                    )
+                    storage_result = await self._vector_store.upsert_vectors(vector_docs)
                     stored_vectors = storage_result.success_count
                     stage_time = (time.time() - stage_start) * 1000
 
@@ -848,9 +805,7 @@ class DocumentPipelineService(IDocumentPipeline):
             result = await self.process_document(request)
             yield result
 
-    async def get_processing_status(
-        self, request_id: str
-    ) -> Optional[ProcessingProgress]:
+    async def get_processing_status(self, request_id: str) -> Optional[ProcessingProgress]:
         return self._active_processes.get(request_id)
 
     async def cancel_processing(self, request_id: str) -> bool:
@@ -860,9 +815,7 @@ class DocumentPipelineService(IDocumentPipeline):
             return True
         return False
 
-    async def retry_failed_processing(
-        self, request_id: str
-    ) -> DocumentProcessingResult:
+    async def retry_failed_processing(self, request_id: str) -> DocumentProcessingResult:
         raise NotImplementedError("Retry functionality not implemented yet")
 
     async def get_pipeline_metrics(self) -> Dict[str, Any]:
@@ -888,9 +841,7 @@ class DocumentPipelineService(IDocumentPipeline):
             "vector_store": await self._vector_store.health_check(),
         }
 
-        overall_healthy = all(
-            comp.get("status") == "healthy" for comp in components.values()
-        )
+        overall_healthy = all(comp.get("status") == "healthy" for comp in components.values())
 
         return {
             "status": "healthy" if overall_healthy else "degraded",
@@ -967,9 +918,7 @@ def create_embedding_service(
             dimension = kwargs.pop("dimension", 384)
         else:
             # Fallback to defaults if no AI config
-            model_name = kwargs.pop(
-                "model_name", "sentence-transformers/all-MiniLM-L6-v2"
-            )
+            model_name = kwargs.pop("model_name", "sentence-transformers/all-MiniLM-L6-v2")
             dimension = kwargs.pop("dimension", 384)
 
         config = EmbeddingConfig(
