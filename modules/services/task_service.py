@@ -242,7 +242,9 @@ class CeleryTaskService(ITaskService):
                 options["expires"] = task_config.expires
 
             # 提交任务
-            async_result = self.app.send_task(task_name, args=args, kwargs=kwargs, **options)
+            async_result = self.app.send_task(
+                task_name, args=args, kwargs=kwargs, **options
+            )
 
             logger.info(f"任务已提交: {task_name} (ID: {async_result.id})")
             return async_result.id
@@ -277,7 +279,9 @@ class CeleryTaskService(ITaskService):
             if status == TaskStatus.SUCCESS:
                 result = async_result.result
             elif status == TaskStatus.FAILURE:
-                error = str(async_result.result) if async_result.result else "Unknown error"
+                error = (
+                    str(async_result.result) if async_result.result else "Unknown error"
+                )
                 traceback = async_result.traceback
 
             # 获取任务信息
@@ -386,7 +390,9 @@ class CeleryTaskService(ITaskService):
 
             return {
                 "active_tasks": active_count,
-                "registered_tasks": sum(len(tasks) for tasks in registered_tasks.values()),
+                "registered_tasks": sum(
+                    len(tasks) for tasks in registered_tasks.values()
+                ),
                 "workers": list(active_tasks.keys()),
                 "registry_stats": self.registry.get_stats(),
                 "broker_url": self.broker_url,
@@ -396,7 +402,12 @@ class CeleryTaskService(ITaskService):
 
         except Exception as e:
             logger.error(f"获取任务统计失败: {e}")
-            return {"active_tasks": 0, "registered_tasks": 0, "workers": [], "error": str(e)}
+            return {
+                "active_tasks": 0,
+                "registered_tasks": 0,
+                "workers": [],
+                "error": str(e),
+            }
 
     def register_handler(self, handler: ITaskHandler) -> None:
         """注册Task processing器"""
@@ -409,7 +420,9 @@ class CeleryTaskService(ITaskService):
         @self.app.task(name=task_name, bind=True)
         def celery_task_wrapper(self_task, *args, **kwargs):
             """Celery任务包装器"""
-            return asyncio.run(self._execute_handler(self_task, handler, *args, **kwargs))
+            return asyncio.run(
+                self._execute_handler(self_task, handler, *args, **kwargs)
+            )
 
         logger.info(f"Celery任务已注册: {task_name}")
 
@@ -502,7 +515,9 @@ class CeleryTaskService(ITaskService):
 
         logger.info("内置任务已注册")
 
-    async def _execute_handler(self, celery_task, handler: ITaskHandler, *args, **kwargs) -> Any:
+    async def _execute_handler(
+        self, celery_task, handler: ITaskHandler, *args, **kwargs
+    ) -> Any:
         """执行Task processing器"""
         task_id = celery_task.request.id
 
@@ -522,7 +537,9 @@ class CeleryTaskService(ITaskService):
             return result
 
         except Exception as e:
-            logger.error(f"Task execution失败: {handler.task_name} (ID: {task_id}), {e}")
+            logger.error(
+                f"Task execution失败: {handler.task_name} (ID: {task_id}), {e}"
+            )
 
             # 调用失败回调
             try:
@@ -532,7 +549,10 @@ class CeleryTaskService(ITaskService):
 
             # 检查是否需要重试
             config = handler.task_config
-            if config.max_retries > 0 and celery_task.request.retries < config.max_retries:
+            if (
+                config.max_retries > 0
+                and celery_task.request.retries < config.max_retries
+            ):
                 try:
                     await handler.on_retry(task_id, e, celery_task.request.retries)
                 except Exception as retry_error:

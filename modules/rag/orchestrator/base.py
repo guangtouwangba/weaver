@@ -124,7 +124,9 @@ class IOrchestrator(ABC):
         pass
 
     @abstractmethod
-    async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
+    async def update_document_metadata(
+        self, document_id: str, metadata: Dict[str, Any]
+    ) -> bool:
         """
         更新文档元数据
 

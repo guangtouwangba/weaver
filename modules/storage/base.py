@@ -39,7 +39,9 @@ class IStorage(ABC):
         pass
 
     @abstractmethod
-    async def generate_signed_download_url(self, file_key: str, expires_in: int = 3600) -> str:
+    async def generate_signed_download_url(
+        self, file_key: str, expires_in: int = 3600
+    ) -> str:
         """
         生成签名下载URL
 

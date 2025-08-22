@@ -47,7 +47,12 @@ class TextFileLoader(IFileLoader):
             max_file_size: Maximum file size in bytes
         """
         self.default_encoding = default_encoding
-        self.fallback_encodings = fallback_encodings or ["gbk", "gb2312", "latin1", "ascii"]
+        self.fallback_encodings = fallback_encodings or [
+            "gbk",
+            "gb2312",
+            "latin1",
+            "ascii",
+        ]
         self.max_file_size = max_file_size
 
         logger.info(
@@ -85,7 +90,9 @@ class TextFileLoader(IFileLoader):
             # Check file size
             file_size = os.path.getsize(file_path)
             if file_size > self.max_file_size:
-                logger.warning(f"File too large: {file_path} ({file_size/1024/1024:.1f}MB)")
+                logger.warning(
+                    f"File too large: {file_path} ({file_size/1024/1024:.1f}MB)"
+                )
                 return False
 
             # Check file extension
@@ -104,7 +111,9 @@ class TextFileLoader(IFileLoader):
                     non_text_chars = sum(
                         1 for byte in sample if byte < 32 and byte not in [9, 10, 13]
                     )
-                    if non_text_chars / len(sample) > 0.3:  # More than 30% non-text characters
+                    if (
+                        non_text_chars / len(sample) > 0.3
+                    ):  # More than 30% non-text characters
                         return False
 
                 return True
@@ -209,7 +218,9 @@ class TextFileLoader(IFileLoader):
                         for encoding in self.fallback_encodings:
                             try:
                                 sample.decode(encoding)
-                                logger.debug(f"Detected encoding: {encoding} (basic detection)")
+                                logger.debug(
+                                    f"Detected encoding: {encoding} (basic detection)"
+                                )
                                 return encoding
                             except UnicodeDecodeError:
                                 continue

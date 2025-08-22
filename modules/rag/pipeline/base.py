@@ -249,7 +249,9 @@ class IDocumentPipeline(ABC):
         pass
 
     @abstractmethod
-    async def get_processing_status(self, request_id: str) -> Optional[ProcessingProgress]:
+    async def get_processing_status(
+        self, request_id: str
+    ) -> Optional[ProcessingProgress]:
         """
         获取处理状态
 
@@ -275,7 +277,9 @@ class IDocumentPipeline(ABC):
         pass
 
     @abstractmethod
-    async def retry_failed_processing(self, request_id: str) -> DocumentProcessingResult:
+    async def retry_failed_processing(
+        self, request_id: str
+    ) -> DocumentProcessingResult:
         """
         重试失败的处理
 

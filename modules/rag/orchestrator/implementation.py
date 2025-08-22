@@ -171,7 +171,9 @@ class DocumentOrchestrator(IOrchestrator):
                 # 检查是否使用RAG管道
                 if self.enable_rag_pipeline and self._rag_initialized:
                     logger.info(f"使用RAG管道处理: {operation_id}")
-                    return await self._process_with_rag_pipeline(request, operation_id, start_time)
+                    return await self._process_with_rag_pipeline(
+                        request, operation_id, start_time
+                    )
 
                 # 原有的处理流程
                 logger.info(f"使用传统处理流程: {operation_id}")
@@ -225,7 +227,9 @@ class DocumentOrchestrator(IOrchestrator):
                         },
                         {
                             "step": "storage",
-                            "status": "completed" if self.storage_backend else "skipped",
+                            "status": (
+                                "completed" if self.storage_backend else "skipped"
+                            ),
                             "time_ms": 0,
                         },
                         {
@@ -266,7 +270,9 @@ class DocumentOrchestrator(IOrchestrator):
         try:
             if not self.search_backend:
                 raise OrchestrationError(
-                    "搜索后端未配置", operation="search_documents", error_code="NO_SEARCH_BACKEND"
+                    "搜索后端未配置",
+                    operation="search_documents",
+                    error_code="NO_SEARCH_BACKEND",
                 )
 
             logger.debug(f"执行搜索: query='{request.query}', limit={request.limit}")
@@ -293,17 +299,24 @@ class DocumentOrchestrator(IOrchestrator):
                 chunk_words = set(chunk.content.lower().split())
                 intersection = len(query_words.intersection(chunk_words))
                 union = len(query_words.union(chunk_words))
-                chunk.metadata["relevance_score"] = intersection / union if union > 0 else 0.0
+                chunk.metadata["relevance_score"] = (
+                    intersection / union if union > 0 else 0.0
+                )
 
             # 按相关性排序
-            mock_chunks.sort(key=lambda x: x.metadata.get("relevance_score", 0), reverse=True)
+            mock_chunks.sort(
+                key=lambda x: x.metadata.get("relevance_score", 0), reverse=True
+            )
 
             result = SearchResult(
                 query=request.query,
                 chunks=mock_chunks[: request.limit],
                 total_results=len(mock_chunks),
                 search_time_ms=10.0,  # 模拟搜索时间
-                metadata={"search_backend": "mock", "orchestrator": self.orchestrator_name},
+                metadata={
+                    "search_backend": "mock",
+                    "orchestrator": self.orchestrator_name,
+                },
             )
 
             logger.info(f"搜索完成: 找到 {len(result.chunks)} 个结果")
@@ -324,7 +337,9 @@ class DocumentOrchestrator(IOrchestrator):
             "orchestrator": {
                 "name": self.orchestrator_name,
                 "status": "healthy",
-                "cached_documents": len(self._document_cache) if self.enable_caching else 0,
+                "cached_documents": (
+                    len(self._document_cache) if self.enable_caching else 0
+                ),
             }
         }
 
@@ -343,7 +358,9 @@ class DocumentOrchestrator(IOrchestrator):
         # 检查文档处理器
         try:
             if hasattr(self.document_processor, "health_check"):
-                health_status["document_processor"] = await self.document_processor.health_check()
+                health_status["document_processor"] = (
+                    await self.document_processor.health_check()
+                )
             else:
                 health_status["document_processor"] = {
                     "name": self.document_processor.processor_name,
@@ -356,7 +373,9 @@ class DocumentOrchestrator(IOrchestrator):
         if self.storage_backend:
             try:
                 if hasattr(self.storage_backend, "health_check"):
-                    health_status["storage_backend"] = await self.storage_backend.health_check()
+                    health_status["storage_backend"] = (
+                        await self.storage_backend.health_check()
+                    )
                 else:
                     health_status["storage_backend"] = {"status": "healthy"}
             except Exception as e:
@@ -368,7 +387,9 @@ class DocumentOrchestrator(IOrchestrator):
         if self.search_backend:
             try:
                 if hasattr(self.search_backend, "health_check"):
-                    health_status["search_backend"] = await self.search_backend.health_check()
+                    health_status["search_backend"] = (
+                        await self.search_backend.health_check()
+                    )
                 else:
                     health_status["search_backend"] = {"status": "healthy"}
             except Exception as e:
@@ -380,7 +401,8 @@ class DocumentOrchestrator(IOrchestrator):
         all_healthy = all(
             component.get("status") == "healthy"
             for component in health_status.values()
-            if isinstance(component, dict) and component.get("status") != "not_configured"
+            if isinstance(component, dict)
+            and component.get("status") != "not_configured"
         )
 
         health_status["overall_status"] = "healthy" if all_healthy else "degraded"
@@ -449,7 +471,9 @@ class DocumentOrchestrator(IOrchestrator):
             logger.error(f"删除文档失败 {document_id}: {e}")
             return False
 
-    async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
+    async def update_document_metadata(
+        self, document_id: str, metadata: Dict[str, Any]
+    ) -> bool:
         """更新文档元数据"""
         try:
             # 更新缓存中的元数据
@@ -522,7 +546,9 @@ class DocumentOrchestrator(IOrchestrator):
                 original_error=e,
             )
 
-    async def _store_document_data(self, document: Document, chunks: List[DocumentChunk]) -> None:
+    async def _store_document_data(
+        self, document: Document, chunks: List[DocumentChunk]
+    ) -> None:
         """存储文档数据"""
         try:
             # 这里应该调用存储后端的存储方法

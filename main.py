@@ -19,7 +19,7 @@ from modules.schemas import APIResponse, HealthCheckResponse
 from modules.api.error_handlers import (
     unicode_decode_error_handler,
     request_validation_error_handler,
-    general_exception_handler
+    general_exception_handler,
 )
 
 # Configure logging
@@ -48,12 +48,9 @@ APP_METADATA = {
     "contact": {
         "name": "RAG API Support",
         "url": "https://github.com/your-repo/research-agent-rag",
-        "email": "support@example.com"
+        "email": "support@example.com",
     },
-    "license_info": {
-        "name": "MIT",
-        "url": "https://opensource.org/licenses/MIT"
-    }
+    "license_info": {"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
 }
 
 # Create FastAPI application
@@ -76,38 +73,44 @@ app.add_middleware(
 # API Routes
 app.include_router(api_router, prefix="/api/v1")
 
+
 # Documentation routes
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
     """Custom Swagger UI page with additional styles and features"""
     from fastapi.openapi.docs import get_swagger_ui_html
+
     return get_swagger_ui_html(
         openapi_url=app.openapi_url,
         title=f"{app.title} - Interactive Documentation",
         swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
         swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css",
         swagger_ui_parameters=SWAGGER_UI_PARAMETERS,
-        swagger_favicon_url="/favicon.ico"
+        swagger_favicon_url="/favicon.ico",
     )
+
 
 @app.get("/redoc", include_in_schema=False)
 async def custom_redoc_html():
     """Custom ReDoc page"""
     from fastapi.openapi.docs import get_redoc_html
+
     return get_redoc_html(
         openapi_url=app.openapi_url,
         title=f"{app.title} - ReDoc Documentation",
         redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js",
-        redoc_favicon_url="/favicon.ico"
+        redoc_favicon_url="/favicon.ico",
     )
+
 
 @app.get("/api-docs", response_class=HTMLResponse, include_in_schema=False)
 async def api_documentation():
     """API documentation homepage with links to all documentation types."""
     from modules.api.templates import get_documentation_homepage_html
-    
+
     html_content = get_documentation_homepage_html(app.title, app.version)
     return HTMLResponse(content=html_content)
+
 
 # System routes
 @app.get("/", response_model=APIResponse, summary="API Root", tags=["System"])
@@ -121,15 +124,21 @@ async def root():
             "title": app.title,
             "docs": "/docs",
             "redoc": "/redoc",
-            "health": "/health"
-        }
+            "health": "/health",
+        },
     )
 
-@app.get("/health", response_model=HealthCheckResponse, summary="Health Check", tags=["System"])
+
+@app.get(
+    "/health",
+    response_model=HealthCheckResponse,
+    summary="Health Check",
+    tags=["System"],
+)
 async def health_check():
     """
     System health check endpoint for monitoring and load balancers.
-    
+
     Returns system status including:
     - Application status
     - Database connectivity
@@ -139,7 +148,7 @@ async def health_check():
         # Check database connection
         db = DatabaseConnection()
         db_status = await db.check_connection()
-        
+
         return HealthCheckResponse(
             success=True,
             message="System is healthy",
@@ -149,21 +158,18 @@ async def health_check():
                 "database": "connected" if db_status else "disconnected",
                 "components": {
                     "api": "operational",
-                    "database": "operational" if db_status else "degraded"
-                }
-            }
+                    "database": "operational" if db_status else "degraded",
+                },
+            },
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return HealthCheckResponse(
             success=False,
             message=f"Health check failed: {str(e)}",
-            data={
-                "status": "unhealthy",
-                "version": app.version,
-                "error": str(e)
-            }
+            data={"status": "unhealthy", "version": app.version, "error": str(e)},
         )
+
 
 # Application startup
 @app.on_event("startup")
@@ -172,11 +178,14 @@ async def startup_event():
     logger.info(f"Starting {app.title} v{app.version}")
     logger.info("RAG Knowledge Management System initialized successfully")
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean up resources on shutdown."""
     logger.info("RAG Knowledge Management System shutting down")
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

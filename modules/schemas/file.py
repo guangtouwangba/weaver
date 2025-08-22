@@ -29,7 +29,9 @@ class FileSchema(BaseSchema, TimestampMixin):
     topic_id: Optional[int] = Field(default=None, description="所属主题ID")
     user_id: Optional[int] = Field(default=None, description="上传用户ID")
     is_deleted: bool = Field(default=False, description="是否已删除")
-    file_metadata: Dict[str, Any] = Field(default_factory=dict, description="文件元数据")
+    file_metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="文件元数据"
+    )
 
     @validator("original_name")
     def validate_original_name(cls, v):
@@ -51,7 +53,9 @@ class FileCreate(BaseSchema):
     storage_url: Optional[str] = Field(default=None, description="存储URL")
     topic_id: Optional[int] = Field(default=None, description="所属主题ID")
     user_id: Optional[int] = Field(default=None, description="上传用户ID")
-    file_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="文件元数据")
+    file_metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="文件元数据"
+    )
 
 
 class FileUpdate(BaseSchema):
@@ -63,7 +67,9 @@ class FileUpdate(BaseSchema):
     status: Optional[FileStatus] = Field(default=None, description="文件状态")
     processing_status: Optional[str] = Field(default=None, description="处理状态")
     error_message: Optional[str] = Field(default=None, description="错误信息")
-    file_metadata: Optional[Dict[str, Any]] = Field(default=None, description="文件元数据")
+    file_metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="文件元数据"
+    )
 
 
 class FileResponse(FileSchema):

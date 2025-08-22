@@ -50,7 +50,9 @@ class FileLoaderFactory:
                 else str(file_loader_class)
             )
 
-        logger.info(f"Registered file loader '{loader_name}' for content type '{content_type}'")
+        logger.info(
+            f"Registered file loader '{loader_name}' for content type '{content_type}'"
+        )
 
     @classmethod
     def get_loader(cls, content_type: ContentType) -> IFileLoader:
@@ -58,7 +60,9 @@ class FileLoaderFactory:
         Return the file loader for the given content type
         """
         if content_type not in cls._loaders:
-            raise ValueError(f"No file loader registered for content type: {content_type}")
+            raise ValueError(
+                f"No file loader registered for content type: {content_type}"
+            )
 
         loader_class_or_instance = cls._loaders[content_type]
 
@@ -69,7 +73,9 @@ class FileLoaderFactory:
             return loader_class_or_instance
 
     @classmethod
-    async def load_document(cls, request, auto_detect: bool = True, fallback_to_text: bool = True):
+    async def load_document(
+        cls, request, auto_detect: bool = True, fallback_to_text: bool = True
+    ):
         """
         One-step document loading with automatic type detection and fallback
 
@@ -108,7 +114,9 @@ class FileLoaderFactory:
                     }
                 )
 
-            logger.info(f"Successfully loaded document using {loader.__class__.__name__}")
+            logger.info(
+                f"Successfully loaded document using {loader.__class__.__name__}"
+            )
             return document
 
         except (ValueError, Exception) as e:
@@ -144,7 +152,9 @@ class FileLoaderFactory:
                 return document
 
             except Exception as fallback_error:
-                logger.error(f"Both primary and fallback loaders failed: {fallback_error}")
+                logger.error(
+                    f"Both primary and fallback loaders failed: {fallback_error}"
+                )
                 raise ValueError(
                     f"Failed to load document with content type {content_type} "
                     f"and text fallback: {fallback_error}"
@@ -276,7 +286,9 @@ async def load_document(file_path: str, content_type: ContentType = None, **kwar
         content_type = detect_content_type(file_path)
 
     # Create request
-    request = FileLoadRequest(file_path=file_path, content_type=content_type, metadata=kwargs)
+    request = FileLoadRequest(
+        file_path=file_path, content_type=content_type, metadata=kwargs
+    )
 
     # Get appropriate loader and load document
     loader = FileLoaderFactory.get_loader(content_type)

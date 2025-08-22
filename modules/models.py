@@ -177,7 +177,9 @@ class OrchestrationResult:
 
 
 # 工具函数
-def create_document_from_path(file_path: str, content: str, content_type: str = "text") -> Document:
+def create_document_from_path(
+    file_path: str, content: str, content_type: str = "text"
+) -> Document:
     """从文件路径创建文档对象"""
     import os
     from uuid import uuid4

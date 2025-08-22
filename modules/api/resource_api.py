@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 # 依赖注入
-async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> FileService:
+async def get_file_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> FileService:
     """获取文件服务实例"""
     from config import get_config
 
@@ -36,7 +38,9 @@ async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> F
 
 
 @router.get("/{resource_id}", response_model=APIResponse, summary="获取资源详情")
-async def get_resource(resource_id: str, service: FileService = Depends(get_file_service)):
+async def get_resource(
+    resource_id: str, service: FileService = Depends(get_file_service)
+):
     """
     # 获取资源详细信息
 
@@ -61,7 +65,9 @@ async def get_resource(resource_id: str, service: FileService = Depends(get_file
             if not file_record:
                 raise HTTPException(status_code=404, detail="资源不存在")
 
-            return APIResponse(success=True, message="获取资源信息成功", data=file_record)
+            return APIResponse(
+                success=True, message="获取资源信息成功", data=file_record
+            )
     except HTTPException:
         raise
     except Exception as e:
@@ -70,7 +76,9 @@ async def get_resource(resource_id: str, service: FileService = Depends(get_file
 
 
 @router.delete("/{resource_id}", response_model=APIResponse, summary="删除资源")
-async def delete_resource(resource_id: str, service: FileService = Depends(get_file_service)):
+async def delete_resource(
+    resource_id: str, service: FileService = Depends(get_file_service)
+):
     """
     # 删除资源
 
@@ -142,7 +150,9 @@ async def delete_resource(resource_id: str, service: FileService = Depends(get_f
 
 @router.put("/{resource_id}", response_model=APIResponse, summary="更新资源信息")
 async def update_resource(
-    resource_id: str, resource_data: dict, service: FileService = Depends(get_file_service)
+    resource_id: str,
+    resource_data: dict,
+    service: FileService = Depends(get_file_service),
 ):
     """
     # 更新资源信息
@@ -177,7 +187,9 @@ async def update_resource(
             if not updated_file:
                 raise HTTPException(status_code=404, detail="资源不存在")
 
-            return APIResponse(success=True, message="资源信息更新成功", data=updated_file)
+            return APIResponse(
+                success=True, message="资源信息更新成功", data=updated_file
+            )
 
     except HTTPException:
         raise

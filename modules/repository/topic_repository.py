@@ -113,7 +113,9 @@ class TopicRepository(BaseRepository, ITopicRepository):
     async def get_topics_by_user(self, user_id: int) -> List[Topic]:
         """获取用户的主题列表"""
         result = await self.session.execute(
-            select(Topic).where(Topic.user_id == user_id).order_by(desc(Topic.created_at))
+            select(Topic)
+            .where(Topic.user_id == user_id)
+            .order_by(desc(Topic.created_at))
         )
         return result.scalars().all()
 
@@ -121,7 +123,12 @@ class TopicRepository(BaseRepository, ITopicRepository):
         """搜索主题"""
         search_query = (
             select(Topic)
-            .where(or_(Topic.name.ilike(f"%{query}%"), Topic.description.ilike(f"%{query}%")))
+            .where(
+                or_(
+                    Topic.name.ilike(f"%{query}%"),
+                    Topic.description.ilike(f"%{query}%"),
+                )
+            )
             .limit(limit)
         )
 

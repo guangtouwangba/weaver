@@ -29,7 +29,9 @@ class BaseService(ABC):
         if exc_type is not None:
             # 如果有异常，回滚事务
             await self.session.rollback()
-            self.logger.error(f"Service operation failed: {exc_type.__name__}: {exc_val}")
+            self.logger.error(
+                f"Service operation failed: {exc_type.__name__}: {exc_val}"
+            )
         else:
             # 如果没有异常，提交事务
             await self.session.commit()
