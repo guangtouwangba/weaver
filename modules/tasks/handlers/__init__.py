@@ -8,10 +8,6 @@
 """
 
 # 这里将自动导入所有处理器以便自动注册
-from . import rag_handlers
-from . import file_handlers
+from . import file_handlers, rag_handlers
 
-__all__ = [
-    "rag_handlers",
-    "file_handlers"
-]
+__all__ = ["rag_handlers", "file_handlers"]

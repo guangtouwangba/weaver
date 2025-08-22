@@ -5,26 +5,26 @@ Services模块
 """
 
 from .base_service import BaseService
-from .topic_service import TopicService
-from .file_service import FileService
 from .document_service import DocumentService
+from .file_service import FileService
 from .redis_service import RedisService, redis_service
 from .task_monitoring_service import (
-    RedisTaskMonitoringService, 
+    RedisTaskMonitoringService,
     TaskConfigurationService,
+    configuration_service,
     monitoring_service,
-    configuration_service
 )
+from .topic_service import TopicService
 
 __all__ = [
-    'BaseService',
-    'TopicService',
-    'FileService', 
-    'DocumentService',
-    'RedisService',
-    'redis_service',
-    'RedisTaskMonitoringService',
-    'TaskConfigurationService',
-    'monitoring_service',
-    'configuration_service'
+    "BaseService",
+    "TopicService",
+    "FileService",
+    "DocumentService",
+    "RedisService",
+    "redis_service",
+    "RedisTaskMonitoringService",
+    "TaskConfigurationService",
+    "monitoring_service",
+    "configuration_service",
 ]
