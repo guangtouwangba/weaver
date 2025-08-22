@@ -20,4 +20,10 @@ api_router.include_router(file_router)
 api_router.include_router(resource_router)
 api_router.include_router(document_router)
 
-__all__ = ["api_router", "topic_router", "file_router", "resource_router", "document_router"]
+__all__ = [
+    "api_router",
+    "topic_router",
+    "file_router",
+    "resource_router",
+    "document_router",
+]
