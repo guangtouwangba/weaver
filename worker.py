@@ -40,9 +40,6 @@ from config import get_config
 
 # 确保新的任务处理器被加载
 try:
-    from modules.tasks.handlers.document_handlers import DocumentCreateHandler
-    from modules.tasks.handlers.rag_handlers import AsyncDocumentProcessingHandler
-    from modules.tasks.handlers.file_handlers_v2 import OptimizedFileUploadCompleteHandler
     print("✅ 新架构任务处理器加载成功")
 except Exception as e:
     print(f"⚠️  新架构任务处理器加载失败: {e}")

@@ -7,17 +7,12 @@ Async taskService implementation
 import asyncio
 import json
 import pickle
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Type, Union
-from uuid import uuid4
 
-from logging_system import get_logger, log_errors, log_execution_time, log_operation
 
 try:
     from celery import Celery
-    from celery.exceptions import Ignore, Retry, WorkerLostError
     from celery.result import AsyncResult
-    from kombu.exceptions import OperationalError
 
     CELERY_AVAILABLE = True
 except ImportError:
@@ -492,7 +487,6 @@ class CeleryTaskService(ITaskService):
         """导入Task processing器模块以触发装饰器注册"""
         try:
             # 导入所有Task processing器模块
-            from ..tasks.handlers import file_handlers, rag_handlers
 
             logger.info("Task processing器模块导入完成")
         except Exception as e:
