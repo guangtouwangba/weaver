@@ -122,7 +122,9 @@ class WorkflowExecution:
             "workflow_id": self.workflow_id,
             "status": self.status.value,
             "started_at": self.started_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
             "tasks": {k: v.to_dict() for k, v in self.tasks.items()},
             "context": self.context,
             "error": self.error,
@@ -148,7 +150,9 @@ class TaskOrchestrator:
             self._status_callbacks[execution_id] = []
         self._status_callbacks[execution_id].append(callback)
 
-    async def start_workflow(self, workflow_id: str, context: Dict[str, Any] = None) -> str:
+    async def start_workflow(
+        self, workflow_id: str, context: Dict[str, Any] = None
+    ) -> str:
         """启动工作流执行"""
         if workflow_id not in self.workflows:
             raise ValueError(f"未找到工作流定义: {workflow_id}")
@@ -168,7 +172,9 @@ class TaskOrchestrator:
         # 初始化任务执行状态
         for task_def in workflow.tasks:
             task_execution = TaskExecution(
-                task_id=str(uuid4()), task_name=task_def.task_name, status=TaskStatus.PENDING
+                task_id=str(uuid4()),
+                task_name=task_def.task_name,
+                status=TaskStatus.PENDING,
             )
             execution.tasks[task_def.task_name] = task_execution
 
@@ -204,7 +210,8 @@ class TaskOrchestrator:
 
                     # 检查依赖是否已完成
                     dependencies_met = all(
-                        dep in executed_tasks and execution.tasks[dep].status == TaskStatus.SUCCESS
+                        dep in executed_tasks
+                        and execution.tasks[dep].status == TaskStatus.SUCCESS
                         for dep in task_def.depends_on
                     )
 
@@ -254,7 +261,9 @@ class TaskOrchestrator:
             # 更新任务状态
             task_execution.status = TaskStatus.RUNNING
             task_execution.started_at = datetime.utcnow()
-            await self._notify_status_change(execution_id, f"task_started:{task_def.task_name}")
+            await self._notify_status_change(
+                execution_id, f"task_started:{task_def.task_name}"
+            )
 
             # 准备任务参数（从上下文中获取）
             task_kwargs = self._prepare_task_kwargs(execution, task_def)
@@ -294,7 +303,9 @@ class TaskOrchestrator:
                         task_execution.completed_at = datetime.utcnow()
 
                         # 将结果添加到上下文中
-                        execution.context[f"{task_def.task_name}_result"] = celery_result
+                        execution.context[f"{task_def.task_name}_result"] = (
+                            celery_result
+                        )
 
                         logger.info(f"任务执行成功: {task_def.task_name}")
                     else:
@@ -302,13 +313,17 @@ class TaskOrchestrator:
                         task_execution.error = str(celery_result)
                         task_execution.completed_at = datetime.utcnow()
 
-                        logger.error(f"任务执行失败: {task_def.task_name}, {celery_result}")
+                        logger.error(
+                            f"任务执行失败: {task_def.task_name}, {celery_result}"
+                        )
                     break
 
                 # 等待一段时间再检查
                 await asyncio.sleep(1)
 
-            await self._notify_status_change(execution_id, f"task_completed:{task_def.task_name}")
+            await self._notify_status_change(
+                execution_id, f"task_completed:{task_def.task_name}"
+            )
 
         except Exception as e:
             task_execution.status = TaskStatus.FAILED
@@ -316,7 +331,9 @@ class TaskOrchestrator:
             task_execution.completed_at = datetime.utcnow()
 
             logger.error(f"任务执行异常: {task_def.task_name}, {e}")
-            await self._notify_status_change(execution_id, f"task_failed:{task_def.task_name}")
+            await self._notify_status_change(
+                execution_id, f"task_failed:{task_def.task_name}"
+            )
 
     def _prepare_task_kwargs(
         self, execution: WorkflowExecution, task_def: TaskDefinition
@@ -363,9 +380,14 @@ class TaskOrchestrator:
 
         # 取消所有运行中的任务
         for task_execution in execution.tasks.values():
-            if task_execution.status == TaskStatus.RUNNING and task_execution.celery_task_id:
+            if (
+                task_execution.status == TaskStatus.RUNNING
+                and task_execution.celery_task_id
+            ):
                 try:
-                    current_app.control.revoke(task_execution.celery_task_id, terminate=True)
+                    current_app.control.revoke(
+                        task_execution.celery_task_id, terminate=True
+                    )
                     task_execution.status = TaskStatus.CANCELLED
                 except Exception as e:
                     logger.error(f"取消任务失败: {task_execution.celery_task_id}, {e}")

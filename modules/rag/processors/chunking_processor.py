@@ -97,7 +97,9 @@ class ChunkingProcessor(IDocumentProcessor):
 
             # 根据策略创建块
             if strategy == ChunkingStrategy.SEMANTIC:
-                chunks = await self._create_semantic_chunks(document, content, chunk_size, overlap)
+                chunks = await self._create_semantic_chunks(
+                    document, content, chunk_size, overlap
+                )
             else:
                 # 使用文本处理器的基础分块
                 chunks = await self.text_processor.create_chunks(
@@ -156,7 +158,9 @@ class ChunkingProcessor(IDocumentProcessor):
             processing_time = (asyncio.get_event_loop().time() - start_time) * 1000
 
             # 计算质量指标
-            quality_metrics = await self._calculate_quality_metrics(chunks, doc_analysis)
+            quality_metrics = await self._calculate_quality_metrics(
+                chunks, doc_analysis
+            )
 
             # 创建处理结果
             result = ProcessingResult(
@@ -221,7 +225,9 @@ class ChunkingProcessor(IDocumentProcessor):
             analysis["avg_line_length"] = sum(len(line) for line in lines) / len(lines)
 
         if paragraphs:
-            analysis["avg_paragraph_length"] = sum(len(p) for p in paragraphs) / len(paragraphs)
+            analysis["avg_paragraph_length"] = sum(len(p) for p in paragraphs) / len(
+                paragraphs
+            )
 
         # 检测结构化内容
         structure_indicators = [
@@ -235,7 +241,9 @@ class ChunkingProcessor(IDocumentProcessor):
             "<p>",  # HTML段落
         ]
 
-        analysis["has_structure"] = any(indicator in content for indicator in structure_indicators)
+        analysis["has_structure"] = any(
+            indicator in content for indicator in structure_indicators
+        )
 
         return analysis
 
@@ -257,7 +265,10 @@ class ChunkingProcessor(IDocumentProcessor):
             params["chunk_size"] = max(params["chunk_size"], 1500)
 
         # 根据段落结构调整策略
-        if analysis["has_structure"] and params["strategy"] == ChunkingStrategy.FIXED_SIZE:
+        if (
+            analysis["has_structure"]
+            and params["strategy"] == ChunkingStrategy.FIXED_SIZE
+        ):
             avg_para_length = analysis["avg_paragraph_length"]
             if avg_para_length > 100 and avg_para_length < params["chunk_size"] * 0.8:
                 params["strategy"] = ChunkingStrategy.PARAGRAPH
@@ -308,7 +319,10 @@ class ChunkingProcessor(IDocumentProcessor):
                         start_position=start_position,
                         end_position=start_position + len(current_chunk),
                         strategy=ChunkingStrategy.SEMANTIC,
-                        metadata={"type": "semantic_group", "similarity_threshold": 0.3},
+                        metadata={
+                            "type": "semantic_group",
+                            "similarity_threshold": 0.3,
+                        },
                     )
                     chunks.append(chunk)
                     chunk_index += 1
@@ -346,7 +360,9 @@ class ChunkingProcessor(IDocumentProcessor):
 
         return intersection / union if union > 0 else 0.0
 
-    async def _optimize_chunks(self, chunks: List[DocumentChunk]) -> List[DocumentChunk]:
+    async def _optimize_chunks(
+        self, chunks: List[DocumentChunk]
+    ) -> List[DocumentChunk]:
         """优化块质量"""
         optimized = []
 
@@ -447,7 +463,9 @@ class ChunkingProcessor(IDocumentProcessor):
 
         return min(score, 1.0)
 
-    async def _generate_embeddings(self, chunks: List[DocumentChunk]) -> List[DocumentChunk]:
+    async def _generate_embeddings(
+        self, chunks: List[DocumentChunk]
+    ) -> List[DocumentChunk]:
         """生成嵌入向量（模拟）"""
         # 这里应该集成真实的向量化模型
         # 目前返回模拟向量
@@ -478,12 +496,15 @@ class ChunkingProcessor(IDocumentProcessor):
             / len(quality_scores),
             "avg_chunk_size": sum(len(chunk.content) for chunk in chunks) / len(chunks),
             "size_variance": 0.0,
-            "coverage_ratio": sum(len(chunk.content) for chunk in chunks) / analysis["length"],
+            "coverage_ratio": sum(len(chunk.content) for chunk in chunks)
+            / analysis["length"],
         }
 
         # 计算大小方差
         avg_size = metrics["avg_chunk_size"]
-        size_variance = sum((len(chunk.content) - avg_size) ** 2 for chunk in chunks) / len(chunks)
+        size_variance = sum(
+            (len(chunk.content) - avg_size) ** 2 for chunk in chunks
+        ) / len(chunks)
         metrics["size_variance"] = math.sqrt(size_variance)
 
         return metrics

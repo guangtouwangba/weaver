@@ -22,42 +22,39 @@ SWAGGER_UI_PARAMETERS = {
     "layout": "BaseLayout",
     "supportedSubmitMethods": ["get", "post", "put", "delete", "patch"],
     # Custom theme colors
-    "theme": {
-        "primaryColor": "#1976d2",
-        "backgroundColor": "#fafafa"
-    }
+    "theme": {"primaryColor": "#1976d2", "backgroundColor": "#fafafa"},
 }
 
 # OpenAPI document tag definitions
 OPENAPI_TAGS = [
     {
         "name": "System Information",
-        "description": "System health check and basic information endpoints"
+        "description": "System health check and basic information endpoints",
     },
     {
-        "name": "topics", 
+        "name": "topics",
         "description": "**🏷️ Topic Management**\n\nManage the creation, editing, deletion and querying of knowledge topics. Topics are containers for organizing documents and knowledge.",
         "externalDocs": {
             "description": "Topic Management Best Practices",
-            "url": "https://docs.example.com/topics"
-        }
+            "url": "https://docs.example.com/topics",
+        },
     },
     {
         "name": "files",
         "description": "**📁 File Management**\n\nHandle file upload, download, storage and metadata management. Support multiple file formats and storage backends.",
         "externalDocs": {
             "description": "File Upload Guide",
-            "url": "https://docs.example.com/files"
-        }
+            "url": "https://docs.example.com/files",
+        },
     },
     {
         "name": "documents",
         "description": "**📄 Document Processing**\n\nDocument parsing, chunking, vectorization and intelligent search. Core RAG functionality implementation.",
         "externalDocs": {
-            "description": "RAG Search Technical Documentation", 
-            "url": "https://docs.example.com/rag"
-        }
-    }
+            "description": "RAG Search Technical Documentation",
+            "url": "https://docs.example.com/rag",
+        },
+    },
 ]
 
 # Custom CSS styles
@@ -138,6 +135,7 @@ window.onload = function() {
 </script>
 """
 
+
 def get_openapi_config() -> Dict[str, Any]:
     """Get OpenAPI configuration"""
     return {
@@ -212,25 +210,19 @@ All API responses follow a unified error format:
         "contact": {
             "name": "RAG API Technical Support",
             "url": "https://github.com/your-repo/research-agent-rag",
-            "email": "support@example.com"
+            "email": "support@example.com",
         },
         "license": {
             "name": "MIT License",
-            "url": "https://opensource.org/licenses/MIT"
+            "url": "https://opensource.org/licenses/MIT",
         },
         "servers": [
+            {"url": "http://localhost:8000", "description": "Development Environment"},
             {
-                "url": "http://localhost:8000",
-                "description": "Development Environment"
+                "url": "https://api-staging.example.com",
+                "description": "Testing Environment",
             },
-            {
-                "url": "https://api-staging.example.com", 
-                "description": "Testing Environment"
-            },
-            {
-                "url": "https://api.example.com",
-                "description": "Production Environment"
-            }
+            {"url": "https://api.example.com", "description": "Production Environment"},
         ],
-        "tags": OPENAPI_TAGS
+        "tags": OPENAPI_TAGS,
     }

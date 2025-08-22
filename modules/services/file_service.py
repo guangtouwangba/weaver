@@ -74,7 +74,9 @@ class FileService(BaseService):
                 storage_key=f"uploads/{file_id}/{request.filename}",
             )
 
-            self.logger.info(f"Generated upload URL for file: {request.filename} (ID: {file_id})")
+            self.logger.info(
+                f"Generated upload URL for file: {request.filename} (ID: {file_id})"
+            )
 
             return UploadUrlResponse(
                 upload_url=upload_url,
@@ -85,12 +87,16 @@ class FileService(BaseService):
         except Exception as e:
             self._handle_error(e, "generate_upload_url")
 
-    async def confirm_upload(self, request: ConfirmUploadRequest) -> ConfirmUploadResponse:
+    async def confirm_upload(
+        self, request: ConfirmUploadRequest
+    ) -> ConfirmUploadResponse:
         """确认文件上传完成"""
         try:
             # 更新文件状态
             file_record = await self.file_repo.update_file_status(
-                file_id=request.file_id, status=FileStatus.AVAILABLE, processing_status="pending"
+                file_id=request.file_id,
+                status=FileStatus.AVAILABLE,
+                processing_status="pending",
             )
 
             if not file_record:
@@ -128,7 +134,9 @@ class FileService(BaseService):
         except Exception as e:
             self._handle_error(e, f"get_file_{file_id}")
 
-    async def update_file(self, file_id: str, file_data: FileUpdate) -> Optional[FileResponse]:
+    async def update_file(
+        self, file_id: str, file_data: FileUpdate
+    ) -> Optional[FileResponse]:
         """更新文件信息"""
         try:
             # 检查文件是否存在
@@ -191,10 +199,14 @@ class FileService(BaseService):
                 filters["user_id"] = user_id
 
             # 获取文件列表
-            files = await self.file_repo.list(page=page, page_size=page_size, filters=filters)
+            files = await self.file_repo.list(
+                page=page, page_size=page_size, filters=filters
+            )
 
             # 获取总数
-            all_files = await self.file_repo.list(page=1, page_size=1000, filters=filters)
+            all_files = await self.file_repo.list(
+                page=1, page_size=1000, filters=filters
+            )
             total = len(all_files)
             total_pages = (total + page_size - 1) // page_size
 
@@ -237,14 +249,18 @@ class FileService(BaseService):
             )
 
             # 获取总数
-            all_files = await self.file_repo.get_files_by_topic(topic_id, page=1, page_size=1000)
+            all_files = await self.file_repo.get_files_by_topic(
+                topic_id, page=1, page_size=1000
+            )
             total = len(all_files)
             total_pages = (total + page_size - 1) // page_size
 
             # 转换为响应Schema
             file_responses = files_to_responses(files)
 
-            logger.info(f"获取主题{topic_id}的文件列表成功: {len(file_responses)} 个文件")
+            logger.info(
+                f"获取主题{topic_id}的文件列表成功: {len(file_responses)} 个文件"
+            )
 
             return FileList(
                 files=file_responses,

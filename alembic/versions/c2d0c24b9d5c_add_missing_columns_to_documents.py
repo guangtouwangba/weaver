@@ -5,6 +5,7 @@ Revises: 2f34d9c08631
 Create Date: 2025-08-22 11:15:14.609614
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -12,15 +13,16 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'c2d0c24b9d5c'
-down_revision: Union[str, None] = '2f34d9c08631'
+revision: str = "c2d0c24b9d5c"
+down_revision: Union[str, None] = "2f34d9c08631"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
     # Add all missing columns to documents table if they don't exist
-    op.execute("""
+    op.execute(
+        """
         DO $$
         BEGIN
             -- Add file_id column
@@ -79,28 +81,33 @@ def upgrade() -> None:
                 ALTER TABLE documents ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL;
             END IF;
         END $$;
-    """)
-    
+    """
+    )
+
     # Note: Foreign key constraint will be added in a later migration
     # after fixing the data type mismatch between file_id and files.id
-    
+
     # Create additional indexes if they don't exist
-    op.execute("CREATE INDEX IF NOT EXISTS idx_documents_file_id ON documents (file_id);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_documents_file_id ON documents (file_id);"
+    )
     op.execute("CREATE INDEX IF NOT EXISTS idx_documents_status ON documents (status);")
-    op.execute("CREATE INDEX IF NOT EXISTS idx_documents_updated_at ON documents (updated_at);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_documents_updated_at ON documents (updated_at);"
+    )
 
 
 def downgrade() -> None:
     # Remove the columns we added
     # Note: Foreign key constraint handled in separate migration
-    op.drop_index('idx_documents_updated_at', table_name='documents')
-    op.drop_index('idx_documents_status', table_name='documents')
-    op.drop_index('idx_documents_file_id', table_name='documents')
-    
-    op.drop_column('documents', 'updated_at')
-    op.drop_column('documents', 'doc_metadata')
-    op.drop_column('documents', 'processing_status')
-    op.drop_column('documents', 'status')
-    op.drop_column('documents', 'file_size')
-    op.drop_column('documents', 'file_path')
-    op.drop_column('documents', 'file_id')
+    op.drop_index("idx_documents_updated_at", table_name="documents")
+    op.drop_index("idx_documents_status", table_name="documents")
+    op.drop_index("idx_documents_file_id", table_name="documents")
+
+    op.drop_column("documents", "updated_at")
+    op.drop_column("documents", "doc_metadata")
+    op.drop_column("documents", "processing_status")
+    op.drop_column("documents", "status")
+    op.drop_column("documents", "file_size")
+    op.drop_column("documents", "file_path")
+    op.drop_column("documents", "file_id")

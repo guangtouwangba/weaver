@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 class LocalStorage(IStorage):
     """本地文件存储实现"""
 
-    def __init__(self, storage_path: str = "./uploads", base_url: str = "http://localhost:8000"):
+    def __init__(
+        self, storage_path: str = "./uploads", base_url: str = "http://localhost:8000"
+    ):
         """
         初始化本地存储
 
@@ -62,17 +64,23 @@ class LocalStorage(IStorage):
             },
             "bucket": "local",
             "key": file_key,
-            "expires_at": (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat(),
+            "expires_at": (
+                datetime.utcnow() + timedelta(seconds=expires_in)
+            ).isoformat(),
             "upload_token": upload_token,
         }
 
         logger.info(f"生成本地上传URL: {file_key}")
         return result
 
-    async def generate_signed_download_url(self, file_key: str, expires_in: int = 3600) -> str:
+    async def generate_signed_download_url(
+        self, file_key: str, expires_in: int = 3600
+    ) -> str:
         """生成本地下载URL"""
 
-        download_url = f"{self.base_url}/api/v1/files/download/{file_key}?token={uuid4()}"
+        download_url = (
+            f"{self.base_url}/api/v1/files/download/{file_key}?token={uuid4()}"
+        )
 
         logger.info(f"生成本地下载URL: {file_key}")
         return download_url

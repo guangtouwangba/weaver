@@ -15,7 +15,10 @@ class FileLoaderError(Exception):
     """文件加载错误"""
 
     def __init__(
-        self, message: str, file_path: Optional[str] = None, error_code: Optional[str] = None
+        self,
+        message: str,
+        file_path: Optional[str] = None,
+        error_code: Optional[str] = None,
     ):
         self.file_path = file_path
         self.error_code = error_code

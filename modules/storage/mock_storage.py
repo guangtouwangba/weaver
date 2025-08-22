@@ -55,19 +55,21 @@ class MockStorage(IStorage):
             "fields": {},
             "bucket": self.bucket_name,
             "key": file_key,
-            "expires_at": (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat(),
+            "expires_at": (
+                datetime.utcnow() + timedelta(seconds=expires_in)
+            ).isoformat(),
             "upload_token": upload_token,
         }
 
         logger.info(f"生成签名上传URL: {file_key}")
         return result
 
-    async def generate_signed_download_url(self, file_key: str, expires_in: int = 3600) -> str:
+    async def generate_signed_download_url(
+        self, file_key: str, expires_in: int = 3600
+    ) -> str:
         """生成模拟的签名下载URL"""
 
-        download_url = (
-            f"{self.base_url}/{self.bucket_name}/{file_key}?token={uuid4()}&expires={expires_in}"
-        )
+        download_url = f"{self.base_url}/{self.bucket_name}/{file_key}?token={uuid4()}&expires={expires_in}"
 
         logger.info(f"生成签名下载URL: {file_key}")
         return download_url

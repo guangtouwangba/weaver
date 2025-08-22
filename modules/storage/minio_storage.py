@@ -47,7 +47,10 @@ class MinIOStorage(IStorage):
 
         # 初始化MinIO客户端
         self.client = Minio(
-            endpoint=endpoint, access_key=access_key, secret_key=secret_key, secure=secure
+            endpoint=endpoint,
+            access_key=access_key,
+            secret_key=secret_key,
+            secure=secure,
         )
 
         # 确保存储桶存在
@@ -100,7 +103,9 @@ class MinIOStorage(IStorage):
                 "bucket": self.bucket_name,
                 "key": file_key,
                 "encoded_key": encoded_key,
-                "expires_at": (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat(),
+                "expires_at": (
+                    datetime.utcnow() + timedelta(seconds=expires_in)
+                ).isoformat(),
             }
 
             logger.info(f"Generated signed upload URL for: {file_key}")
@@ -112,7 +117,9 @@ class MinIOStorage(IStorage):
 
     @log_execution_time(threshold_ms=100)
     @log_errors()
-    async def generate_signed_download_url(self, file_key: str, expires_in: int = 3600) -> str:
+    async def generate_signed_download_url(
+        self, file_key: str, expires_in: int = 3600
+    ) -> str:
         """生成签名下载URL"""
 
         try:
@@ -162,7 +169,9 @@ class MinIOStorage(IStorage):
                 protocol = "http"
 
             encoded_key = urllib.parse.quote(file_key, safe="/")
-            access_url = f"{protocol}://{self.endpoint}/{self.bucket_name}/{encoded_key}"
+            access_url = (
+                f"{protocol}://{self.endpoint}/{self.bucket_name}/{encoded_key}"
+            )
 
             logger.info(f"Uploaded file: {file_key} ({file_size} bytes)")
             return access_url
@@ -175,7 +184,9 @@ class MinIOStorage(IStorage):
         """删除文件"""
 
         try:
-            self.client.remove_object(bucket_name=self.bucket_name, object_name=file_key)
+            self.client.remove_object(
+                bucket_name=self.bucket_name, object_name=file_key
+            )
 
             logger.info(f"Deleted file: {file_key}")
             return True
@@ -201,7 +212,9 @@ class MinIOStorage(IStorage):
         """获取文件信息"""
 
         try:
-            stat = self.client.stat_object(bucket_name=self.bucket_name, object_name=file_key)
+            stat = self.client.stat_object(
+                bucket_name=self.bucket_name, object_name=file_key
+            )
 
             # 生成访问URL
             if self.secure:
@@ -210,13 +223,17 @@ class MinIOStorage(IStorage):
                 protocol = "http"
 
             encoded_key = urllib.parse.quote(file_key, safe="/")
-            access_url = f"{protocol}://{self.endpoint}/{self.bucket_name}/{encoded_key}"
+            access_url = (
+                f"{protocol}://{self.endpoint}/{self.bucket_name}/{encoded_key}"
+            )
 
             file_info = {
                 "file_key": file_key,
                 "size": stat.size,
                 "content_type": stat.content_type,
-                "last_modified": stat.last_modified.isoformat() if stat.last_modified else None,
+                "last_modified": (
+                    stat.last_modified.isoformat() if stat.last_modified else None
+                ),
                 "etag": stat.etag,
                 "metadata": stat.metadata,
                 "access_url": access_url,
@@ -240,12 +257,16 @@ class MinIOStorage(IStorage):
 
         try:
             # 获取文件对象
-            response = self.client.get_object(bucket_name=self.bucket_name, object_name=file_key)
+            response = self.client.get_object(
+                bucket_name=self.bucket_name, object_name=file_key
+            )
 
             # 读取所有内容
             file_content = response.read()
 
-            logger.debug(f"Successfully read file {file_key} ({len(file_content)} bytes)")
+            logger.debug(
+                f"Successfully read file {file_key} ({len(file_content)} bytes)"
+            )
             return file_content
 
         except S3Error as e:
@@ -271,12 +292,18 @@ class MinIOStorage(IStorage):
                     bucket_info = {
                         "name": bucket.name,
                         "creation_date": (
-                            bucket.creation_date.isoformat() if bucket.creation_date else None
+                            bucket.creation_date.isoformat()
+                            if bucket.creation_date
+                            else None
                         ),
                     }
                     break
 
-            return {"endpoint": self.endpoint, "bucket": bucket_info, "secure": self.secure}
+            return {
+                "endpoint": self.endpoint,
+                "bucket": bucket_info,
+                "secure": self.secure,
+            }
 
         except S3Error as e:
             logger.error(f"Failed to get bucket info: {e}")

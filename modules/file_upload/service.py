@@ -24,7 +24,9 @@ class FileUploadService(IFileUploadService):
     """文件上传服务实现"""
 
     def __init__(
-        self, storage: Optional[IStorage] = None, task_service: Optional[ITaskService] = None
+        self,
+        storage: Optional[IStorage] = None,
+        task_service: Optional[ITaskService] = None,
     ):
         """
         初始化文件上传服务
@@ -110,7 +112,10 @@ class FileUploadService(IFileUploadService):
     @log_execution_time(threshold_ms=200)
     @log_errors()
     async def confirm_upload(
-        self, file_id: str, actual_size: Optional[int] = None, file_hash: Optional[str] = None
+        self,
+        file_id: str,
+        actual_size: Optional[int] = None,
+        file_hash: Optional[str] = None,
     ) -> Dict[str, Any]:
         """确认文件上传完成"""
 
@@ -145,7 +150,9 @@ class FileUploadService(IFileUploadService):
                     return {"success": False, "error": "更新文件状态失败"}
 
                 # 异步触发RAG处理任务（如果文件类型支持RAG处理）
-                if self.task_service and self._is_rag_supported_file(file_info.content_type):
+                if self.task_service and self._is_rag_supported_file(
+                    file_info.content_type
+                ):
                     # 使用asyncio.create_task在后台异步提交任务，不阻塞主流程
                     import asyncio
 

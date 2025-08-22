@@ -26,14 +26,22 @@ class DatabaseService:
         try:
             async with get_session() as session:
                 await session.execute("SELECT 1")
-                return {"status": "healthy", "message": "Database connection successful"}
+                return {
+                    "status": "healthy",
+                    "message": "Database connection successful",
+                }
         except Exception as e:
             logger.error(f"数据库健康检查失败: {e}")
-            return {"status": "unhealthy", "message": f"Database connection failed: {str(e)}"}
+            return {
+                "status": "unhealthy",
+                "message": f"Database connection failed: {str(e)}",
+            }
 
     # ===== 主题管理 =====
 
-    async def create_topic(self, name: str, description: str = "", **kwargs) -> Dict[str, Any]:
+    async def create_topic(
+        self, name: str, description: str = "", **kwargs
+    ) -> Dict[str, Any]:
         """创建主题"""
         try:
             async with get_session() as session:
@@ -78,7 +86,9 @@ class DatabaseService:
             logger.error(f"获取主题失败: {e}")
             return None
 
-    async def list_topics(self, page: int = 1, page_size: int = 20, **filters) -> Dict[str, Any]:
+    async def list_topics(
+        self, page: int = 1, page_size: int = 20, **filters
+    ) -> Dict[str, Any]:
         """获取主题列表"""
         try:
             async with get_session() as session:
@@ -156,7 +166,9 @@ class DatabaseService:
         try:
             async with get_session() as session:
                 repo = FileRepository(session)
-                file_record = await repo.create_file(file_id, original_name, content_type, **kwargs)
+                file_record = await repo.create_file(
+                    file_id, original_name, content_type, **kwargs
+                )
 
                 return {
                     "id": file_record.id,
@@ -207,7 +219,9 @@ class DatabaseService:
         try:
             async with get_session() as session:
                 repo = FileRepository(session)
-                files = await repo.get_files_by_topic(topic_id, page, page_size, **filters)
+                files = await repo.get_files_by_topic(
+                    topic_id, page, page_size, **filters
+                )
 
                 return {
                     "files": [
@@ -262,7 +276,9 @@ class DatabaseService:
         try:
             async with get_session() as session:
                 repo = DocumentRepository(session)
-                document = await repo.create_document(document_id, title, content_type, **kwargs)
+                document = await repo.create_document(
+                    document_id, title, content_type, **kwargs
+                )
 
                 return {
                     "id": document.id,

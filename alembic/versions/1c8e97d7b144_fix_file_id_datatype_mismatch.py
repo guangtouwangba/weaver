@@ -5,6 +5,7 @@ Revises: c2d0c24b9d5c
 Create Date: 2025-08-22 11:16:13.737882
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -12,15 +13,16 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1c8e97d7b144'
-down_revision: Union[str, None] = 'c2d0c24b9d5c'
+revision: str = "1c8e97d7b144"
+down_revision: Union[str, None] = "c2d0c24b9d5c"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
     # Fix file_id column datatype mismatch - change from VARCHAR to UUID
-    op.execute("""
+    op.execute(
+        """
         DO $$
         BEGIN
             -- Check if file_id column exists and is VARCHAR
@@ -62,17 +64,23 @@ def upgrade() -> None:
                 FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE SET NULL;
             END IF;
         END $$;
-    """)
-    
+    """
+    )
+
     # Update indexes to ensure they exist
-    op.execute("CREATE INDEX IF NOT EXISTS idx_documents_file_id ON documents (file_id);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_documents_file_id ON documents (file_id);"
+    )
     op.execute("CREATE INDEX IF NOT EXISTS idx_documents_status ON documents (status);")
-    op.execute("CREATE INDEX IF NOT EXISTS idx_documents_updated_at ON documents (updated_at);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_documents_updated_at ON documents (updated_at);"
+    )
 
 
 def downgrade() -> None:
     # Revert file_id column back to VARCHAR(255)
-    op.execute("""
+    op.execute(
+        """
         DO $$
         BEGIN
             -- Drop the foreign key constraint if it exists
@@ -91,4 +99,5 @@ def downgrade() -> None:
                 ALTER TABLE documents ALTER COLUMN file_id TYPE VARCHAR(255) USING file_id::VARCHAR;
             END IF;
         END $$;
-    """)
+    """
+    )

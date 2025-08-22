@@ -5,30 +5,37 @@ Revises: 2025081703
 Create Date: 2025-08-18 10:00:00.000000
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '2025081801'
-down_revision = '2025081703'
+revision = "2025081801"
+down_revision = "2025081703"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
     """Update status column to use enum type."""
-    
+
     # Create the enum type
     file_status_enum = postgresql.ENUM(
-        'uploading', 'available', 'processing', 'failed', 'deleted', 'quarantined',
-        name='file_status_enum'
+        "uploading",
+        "available",
+        "processing",
+        "failed",
+        "deleted",
+        "quarantined",
+        name="file_status_enum",
     )
     file_status_enum.create(op.get_bind())
-    
+
     # Update existing integer values to string values
     # Map old integer values to new string values
-    op.execute("""
+    op.execute(
+        """
         UPDATE files 
         SET status = CASE 
             WHEN status = 0 THEN 'uploading'
@@ -39,21 +46,26 @@ def upgrade():
             WHEN status = 5 THEN 'deleted'
             ELSE 'uploading'  -- default for any other values
         END
-    """)
-    
+    """
+    )
+
     # Change column type to enum
-    op.alter_column('files', 'status',
-                    type_=file_status_enum,
-                    postgresql_using="status::file_status_enum",
-                    nullable=False,
-                    server_default="'uploading'")
+    op.alter_column(
+        "files",
+        "status",
+        type_=file_status_enum,
+        postgresql_using="status::file_status_enum",
+        nullable=False,
+        server_default="'uploading'",
+    )
 
 
 def downgrade():
     """Revert status column back to integer type."""
-    
+
     # Update string values back to integer values
-    op.execute("""
+    op.execute(
+        """
         UPDATE files 
         SET status = CASE 
             WHEN status = 'uploading' THEN 0
@@ -64,13 +76,13 @@ def downgrade():
             WHEN status = 'quarantined' THEN 0  -- map to uploading
             ELSE 0  -- default
         END
-    """)
-    
+    """
+    )
+
     # Change column type back to integer
-    op.alter_column('files', 'status',
-                    type_=sa.Integer(),
-                    nullable=False,
-                    server_default="0")
-    
+    op.alter_column(
+        "files", "status", type_=sa.Integer(), nullable=False, server_default="0"
+    )
+
     # Drop the enum type
-    op.execute('DROP TYPE file_status_enum')
+    op.execute("DROP TYPE file_status_enum")

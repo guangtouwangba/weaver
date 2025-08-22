@@ -37,7 +37,11 @@ class DocumentCreateHandler(ITaskHandler):
 
     @log_execution_time(threshold_ms=1000)
     async def handle(
-        self, file_id: str, document_data: Dict[str, Any], trigger_rag: bool = True, **metadata
+        self,
+        file_id: str,
+        document_data: Dict[str, Any],
+        trigger_rag: bool = True,
+        **metadata,
     ) -> Dict[str, Any]:
         """
         创建文档记录
@@ -53,7 +57,9 @@ class DocumentCreateHandler(ITaskHandler):
         """
         try:
             with task_context(
-                task_id=f"doc-create-{file_id}", task_name="document.create", queue="document_queue"
+                task_id=f"doc-create-{file_id}",
+                task_name="document.create",
+                queue="document_queue",
             ):
                 logger.info(f"开始文档创建任务: {file_id}")
 
@@ -114,7 +120,8 @@ class DocumentCreateHandler(ITaskHandler):
 
         # 使用同步SQLAlchemy避免async context问题
         sync_engine = create_engine(
-            config.database.url.replace("postgresql+asyncpg", "postgresql+psycopg2"), echo=False
+            config.database.url.replace("postgresql+asyncpg", "postgresql+psycopg2"),
+            echo=False,
         )
 
         SessionLocal = sessionmaker(bind=sync_engine)
@@ -147,7 +154,9 @@ class DocumentCreateHandler(ITaskHandler):
                 session.add(document_model)
                 session.commit()
 
-                logger.info(f"文档记录已创建: {document_model.title} (ID: {document_model.id})")
+                logger.info(
+                    f"文档记录已创建: {document_model.title} (ID: {document_model.id})"
+                )
                 return str(document_model.id)
 
             except Exception as e:
@@ -179,7 +188,9 @@ class DocumentCreateHandler(ITaskHandler):
                     "content_type": document_data.get("content_type", "txt"),
                     "topic_id": metadata.get("topic_id"),
                     "embedding_provider": metadata.get("embedding_provider", "openai"),
-                    "vector_store_provider": metadata.get("vector_store_provider", "weaviate"),
+                    "vector_store_provider": metadata.get(
+                        "vector_store_provider", "weaviate"
+                    ),
                     "triggered_by": "document.create",
                 },
                 queue="rag_queue",
@@ -259,7 +270,9 @@ class DocumentMetadataUpdateHandler(ITaskHandler):
                 "failed_at": datetime.utcnow().isoformat(),
             }
 
-    async def _update_metadata_sync(self, document_id: str, metadata_updates: Dict[str, Any]):
+    async def _update_metadata_sync(
+        self, document_id: str, metadata_updates: Dict[str, Any]
+    ):
         """使用同步SQLAlchemy更新文档元数据"""
         import sqlalchemy as sa
         from sqlalchemy import create_engine
@@ -271,7 +284,8 @@ class DocumentMetadataUpdateHandler(ITaskHandler):
         config = get_config()
 
         sync_engine = create_engine(
-            config.database.url.replace("postgresql+asyncpg", "postgresql+psycopg2"), echo=False
+            config.database.url.replace("postgresql+asyncpg", "postgresql+psycopg2"),
+            echo=False,
         )
 
         SessionLocal = sessionmaker(bind=sync_engine)
@@ -280,7 +294,9 @@ class DocumentMetadataUpdateHandler(ITaskHandler):
             try:
                 # 获取文档
                 document = (
-                    session.query(DocumentModel).filter(DocumentModel.id == document_id).first()
+                    session.query(DocumentModel)
+                    .filter(DocumentModel.id == document_id)
+                    .first()
                 )
 
                 if not document:

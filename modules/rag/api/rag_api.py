@@ -54,7 +54,8 @@ class RagAPI(IModularAPI):
         if orchestrator is None:
             file_loader = MultiFormatFileLoader()
             document_processor = ChunkingProcessor(
-                default_chunk_size=default_chunk_size, default_overlap=default_chunk_overlap
+                default_chunk_size=default_chunk_size,
+                default_overlap=default_chunk_overlap,
             )
             self.orchestrator = DocumentOrchestrator(
                 file_loader=file_loader,
@@ -141,7 +142,9 @@ class RagAPI(IModularAPI):
                 details={"file_path": file_path},
             )
 
-    async def process_files(self, file_paths: List[str], **options) -> List[Dict[str, Any]]:
+    async def process_files(
+        self, file_paths: List[str], **options
+    ) -> List[Dict[str, Any]]:
         """批量处理文件"""
         try:
             await self.initialize()
@@ -238,8 +241,12 @@ class RagAPI(IModularAPI):
                 "content_type": document.content_type.value,
                 "source_path": document.source_path,
                 "file_size": document.file_size,
-                "created_at": document.created_at.isoformat() if document.created_at else None,
-                "updated_at": document.updated_at.isoformat() if document.updated_at else None,
+                "created_at": (
+                    document.created_at.isoformat() if document.created_at else None
+                ),
+                "updated_at": (
+                    document.updated_at.isoformat() if document.updated_at else None
+                ),
                 "metadata": document.metadata,
                 "tags": document.tags,
             }
@@ -269,7 +276,11 @@ class RagAPI(IModularAPI):
                     "start_position": chunk.start_position,
                     "end_position": chunk.end_position,
                     "chunk_size": chunk.chunk_size,
-                    "strategy": chunk.strategy.value if hasattr(chunk, "strategy") else "unknown",
+                    "strategy": (
+                        chunk.strategy.value
+                        if hasattr(chunk, "strategy")
+                        else "unknown"
+                    ),
                     "metadata": chunk.metadata,
                 }
                 for chunk in chunks
@@ -307,12 +318,16 @@ class RagAPI(IModularAPI):
                 details={"document_id": document_id},
             )
 
-    async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
+    async def update_document_metadata(
+        self, document_id: str, metadata: Dict[str, Any]
+    ) -> bool:
         """更新文档元数据"""
         try:
             await self.initialize()
 
-            success = await self.orchestrator.update_document_metadata(document_id, metadata)
+            success = await self.orchestrator.update_document_metadata(
+                document_id, metadata
+            )
 
             if success:
                 logger.info(f"文档元数据更新成功: {document_id}")
@@ -353,7 +368,9 @@ class RagAPI(IModularAPI):
         except Exception as e:
             logger.error(f"获取状态失败: {e}")
             raise APIError(
-                f"获取状态失败: {str(e)}", error_code="GET_STATUS_FAILED", status_code=500
+                f"获取状态失败: {str(e)}",
+                error_code="GET_STATUS_FAILED",
+                status_code=500,
             )
 
     async def get_supported_formats(self) -> List[str]:
@@ -366,14 +383,25 @@ class RagAPI(IModularAPI):
                 formats = await self.orchestrator.file_loader.supported_formats()
             else:
                 # 默认支持的格式
-                formats = [".txt", ".pdf", ".doc", ".docx", ".html", ".md", ".json", ".csv"]
+                formats = [
+                    ".txt",
+                    ".pdf",
+                    ".doc",
+                    ".docx",
+                    ".html",
+                    ".md",
+                    ".json",
+                    ".csv",
+                ]
 
             return formats
 
         except Exception as e:
             logger.error(f"获取支持格式失败: {e}")
             raise APIError(
-                f"获取支持格式失败: {str(e)}", error_code="GET_FORMATS_FAILED", status_code=500
+                f"获取支持格式失败: {str(e)}",
+                error_code="GET_FORMATS_FAILED",
+                status_code=500,
             )
 
     def _parse_chunking_strategy(self, strategy_str: str) -> ChunkingStrategy:
