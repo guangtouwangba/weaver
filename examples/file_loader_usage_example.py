@@ -19,13 +19,14 @@ from modules.file_loader import (
     get_supported_types,
     is_supported,
     # Advanced factory access
-    FileLoaderFactory
+    FileLoaderFactory,
 )
 from modules.schemas.enums import ContentType
 
 
 class MockRequest:
     """Mock request object for demonstration"""
+
     def __init__(self, file_path: str, content_type: str = None):
         self.file_path = file_path
         self.content_type = content_type
@@ -34,21 +35,21 @@ class MockRequest:
 async def example_simple_usage():
     """Demonstrate the simplest way to use the file loader"""
     print("=== Simple Usage Example ===")
-    
+
     # Example 1: Auto-detect and load with one line
     request = MockRequest("document.pdf")
-    
+
     try:
         # This is all the caller needs to do!
         document = await load_document(request)
         print(f"✅ Loaded document: {document}")
     except Exception as e:
         print(f"❌ Failed to load: {e}")
-    
+
     # Example 2: Check if file type is supported
     file_path = "example.pdf"
     content_type = detect_content_type(file_path)
-    
+
     if content_type and is_supported(content_type):
         print(f"✅ {file_path} ({content_type}) is supported")
         request = MockRequest(file_path, content_type.value)
@@ -61,22 +62,21 @@ async def example_simple_usage():
 async def example_advanced_usage():
     """Demonstrate advanced usage with custom options"""
     print("\n=== Advanced Usage Example ===")
-    
+
     # Example 1: Disable auto-detection
     request = MockRequest("unknown_file.xyz", ContentType.TXT.value)
     document = await load_document(
-        request, 
+        request,
         auto_detect=False,  # Force use specified content type
-        fallback_to_text=True
+        fallback_to_text=True,
     )
     print(f"✅ Loaded with forced type: {document}")
-    
+
     # Example 2: Disable fallback for strict type checking
     try:
         request = MockRequest("corrupted.pdf", ContentType.PDF.value)
         document = await load_document(
-            request,
-            fallback_to_text=False  # Fail if PDF loader fails
+            request, fallback_to_text=False  # Fail if PDF loader fails
         )
     except Exception as e:
         print(f"✅ Expected failure without fallback: {e}")
@@ -85,26 +85,20 @@ async def example_advanced_usage():
 def example_factory_inspection():
     """Demonstrate factory inspection capabilities"""
     print("\n=== Factory Inspection Example ===")
-    
+
     # Check what types are supported
     supported_types = get_supported_types()
     print(f"📋 Supported content types: {[t.value for t in supported_types]}")
-    
+
     # Get detailed loader information
     loader_info = FileLoaderFactory.get_loader_info()
     print("📋 Registered loaders:")
     for content_type, info in loader_info.items():
         print(f"  - {content_type}: {info['loader_class']}")
-    
+
     # Test various file extensions
-    test_files = [
-        "document.pdf",
-        "text.txt", 
-        "data.csv",
-        "page.html",
-        "unknown.xyz"
-    ]
-    
+    test_files = ["document.pdf", "text.txt", "data.csv", "page.html", "unknown.xyz"]
+
     print("\n📋 Content type detection:")
     for file_path in test_files:
         detected = detect_content_type(file_path)
@@ -115,9 +109,10 @@ def example_factory_inspection():
 async def example_comparison():
     """Compare old vs new usage patterns"""
     print("\n=== Usage Pattern Comparison ===")
-    
+
     print("❌ OLD WAY (complex, error-prone):")
-    print("""
+    print(
+        """
     try:
         loader = FileLoaderFactory.get_loader(content_type)
         document = await loader.load_document(request)
@@ -138,24 +133,27 @@ async def example_comparison():
             # More manual metadata...
         except Exception as fallback_error:
             raise ValueError(f"Both loaders failed: {fallback_error}")
-    """)
-    
+    """
+    )
+
     print("✅ NEW WAY (simple, robust):")
-    print("""
+    print(
+        """
     # Just one line with auto-detection, fallback, and metadata!
     document = await load_document(request)
-    """)
+    """
+    )
 
 
 async def main():
     """Run all examples"""
     print("🚀 File Loader Factory Design Improvements\n")
-    
+
     await example_simple_usage()
     await example_advanced_usage()
     example_factory_inspection()
     await example_comparison()
-    
+
     print("\n✨ Design improvements summary:")
     print("1. 🎯 One-step loading: load_document() handles everything")
     print("2. 🔍 Auto-detection: Automatically detects file types")

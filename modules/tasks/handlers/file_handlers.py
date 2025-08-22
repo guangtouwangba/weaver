@@ -13,11 +13,11 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from modules import schemas
+from modules.file_loader.factory import FileLoaderFactory
+from modules.models import Document, FileLoadRequest
+from modules.schemas.enums import ContentType
 
-from ... import schemas
-from ...file_loader.factory import FileLoaderFactory
-from ...models import Document, FileLoadRequest
-from ...schemas.enums import ContentType
 from ...services.task_service import register_task_handler, task_handler
 from ...storage.base import create_storage_service
 
@@ -75,7 +75,9 @@ async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Docu
     # Build file load request
     request = FileLoadRequest(
         file_path=file_path,
-        content_type=(content_type.value if hasattr(content_type, "value") else str(content_type)),
+        content_type=(
+            content_type.value if hasattr(content_type, "value") else str(content_type)
+        ),
         metadata=metadata,
     )
 
@@ -90,17 +92,23 @@ async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Docu
                 "factory_loader": True,
                 "delegate_loader": loader.loader_name,
                 "detected_type": (
-                    content_type.value if hasattr(content_type, "value") else str(content_type)
+                    content_type.value
+                    if hasattr(content_type, "value")
+                    else str(content_type)
                 ),
             }
         )
 
-        logger.info(f"Loading document using factory pattern {loader.loader_name}: {file_path}")
+        logger.info(
+            f"Loading document using factory pattern {loader.loader_name}: {file_path}"
+        )
         return document
 
     except ValueError as e:
         # If no corresponding loader found, try using text loader as fallback
-        logger.warning(f"No loader found for content type {content_type}, trying text loader: {e}")
+        logger.warning(
+            f"No loader found for content type {content_type}, trying text loader: {e}"
+        )
         try:
             text_loader = FileLoaderFactory.get_loader(ContentType.TXT)
             request.content_type = ContentType.TXT.value
@@ -111,7 +119,9 @@ async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Docu
                     "delegate_loader": text_loader.loader_name,
                     "fallback_loader": True,
                     "original_type": (
-                        content_type.value if hasattr(content_type, "value") else str(content_type)
+                        content_type.value
+                        if hasattr(content_type, "value")
+                        else str(content_type)
                     ),
                     "detected_type": ContentType.TXT.value,
                 }
@@ -239,7 +249,9 @@ class FileUploadCompleteHandler(ITaskHandler):
             logger.info(f"Starting RAG document processing: {file_id}")
 
             # 1. Download file from storage to temporary location
-            temp_file_path = await self._download_file_to_temp(storage, file_path, file_id)
+            temp_file_path = await self._download_file_to_temp(
+                storage, file_path, file_id
+            )
 
             try:
                 # 2. Use file loader to read document content
@@ -290,7 +302,9 @@ class FileUploadCompleteHandler(ITaskHandler):
                 "failed_at": datetime.utcnow().isoformat(),
             }
 
-    async def _download_file_to_temp(self, storage: IStorage, file_path: str, file_id: str) -> str:
+    async def _download_file_to_temp(
+        self, storage: IStorage, file_path: str, file_id: str
+    ) -> str:
         """Download file from storage to temporary directory"""
         import tempfile
 
@@ -298,7 +312,9 @@ class FileUploadCompleteHandler(ITaskHandler):
 
         # Create temporary file
         suffix = os.path.splitext(file_path)[1] or ".tmp"
-        temp_fd, temp_file_path = tempfile.mkstemp(suffix=suffix, prefix=f"rag_process_{file_id}_")
+        temp_fd, temp_file_path = tempfile.mkstemp(
+            suffix=suffix, prefix=f"rag_process_{file_id}_"
+        )
         os.close(temp_fd)
 
         try:
@@ -403,7 +419,8 @@ class FileUploadCompleteHandler(ITaskHandler):
 
         # Use synchronous SQLAlchemy to avoid async context issues in Celery
         sync_engine = create_engine(
-            config.database.url.replace("postgresql+asyncpg", "postgresql+psycopg2"), echo=False
+            config.database.url.replace("postgresql+asyncpg", "postgresql+psycopg2"),
+            echo=False,
         )
 
         SessionLocal = sessionmaker(bind=sync_engine)
@@ -451,7 +468,9 @@ class FileUploadCompleteHandler(ITaskHandler):
                             "file_id": file_id,
                             "document_id": str(document_model.id),
                             "file_path": file_path,
-                            "content_type": self._map_content_type(document.content_type),
+                            "content_type": self._map_content_type(
+                                document.content_type
+                            ),
                             "topic_id": topic_id,
                             "embedding_provider": "openai",
                             "vector_store_provider": "weaviate",
@@ -641,7 +660,9 @@ class FileContentAnalysisHandler(ITaskHandler):
         except Exception as e:
             return {"image_analysis_error": str(e)}
 
-    async def _security_check(self, file_path: str, content_type: str) -> Dict[str, Any]:
+    async def _security_check(
+        self, file_path: str, content_type: str
+    ) -> Dict[str, Any]:
         """Security check"""
         try:
             file_size = os.path.getsize(file_path)
@@ -710,7 +731,9 @@ class TempFileCleanupHandler(ITaskHandler):
             for file_path in file_paths:
                 try:
                     if not os.path.exists(file_path):
-                        skipped_files.append({"path": file_path, "reason": "File does not exist"})
+                        skipped_files.append(
+                            {"path": file_path, "reason": "File does not exist"}
+                        )
                         continue
 
                     # Check file age
@@ -719,7 +742,9 @@ class TempFileCleanupHandler(ITaskHandler):
 
                     if file_age > max_age_seconds:
                         os.remove(file_path)
-                        deleted_files.append({"path": file_path, "age_hours": file_age / 3600})
+                        deleted_files.append(
+                            {"path": file_path, "age_hours": file_age / 3600}
+                        )
                         logger.debug(f"Temporary file deleted: {file_path}")
                     else:
                         skipped_files.append(
@@ -795,7 +820,9 @@ class FileFormatConversionHandler(ITaskHandler):
             Dict[str, Any]: Conversion result
         """
         try:
-            logger.info(f"Start file format conversion: {source_file} -> {target_format}")
+            logger.info(
+                f"Start file format conversion: {source_file} -> {target_format}"
+            )
 
             if not os.path.exists(source_file):
                 raise FileNotFoundError(f"Source file does not exist: {source_file}")

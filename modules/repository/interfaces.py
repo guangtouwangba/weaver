@@ -27,7 +27,9 @@ class IBaseRepository(ABC, Generic[EntityType, IdType]):
         pass
 
     @abstractmethod
-    async def update(self, entity_id: IdType, updates: Dict[str, Any]) -> Optional[EntityType]:
+    async def update(
+        self, entity_id: IdType, updates: Dict[str, Any]
+    ) -> Optional[EntityType]:
         """更新实体"""
         pass
 
@@ -98,7 +100,12 @@ class IFileRepository(IBaseRepository):
 
     @abstractmethod
     async def create_file(
-        self, file_id: str, original_name: str, content_type: str, file_size: int = 0, **kwargs
+        self,
+        file_id: str,
+        original_name: str,
+        content_type: str,
+        file_size: int = 0,
+        **kwargs,
     ) -> Any:
         """创建文件记录"""
         pass
@@ -110,7 +117,11 @@ class IFileRepository(IBaseRepository):
 
     @abstractmethod
     async def get_files_by_topic(
-        self, topic_id: int, page: int = 1, page_size: int = 20, status: Optional[str] = None
+        self,
+        topic_id: int,
+        page: int = 1,
+        page_size: int = 20,
+        status: Optional[str] = None,
     ) -> List[Any]:
         """获取主题下的文件列表"""
         pass

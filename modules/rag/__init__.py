@@ -35,7 +35,12 @@ from .pipeline import (
 )
 
 # RAG处理器
-from .processors import ChunkingProcessor, DocumentProcessorError, IDocumentProcessor, TextProcessor
+from .processors import (
+    ChunkingProcessor,
+    DocumentProcessorError,
+    IDocumentProcessor,
+    TextProcessor,
+)
 
 # RAG路由器
 from .router import DocumentRouter, IRouter

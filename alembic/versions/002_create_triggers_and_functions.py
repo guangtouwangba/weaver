@@ -5,19 +5,21 @@ Revises: 001
 Create Date: 2024-01-15 10:05:00.000000
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '002'
-down_revision = '001'
+revision = "002"
+down_revision = "001"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
     # Create function to update updated_at column
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION update_updated_at_column()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -25,25 +27,31 @@ def upgrade() -> None:
             RETURN NEW;
         END;
         $$ language 'plpgsql';
-    """)
-    
+    """
+    )
+
     # Create triggers for updated_at
-    op.execute("""
+    op.execute(
+        """
         CREATE TRIGGER update_topics_updated_at 
             BEFORE UPDATE ON topics 
             FOR EACH ROW 
             EXECUTE FUNCTION update_updated_at_column();
-    """)
-    
-    op.execute("""
+    """
+    )
+
+    op.execute(
+        """
         CREATE TRIGGER update_conversations_updated_at 
             BEFORE UPDATE ON conversations 
             FOR EACH ROW 
             EXECUTE FUNCTION update_updated_at_column();
-    """)
-    
+    """
+    )
+
     # Create function to update tag usage count
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION update_tag_usage_count()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -57,18 +65,22 @@ def upgrade() -> None:
             RETURN NULL;
         END;
         $$ language 'plpgsql';
-    """)
-    
+    """
+    )
+
     # Create trigger for tag usage count
-    op.execute("""
+    op.execute(
+        """
         CREATE TRIGGER update_tag_usage_count_trigger
             AFTER INSERT OR DELETE ON topic_tags
             FOR EACH ROW
             EXECUTE FUNCTION update_tag_usage_count();
-    """)
-    
+    """
+    )
+
     # Create function for soft delete
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION soft_delete_record()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -77,10 +89,12 @@ def upgrade() -> None:
             RETURN NEW;
         END;
         $$ language 'plpgsql';
-    """)
-    
+    """
+    )
+
     # Create function to update last_accessed_at
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION update_last_accessed_at()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -88,25 +102,31 @@ def upgrade() -> None:
             RETURN NEW;
         END;
         $$ language 'plpgsql';
-    """)
-    
+    """
+    )
+
     # Create triggers for last_accessed_at
-    op.execute("""
+    op.execute(
+        """
         CREATE TRIGGER update_topics_last_accessed_at 
             BEFORE UPDATE ON topics 
             FOR EACH ROW 
             EXECUTE FUNCTION update_last_accessed_at();
-    """)
-    
-    op.execute("""
+    """
+    )
+
+    op.execute(
+        """
         CREATE TRIGGER update_topic_resources_last_accessed_at 
             BEFORE UPDATE ON topic_resources 
             FOR EACH ROW 
             EXECUTE FUNCTION update_last_accessed_at();
-    """)
-    
+    """
+    )
+
     # Create function to update conversation message count
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION update_conversation_message_count()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -115,10 +135,12 @@ def upgrade() -> None:
             RETURN COALESCE(NEW, OLD);
         END;
         $$ language 'plpgsql';
-    """)
-    
+    """
+    )
+
     # Create validation function for resource types
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION validate_resource_file_extension()
         RETURNS TRIGGER AS $$
         BEGIN
@@ -151,8 +173,9 @@ def upgrade() -> None:
             RETURN NEW;
         END;
         $$ language 'plpgsql';
-    """)
-    
+    """
+    )
+
     # Create trigger for resource validation (optional - can be disabled if too strict)
     # op.execute("""
     #     CREATE TRIGGER validate_topic_resource_file_extension
@@ -164,13 +187,19 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Drop triggers first
-    op.execute("DROP TRIGGER IF EXISTS update_topic_resources_last_accessed_at ON topic_resources;")
+    op.execute(
+        "DROP TRIGGER IF EXISTS update_topic_resources_last_accessed_at ON topic_resources;"
+    )
     op.execute("DROP TRIGGER IF EXISTS update_topics_last_accessed_at ON topics;")
     op.execute("DROP TRIGGER IF EXISTS update_tag_usage_count_trigger ON topic_tags;")
-    op.execute("DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;")
+    op.execute(
+        "DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;"
+    )
     op.execute("DROP TRIGGER IF EXISTS update_topics_updated_at ON topics;")
-    op.execute("DROP TRIGGER IF EXISTS validate_topic_resource_file_extension ON topic_resources;")
-    
+    op.execute(
+        "DROP TRIGGER IF EXISTS validate_topic_resource_file_extension ON topic_resources;"
+    )
+
     # Drop functions
     op.execute("DROP FUNCTION IF EXISTS validate_resource_file_extension();")
     op.execute("DROP FUNCTION IF EXISTS update_conversation_message_count();")

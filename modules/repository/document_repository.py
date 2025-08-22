@@ -84,7 +84,11 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         """搜索文档"""
         search_query = select(Document)
 
-        conditions = [or_(Document.title.ilike(f"%{query}%"), Document.content.ilike(f"%{query}%"))]
+        conditions = [
+            or_(
+                Document.title.ilike(f"%{query}%"), Document.content.ilike(f"%{query}%")
+            )
+        ]
 
         if content_type:
             conditions.append(Document.content_type == content_type)
@@ -102,7 +106,9 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         )
 
         # 再Delete document
-        result = await self.session.execute(delete(Document).where(Document.id == document_id))
+        result = await self.session.execute(
+            delete(Document).where(Document.id == document_id)
+        )
 
         success = result.rowcount > 0
         if success:
@@ -113,7 +119,9 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
     async def get_documents_by_file(self, file_id: str) -> List[Document]:
         """根据文件IDGet document列表"""
         result = await self.session.execute(
-            select(Document).where(Document.file_id == file_id).order_by(desc(Document.created_at))
+            select(Document)
+            .where(Document.file_id == file_id)
+            .order_by(desc(Document.created_at))
         )
         return result.scalars().all()
 
@@ -142,7 +150,9 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
     async def get_by_id(self, entity_id: str) -> Optional[Document]:
         return await self.get_document_by_id(entity_id)
 
-    async def update(self, entity_id: str, updates: Dict[str, Any]) -> Optional[Document]:
+    async def update(
+        self, entity_id: str, updates: Dict[str, Any]
+    ) -> Optional[Document]:
         document = await self.get_document_by_id(entity_id)
         if not document:
             return None
@@ -178,7 +188,9 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
                 query = query.where(Document.file_id == filters["file_id"])
 
         offset = (page - 1) * page_size
-        query = query.offset(offset).limit(page_size).order_by(desc(Document.created_at))
+        query = (
+            query.offset(offset).limit(page_size).order_by(desc(Document.created_at))
+        )
 
         result = await self.session.execute(query)
         return result.scalars().all()

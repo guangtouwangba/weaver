@@ -4,7 +4,7 @@
 提供整个RAG知识管理系统的统一配置管理功能，包括：
 - 应用程序配置
 - 数据库配置
-- 存储配置  
+- 存储配置
 - 任务系统配置
 - Redis配置
 - 监控配置
@@ -18,7 +18,6 @@ from .settings import (
     Environment,
     get_config,
     reload_config,
-    
     # 子配置类
     DatabaseConfig,
     StorageConfig,
@@ -28,7 +27,7 @@ from .settings import (
     TaskConfig,
     RetryConfig,
     MonitoringConfig,
-    CeleryConfig
+    CeleryConfig,
 )
 
 # 向后兼容的别名
@@ -50,13 +49,14 @@ except ImportError:
         GOOGLE_GCS = "google_gcs"
         LOCAL = "local"
 
+
 # API文档配置（从modules.config合并过来）
 from .docs import (
     SWAGGER_UI_PARAMETERS,
     OPENAPI_TAGS,
     CUSTOM_SWAGGER_CSS,
     CUSTOM_SWAGGER_JS,
-    get_openapi_config
+    get_openapi_config,
 )
 
 # 任务监控配置（保留监控相关功能）
@@ -65,29 +65,26 @@ from .tasks.monitoring import (
     ITaskMonitoringService,
     ITaskConfiguration,
     ITaskAlerting,
-    
     # 监控数据类
     QueueMetrics,
     TaskMetrics,
     SystemHealth,
     AlertRule,
-    
     # 预定义常量
     MONITORING_METRICS,
-    DEFAULT_ALERT_RULES
+    DEFAULT_ALERT_RULES,
 )
 
 __all__ = [
     # 主要配置类
     "AppConfig",
-    "Environment", 
+    "Environment",
     "get_config",
     "reload_config",
     "default_app_config",
-    
     # 子配置类
     "DatabaseConfig",
-    "StorageConfig", 
+    "StorageConfig",
     "StorageProvider",
     "LoggingConfig",
     "RedisConfig",
@@ -96,31 +93,26 @@ __all__ = [
     "RetryConfig",
     "MonitoringConfig",
     "CeleryConfig",
-    
     # 向后兼容别名
     "PydanticAppConfig",
     "PydanticDatabaseConfig",
     "PydanticStorageConfig",
-    
     # API文档配置
     "SWAGGER_UI_PARAMETERS",
     "OPENAPI_TAGS",
     "CUSTOM_SWAGGER_CSS",
     "CUSTOM_SWAGGER_JS",
     "get_openapi_config",
-    
     # 任务监控接口
     "ITaskMonitoringService",
     "ITaskConfiguration",
     "ITaskAlerting",
-    
     # 任务监控数据类
     "QueueMetrics",
     "TaskMetrics",
     "SystemHealth",
     "AlertRule",
-    
     # 预定义常量
     "MONITORING_METRICS",
-    "DEFAULT_ALERT_RULES"
+    "DEFAULT_ALERT_RULES",
 ]

@@ -49,7 +49,9 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
             self.redis_client = redis.from_url(self.redis_url)
         return self.redis_client
 
-    async def get_queue_metrics(self, queue_name: Optional[str] = None) -> List[QueueMetrics]:
+    async def get_queue_metrics(
+        self, queue_name: Optional[str] = None
+    ) -> List[QueueMetrics]:
         """获取队列指标"""
         try:
             client = await self._get_redis_client()
@@ -98,7 +100,9 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
             logger.error(f"获取队列指标失败: {e}")
             return []
 
-    async def get_task_metrics(self, task_name: Optional[str] = None) -> List[TaskMetrics]:
+    async def get_task_metrics(
+        self, task_name: Optional[str] = None
+    ) -> List[TaskMetrics]:
         """获取任务指标"""
         try:
             client = await self._get_redis_client()
@@ -119,7 +123,9 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
                 if last_execution_str:
                     last_execution = datetime.fromisoformat(last_execution_str)
 
-                error_rate = failed_executions / total_executions if total_executions > 0 else 0
+                error_rate = (
+                    failed_executions / total_executions if total_executions > 0 else 0
+                )
 
                 metrics.append(
                     TaskMetrics(
@@ -168,7 +174,9 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
             failed_tasks_last_hour = 0
 
             for queue_metric in queue_metrics:
-                failed_key = f"{queue_metric.queue_name}:failed:{hour_ago.strftime('%Y%m%d%H')}"
+                failed_key = (
+                    f"{queue_metric.queue_name}:failed:{hour_ago.strftime('%Y%m%d%H')}"
+                )
                 failed_count = await client.get(failed_key)
                 if failed_count:
                     failed_tasks_last_hour += int(failed_count)
@@ -246,7 +254,9 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
             logger.error(f"获取活跃Task failure: {e}")
             return []
 
-    async def get_failed_tasks(self, hours: int = 24, limit: int = 100) -> List[Dict[str, Any]]:
+    async def get_failed_tasks(
+        self, hours: int = 24, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         """获取失败的任务列表"""
         try:
             client = await self._get_redis_client()
@@ -417,7 +427,9 @@ class TaskConfigurationService(ITaskConfiguration):
             }
         return {}
 
-    async def update_queue_config(self, queue_name: str, config: Dict[str, Any]) -> bool:
+    async def update_queue_config(
+        self, queue_name: str, config: Dict[str, Any]
+    ) -> bool:
         """更新队列配置"""
         logger.warning("队列配置更新功能已简化，变更不会持久化")
         return True

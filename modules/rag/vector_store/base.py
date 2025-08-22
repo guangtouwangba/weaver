@@ -196,7 +196,9 @@ class IVectorStore(ABC):
         pass
 
     @abstractmethod
-    async def upsert_vectors(self, documents: List[VectorDocument]) -> BulkOperationResult:
+    async def upsert_vectors(
+        self, documents: List[VectorDocument]
+    ) -> BulkOperationResult:
         """
         插入或更新向量
 
@@ -285,7 +287,9 @@ class IVectorStore(ABC):
         pass
 
     @abstractmethod
-    async def delete_vectors_by_document_id(self, document_id: str) -> BulkOperationResult:
+    async def delete_vectors_by_document_id(
+        self, document_id: str
+    ) -> BulkOperationResult:
         """
         根据文档ID删除相关向量
 

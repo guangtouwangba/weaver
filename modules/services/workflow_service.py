@@ -269,7 +269,9 @@ class WorkflowService(BaseService):
             logger.error(f"获取工作流列表失败: {e}")
             return []
 
-    async def get_workflow_definition(self, workflow_id: str) -> Optional[Dict[str, Any]]:
+    async def get_workflow_definition(
+        self, workflow_id: str
+    ) -> Optional[Dict[str, Any]]:
         """
         获取工作流定义详情
 

@@ -38,9 +38,14 @@ class DocumentRouter(IRouter):
 
         # Initialize components
         # TODO: Implement factory-based file loader initialization
-        self.file_loader = file_loader  # or create_factory_based_file_loader(max_file_size_mb=100)
+        self.file_loader = (
+            file_loader  # or create_factory_based_file_loader(max_file_size_mb=100)
+        )
         self.document_processor = document_processor or ChunkingProcessor(
-            default_chunk_size=1000, default_overlap=200, min_chunk_size=50, max_chunk_size=4000
+            default_chunk_size=1000,
+            default_overlap=200,
+            min_chunk_size=50,
+            max_chunk_size=4000,
         )
 
         # Document storage (in-memory for now)
@@ -84,7 +89,9 @@ class DocumentRouter(IRouter):
             # Step 3: Store document and chunks
             self._documents[document.id] = document
             if "chunks" in processing_result.metadata:
-                self._document_chunks[document.id] = processing_result.metadata["chunks"]
+                self._document_chunks[document.id] = processing_result.metadata[
+                    "chunks"
+                ]
 
             # Calculate total processing time
             total_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -155,7 +162,10 @@ class DocumentRouter(IRouter):
                 if query.document_ids and doc_id not in query.document_ids:
                     continue
 
-                if query.content_types and document.content_type not in query.content_types:
+                if (
+                    query.content_types
+                    and document.content_type not in query.content_types
+                ):
                     continue
 
                 if query.tags and not any(tag in document.tags for tag in query.tags):
@@ -171,7 +181,9 @@ class DocumentRouter(IRouter):
                 content_lower = document.content.lower()
                 if query_lower in content_lower:
                     # Calculate simple relevance score
-                    score = content_lower.count(query_lower) / len(content_lower.split())
+                    score = content_lower.count(query_lower) / len(
+                        content_lower.split()
+                    )
 
                     # Search in chunks if available
                     chunks = self._document_chunks.get(doc_id, [])
@@ -258,7 +270,9 @@ class DocumentRouter(IRouter):
         status.update(
             {
                 "total_documents": len(self._documents),
-                "total_chunks": sum(len(chunks) for chunks in self._document_chunks.values()),
+                "total_chunks": sum(
+                    len(chunks) for chunks in self._document_chunks.values()
+                ),
                 "file_loader_status": self.file_loader.get_status(),
                 "document_processor_status": self.document_processor.get_status(),
                 "supported_formats": self.file_loader.supported_formats(),

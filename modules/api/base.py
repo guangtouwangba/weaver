@@ -47,7 +47,9 @@ class IModularAPI(ABC):
         pass
 
     @abstractmethod
-    async def process_files(self, file_paths: List[str], **options) -> List[Dict[str, Any]]:
+    async def process_files(
+        self, file_paths: List[str], **options
+    ) -> List[Dict[str, Any]]:
         """
         Batch process files
 
@@ -115,7 +117,9 @@ class IModularAPI(ABC):
         pass
 
     @abstractmethod
-    async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
+    async def update_document_metadata(
+        self, document_id: str, metadata: Dict[str, Any]
+    ) -> bool:
         """
         Update document metadata
 

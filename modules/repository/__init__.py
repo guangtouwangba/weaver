@@ -8,7 +8,12 @@ Repository模块
 from .base_repository import BaseRepository
 from .document_repository import DocumentRepository
 from .file_repository import FileRepository
-from .interfaces import IBaseRepository, IDocumentRepository, IFileRepository, ITopicRepository
+from .interfaces import (
+    IBaseRepository,
+    IDocumentRepository,
+    IFileRepository,
+    ITopicRepository,
+)
 from .topic_repository import TopicRepository
 
 __all__ = [

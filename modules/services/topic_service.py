@@ -66,7 +66,9 @@ class TopicService(BaseService):
                 return None
 
             # 获取统计信息
-            files = await self.file_repo.get_files_by_topic(topic_id, page=1, page_size=1000)
+            files = await self.file_repo.get_files_by_topic(
+                topic_id, page=1, page_size=1000
+            )
             file_count = len(files)
 
             return topic_to_response(topic, file_count=file_count)
@@ -74,7 +76,9 @@ class TopicService(BaseService):
         except Exception as e:
             self._handle_error(e, f"get_topic_{topic_id}")
 
-    async def update_topic(self, topic_id: int, topic_data: TopicUpdate) -> Optional[TopicResponse]:
+    async def update_topic(
+        self, topic_id: int, topic_data: TopicUpdate
+    ) -> Optional[TopicResponse]:
         """更新主题"""
         try:
             # 检查主题是否存在
@@ -104,7 +108,9 @@ class TopicService(BaseService):
             await self._validate_topic_deletion(topic_id)
 
             # 软删除相关文件
-            files = await self.file_repo.get_files_by_topic(topic_id, page=1, page_size=1000)
+            files = await self.file_repo.get_files_by_topic(
+                topic_id, page=1, page_size=1000
+            )
             for file in files:
                 await self.file_repo.soft_delete_file(file.id)
 
@@ -137,10 +143,14 @@ class TopicService(BaseService):
                 filters["user_id"] = user_id
 
             # 获取主题列表
-            topics = await self.topic_repo.list(page=page, page_size=page_size, filters=filters)
+            topics = await self.topic_repo.list(
+                page=page, page_size=page_size, filters=filters
+            )
 
             # 获取总数（这里简化，实际应该有专门的count方法）
-            all_topics = await self.topic_repo.list(page=1, page_size=1000, filters=filters)
+            all_topics = await self.topic_repo.list(
+                page=1, page_size=1000, filters=filters
+            )
             total = len(all_topics)
             total_pages = (total + page_size - 1) // page_size
 
@@ -181,18 +191,24 @@ class TopicService(BaseService):
         """验证主题创建"""
         # 检查名称是否重复（如果需要的话）
         if topic_data.user_id:
-            existing_topics = await self.topic_repo.get_topics_by_user(topic_data.user_id)
+            existing_topics = await self.topic_repo.get_topics_by_user(
+                topic_data.user_id
+            )
             if any(topic.name == topic_data.name for topic in existing_topics):
                 raise ValueError(f"用户已存在名称为 '{topic_data.name}' 的主题")
 
-    async def _validate_topic_update(self, topic_id: int, topic_data: TopicUpdate) -> None:
+    async def _validate_topic_update(
+        self, topic_id: int, topic_data: TopicUpdate
+    ) -> None:
         """验证主题更新"""
         # 如果更新名称，检查是否重复
         if topic_data.name:
             topic = await self.topic_repo.get_topic_by_id(topic_id)
             if topic and topic.user_id:
                 user_topics = await self.topic_repo.get_topics_by_user(topic.user_id)
-                if any(t.name == topic_data.name and t.id != topic_id for t in user_topics):
+                if any(
+                    t.name == topic_data.name and t.id != topic_id for t in user_topics
+                ):
                     raise ValueError(f"用户已存在名称为 '{topic_data.name}' 的主题")
 
     async def _validate_topic_deletion(self, topic_id: int) -> None:
@@ -233,12 +249,16 @@ class TopicService(BaseService):
                 update_data["filename"] = resource_data.title
 
             # 更新文件的主题关联
-            updated_file = await self.file_repo.update(resource_data.file_id, update_data)
+            updated_file = await self.file_repo.update(
+                resource_data.file_id, update_data
+            )
 
             if not updated_file:
                 raise RuntimeError(f"更新文件 {resource_data.file_id} 失败")
 
-            self.logger.info(f"成功将文件 {resource_data.file_id} 添加到主题 {topic_id}")
+            self.logger.info(
+                f"成功将文件 {resource_data.file_id} 添加到主题 {topic_id}"
+            )
             return file_to_response(updated_file)
 
         except ValueError:

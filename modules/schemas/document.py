@@ -42,16 +42,22 @@ class DocumentCreate(BaseSchema):
     file_id: Optional[str] = Field(default=None, description="关联文件ID")
     file_path: Optional[str] = Field(default=None, description="文件路径")
     file_size: Optional[int] = Field(default=0, ge=0, description="文件大小")
-    doc_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="文档元数据")
+    doc_metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="文档元数据"
+    )
 
 
 class DocumentUpdate(BaseSchema):
     """更新文档请求Schema"""
 
-    title: Optional[str] = Field(default=None, min_length=1, max_length=500, description="文档标题")
+    title: Optional[str] = Field(
+        default=None, min_length=1, max_length=500, description="文档标题"
+    )
     content: Optional[str] = Field(default=None, description="文档内容")
     status: Optional[str] = Field(default=None, description="文档状态")
-    doc_metadata: Optional[Dict[str, Any]] = Field(default=None, description="文档元数据")
+    doc_metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="文档元数据"
+    )
 
 
 class DocumentResponse(DocumentSchema):
@@ -70,7 +76,9 @@ class DocumentChunkSchema(BaseSchema, TimestampMixin):
     chunk_index: int = Field(ge=0, description="块索引")
     start_char: Optional[int] = Field(default=None, ge=0, description="开始字符位置")
     end_char: Optional[int] = Field(default=None, ge=0, description="结束字符位置")
-    embedding_vector: Optional[List[float]] = Field(default=None, description="嵌入向量")
+    embedding_vector: Optional[List[float]] = Field(
+        default=None, description="嵌入向量"
+    )
     chunk_metadata: Dict[str, Any] = Field(default_factory=dict, description="块元数据")
 
 
@@ -83,8 +91,12 @@ class DocumentChunkCreate(BaseSchema):
     start_char: Optional[int] = Field(default=None, ge=0, description="开始字符位置")
     end_char: Optional[int] = Field(default=None, ge=0, description="结束字符位置")
     chunk_id: Optional[str] = Field(default=None, description="自定义块ID")
-    embedding_vector: Optional[List[float]] = Field(default=None, description="嵌入向量")
-    chunk_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="块元数据")
+    embedding_vector: Optional[List[float]] = Field(
+        default=None, description="嵌入向量"
+    )
+    chunk_metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="块元数据"
+    )
 
 
 class DocumentChunkResponse(DocumentChunkSchema):

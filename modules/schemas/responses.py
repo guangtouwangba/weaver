@@ -54,8 +54,12 @@ class OrchestrationResult(BaseSchema):
     file_id: str = Field(description="文件ID")
     document_id: Optional[str] = Field(default=None, description="文档ID")
     status: ProcessingStatus = Field(description="编排状态")
-    processing_result: Optional[ProcessingResult] = Field(default=None, description="处理结果")
-    indexing_result: Optional[Dict[str, Any]] = Field(default=None, description="索引结果")
+    processing_result: Optional[ProcessingResult] = Field(
+        default=None, description="处理结果"
+    )
+    indexing_result: Optional[Dict[str, Any]] = Field(
+        default=None, description="索引结果"
+    )
     total_time: Optional[float] = Field(default=None, description="总耗时（秒）")
     error_message: Optional[str] = Field(default=None, description="错误信息")
 
@@ -66,7 +70,9 @@ class UploadUrlResponse(BaseSchema):
     upload_url: str = Field(description="上传URL")
     file_id: str = Field(description="文件ID")
     expires_at: datetime = Field(description="过期时间")
-    upload_fields: Optional[Dict[str, str]] = Field(default=None, description="上传字段")
+    upload_fields: Optional[Dict[str, str]] = Field(
+        default=None, description="上传字段"
+    )
 
 
 class ConfirmUploadResponse(BaseSchema):
@@ -75,7 +81,9 @@ class ConfirmUploadResponse(BaseSchema):
     file_id: str = Field(description="文件ID")
     status: str = Field(description="文件状态")
     processing_queued: bool = Field(description="是否已排队处理")
-    estimated_processing_time: Optional[int] = Field(default=None, description="预计处理时间（秒）")
+    estimated_processing_time: Optional[int] = Field(
+        default=None, description="预计处理时间（秒）"
+    )
     file_path: Optional[str] = Field(default=None, description="文件存储路径")
 
 

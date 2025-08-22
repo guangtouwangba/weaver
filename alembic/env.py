@@ -19,11 +19,13 @@ from modules.database.models import *
 config = context.config
 
 # 设置数据库连接URL
-database_url = os.getenv('DATABASE_URL', 'postgresql://rag_user:rag_password@localhost:5432/rag_db')
+database_url = os.getenv(
+    "DATABASE_URL", "postgresql://rag_user:rag_password@localhost:5432/rag_db"
+)
 # 确保URL使用同步驱动进行迁移
-if database_url.startswith('postgresql+asyncpg://'):
-    database_url = database_url.replace('postgresql+asyncpg://', 'postgresql://', 1)
-config.set_main_option('sqlalchemy.url', database_url)
+if database_url.startswith("postgresql+asyncpg://"):
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -78,9 +80,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

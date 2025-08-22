@@ -11,7 +11,13 @@ Contains various async task handlers for the RAG system:
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from logging_system import get_logger, log_errors, log_execution_time, request_context, task_context
+from logging_system import (
+    get_logger,
+    log_errors,
+    log_execution_time,
+    request_context,
+    task_context,
+)
 
 from ...rag.embedding import EmbeddingProvider
 from ...rag.pipeline import DocumentProcessingRequest, PipelineConfig, PipelineStatus
@@ -63,12 +69,16 @@ class DocumentProcessingHandler(ITaskHandler):
         """
         try:
             with task_context(
-                task_id=f"rag-{file_id}", task_name="rag.process_document", queue="rag_queue"
+                task_id=f"rag-{file_id}",
+                task_name="rag.process_document",
+                queue="rag_queue",
             ):
                 logger.info(f"开始RAG文档处理: {file_id} at {file_path}")
 
                 # 更新文件状态为处理中
-                await self._update_file_status(file_id, "processing", "RAG处理中: 初始化组件")
+                await self._update_file_status(
+                    file_id, "processing", "RAG处理中: 初始化组件"
+                )
 
             # 动态导入以避免循环依赖
             from ...file_loader import MultiFormatFileLoader
@@ -91,10 +101,15 @@ class DocumentProcessingHandler(ITaskHandler):
             )
 
             # 更新文件状态
-            await self._update_file_status(file_id, "processing", "RAG处理中: 创建管道组件")
+            await self._update_file_status(
+                file_id, "processing", "RAG处理中: 创建管道组件"
+            )
 
             # 创建RAG管道组件
-            from ...services.rag_service import create_embedding_service, create_vector_store
+            from ...services.rag_service import (
+                create_embedding_service,
+                create_vector_store,
+            )
 
             # 更新进度: 创建组件
             await self._update_progress("创建RAG管道组件", 10, 100)
@@ -103,7 +118,8 @@ class DocumentProcessingHandler(ITaskHandler):
             document_processor = ChunkingProcessor(module_config)
 
             embedding_service = create_embedding_service(
-                provider=EmbeddingProvider(embedding_provider), **config.get("embedding_config", {})
+                provider=EmbeddingProvider(embedding_provider),
+                **config.get("embedding_config", {}),
             )
 
             vector_store = create_vector_store(
@@ -122,7 +138,9 @@ class DocumentProcessingHandler(ITaskHandler):
 
             # 更新进度: 初始化管道
             await self._update_progress("初始化处理管道", 20, 100)
-            await self._update_file_status(file_id, "processing", "RAG处理中: 初始化处理管道")
+            await self._update_file_status(
+                file_id, "processing", "RAG处理中: 初始化处理管道"
+            )
 
             # 初始化管道
             await pipeline.initialize()
@@ -143,7 +161,9 @@ class DocumentProcessingHandler(ITaskHandler):
 
             # 更新进度: 开始处理
             await self._update_progress("开始文档处理", 30, 100)
-            await self._update_file_status(file_id, "processing", "RAG处理中: 文档解析和分块")
+            await self._update_file_status(
+                file_id, "processing", "RAG处理中: 文档解析和分块"
+            )
 
             # 执行处理
             result = await pipeline.process_document(request)
@@ -193,14 +213,18 @@ class DocumentProcessingHandler(ITaskHandler):
             if not processing_result["success"]:
                 processing_result["error"] = result.error_message
 
-            logger.info(f"RAG文档处理完成: {file_id}, 成功: {processing_result['success']}")
+            logger.info(
+                f"RAG文档处理完成: {file_id}, 成功: {processing_result['success']}"
+            )
             return processing_result
 
         except Exception as e:
             logger.error(f"RAG文档处理失败: {file_id}, {e}")
 
             # 更新文件状态为失败
-            await self._update_file_status(file_id, "failed", "RAG处理失败", error_message=str(e))
+            await self._update_file_status(
+                file_id, "failed", "RAG处理失败", error_message=str(e)
+            )
 
             return {
                 "success": False,
@@ -226,7 +250,11 @@ class DocumentProcessingHandler(ITaskHandler):
             logger.debug(f"进度更新失败: {e}")
 
     async def _update_file_status(
-        self, file_id: str, status: str, processing_status: str, error_message: Optional[str] = None
+        self,
+        file_id: str,
+        status: str,
+        processing_status: str,
+        error_message: Optional[str] = None,
     ):
         """更新文件处理状态"""
         try:
@@ -265,7 +293,11 @@ class EmbeddingGenerationHandler(ITaskHandler):
     @log_execution_time(threshold_ms=500)
     @log_errors()
     async def handle(
-        self, texts: List[str], provider: str = "openai", model_name: Optional[str] = None, **config
+        self,
+        texts: List[str],
+        provider: str = "openai",
+        model_name: Optional[str] = None,
+        **config,
     ) -> Dict[str, Any]:
         """
         生成文本嵌入向量
@@ -331,7 +363,11 @@ class EmbeddingGenerationHandler(ITaskHandler):
 
 
 @task_handler(
-    "rag.store_vectors", priority=TaskPriority.NORMAL, max_retries=3, timeout=180, queue="rag_queue"
+    "rag.store_vectors",
+    priority=TaskPriority.NORMAL,
+    max_retries=3,
+    timeout=180,
+    queue="rag_queue",
 )
 @register_task_handler
 class VectorStorageHandler(ITaskHandler):
@@ -484,11 +520,15 @@ class SemanticSearchHandler(ITaskHandler):
 
             from ...rag.embedding import EmbeddingProvider
             from ...rag.vector_store import SearchFilter, VectorStoreProvider
-            from ...services.rag_service import create_embedding_service, create_vector_store
+            from ...services.rag_service import (
+                create_embedding_service,
+                create_vector_store,
+            )
 
             # 创建嵌入服务
             embedding_service = create_embedding_service(
-                provider=EmbeddingProvider(embedding_provider), **config.get("embedding_config", {})
+                provider=EmbeddingProvider(embedding_provider),
+                **config.get("embedding_config", {}),
             )
 
             # 创建向量存储服务
@@ -714,8 +754,9 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
 
                 try:
                     # 使用工厂模式加载文档
+                    from modules.schemas.enums import ContentType
+
                     from ...file_loader import detect_content_type, load_document
-                    from ...schemas.enums import ContentType
 
                     # 转换内容类型
                     try:
@@ -730,7 +771,9 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                     )
 
                     # 初始化RAG管道
-                    await self._initialize_rag_pipeline(embedding_provider, vector_store_provider)
+                    await self._initialize_rag_pipeline(
+                        embedding_provider, vector_store_provider
+                    )
 
                     # 处理文档
                     result = await self._process_with_rag_pipeline(
@@ -798,7 +841,9 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                 "task_type": "rag.process_document_async",
             }
 
-    async def _download_file_to_temp(self, storage, file_path: str, file_id: str) -> str:
+    async def _download_file_to_temp(
+        self, storage, file_path: str, file_id: str
+    ) -> str:
         """从存储中下载文件到临时目录"""
         import os
         import tempfile
@@ -807,7 +852,9 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
 
         # 创建临时文件
         suffix = os.path.splitext(file_path)[1] or ".tmp"
-        temp_fd, temp_file_path = tempfile.mkstemp(suffix=suffix, prefix=f"rag_async_{file_id}_")
+        temp_fd, temp_file_path = tempfile.mkstemp(
+            suffix=suffix, prefix=f"rag_async_{file_id}_"
+        )
         os.close(temp_fd)
 
         try:
@@ -827,7 +874,9 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                 os.remove(temp_file_path)
             raise Exception(f"下载文件到临时目录失败: {e}")
 
-    async def _initialize_rag_pipeline(self, embedding_provider: str, vector_store_provider: str):
+    async def _initialize_rag_pipeline(
+        self, embedding_provider: str, vector_store_provider: str
+    ):
         """初始化RAG管道"""
         try:
             # 这里简化处理，实际可以根据需要初始化完整的RAG管道
@@ -877,7 +926,9 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                 "error": str(e),
             }
 
-    async def _update_document_metadata(self, document_id: str, metadata: Dict[str, Any]):
+    async def _update_document_metadata(
+        self, document_id: str, metadata: Dict[str, Any]
+    ):
         """更新文档元数据"""
         try:
             from config import get_config
@@ -900,18 +951,26 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                     current_metadata = document.doc_metadata or {}
                     current_metadata.update(
                         {
-                            "rag_processing_status": metadata.get("status", "completed"),
+                            "rag_processing_status": metadata.get(
+                                "status", "completed"
+                            ),
                             "rag_chunks_created": metadata.get("chunks_created", 0),
-                            "rag_embeddings_generated": metadata.get("embeddings_generated", 0),
+                            "rag_embeddings_generated": metadata.get(
+                                "embeddings_generated", 0
+                            ),
                             "rag_vectors_stored": metadata.get("vectors_stored", 0),
-                            "rag_processing_time_ms": metadata.get("processing_time_ms", 0),
+                            "rag_processing_time_ms": metadata.get(
+                                "processing_time_ms", 0
+                            ),
                             "rag_processed_at": datetime.utcnow().isoformat(),
                             **metadata,
                         }
                     )
 
                     # 更新文档
-                    await doc_repo.update_document_metadata(document_id, current_metadata)
+                    await doc_repo.update_document_metadata(
+                        document_id, current_metadata
+                    )
                     await session.commit()
 
                     logger.info(f"文档元数据已更新: {document_id}")

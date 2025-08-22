@@ -8,7 +8,16 @@ import asyncio
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from logging_system import get_logger, log_context, log_errors, log_execution_time
@@ -34,7 +43,9 @@ router = APIRouter(prefix="/files", tags=["files"])
 logger = get_logger(__name__)
 
 
-async def _submit_task_async(task_service: CeleryTaskService, task_name: str, **kwargs) -> None:
+async def _submit_task_async(
+    task_service: CeleryTaskService, task_name: str, **kwargs
+) -> None:
     """
     异步提交任务的后台函数，不阻塞主流程
 
@@ -52,7 +63,9 @@ async def _submit_task_async(task_service: CeleryTaskService, task_name: str, **
 
 
 # 依赖注入
-async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> FileService:
+async def get_file_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> FileService:
     """获取文件服务实例"""
     from config import get_config
 
@@ -67,7 +80,9 @@ async def get_file_service(session: AsyncSession = Depends(get_db_session)) -> F
     return FileService(session, storage)
 
 
-async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> CeleryTaskService:
+async def get_task_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> CeleryTaskService:
     """获取任务服务实例"""
     from config import get_config
 
@@ -79,7 +94,9 @@ async def get_task_service(session: AsyncSession = Depends(get_db_session)) -> C
     )
 
 
-@router.post("/upload/signed-url", response_model=APIResponse, summary="获取文件上传签名URL")
+@router.post(
+    "/upload/signed-url", response_model=APIResponse, summary="获取文件上传签名URL"
+)
 @log_execution_time(threshold_ms=200)
 @log_errors()
 async def generate_upload_url(
@@ -128,12 +145,16 @@ async def generate_upload_url(
     """
     try:
         with log_context(
-            request_id=str(uuid.uuid4()), operation="generate_upload_url", component="file_api"
+            request_id=str(uuid.uuid4()),
+            operation="generate_upload_url",
+            component="file_api",
         ):
             async with service:
                 upload_response = await service.generate_upload_url(request)
 
-            return APIResponse(success=True, message="上传URL生成成功", data=upload_response)
+            return APIResponse(
+                success=True, message="上传URL生成成功", data=upload_response
+            )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -204,7 +225,9 @@ async def confirm_upload(
                 )
             )
 
-            return APIResponse(success=True, message="文件上传确认成功", data=confirm_response)
+            return APIResponse(
+                success=True, message="文件上传确认成功", data=confirm_response
+            )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -229,7 +252,9 @@ async def get_file(file_id: str, service: FileService = Depends(get_file_service
 
 @router.put("/{file_id}", response_model=APIResponse)
 async def update_file(
-    file_id: str, file_data: FileUpdate, service: FileService = Depends(get_file_service)
+    file_id: str,
+    file_data: FileUpdate,
+    service: FileService = Depends(get_file_service),
 ):
     """更新文件信息"""
     try:
@@ -274,7 +299,11 @@ async def list_files(
     try:
         async with service:
             file_list = await service.list_files(
-                page=page, page_size=page_size, topic_id=topic_id, status=status, user_id=user_id
+                page=page,
+                page_size=page_size,
+                topic_id=topic_id,
+                status=status,
+                user_id=user_id,
             )
 
             return APIResponse(success=True, data=file_list)
@@ -318,7 +347,9 @@ async def search_files(
 
 
 @router.get("/{file_id}/download-url", response_model=APIResponse)
-async def get_file_download_url(file_id: str, service: FileService = Depends(get_file_service)):
+async def get_file_download_url(
+    file_id: str, service: FileService = Depends(get_file_service)
+):
     """获取文件下载URL"""
     try:
         async with service:

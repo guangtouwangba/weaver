@@ -17,9 +17,13 @@ class TopicSchema(BaseSchema, TimestampMixin):
 
     id: Optional[int] = Field(default=None, description="主题ID")
     name: str = Field(min_length=1, max_length=200, description="主题名称")
-    description: Optional[str] = Field(default="", max_length=1000, description="主题描述")
+    description: Optional[str] = Field(
+        default="", max_length=1000, description="主题描述"
+    )
     status: TopicStatus = Field(default=TopicStatus.ACTIVE, description="主题状态")
-    category: Optional[str] = Field(default=None, max_length=100, description="主题分类")
+    category: Optional[str] = Field(
+        default=None, max_length=100, description="主题分类"
+    )
     user_id: Optional[int] = Field(default=None, description="用户ID")
     conversation_id: Optional[str] = Field(default=None, description="对话ID")
     parent_topic_id: Optional[int] = Field(default=None, description="父主题ID")
@@ -36,9 +40,15 @@ class TopicCreate(BaseSchema):
     """创建主题请求Schema"""
 
     name: str = Field(min_length=1, max_length=200, description="主题名称")
-    description: Optional[str] = Field(default="", max_length=1000, description="主题描述")
-    category: Optional[str] = Field(default=None, max_length=100, description="主题分类")
-    status: Optional[TopicStatus] = Field(default=TopicStatus.ACTIVE, description="主题状态")
+    description: Optional[str] = Field(
+        default="", max_length=1000, description="主题描述"
+    )
+    category: Optional[str] = Field(
+        default=None, max_length=100, description="主题分类"
+    )
+    status: Optional[TopicStatus] = Field(
+        default=TopicStatus.ACTIVE, description="主题状态"
+    )
     topic_status: Optional[TopicStatus] = Field(
         default=None, description="主题状态(兼容字段)", exclude=True
     )
@@ -69,10 +79,16 @@ class TopicCreate(BaseSchema):
 class TopicUpdate(BaseSchema):
     """更新主题请求Schema"""
 
-    name: Optional[str] = Field(default=None, min_length=1, max_length=200, description="主题名称")
-    description: Optional[str] = Field(default=None, max_length=1000, description="主题描述")
+    name: Optional[str] = Field(
+        default=None, min_length=1, max_length=200, description="主题名称"
+    )
+    description: Optional[str] = Field(
+        default=None, max_length=1000, description="主题描述"
+    )
     status: Optional[TopicStatus] = Field(default=None, description="主题状态")
-    category: Optional[str] = Field(default=None, max_length=100, description="主题分类")
+    category: Optional[str] = Field(
+        default=None, max_length=100, description="主题分类"
+    )
     settings: Optional[Dict[str, Any]] = Field(default=None, description="主题设置")
 
 

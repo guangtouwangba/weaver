@@ -15,7 +15,9 @@ from pydantic import ValidationError
 logger = logging.getLogger(__name__)
 
 
-async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError) -> JSONResponse:
+async def unicode_decode_error_handler(
+    request: Request, exc: UnicodeDecodeError
+) -> JSONResponse:
     """Handle Unicode decode errors"""
     logger.warning(f"Unicode decode error at {request.url}: {exc}")
 

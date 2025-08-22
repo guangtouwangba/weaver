@@ -31,8 +31,9 @@ except ImportError:
     HAS_PYPDF2 = False
     PyPDF2 = None
 
-from ..models import Document, create_document_from_path
-from ..schemas.enums import ContentType
+from modules.models import Document, create_document_from_path
+from modules.schemas.enums import ContentType
+
 from .base import FileLoaderError, IFileLoader
 
 logger = logging.getLogger(__name__)
@@ -103,7 +104,9 @@ class PDFFileLoader(IFileLoader):
                     doc = fitz.open(file_path)
                     page_count = len(doc)
                     doc.close()
-                    logger.debug(f"PDF validation successful: {file_path} ({page_count} pages)")
+                    logger.debug(
+                        f"PDF validation successful: {file_path} ({page_count} pages)"
+                    )
                     return True
                 except Exception as e:
                     logger.error(f"PDF format validation failed (pymupdf): {e}")
@@ -113,13 +116,17 @@ class PDFFileLoader(IFileLoader):
                     with open(file_path, "rb") as file:
                         pdf_reader = PyPDF2.PdfReader(file)
                         page_count = len(pdf_reader.pages)
-                        logger.debug(f"PDF validation successful: {file_path} ({page_count} pages)")
+                        logger.debug(
+                            f"PDF validation successful: {file_path} ({page_count} pages)"
+                        )
                         return True
                 except Exception as e:
                     logger.error(f"PDF format validation failed (PyPDF2): {e}")
                     return False
             else:
-                logger.warning("No available PDF processing library, skip PDF format validation")
+                logger.warning(
+                    "No available PDF processing library, skip PDF format validation"
+                )
                 return True
 
         except Exception as e:
@@ -163,7 +170,9 @@ class PDFFileLoader(IFileLoader):
                     "loader": self.loader_name,
                     "file_size": path.stat().st_size,
                     "extraction_method": (
-                        "pymupdf" if HAS_PYMUPDF else ("PyPDF2" if HAS_PYPDF2 else "placeholder")
+                        "pymupdf"
+                        if HAS_PYMUPDF
+                        else ("PyPDF2" if HAS_PYPDF2 else "placeholder")
                     ),
                     **pdf_metadata,
                     **(metadata or {}),
@@ -195,7 +204,9 @@ class PDFFileLoader(IFileLoader):
                 # Continue processing other documents, do not interrupt entire batch
                 continue
 
-        logger.info(f"PDF batch loading completed: {len(documents)}/{len(requests)} successful")
+        logger.info(
+            f"PDF batch loading completed: {len(documents)}/{len(requests)} successful"
+        )
         return documents
 
     async def _extract_pdf_content(self, path: Path) -> str:
@@ -209,7 +220,9 @@ class PDFFileLoader(IFileLoader):
         elif HAS_PYPDF2:
             return await self._extract_content_with_pypdf2(path)
         else:
-            logger.warning("No PDF processing library installed, return placeholder content")
+            logger.warning(
+                "No PDF processing library installed, return placeholder content"
+            )
             return f"[PDF content placeholder: {path.name}]\n\nThis PDF file requires PDF processing library to extract content. Please install: pip install pymupdf or pip install PyPDF2"
 
     async def _extract_content_with_pymupdf(self, path: Path) -> str:
@@ -234,7 +247,9 @@ class PDFFileLoader(IFileLoader):
             content = await loop.run_in_executor(None, extract_text)
 
             if not content.strip():
-                logger.warning(f"PDF file appears to have no extractable text content: {path}")
+                logger.warning(
+                    f"PDF file appears to have no extractable text content: {path}"
+                )
                 return f"[PDF file {path.name} has no extractable text content]"
 
             return content
@@ -255,7 +270,9 @@ class PDFFileLoader(IFileLoader):
                     for page_num, page in enumerate(pdf_reader.pages):
                         text = page.extract_text()
                         if text.strip():  # Only add non-empty pages
-                            text_parts.append(f"--- Page {page_num + 1} pages ---\n{text}")
+                            text_parts.append(
+                                f"--- Page {page_num + 1} pages ---\n{text}"
+                            )
 
                 return "\n\n".join(text_parts)
 
@@ -264,7 +281,9 @@ class PDFFileLoader(IFileLoader):
             content = await loop.run_in_executor(None, extract_text)
 
             if not content.strip():
-                logger.warning(f"PDF file appears to have no extractable text content: {path}")
+                logger.warning(
+                    f"PDF file appears to have no extractable text content: {path}"
+                )
                 return f"[PDF file {path.name} has no extractable text content]"
 
             return content
@@ -343,25 +362,39 @@ class PDFFileLoader(IFileLoader):
                     return {
                         "pdf_pages": page_count,
                         "pdf_title": (
-                            str(metadata.get("/Title", path.stem)) if metadata else path.stem
+                            str(metadata.get("/Title", path.stem))
+                            if metadata
+                            else path.stem
                         ),
                         "pdf_author": (
-                            str(metadata.get("/Author", "unknown")) if metadata else "unknown"
+                            str(metadata.get("/Author", "unknown"))
+                            if metadata
+                            else "unknown"
                         ),
                         "pdf_subject": (
-                            str(metadata.get("/Subject", "unknown")) if metadata else "unknown"
+                            str(metadata.get("/Subject", "unknown"))
+                            if metadata
+                            else "unknown"
                         ),
                         "pdf_creator": (
-                            str(metadata.get("/Creator", "unknown")) if metadata else "unknown"
+                            str(metadata.get("/Creator", "unknown"))
+                            if metadata
+                            else "unknown"
                         ),
                         "pdf_producer": (
-                            str(metadata.get("/Producer", "unknown")) if metadata else "unknown"
+                            str(metadata.get("/Producer", "unknown"))
+                            if metadata
+                            else "unknown"
                         ),
                         "pdf_creation_date": (
-                            str(metadata.get("/CreationDate", "unknown")) if metadata else "unknown"
+                            str(metadata.get("/CreationDate", "unknown"))
+                            if metadata
+                            else "unknown"
                         ),
                         "pdf_modification_date": (
-                            str(metadata.get("/ModDate", "unknown")) if metadata else "unknown"
+                            str(metadata.get("/ModDate", "unknown"))
+                            if metadata
+                            else "unknown"
                         ),
                         "extraction_method": "PyPDF2",
                     }

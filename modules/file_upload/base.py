@@ -35,7 +35,10 @@ class IFileUploadService(ABC):
 
     @abstractmethod
     async def confirm_upload(
-        self, file_id: str, actual_size: Optional[int] = None, file_hash: Optional[str] = None
+        self,
+        file_id: str,
+        actual_size: Optional[int] = None,
+        file_hash: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         确认文件上传完成
