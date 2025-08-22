@@ -11,13 +11,13 @@ Contains various async task handlers for the RAG system:
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from logging_system import get_logger, log_errors, log_execution_time, request_context, task_context
+from logging_system import get_logger, log_errors, log_execution_time, task_context
 
 from ...rag.embedding import EmbeddingProvider
 from ...rag.pipeline import DocumentProcessingRequest, PipelineConfig, PipelineStatus
-from ...rag.vector_store import VectorDocument, VectorStoreProvider
+from ...rag.vector_store import VectorStoreProvider
 from ...services.task_service import register_task_handler, task_handler
-from ..base import ITaskHandler, TaskConfig, TaskPriority, TaskProgress
+from ..base import ITaskHandler, TaskPriority, TaskProgress
 
 logger = get_logger(__name__)
 
@@ -94,7 +94,10 @@ class DocumentProcessingHandler(ITaskHandler):
             await self._update_file_status(file_id, "processing", "RAG处理中: 创建管道组件")
 
             # 创建RAG管道组件
-            from ...services.rag_service import create_embedding_service, create_vector_store
+            from ...services.rag_service import (
+                create_embedding_service,
+                create_vector_store,
+            )
 
             # 更新进度: 创建组件
             await self._update_progress("创建RAG管道组件", 10, 100)
@@ -484,7 +487,10 @@ class SemanticSearchHandler(ITaskHandler):
 
             from ...rag.embedding import EmbeddingProvider
             from ...rag.vector_store import SearchFilter, VectorStoreProvider
-            from ...services.rag_service import create_embedding_service, create_vector_store
+            from ...services.rag_service import (
+                create_embedding_service,
+                create_vector_store,
+            )
 
             # 创建嵌入服务
             embedding_service = create_embedding_service(

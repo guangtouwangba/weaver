@@ -15,7 +15,6 @@ logger = get_logger(__name__)
 class StorageError(Exception):
     """存储操作异常"""
 
-    pass
 
 
 class IStorage(ABC):
@@ -36,7 +35,6 @@ class IStorage(ABC):
         Returns:
             包含签名URL和相关信息的字典
         """
-        pass
 
     @abstractmethod
     async def generate_signed_download_url(self, file_key: str, expires_in: int = 3600) -> str:
@@ -50,7 +48,6 @@ class IStorage(ABC):
         Returns:
             签名下载URL
         """
-        pass
 
     @abstractmethod
     async def upload_file(
@@ -72,7 +69,6 @@ class IStorage(ABC):
         Returns:
             文件访问URL
         """
-        pass
 
     @abstractmethod
     async def delete_file(self, file_key: str) -> bool:
@@ -85,7 +81,6 @@ class IStorage(ABC):
         Returns:
             是否删除成功
         """
-        pass
 
     @abstractmethod
     async def file_exists(self, file_key: str) -> bool:
@@ -98,7 +93,6 @@ class IStorage(ABC):
         Returns:
             文件是否存在
         """
-        pass
 
     @abstractmethod
     async def get_file_info(self, file_key: str) -> Optional[Dict[str, Any]]:
@@ -111,7 +105,6 @@ class IStorage(ABC):
         Returns:
             文件信息字典或None
         """
-        pass
 
     @abstractmethod
     async def read_file(self, file_key: str) -> bytes:
@@ -127,7 +120,6 @@ class IStorage(ABC):
         Raises:
             StorageError: 文件不存在或读取失败
         """
-        pass
 
 
 def create_storage_service() -> IStorage:

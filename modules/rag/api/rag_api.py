@@ -7,13 +7,12 @@ RAG API 实现
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from ...api.base import APIError, IModularAPI
 from ...file_loader import MultiFormatFileLoader
 from ...models import (
     ChunkingStrategy,
-    ContentType,
     OrchestrationRequest,
     ProcessingStatus,
     SearchRequest,

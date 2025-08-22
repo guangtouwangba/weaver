@@ -5,7 +5,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from ..models import Document, FileLoadRequest
 from ..schemas.enums import ContentType
@@ -39,7 +39,6 @@ class IFileLoader(ABC):
         Raises:
             FileLoaderError: 文件加载失败时抛出
         """
-        pass
 
     @abstractmethod
     def supports_content_type(self, content_type: ContentType) -> bool:
@@ -52,7 +51,6 @@ class IFileLoader(ABC):
         Returns:
             bool: 是否支持
         """
-        pass
 
     @abstractmethod
     async def validate_file(self, file_path: str) -> bool:
@@ -65,7 +63,6 @@ class IFileLoader(ABC):
         Returns:
             bool: 文件是否有效
         """
-        pass
 
     @property
     @abstractmethod
@@ -76,4 +73,3 @@ class IFileLoader(ABC):
         Returns:
             str: 加载器名称
         """
-        pass

@@ -111,7 +111,6 @@ class ModuleConfig:
 class ModuleInterface:
     """模块接口基类"""
 
-    pass
 
 
 # 处理状态枚举
@@ -220,13 +219,11 @@ def create_document_from_path(file_path: str, content: str, content_type: str = 
 class FileLoaderError(Exception):
     """文件加载异常"""
 
-    pass
 
 
 class DocumentProcessorError(Exception):
     """文档处理异常"""
 
-    pass
 
 
 # API请求响应模型 (Pydantic)

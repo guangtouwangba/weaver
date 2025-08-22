@@ -10,13 +10,12 @@ RAGService implementation
 import asyncio
 import logging
 import time
-from datetime import datetime
 from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import uuid4
 
 # Other dependencies
 from ..file_loader import IFileLoader
-from ..models import Document, DocumentChunk, FileLoadRequest
+from ..models import FileLoadRequest
 
 # RAG interfaces
 from ..rag.embedding import (
@@ -31,7 +30,6 @@ from ..rag.pipeline import (
     DocumentProcessingResult,
     IDocumentPipeline,
     PipelineConfig,
-    PipelineError,
     PipelineStatus,
     ProcessingProgress,
     ProcessingStage,
@@ -43,7 +41,6 @@ from ..rag.vector_store import (
     IVectorStore,
     SearchFilter,
     SearchResult,
-    SimilarityMetric,
     VectorDocument,
     VectorStoreConfig,
     VectorStoreError,
@@ -288,8 +285,7 @@ class WeaviateVectorStore(IVectorStore):
             # Try to determine Weaviate client version/compatibility
             try:
                 # Try v4 client initialization first
-                import weaviate.classes as wvc
-                from weaviate.classes.init import Auth
+                pass
 
                 # Parse connection string to extract host and port
                 connection_url = self._config.connection_string
@@ -653,7 +649,7 @@ class DocumentPipelineService(IDocumentPipeline):
                 file_path=request.file_path,
                 content_type=request.content_type,
             )
-            document = await self._file_loader.load_document(h)
+            document = await self._file_loader.load_document(file_load_request)
             stage_time = (time.time() - stage_start) * 1000
 
             stage_results.append(

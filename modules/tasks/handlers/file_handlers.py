@@ -13,18 +13,14 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from ... import schemas
 from ...file_loader.factory import FileLoaderFactory
 from ...models import Document, FileLoadRequest
-from ...schemas.document import DocumentCreate
 from ...schemas.enums import ContentType
-from ...services.document_service import DocumentService
 from ...services.task_service import register_task_handler, task_handler
-from ...storage import IStorage, LocalStorage, MinIOStorage
+from ...storage import IStorage
 from ...storage.base import create_storage_service
-from ..base import ITaskHandler, TaskConfig, TaskPriority
+from ..base import ITaskHandler, TaskPriority
 
 logger = logging.getLogger(__name__)
 
@@ -395,11 +391,8 @@ class FileUploadCompleteHandler(ITaskHandler):
         metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Helper method to create document using synchronous SQLAlchemy in worker context"""
-        import json
-        from uuid import uuid4
 
-        import sqlalchemy as sa
-        from sqlalchemy import create_engine, text
+        from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 
         from config import get_config

@@ -7,7 +7,7 @@
 import asyncio
 import logging
 import math
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from ...models import (
     ChunkingStrategy,
@@ -56,7 +56,6 @@ class ChunkingProcessor(IDocumentProcessor):
     async def initialize(self):
         """Initialize the chunking processor"""
         # All components are already initialized in __init__, nothing more needed
-        pass
 
     @property
     def processor_name(self) -> str:

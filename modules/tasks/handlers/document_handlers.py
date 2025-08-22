@@ -4,7 +4,6 @@
 专门处理文档创建相关的任务，与RAG处理完全分离
 """
 
-import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -12,7 +11,6 @@ from uuid import uuid4
 
 from logging_system import task_context
 
-from ...schemas.enums import ContentType
 from ...services.task_service import register_task_handler, task_handler
 from ..base import ITaskHandler, TaskPriority
 from ..decorators import log_execution_time
@@ -103,7 +101,6 @@ class DocumentCreateHandler(ITaskHandler):
         self, file_id: str, document_data: Dict[str, Any], metadata: Dict[str, Any]
     ) -> str:
         """使用同步SQLAlchemy创建文档记录"""
-        import sqlalchemy as sa
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 
@@ -261,7 +258,6 @@ class DocumentMetadataUpdateHandler(ITaskHandler):
 
     async def _update_metadata_sync(self, document_id: str, metadata_updates: Dict[str, Any]):
         """使用同步SQLAlchemy更新文档元数据"""
-        import sqlalchemy as sa
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 

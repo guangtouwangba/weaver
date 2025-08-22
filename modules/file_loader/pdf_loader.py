@@ -7,10 +7,8 @@ Supports text extraction, metadata extraction, and error handling.
 
 import asyncio
 import logging
-import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .factory import register_file_loader
 
@@ -371,10 +369,10 @@ class PDFFileLoader(IFileLoader):
 
         except Exception as e:
             logger.error(f"Failed to extract PDF metadata using PyPDF2: {e}")
-        return {
-            "pdf_pages": "error",
-            "pdf_author": "error",
-            "pdf_title": path.stem,
-            "extraction_method": "PyPDF2_error",
-            "error": str(e),
-        }
+            return {
+                "pdf_pages": "error",
+                "pdf_author": "error",
+                "pdf_title": path.stem,
+                "extraction_method": "PyPDF2_error",
+                "error": str(e),
+            }

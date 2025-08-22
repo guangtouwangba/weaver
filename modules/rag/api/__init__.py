@@ -6,7 +6,6 @@ RAG API模块
 - rag_api: RAG核心API实现
 """
 
-from .document_api import *
 
 # TODO: from .rag_api import RagAPI, APIError
 

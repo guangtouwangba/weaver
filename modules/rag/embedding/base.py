@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 
 class EmbeddingProvider(Enum):
@@ -88,12 +88,10 @@ class IEmbeddingService(ABC):
         Raises:
             EmbeddingError: 初始化失败时抛出
         """
-        pass
 
     @abstractmethod
     async def cleanup(self) -> None:
         """清理嵌入服务资源"""
-        pass
 
     @abstractmethod
     async def generate_embeddings(self, texts: List[str]) -> EmbeddingResult:
@@ -109,7 +107,6 @@ class IEmbeddingService(ABC):
         Raises:
             EmbeddingError: 嵌入生成失败时抛出
         """
-        pass
 
     @abstractmethod
     async def generate_single_embedding(self, text: str) -> List[float]:
@@ -125,7 +122,6 @@ class IEmbeddingService(ABC):
         Raises:
             EmbeddingError: 嵌入生成失败时抛出
         """
-        pass
 
     @abstractmethod
     async def get_embedding_dimension(self) -> int:
@@ -135,7 +131,6 @@ class IEmbeddingService(ABC):
         Returns:
             int: 向量维度
         """
-        pass
 
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
@@ -145,7 +140,6 @@ class IEmbeddingService(ABC):
         Returns:
             Dict[str, Any]: 健康状态信息
         """
-        pass
 
     @property
     @abstractmethod
@@ -156,7 +150,6 @@ class IEmbeddingService(ABC):
         Returns:
             str: 服务名称
         """
-        pass
 
     @property
     @abstractmethod
@@ -167,7 +160,6 @@ class IEmbeddingService(ABC):
         Returns:
             EmbeddingConfig: 配置对象
         """
-        pass
 
     @property
     @abstractmethod
@@ -178,4 +170,3 @@ class IEmbeddingService(ABC):
         Returns:
             List[str]: 支持的语言代码列表
         """
-        pass

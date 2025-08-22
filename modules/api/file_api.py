@@ -8,7 +8,7 @@ import asyncio
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from logging_system import get_logger, log_context, log_errors, log_execution_time
@@ -18,17 +18,13 @@ from ..database import get_db_session
 from ..schemas import (
     APIResponse,
     ConfirmUploadRequest,
-    ConfirmUploadResponse,
-    FileList,
-    FileResponse,
     FileStatus,
     FileUpdate,
     UploadUrlRequest,
-    UploadUrlResponse,
 )
 from ..services import FileService
 from ..services.task_service import CeleryTaskService
-from ..storage import IStorage, MinIOStorage
+from ..storage import MinIOStorage
 
 router = APIRouter(prefix="/files", tags=["files"])
 logger = get_logger(__name__)

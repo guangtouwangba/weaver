@@ -8,12 +8,12 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_session
-from ..services.workflow_service import WorkflowService, create_workflow_service
+from ..services.workflow_service import WorkflowService
 
 
 # 定义基础响应模型

@@ -4,7 +4,6 @@
 提供完整的文件上传管理功能。
 """
 
-from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -13,7 +12,7 @@ from logging_system import get_logger, log_errors, log_execution_time
 from ..database import get_session
 from ..repository import FileRepository
 from ..schemas.enums import FileStatus
-from ..storage import IStorage, MinIOStorage, MockStorage
+from ..storage import IStorage, MinIOStorage
 from ..tasks.base import ITaskService, TaskPriority
 from .base import IFileUploadService
 

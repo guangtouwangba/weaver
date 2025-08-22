@@ -5,15 +5,13 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from ...models import (
     Document,
     DocumentChunk,
     OrchestrationRequest,
     OrchestrationResult,
-    ProcessingRequest,
-    ProcessingResult,
     SearchRequest,
     SearchResult,
 )
@@ -56,7 +54,6 @@ class IOrchestrator(ABC):
         Raises:
             OrchestrationError: 编排失败时抛出
         """
-        pass
 
     @abstractmethod
     async def search_documents(self, request: SearchRequest) -> SearchResult:
@@ -72,7 +69,6 @@ class IOrchestrator(ABC):
         Raises:
             OrchestrationError: 搜索失败时抛出
         """
-        pass
 
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
@@ -82,7 +78,6 @@ class IOrchestrator(ABC):
         Returns:
             Dict[str, Any]: 各模块健康状态
         """
-        pass
 
     @abstractmethod
     async def get_document_by_id(self, document_id: str) -> Optional[Document]:
@@ -95,7 +90,6 @@ class IOrchestrator(ABC):
         Returns:
             Optional[Document]: 文档对象，如果不存在返回None
         """
-        pass
 
     @abstractmethod
     async def get_chunks_by_document_id(self, document_id: str) -> List[DocumentChunk]:
@@ -108,7 +102,6 @@ class IOrchestrator(ABC):
         Returns:
             List[DocumentChunk]: 文档块列表
         """
-        pass
 
     @abstractmethod
     async def delete_document(self, document_id: str) -> bool:
@@ -121,7 +114,6 @@ class IOrchestrator(ABC):
         Returns:
             bool: 删除是否成功
         """
-        pass
 
     @abstractmethod
     async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
@@ -135,7 +127,6 @@ class IOrchestrator(ABC):
         Returns:
             bool: 更新是否成功
         """
-        pass
 
     @property
     @abstractmethod
@@ -146,7 +137,6 @@ class IOrchestrator(ABC):
         Returns:
             str: 编排器名称
         """
-        pass
 
     @property
     @abstractmethod
@@ -157,4 +147,3 @@ class IOrchestrator(ABC):
         Returns:
             List[str]: 支持的操作列表
         """
-        pass

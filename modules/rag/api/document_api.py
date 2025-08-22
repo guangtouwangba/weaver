@@ -13,13 +13,9 @@ from ...database import get_db_session
 from ...schemas import (
     APIResponse,
     DocumentCreate,
-    DocumentList,
-    DocumentResponse,
     DocumentUpdate,
     ProcessingRequest,
-    ProcessingResult,
     SearchRequest,
-    SearchResponse,
 )
 from ...services import DocumentService
 

@@ -4,12 +4,11 @@ Router Interface
 Defines the contract for routing and orchestration implementations.
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import AsyncIterator, List, Optional
 
 from ...models import (
     Document,
-    ModuleConfig,
     ModuleInterface,
     ProcessingResult,
     SearchQuery,
@@ -42,7 +41,6 @@ class IRouter(ModuleInterface):
         Raises:
             RouterError: If ingestion fails
         """
-        pass
 
     @abstractmethod
     async def ingest_documents_batch(
@@ -57,7 +55,6 @@ class IRouter(ModuleInterface):
         Yields:
             ProcessingResult: Result for each document ingestion
         """
-        pass
 
     @abstractmethod
     async def search_documents(self, query: SearchQuery) -> SearchResponse:
@@ -73,7 +70,6 @@ class IRouter(ModuleInterface):
         Raises:
             RouterError: If search fails
         """
-        pass
 
     @abstractmethod
     async def get_document_by_id(self, document_id: str) -> Document:
@@ -89,7 +85,6 @@ class IRouter(ModuleInterface):
         Raises:
             RouterError: If document not found or retrieval fails
         """
-        pass
 
     @abstractmethod
     async def delete_document(self, document_id: str) -> bool:
@@ -105,4 +100,3 @@ class IRouter(ModuleInterface):
         Raises:
             RouterError: If deletion fails
         """
-        pass

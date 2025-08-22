@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..tasks.orchestrator import TaskDefinition, WorkflowDefinition, orchestrator
+from ..tasks.orchestrator import WorkflowDefinition, orchestrator
 from .base_service import BaseService
 
 # Schema imports will be added when needed

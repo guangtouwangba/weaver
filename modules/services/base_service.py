@@ -5,8 +5,7 @@
 """
 
 import logging
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from abc import ABC
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

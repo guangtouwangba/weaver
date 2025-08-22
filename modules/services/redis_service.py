@@ -4,17 +4,14 @@ RedisService implementation
 提供统一的Redis连接管理和操作接口，支持单实例、集群、哨兵等多种部署模式。
 """
 
-import asyncio
 import json
 import logging
 import pickle
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 try:
     import redis.asyncio as redis
-    from redis.exceptions import ConnectionError, RedisError, TimeoutError
 
     REDIS_AVAILABLE = True
 except ImportError:
@@ -38,117 +35,94 @@ class IRedisService(ABC):
     @abstractmethod
     async def get(self, key: str) -> Optional[Any]:
         """获取键值"""
-        pass
 
     @abstractmethod
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """设置键值"""
-        pass
 
     @abstractmethod
     async def delete(self, *keys: str) -> int:
         """删除键"""
-        pass
 
     @abstractmethod
     async def exists(self, *keys: str) -> int:
         """检查键是否存在"""
-        pass
 
     @abstractmethod
     async def expire(self, key: str, ttl: int) -> bool:
         """设置键过期时间"""
-        pass
 
     @abstractmethod
     async def ttl(self, key: str) -> int:
         """获取键剩余存活时间"""
-        pass
 
     @abstractmethod
     async def incr(self, key: str, amount: int = 1) -> int:
         """递增"""
-        pass
 
     @abstractmethod
     async def decr(self, key: str, amount: int = 1) -> int:
         """递减"""
-        pass
 
     @abstractmethod
     async def hget(self, name: str, key: str) -> Optional[Any]:
         """获取哈希字段值"""
-        pass
 
     @abstractmethod
     async def hset(self, name: str, key: str, value: Any) -> bool:
         """设置哈希字段值"""
-        pass
 
     @abstractmethod
     async def hgetall(self, name: str) -> Dict[str, Any]:
         """获取哈希所有字段"""
-        pass
 
     @abstractmethod
     async def lpush(self, name: str, *values: Any) -> int:
         """列表左侧推入"""
-        pass
 
     @abstractmethod
     async def rpush(self, name: str, *values: Any) -> int:
         """列表右侧推入"""
-        pass
 
     @abstractmethod
     async def lpop(self, name: str) -> Optional[Any]:
         """列表左侧弹出"""
-        pass
 
     @abstractmethod
     async def rpop(self, name: str) -> Optional[Any]:
         """列表右侧弹出"""
-        pass
 
     @abstractmethod
     async def llen(self, name: str) -> int:
         """获取列表长度"""
-        pass
 
     @abstractmethod
     async def lrange(self, name: str, start: int, end: int) -> List[Any]:
         """获取列表范围"""
-        pass
 
     @abstractmethod
     async def sadd(self, name: str, *values: Any) -> int:
         """集合添加元素"""
-        pass
 
     @abstractmethod
     async def srem(self, name: str, *values: Any) -> int:
         """集合移除元素"""
-        pass
 
     @abstractmethod
     async def scard(self, name: str) -> int:
         """获取集合大小"""
-        pass
 
     @abstractmethod
     async def smembers(self, name: str) -> set:
         """获取集合所有成员"""
-        pass
 
     @abstractmethod
     async def ping(self) -> bool:
         """健康检查"""
-        pass
 
     @abstractmethod
     async def flushdb(self) -> bool:
         """清空当前数据库"""
-        pass
 
 
 class RedisService(IRedisService):

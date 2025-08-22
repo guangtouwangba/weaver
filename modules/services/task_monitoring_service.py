@@ -4,20 +4,16 @@ Task monitoringService implementation
 基于Redis和Celery的Task monitoring功能实现。
 """
 
-import asyncio
 import json
 import logging
-from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import psutil
 import redis.asyncio as redis
 
-from config import RetryConfig, TaskConfig, WorkerConfig, get_config
+from config import get_config
 from config.tasks.monitoring import (
-    AlertRule,
-    ITaskAlerting,
     ITaskConfiguration,
     ITaskMonitoringService,
     QueueMetrics,

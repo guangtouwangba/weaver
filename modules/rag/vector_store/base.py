@@ -7,7 +7,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class VectorStoreProvider(Enum):
@@ -156,12 +156,10 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 初始化失败时抛出
         """
-        pass
 
     @abstractmethod
     async def cleanup(self) -> None:
         """清理向量存储资源"""
-        pass
 
     @abstractmethod
     async def create_collection(self, config: VectorStoreConfig) -> bool:
@@ -177,7 +175,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 创建失败时抛出
         """
-        pass
 
     @abstractmethod
     async def delete_collection(self, collection_name: str) -> bool:
@@ -193,7 +190,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 删除失败时抛出
         """
-        pass
 
     @abstractmethod
     async def upsert_vectors(self, documents: List[VectorDocument]) -> BulkOperationResult:
@@ -209,7 +205,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 操作失败时抛出
         """
-        pass
 
     @abstractmethod
     async def upsert_single_vector(self, document: VectorDocument) -> bool:
@@ -225,7 +220,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 操作失败时抛出
         """
-        pass
 
     @abstractmethod
     async def search_similar(
@@ -250,7 +244,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 搜索失败时抛出
         """
-        pass
 
     @abstractmethod
     async def get_vector_by_id(self, vector_id: str) -> Optional[VectorDocument]:
@@ -266,7 +259,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 获取失败时抛出
         """
-        pass
 
     @abstractmethod
     async def delete_vectors(self, vector_ids: List[str]) -> BulkOperationResult:
@@ -282,7 +274,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 删除失败时抛出
         """
-        pass
 
     @abstractmethod
     async def delete_vectors_by_document_id(self, document_id: str) -> BulkOperationResult:
@@ -298,7 +289,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 删除失败时抛出
         """
-        pass
 
     @abstractmethod
     async def update_metadata(self, vector_id: str, metadata: Dict[str, Any]) -> bool:
@@ -315,7 +305,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 更新失败时抛出
         """
-        pass
 
     @abstractmethod
     async def get_collection_stats(self) -> Dict[str, Any]:
@@ -328,7 +317,6 @@ class IVectorStore(ABC):
         Raises:
             VectorStoreError: 获取失败时抛出
         """
-        pass
 
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
@@ -338,7 +326,6 @@ class IVectorStore(ABC):
         Returns:
             Dict[str, Any]: 健康状态信息
         """
-        pass
 
     @property
     @abstractmethod
@@ -349,7 +336,6 @@ class IVectorStore(ABC):
         Returns:
             str: 服务名称
         """
-        pass
 
     @property
     @abstractmethod
@@ -360,4 +346,3 @@ class IVectorStore(ABC):
         Returns:
             VectorStoreConfig: 配置对象
         """
-        pass

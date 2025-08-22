@@ -7,7 +7,6 @@
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,16 +16,13 @@ from ..rag.embedding import EmbeddingProvider
 # RAG pipeline imports will be imported dynamically to avoid circular import
 from ..rag.pipeline import (
     DocumentProcessingRequest,
-    PipelineConfig,
     PipelineStatus,
-    ProcessingStage,
 )
 from ..rag.processors import ChunkingProcessor
 from ..rag.vector_store import VectorStoreProvider
 from ..repository import DocumentRepository, FileRepository
 from ..schemas import (
     ContentType,
-    DocumentChunkCreate,
     DocumentChunkResponse,
     DocumentCreate,
     DocumentList,
@@ -383,7 +379,6 @@ class DocumentService(BaseService):
                 embedding_provider = ai_config.embedding.provider
 
             # Import dynamically to avoid circular import
-            from ..models import ModuleConfig
             from .rag_service import (
                 create_document_pipeline,
                 create_embedding_service,

@@ -5,9 +5,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
-
-from ..models import Document, DocumentChunk, SearchResult
+from typing import Any, Dict, List, Optional
 
 
 class APIError(Exception):
@@ -44,7 +42,6 @@ class IModularAPI(ABC):
         Raises:
             APIError: 处理失败时抛出
         """
-        pass
 
     @abstractmethod
     async def process_files(self, file_paths: List[str], **options) -> List[Dict[str, Any]]:
@@ -58,7 +55,6 @@ class IModularAPI(ABC):
         Returns:
             List[Dict[str, Any]]: 处理结果列表
         """
-        pass
 
     @abstractmethod
     async def search(self, query: str, limit: int = 10, **filters) -> Dict[str, Any]:
@@ -73,7 +69,6 @@ class IModularAPI(ABC):
         Returns:
             Dict[str, Any]: 搜索结果
         """
-        pass
 
     @abstractmethod
     async def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
@@ -86,7 +81,6 @@ class IModularAPI(ABC):
         Returns:
             Optional[Dict[str, Any]]: 文档信息，如果不存在返回None
         """
-        pass
 
     @abstractmethod
     async def get_document_chunks(self, document_id: str) -> List[Dict[str, Any]]:
@@ -99,7 +93,6 @@ class IModularAPI(ABC):
         Returns:
             List[Dict[str, Any]]: 文档块列表
         """
-        pass
 
     @abstractmethod
     async def delete_document(self, document_id: str) -> bool:
@@ -112,7 +105,6 @@ class IModularAPI(ABC):
         Returns:
             bool: 删除是否成功
         """
-        pass
 
     @abstractmethod
     async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
@@ -126,7 +118,6 @@ class IModularAPI(ABC):
         Returns:
             bool: 更新是否成功
         """
-        pass
 
     @abstractmethod
     async def get_status(self) -> Dict[str, Any]:
@@ -136,7 +127,6 @@ class IModularAPI(ABC):
         Returns:
             Dict[str, Any]: 系统状态信息
         """
-        pass
 
     @abstractmethod
     async def get_supported_formats(self) -> List[str]:
@@ -146,4 +136,3 @@ class IModularAPI(ABC):
         Returns:
             List[str]: 支持的格式列表
         """
-        pass

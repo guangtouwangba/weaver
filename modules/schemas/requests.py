@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import Field
 
 from .base import BaseSchema
-from .enums import ChunkingStrategy, ContentType, ProcessingStatus, SearchType
+from .enums import ChunkingStrategy, ContentType, SearchType
 
 
 class FileLoadRequest(BaseSchema):

@@ -205,12 +205,10 @@ class IDocumentPipeline(ABC):
         Raises:
             PipelineError: 初始化失败时抛出
         """
-        pass
 
     @abstractmethod
     async def cleanup(self) -> None:
         """清理管道资源"""
-        pass
 
     @abstractmethod
     async def process_document(
@@ -228,7 +226,6 @@ class IDocumentPipeline(ABC):
         Raises:
             PipelineError: 处理失败时抛出
         """
-        pass
 
     @abstractmethod
     async def process_documents_batch(
@@ -246,7 +243,6 @@ class IDocumentPipeline(ABC):
         Raises:
             PipelineError: 处理失败时抛出
         """
-        pass
 
     @abstractmethod
     async def get_processing_status(self, request_id: str) -> Optional[ProcessingProgress]:
@@ -259,7 +255,6 @@ class IDocumentPipeline(ABC):
         Returns:
             Optional[ProcessingProgress]: 处理进度，不存在返回None
         """
-        pass
 
     @abstractmethod
     async def cancel_processing(self, request_id: str) -> bool:
@@ -272,7 +267,6 @@ class IDocumentPipeline(ABC):
         Returns:
             bool: 取消是否成功
         """
-        pass
 
     @abstractmethod
     async def retry_failed_processing(self, request_id: str) -> DocumentProcessingResult:
@@ -288,7 +282,6 @@ class IDocumentPipeline(ABC):
         Raises:
             PipelineError: 重试失败时抛出
         """
-        pass
 
     @abstractmethod
     async def get_pipeline_metrics(self) -> Dict[str, Any]:
@@ -298,7 +291,6 @@ class IDocumentPipeline(ABC):
         Returns:
             Dict[str, Any]: 性能指标
         """
-        pass
 
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
@@ -308,7 +300,6 @@ class IDocumentPipeline(ABC):
         Returns:
             Dict[str, Any]: 健康状态信息
         """
-        pass
 
     @property
     @abstractmethod
@@ -319,7 +310,6 @@ class IDocumentPipeline(ABC):
         Returns:
             str: 管道名称
         """
-        pass
 
     @property
     @abstractmethod
@@ -330,7 +320,6 @@ class IDocumentPipeline(ABC):
         Returns:
             PipelineConfig: 配置对象
         """
-        pass
 
     @property
     @abstractmethod
@@ -341,4 +330,3 @@ class IDocumentPipeline(ABC):
         Returns:
             List[str]: 支持的文件扩展名列表
         """
-        pass

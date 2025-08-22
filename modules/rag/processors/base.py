@@ -5,7 +5,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from ...models import Document, DocumentChunk, ProcessingRequest, ProcessingResult
 from ...schemas.enums import ChunkingStrategy
@@ -39,7 +39,6 @@ class IDocumentProcessor(ABC):
         Raises:
             DocumentProcessorError: 文档处理失败时抛出
         """
-        pass
 
     @abstractmethod
     async def create_chunks(self, document: Document, **kwargs) -> List[DocumentChunk]:
@@ -56,7 +55,6 @@ class IDocumentProcessor(ABC):
         Raises:
             DocumentProcessorError: 分块失败时抛出
         """
-        pass
 
     @abstractmethod
     async def validate_document(self, document: Document) -> bool:
@@ -69,7 +67,6 @@ class IDocumentProcessor(ABC):
         Returns:
             bool: 文档是否有效
         """
-        pass
 
     @abstractmethod
     async def clean_content(self, content: str) -> str:
@@ -82,7 +79,6 @@ class IDocumentProcessor(ABC):
         Returns:
             str: 清理后的内容
         """
-        pass
 
     @property
     @abstractmethod
@@ -93,7 +89,6 @@ class IDocumentProcessor(ABC):
         Returns:
             str: 处理器名称
         """
-        pass
 
     @property
     @abstractmethod
@@ -104,7 +99,6 @@ class IDocumentProcessor(ABC):
         Returns:
             List[str]: 支持的策略列表
         """
-        pass
 
 
 def register_chunking_strategy(strategy_name: ChunkingStrategy):

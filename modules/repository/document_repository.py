@@ -8,8 +8,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import and_, asc, delete, desc, or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, delete, desc, or_, select, update
 from sqlalchemy.orm import selectinload
 
 from ..database.models import Document, DocumentChunk

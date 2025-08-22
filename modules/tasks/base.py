@@ -5,9 +5,9 @@
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 
 class TaskStatus(Enum):
@@ -140,13 +140,11 @@ class TaskError(Exception):
 class TaskTimeoutError(TaskError):
     """任务超时错误"""
 
-    pass
 
 
 class TaskRetryError(TaskError):
     """任务重试错误"""
 
-    pass
 
 
 class ITaskHandler(ABC):
@@ -167,7 +165,6 @@ class ITaskHandler(ABC):
         Raises:
             TaskError: 任务处理失败时抛出
         """
-        pass
 
     @property
     @abstractmethod
@@ -178,7 +175,6 @@ class ITaskHandler(ABC):
         Returns:
             str: 唯一的任务名称标识
         """
-        pass
 
     @property
     def task_config(self) -> TaskConfig:
@@ -199,7 +195,6 @@ class ITaskHandler(ABC):
             result: 任务结果
             **kwargs: 额外参数
         """
-        pass
 
     async def on_failure(self, task_id: str, error: Exception, **kwargs) -> None:
         """
@@ -210,7 +205,6 @@ class ITaskHandler(ABC):
             error: 异常信息
             **kwargs: 额外参数
         """
-        pass
 
     async def on_retry(self, task_id: str, error: Exception, retry_count: int, **kwargs) -> None:
         """
@@ -222,7 +216,6 @@ class ITaskHandler(ABC):
             retry_count: 重试次数
             **kwargs: 额外参数
         """
-        pass
 
 
 class ITaskService(ABC):
@@ -236,12 +229,10 @@ class ITaskService(ABC):
         Raises:
             TaskError: 初始化失败时抛出
         """
-        pass
 
     @abstractmethod
     async def cleanup(self) -> None:
         """清理任务服务资源"""
-        pass
 
     @abstractmethod
     async def submit_task(
@@ -272,7 +263,6 @@ class ITaskService(ABC):
         Raises:
             TaskError: 提交失败时抛出
         """
-        pass
 
     @abstractmethod
     async def get_task_result(self, task_id: str) -> Optional[TaskResult]:
@@ -285,7 +275,6 @@ class ITaskService(ABC):
         Returns:
             Optional[TaskResult]: 任务结果，不存在时返回None
         """
-        pass
 
     @abstractmethod
     async def get_task_progress(self, task_id: str) -> Optional[TaskProgress]:
@@ -298,7 +287,6 @@ class ITaskService(ABC):
         Returns:
             Optional[TaskProgress]: 任务进度，不存在时返回None
         """
-        pass
 
     @abstractmethod
     async def cancel_task(self, task_id: str) -> bool:
@@ -311,7 +299,6 @@ class ITaskService(ABC):
         Returns:
             bool: 取消是否成功
         """
-        pass
 
     @abstractmethod
     async def retry_task(self, task_id: str) -> str:
@@ -327,7 +314,6 @@ class ITaskService(ABC):
         Raises:
             TaskError: 重试失败时抛出
         """
-        pass
 
     @abstractmethod
     async def list_active_tasks(self) -> List[str]:
@@ -337,7 +323,6 @@ class ITaskService(ABC):
         Returns:
             List[str]: 活跃任务ID列表
         """
-        pass
 
     @abstractmethod
     async def get_task_stats(self) -> Dict[str, Any]:
@@ -347,7 +332,6 @@ class ITaskService(ABC):
         Returns:
             Dict[str, Any]: 任务统计数据
         """
-        pass
 
     @abstractmethod
     def register_handler(self, handler: ITaskHandler) -> None:
@@ -360,7 +344,6 @@ class ITaskService(ABC):
         Raises:
             TaskError: 注册失败时抛出
         """
-        pass
 
     @abstractmethod
     def unregister_handler(self, task_name: str) -> bool:
@@ -373,7 +356,6 @@ class ITaskService(ABC):
         Returns:
             bool: 注销是否成功
         """
-        pass
 
     @abstractmethod
     def is_handler_registered(self, task_name: str) -> bool:
@@ -386,7 +368,6 @@ class ITaskService(ABC):
         Returns:
             bool: 是否已注册
         """
-        pass
 
     @abstractmethod
     async def health_check(self) -> Dict[str, Any]:
@@ -396,7 +377,6 @@ class ITaskService(ABC):
         Returns:
             Dict[str, Any]: 健康状态信息
         """
-        pass
 
     @property
     @abstractmethod
@@ -407,7 +387,6 @@ class ITaskService(ABC):
         Returns:
             str: 服务名称
         """
-        pass
 
 
 class ITaskRegistry(ABC):
@@ -422,7 +401,6 @@ class ITaskRegistry(ABC):
             task_name: 任务名称
             handler: 任务处理器
         """
-        pass
 
     @abstractmethod
     def unregister(self, task_name: str) -> bool:
@@ -435,7 +413,6 @@ class ITaskRegistry(ABC):
         Returns:
             bool: 注销是否成功
         """
-        pass
 
     @abstractmethod
     def get_handler(self, task_name: str) -> Optional[ITaskHandler]:
@@ -448,7 +425,6 @@ class ITaskRegistry(ABC):
         Returns:
             Optional[ITaskHandler]: 处理器实例
         """
-        pass
 
     @abstractmethod
     def list_tasks(self) -> List[str]:
@@ -458,7 +434,6 @@ class ITaskRegistry(ABC):
         Returns:
             List[str]: 任务名称列表
         """
-        pass
 
     @abstractmethod
     def is_registered(self, task_name: str) -> bool:
@@ -471,7 +446,6 @@ class ITaskRegistry(ABC):
         Returns:
             bool: 是否已注册
         """
-        pass
 
 
 # 任务处理器装饰器接口类型
