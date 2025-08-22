@@ -8,7 +8,8 @@ from typing import List, AsyncIterator, Dict, Any
 from datetime import datetime
 
 from .base import IRouter, RouterError
-from ...file_loader import IFileLoader, MultiFormatFileLoader
+from ...file_loader import IFileLoader
+# TODO: MultiFormatFileLoader will be refactored to use factory pattern
 from ..processors import IDocumentProcessor, ChunkingProcessor
 from ...models import (
     Document, SearchQuery, SearchResponse, ProcessingResult, SearchResult,
@@ -23,11 +24,18 @@ class DocumentRouter(IRouter):
                  config: ModuleConfig = None,
                  file_loader: IFileLoader = None,
                  document_processor: IDocumentProcessor = None):
-        super().__init__(config or ModuleConfig())
+        # Store config for potential future use
+        self.config = config or ModuleConfig(name="document_router")
         
         # Initialize components
-        self.file_loader = file_loader or MultiFormatFileLoader(self.config)
-        self.document_processor = document_processor or ChunkingProcessor(self.config)
+        # TODO: Implement factory-based file loader initialization
+        self.file_loader = file_loader  # or create_factory_based_file_loader(max_file_size_mb=100)
+        self.document_processor = document_processor or ChunkingProcessor(
+            default_chunk_size=1000,
+            default_overlap=200,
+            min_chunk_size=50,
+            max_chunk_size=4000
+        )
         
         # Document storage (in-memory for now)
         self._documents: Dict[str, Document] = {}
@@ -35,7 +43,7 @@ class DocumentRouter(IRouter):
     
     async def initialize(self):
         """Initialize the router and all components."""
-        await super().initialize()
+        # ModuleInterface doesn't have initialize method, so no super() call needed
         
         # Initialize components
         await self.file_loader.initialize()

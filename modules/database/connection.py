@@ -55,7 +55,9 @@ class DatabaseConnection:
                     pool_size=config.pool_size,
                     max_overflow=config.max_overflow,
                     pool_timeout=config.pool_timeout,
-                    pool_recycle=config.pool_recycle
+                    pool_recycle=config.pool_recycle,
+                    # Fix for greenlet_spawn error in async context
+                    connect_args={"server_settings": {"jit": "off"}}
                 )
             else:
                 # 使用默认配置
@@ -65,7 +67,9 @@ class DatabaseConnection:
                     pool_size=5,
                     max_overflow=10,
                     pool_timeout=30,
-                    pool_recycle=3600
+                    pool_recycle=3600,
+                    # Fix for greenlet_spawn error in async context
+                    connect_args={"server_settings": {"jit": "off"}}
                 )
             
             self._session_factory = async_sessionmaker(

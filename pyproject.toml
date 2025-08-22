@@ -90,6 +90,7 @@ dependencies = [
     "celery>=5.5.3",
     "psutil>=7.0.0",
     "pypdf2>=3.0.1",
+    "pymupdf>=1.26.3",
 ]
 
 [project.optional-dependencies]

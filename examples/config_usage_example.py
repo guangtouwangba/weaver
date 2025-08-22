@@ -1,7 +1,7 @@
 """
-配置使用示例
+Configuration Usage Examples
 
-展示如何在RAG知识管理系统中使用重组后的配置结构。
+Demonstrates how to use the unified configuration structure in the RAG knowledge management system.
 """
 
 import sys
@@ -12,45 +12,42 @@ import asyncio
 from pathlib import Path
 import json
 
-# 导入配置（需要处理循环导入问题，这里使用相对路径）
-config_dir = Path(__file__).parent.parent / "config"
-sys.path.insert(0, str(config_dir))
-sys.path.insert(0, str(config_dir / "tasks"))
-
-from app import AppConfig, Environment
-from database import DatabaseConfig
-from storage import StorageConfig, StorageProvider
-from config import RedisConfig, TaskConfigManager
+# Import unified configuration system
+from config import (
+    AppConfig, Environment,
+    DatabaseConfig, StorageConfig, StorageProvider,
+    RedisConfig, get_config
+)
 
 async def example_development_setup():
-    """开发环境配置示例"""
-    print("=== 开发环境配置示例 ===")
+    """Development environment configuration example"""
+    print("=== Development Environment Configuration Example ===")
     
-    # 开发环境应用配置
+    # Development environment application configuration
     app_config = AppConfig(
-        app_name="RAG开发环境",
+        app_name="RAG Development Environment",
         environment=Environment.DEVELOPMENT,
         debug=True,
         host="localhost",
         port=8000,
         cors_origins=["http://localhost:3000", "http://localhost:8080"],
         log_level="DEBUG",
-        max_file_size=50 * 1024 * 1024  # 50MB，开发环境较小
+        max_file_size=50 * 1024 * 1024  # 50MB, smaller for dev environment
     )
     
-    # 开发环境数据库配置
+    # Development environment database configuration
     db_config = DatabaseConfig(
         host="localhost",
         port=5432,
-        database="rag_dev",
-        username="postgres",
+        name="rag_dev",
+        user="postgres",
         password="dev_password",
-        pool_size=5,  # 开发环境较小的连接池
-        echo=True,    # 开发环境显示SQL
-        ssl_mode="disable"  # 开发环境不需要SSL
+        pool_size=5,  # Smaller connection pool for dev
+        echo=True,    # Show SQL in development
+        ssl_mode="disable"  # No SSL needed in development
     )
     
-    # 开发环境存储配置（使用本地MinIO）
+    # Development environment storage configuration (using local MinIO)
     storage_config = StorageConfig(
         provider=StorageProvider.MINIO,
         endpoint_url="http://localhost:9000",
@@ -61,30 +58,30 @@ async def example_development_setup():
         verify_ssl=False
     )
     
-    # 开发环境Redis配置
+    # Development environment Redis configuration
     redis_config = RedisConfig(
         host="localhost",
         port=6379,
         db=0,
         key_prefix="dev:",
-        serializer="json",  # 便于调试
-        default_ttl=1800,   # 30分钟
+        serializer="json",  # Easier for debugging
+        default_ttl=1800,   # 30 minutes
         max_connections=10
     )
     
-    print(f"应用: {app_config.app_name}")
-    print(f"调试模式: {app_config.debug}")
-    print(f"数据库: {db_config.build_url()}")
-    print(f"存储: {storage_config.provider.value} at {storage_config.endpoint_url}")
+    print(f"Application: {app_config.app_name}")
+    print(f"Debug mode: {app_config.debug}")
+    print(f"Database: {db_config.url}")
+    print(f"Storage: {storage_config.provider} at {getattr(storage_config, 'endpoint_url', 'N/A')}")
     print(f"Redis: {redis_config.host}:{redis_config.port} (prefix: {redis_config.key_prefix})")
 
 async def example_production_setup():
-    """生产环境配置示例"""
-    print("\n=== 生产环境配置示例 ===")
+    """Production environment configuration example"""
+    print("\n=== Production Environment Configuration Example ===")
     
-    # 生产环境应用配置
+    # Production environment application configuration
     app_config = AppConfig(
-        app_name="RAG知识管理系统",
+        app_name="RAG Knowledge Management System",
         environment=Environment.PRODUCTION,
         debug=False,
         host="0.0.0.0",
@@ -98,12 +95,12 @@ async def example_production_setup():
         request_timeout=60
     )
     
-    # 生产环境数据库配置（高可用集群）
+    # Production environment database configuration (high availability cluster)
     db_config = DatabaseConfig(
         host="prod-postgres-cluster.internal",
         port=5432,
-        database="rag_production",
-        username="rag_user",
+        name="rag_production",
+        user="rag_user",
         password="very-secure-db-password-2024",
         pool_size=20,
         max_overflow=30,
@@ -114,7 +111,7 @@ async def example_production_setup():
         application_name="rag-prod"
     )
     
-    # 生产环境存储配置（AWS S3）
+    # Production environment storage configuration (AWS S3)
     storage_config = StorageConfig(
         provider=StorageProvider.AWS_S3,
         region="us-west-2",
@@ -128,7 +125,7 @@ async def example_production_setup():
         max_concurrency=20
     )
     
-    # 生产环境Redis配置（集群模式）
+    # Production environment Redis configuration (cluster mode)
     redis_config = RedisConfig(
         cluster_enabled=True,
         cluster_nodes=[
@@ -141,27 +138,27 @@ async def example_production_setup():
         ],
         password="redis-cluster-password-2024",
         key_prefix="prod:",
-        serializer="pickle",    # 生产环境使用更高效的序列化
-        compress=True,          # 启用压缩节省带宽
-        default_ttl=7200,      # 2小时
+        serializer="pickle",    # More efficient serialization for production
+        compress=True,          # Enable compression to save bandwidth
+        default_ttl=7200,      # 2 hours
         max_connections=200
     )
     
-    print(f"应用: {app_config.app_name}")
-    print(f"工作进程: {app_config.workers}")
-    print(f"日志文件: {app_config.log_file}")
-    print(f"数据库: {db_config.host} (SSL: {db_config.ssl_mode})")
-    print(f"存储: {storage_config.provider.value} in {storage_config.region}")
-    print(f"Redis: 集群模式 ({len(redis_config.cluster_nodes)} 节点)")
+    print(f"Application: {app_config.app_name}")
+    print(f"Workers: {app_config.workers}")
+    print(f"Log file: {app_config.log_file}")
+    print(f"Database: {db_config.host} (SSL: {db_config.ssl_mode})")
+    print(f"Storage: {storage_config.provider.value} in {storage_config.region}")
+    print(f"Redis: Cluster mode ({len(redis_config.cluster_nodes)} nodes)")
 
 async def example_config_from_files():
-    """从配置文件加载配置示例"""
-    print("\n=== 配置文件加载示例 ===")
+    """Load configuration from files example"""
+    print("\n=== Configuration File Loading Example ===")
     
-    # 创建示例配置文件
+    # Create example configuration file
     config_data = {
         "app": {
-            "app_name": "RAG系统配置文件版",
+            "app_name": "RAG System Configuration File Version",
             "environment": "staging",
             "host": "0.0.0.0",
             "port": 9000,
@@ -172,8 +169,8 @@ async def example_config_from_files():
         "database": {
             "host": "staging-db.example.com",
             "port": 5432,
-            "database": "rag_staging",
-            "username": "rag_staging_user",
+            "name": "rag_staging",
+            "user": "rag_staging_user",
             "password": "staging_password",
             "pool_size": 15,
             "ssl_mode": "require"
@@ -196,16 +193,16 @@ async def example_config_from_files():
         }
     }
     
-    # 保存配置文件
+    # Save configuration file
     config_file = Path("staging_config.json")
     with open(config_file, 'w', encoding='utf-8') as f:
         json.dump(config_data, f, indent=2, ensure_ascii=False)
     
-    # 从文件加载配置
+    # Load configuration from file
     with open(config_file, 'r', encoding='utf-8') as f:
         loaded_config = json.load(f)
     
-    # 创建配置对象
+    # Create configuration objects
     app_config = AppConfig(**loaded_config["app"])
     db_config = DatabaseConfig(**loaded_config["database"])
     storage_config = StorageConfig(
@@ -214,22 +211,22 @@ async def example_config_from_files():
     )
     redis_config = RedisConfig(**loaded_config["redis"])
     
-    print(f"从文件加载的配置:")
-    print(f"  应用: {app_config.app_name} ({app_config.environment.value})")
-    print(f"  数据库: {db_config.host}:{db_config.port}")
-    print(f"  存储: {storage_config.provider.value} ({storage_config.bucket_name})")
-    print(f"  Redis: {redis_config.host} (前缀: {redis_config.key_prefix})")
+    print(f"Configuration loaded from file:")
+    print(f"  Application: {app_config.app_name} ({app_config.environment.value})")
+    print(f"  Database: {db_config.host}:{db_config.port}")
+    print(f"  Storage: {storage_config.provider.value} ({storage_config.bucket_name})")
+    print(f"  Redis: {redis_config.host} (prefix: {redis_config.key_prefix})")
     
-    # 清理示例文件
+    # Clean up example file
     config_file.unlink()
 
 async def example_environment_variable_config():
-    """环境变量配置示例"""
-    print("\n=== 环境变量配置示例 ===")
+    """Environment variable configuration example"""
+    print("\n=== Environment Variable Configuration Example ===")
     
-    # 设置示例环境变量
+    # Set example environment variables
     test_env_vars = {
-        "APP_NAME": "环境变量RAG系统",
+        "APP_NAME": "Environment Variable RAG System",
         "ENVIRONMENT": "testing",
         "DEBUG": "false",
         "HOST": "0.0.0.0", 
@@ -244,27 +241,25 @@ async def example_environment_variable_config():
         "STORAGE_REGION": "us-central1"
     }
     
-    # 临时设置环境变量
+    # Temporarily set environment variables
     original_env = {}
     for key, value in test_env_vars.items():
         original_env[key] = os.environ.get(key)
         os.environ[key] = value
     
     try:
-        # 从环境变量创建配置
-        app_config = AppConfig.from_env()
-        db_config = DatabaseConfig.from_env()
-        storage_config = StorageConfig.from_env()
+        # Create configuration from environment variables
+        app_config = get_config()
         
-        print(f"环境变量配置:")
-        print(f"  应用: {app_config.app_name}")
-        print(f"  环境: {app_config.environment.value}")
-        print(f"  端口: {app_config.port}")
-        print(f"  数据库: {db_config.host}:{db_config.port}/{db_config.database}")
-        print(f"  存储: {storage_config.provider.value} ({storage_config.bucket_name})")
+        print(f"Environment variable configuration:")
+        print(f"  Application: {app_config.app_name}")
+        print(f"  Environment: {app_config.environment.value}")
+        print(f"  Port: {app_config.port}")
+        print(f"  Database: {app_config.database.host}:{app_config.database.port}/{app_config.database.name}")
+        print(f"  Storage: {app_config.storage.provider} ({getattr(app_config.storage, 'bucket_name', 'N/A')})")
         
     finally:
-        # 恢复原始环境变量
+        # Restore original environment variables
         for key, original_value in original_env.items():
             if original_value is None:
                 os.environ.pop(key, None)
@@ -272,18 +267,18 @@ async def example_environment_variable_config():
                 os.environ[key] = original_value
 
 async def example_dynamic_config_update():
-    """动态配置更新示例"""
-    print("\n=== 动态配置更新示例 ===")
+    """Dynamic configuration update example"""
+    print("\n=== Dynamic Configuration Update Example ===")
     
-    # 创建任务配置管理器
-    manager = TaskConfigManager()
+    # Get current configuration
+    config = get_config()
     
-    # 获取初始Redis配置
-    initial_config = manager.get_redis_config()
-    print(f"初始Redis配置: {initial_config.host}:{initial_config.port}")
-    print(f"初始键前缀: {initial_config.key_prefix}")
+    # Show initial Redis configuration
+    initial_redis_config = config.redis
+    print(f"Initial Redis config: {initial_redis_config.host}:{initial_redis_config.port}")
+    print(f"Initial key prefix: {initial_redis_config.key_prefix}")
     
-    # 动态更新Redis配置
+    # Create new Redis configuration
     new_redis_config = RedisConfig(
         host="updated-redis.example.com",
         port=6380,
@@ -296,56 +291,50 @@ async def example_dynamic_config_update():
         compress=True
     )
     
-    # 更新配置
-    success = manager.update_redis_config(new_redis_config)
+    print(f"\nNew Redis config: {new_redis_config.host}:{new_redis_config.port}")
+    print(f"New key prefix: {new_redis_config.key_prefix}")
+    print(f"Compression: {new_redis_config.compress}")
     
-    # 获取更新后的配置
-    updated_config = manager.get_redis_config()
-    print(f"\n更新后Redis配置: {updated_config.host}:{updated_config.port}")
-    print(f"更新后键前缀: {updated_config.key_prefix}")
-    print(f"压缩: {updated_config.compress}")
-    
-    # 生成更新后的Celery配置
-    celery_config = manager.get_celery_config()
-    print(f"Celery Broker: {celery_config['broker_url']}")
-    print(f"序列化器: {celery_config['task_serializer']}")
+    # Show Celery configuration
+    celery_config = config.celery
+    print(f"Celery Broker: {celery_config.broker_url}")
+    print(f"Serializer: {celery_config.task_serializer}")
 
 async def example_config_validation():
-    """配置验证示例"""
-    print("\n=== 配置验证示例 ===")
+    """Configuration validation example"""
+    print("\n=== Configuration Validation Example ===")
     
-    # 测试有效配置
+    # Test valid configuration
     try:
         valid_app_config = AppConfig(
-            app_name="有效配置测试",
+            app_name="Valid Configuration Test",
             environment=Environment.PRODUCTION,
             port=8080,
             workers=4,
             max_file_size=100 * 1024 * 1024
         )
-        print(f"✅ 有效应用配置: {valid_app_config.app_name}")
-        print(f"   生产环境自动调整: debug={valid_app_config.debug}, docs_url={valid_app_config.docs_url}")
+        print(f"✅ Valid application config: {valid_app_config.app_name}")
+        print(f"   Production auto-adjustment: debug={valid_app_config.debug}, docs_url={valid_app_config.docs_url}")
         
     except Exception as e:
-        print(f"❌ 应用配置验证失败: {e}")
+        print(f"❌ Application config validation failed: {e}")
     
-    # 测试数据库URL构建
+    # Test database URL construction
     try:
         db_config = DatabaseConfig(
             host="test-db.com",
-            database="test_db",
-            username="test_user",
-            password="test@pass#word",  # 包含特殊字符
-            ssl_mode="require"
+            name="test_db",
+            user="test_user",
+            password="test@pass#word"  # Contains special characters
         )
         
-        async_url = db_config.build_url(async_driver=True)
-        print(f"✅ 数据库URL构建成功: {async_url[:50]}...")
+        async_url = db_config.url
+        print(f"✅ Database URL construction successful: {async_url[:50]}...")
         
     except Exception as e:
-        print(f"❌ 数据库配置验证失败: {e}")
+        print(f"❌ Database config validation failed: {e}")
     
-    # 测试存储提供商验证
+    # Test storage provider validation
     storage_providers = [
         StorageProvider.MINIO,
         StorageProvider.AWS_S3,
@@ -360,14 +349,14 @@ async def example_config_validation():
                 bucket_name=f"test-{provider.value}-bucket"
             )
             params = storage_config.get_connection_params()
-            print(f"✅ {provider.value} 存储配置有效: {len(params)} 个参数")
+            print(f"✅ {provider.value} storage config valid: {len(params)} parameters")
             
         except Exception as e:
-            print(f"❌ {provider.value} 存储配置失败: {e}")
+            print(f"❌ {provider.value} storage config failed: {e}")
 
 async def main():
-    """主示例函数"""
-    print("🚀 RAG系统配置使用完整示例\n")
+    """Main example function"""
+    print("🚀 RAG System Complete Configuration Usage Examples\n")
     
     await example_development_setup()
     await example_production_setup()
@@ -376,20 +365,20 @@ async def main():
     await example_dynamic_config_update()
     await example_config_validation()
     
-    print("\n✨ 配置使用示例完成！")
+    print("\n✨ Configuration usage examples completed!")
     
-    print("\n📚 配置最佳实践:")
-    print("1. 开发环境使用简单配置，便于调试")
-    print("2. 生产环境启用安全特性（SSL、认证）")
-    print("3. 使用环境变量管理敏感配置")
-    print("4. 配置文件用于复杂的结构化配置")
-    print("5. 动态配置更新用于运行时调整")
-    print("6. 配置验证确保系统稳定性")
+    print("\n📚 Configuration best practices:")
+    print("1. Use simple configuration for development environment, easy for debugging")
+    print("2. Enable security features in production (SSL, authentication)")
+    print("3. Use environment variables to manage sensitive configuration")
+    print("4. Use configuration files for complex structured configuration")
+    print("5. Dynamic configuration updates for runtime adjustments")
+    print("6. Configuration validation ensures system stability")
     
-    print("\n🎯 配置导入方式:")
-    print("  from config import default_app_config")
+    print("\n🎯 Configuration import methods:")
+    print("  from config import get_config")
     print("  from config import DatabaseConfig, StorageProvider")
-    print("  from config import RedisConfig, config_manager")
+    print("  from config import RedisConfig, AppConfig")
 
 if __name__ == "__main__":
     asyncio.run(main())

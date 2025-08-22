@@ -42,89 +42,89 @@ class PDFFileLoader(IFileLoader):
 
     def __init__(self, max_file_size: int = 100 * 1024 * 1024):
         """
-        初始化PDF文件加载器
+        Initialize PDF file loader
         
         Args:
-            max_file_size: 最大文件大小（字节），默认100MB
+            max_file_size: Maximum file size (bytes), default 100MB
         """
         self.max_file_size = max_file_size
         self._supported_formats = ['.pdf']
         
-        # 检查可用的PDF处理库
+        # Check available PDF processing libraries
         if not HAS_PYMUPDF and not HAS_PYPDF2:
-            logger.warning("未安装PDF处理库。建议安装: pip install pymupdf 或 pip install PyPDF2")
+            logger.warning("No PDF processing library installed. Recommended installation: pip install pymupdf or pip install PyPDF2")
         elif HAS_PYMUPDF:
-            logger.info("PDFFileLoader 使用 pymupdf (fitz) 进行PDF处理")
+            logger.info("PDFFileLoader uses pymupdf (fitz) for PDF processing")
         elif HAS_PYPDF2:
-            logger.info("PDFFileLoader 使用 PyPDF2 进行PDF处理")
+            logger.info("PDFFileLoader uses PyPDF2 for PDF processing")
 
     @property
     def loader_name(self) -> str:
-        """获取加载器名称"""
+        """Get loader name"""
         return "PDFFileLoader"
     
     def supported_formats(self) -> List[str]:
-        """获取支持的PDF格式"""
+        """Get supported PDF formats"""
         return self._supported_formats.copy()
 
     def supports_content_type(self, content_type: ContentType) -> bool:
-        """检查是否支持指定的内容类型"""
+        """Check if specified content type is supported"""
         return content_type == ContentType.PDF
 
     async def validate_file(self, file_path: str) -> bool:
-        """验证PDF文件是否可以加载"""
+        """Validate if PDF file can be loaded"""
         try:
             path = Path(file_path)
             
             # 检查文件是否存在
             if not path.exists():
-                logger.error(f"PDF文件不存在: {file_path}")
+                logger.error(f"PDF file does not exist: {file_path}")
                 return False
             
             # 检查文件大小
             if path.stat().st_size > self.max_file_size:
-                logger.error(f"PDF文件过大: {path.stat().st_size} bytes > {self.max_file_size} bytes")
+                logger.error(f"PDF file too large: {path.stat().st_size} bytes > {self.max_file_size} bytes")
                 return False
             
             # 检查文件扩展名
             if path.suffix.lower() not in self._supported_formats:
-                logger.error(f"不支持的文件格式: {path.suffix}")
+                logger.error(f"Unsupported file format: {path.suffix}")
                 return False
             
-            # 尝试打开PDF文件验证格式
+            # Try to open PDF file to validate format
             if HAS_PYMUPDF:
                 try:
                     doc = fitz.open(file_path)
                     page_count = len(doc)
                     doc.close()
-                    logger.debug(f"PDF验证成功: {file_path} ({page_count} 页)")
+                    logger.debug(f"PDF validation successful: {file_path} ({page_count} pages)")
                     return True
                 except Exception as e:
-                    logger.error(f"PDF格式验证失败 (pymupdf): {e}")
+                    logger.error(f"PDF format validation failed (pymupdf): {e}")
                     return False
             elif HAS_PYPDF2:
                 try:
                     with open(file_path, 'rb') as file:
                         pdf_reader = PyPDF2.PdfReader(file)
                         page_count = len(pdf_reader.pages)
-                        logger.debug(f"PDF验证成功: {file_path} ({page_count} 页)")
+                        logger.debug(f"PDF validation successful: {file_path} ({page_count} pages)")
                         return True
                 except Exception as e:
-                    logger.error(f"PDF格式验证失败 (PyPDF2): {e}")
+                    logger.error(f"PDF format validation failed (PyPDF2): {e}")
                     return False
             else:
-                logger.warning("没有可用的PDF处理库，跳过PDF格式验证")
+                logger.warning("No available PDF processing library, skip PDF format validation")
                 return True
                 
         except Exception as e:
-            logger.error(f"PDF文件验证失败: {e}")
+            logger.error(f"PDF file validation failed: {e}")
             return False
     
     async def load_document(self, request) -> Document:
-        """加载PDF文档"""
+        """Load PDF document"""
         from ..models import FileLoadRequest
         
-        # 处理不同类型的输入参数
+        # Handle different types of input parameters
         if isinstance(request, str):
             file_path = request
             metadata = {}
@@ -135,23 +135,23 @@ class PDFFileLoader(IFileLoader):
             file_path = request
             metadata = {}
         
-        # 验证文件
+        # Validate file
         if not await self.validate_file(file_path):
-            raise FileLoaderError(f"PDF文件验证失败: {file_path}")
+            raise FileLoaderError(f"PDF file validation failed: {file_path}")
         
         try:
             path = Path(file_path)
             
-            # 提取PDF内容
+            # Extract PDF content
             content = await self._extract_pdf_content(path)
             
-            # 提取PDF元数据
+            # Extract PDF metadata
             pdf_metadata = await self._extract_pdf_metadata(path)
             
-            # 创建文档对象
+            # Create document object
             document = create_document_from_path(file_path, content)
             
-            # 更新元数据
+            # Update metadata
             document.metadata.update({
                 'loader': self.loader_name,
                 'file_size': path.stat().st_size,
@@ -160,17 +160,17 @@ class PDFFileLoader(IFileLoader):
                 **(metadata or {})
             })
             
-            logger.info(f"成功加载PDF文档: {file_path} (页数: {pdf_metadata.get('pdf_pages', 'unknown')}, 字符数: {len(content)})")
+            logger.info(f"Successfully loaded PDF document: {file_path} (page count: {pdf_metadata.get('pdf_pages', 'unknown')}, character count: {len(content)})")
             return document
             
         except FileLoaderError:
             raise
         except Exception as e:
-            logger.error(f"加载PDF文档失败 {file_path}: {e}")
-            raise FileLoaderError(f"加载PDF文档失败: {str(e)}")
+            logger.error(f"Failed to load PDF document {file_path}: {e}")
+            raise FileLoaderError(f"Failed to load PDF document: {str(e)}")
     
     async def load_documents_batch(self, requests: List) -> List[Document]:
-        """批量加载PDF文档"""
+        """Batch load PDF documents"""
         documents = []
         
         for request in requests:
@@ -179,31 +179,31 @@ class PDFFileLoader(IFileLoader):
                 documents.append(document)
                 
             except FileLoaderError as e:
-                logger.error(f"批量加载PDF失败: {e}")
-                # 继续处理其他文档，不中断整个批次
+                logger.error(f"Batch load PDF failed: {e}")
+                # Continue processing other documents, do not interrupt entire batch
                 continue
         
-        logger.info(f"PDF批量加载完成: {len(documents)}/{len(requests)} 成功")
+        logger.info(f"PDF batch loading completed: {len(documents)}/{len(requests)} successful")
         return documents
     
     async def _extract_pdf_content(self, path: Path) -> str:
         """
-        从PDF文件提取文本内容
+        Extract text content from PDF file
         
-        优先使用pymupdf (fitz)，回退到PyPDF2
+        Prioritize pymupdf (fitz), fallback to PyPDF2
         """
         if HAS_PYMUPDF:
             return await self._extract_content_with_pymupdf(path)
         elif HAS_PYPDF2:
             return await self._extract_content_with_pypdf2(path)
         else:
-            logger.warning("未安装PDF处理库，返回占位符内容")
-            return f"[PDF内容占位符: {path.name}]\n\n此PDF文件需要安装PDF处理库才能提取内容。请安装: pip install pymupdf 或 pip install PyPDF2"
+            logger.warning("No PDF processing library installed, return placeholder content")
+            return f"[PDF content placeholder: {path.name}]\n\nThis PDF file requires PDF processing library to extract content. Please install: pip install pymupdf or pip install PyPDF2"
     
     async def _extract_content_with_pymupdf(self, path: Path) -> str:
-        """使用pymupdf (fitz)提取PDF内容"""
+        """Extract PDF content using pymupdf (fitz)"""
         try:
-            # 在异步函数中运行CPU密集型任务
+            # Run CPU-intensive task in async function
             def extract_text():
                 doc = fitz.open(str(path))
                 text_parts = []
@@ -211,28 +211,28 @@ class PDFFileLoader(IFileLoader):
                 for page_num in range(len(doc)):
                     page = doc.load_page(page_num)
                     text = page.get_text()
-                    if text.strip():  # 只添加非空页面
-                        text_parts.append(f"--- 第 {page_num + 1} 页 ---\n{text}")
+                    if text.strip():  # Only add non-empty pages
+                        text_parts.append(f"--- Page {page_num + 1} pages ---\n{text}")
                 
                 doc.close()
                 return "\n\n".join(text_parts)
             
-            # 使用线程池执行器来避免阻塞事件循环
+            # Use thread pool executor to avoid blocking event loop
             loop = asyncio.get_event_loop()
             content = await loop.run_in_executor(None, extract_text)
             
             if not content.strip():
-                logger.warning(f"PDF文件似乎没有可提取的文本内容: {path}")
-                return f"[PDF文件 {path.name} 没有可提取的文本内容]"
+                logger.warning(f"PDF file appears to have no extractable text content: {path}")
+                return f"[PDF file {path.name} has no extractable text content]"
             
             return content
             
         except Exception as e:
-            logger.error(f"使用pymupdf提取PDF内容失败: {e}")
-            raise FileLoaderError(f"PDF内容提取失败: {e}")
+            logger.error(f"Failed to extract PDF content using pymupdf: {e}")
+            raise FileLoaderError(f"PDF content extraction failed: {e}")
     
     async def _extract_content_with_pypdf2(self, path: Path) -> str:
-        """使用PyPDF2提取PDF内容"""
+        """Extract PDF content using PyPDF2"""
         try:
             def extract_text():
                 text_parts = []
@@ -241,37 +241,37 @@ class PDFFileLoader(IFileLoader):
                     
                     for page_num, page in enumerate(pdf_reader.pages):
                         text = page.extract_text()
-                        if text.strip():  # 只添加非空页面
-                            text_parts.append(f"--- 第 {page_num + 1} 页 ---\n{text}")
+                        if text.strip():  # Only add non-empty pages
+                            text_parts.append(f"--- Page {page_num + 1} pages ---\n{text}")
                 
                 return "\n\n".join(text_parts)
             
-            # 使用线程池执行器来避免阻塞事件循环
+            # Use thread pool executor to avoid blocking event loop
             loop = asyncio.get_event_loop()
             content = await loop.run_in_executor(None, extract_text)
             
             if not content.strip():
-                logger.warning(f"PDF文件似乎没有可提取的文本内容: {path}")
-                return f"[PDF文件 {path.name} 没有可提取的文本内容]"
+                logger.warning(f"PDF file appears to have no extractable text content: {path}")
+                return f"[PDF file {path.name} has no extractable text content]"
             
             return content
             
         except Exception as e:
-            logger.error(f"使用PyPDF2提取PDF内容失败: {e}")
-            raise FileLoaderError(f"PDF内容提取失败: {e}")
+            logger.error(f"Failed to extract PDF content using PyPDF2: {e}")
+            raise FileLoaderError(f"PDF content extraction failed: {e}")
     
     async def _extract_pdf_metadata(self, path: Path) -> Dict[str, Any]:
         """
-        提取PDF元数据
+        Extract PDF metadata
         
-        优先使用pymupdf (fitz)，回退到PyPDF2
+        Prioritize pymupdf (fitz), fallback to PyPDF2
         """
         if HAS_PYMUPDF:
             return await self._extract_metadata_with_pymupdf(path)
         elif HAS_PYPDF2:
             return await self._extract_metadata_with_pypdf2(path)
         else:
-            # 基础元数据
+            # Basic metadata
             return {
                 'pdf_pages': 'unknown',
                 'pdf_author': 'unknown',
@@ -283,7 +283,7 @@ class PDFFileLoader(IFileLoader):
             }
     
     async def _extract_metadata_with_pymupdf(self, path: Path) -> Dict[str, Any]:
-        """使用pymupdf (fitz)提取PDF元数据"""
+        """Extract PDF metadata using pymupdf (fitz)"""
         try:
             def extract_metadata():
                 doc = fitz.open(str(path))
@@ -307,7 +307,7 @@ class PDFFileLoader(IFileLoader):
             return await loop.run_in_executor(None, extract_metadata)
             
         except Exception as e:
-            logger.error(f"使用pymupdf提取PDF元数据失败: {e}")
+            logger.error(f"Failed to extract PDF metadata using pymupdf: {e}")
             return {
                 'pdf_pages': 'error',
                 'pdf_author': 'error',
@@ -317,7 +317,7 @@ class PDFFileLoader(IFileLoader):
             }
     
     async def _extract_metadata_with_pypdf2(self, path: Path) -> Dict[str, Any]:
-        """使用PyPDF2提取PDF元数据"""
+        """Extract PDF metadata using PyPDF2"""
         try:
             def extract_metadata():
                 with open(path, 'rb') as file:
@@ -341,7 +341,7 @@ class PDFFileLoader(IFileLoader):
             return await loop.run_in_executor(None, extract_metadata)
             
         except Exception as e:
-            logger.error(f"使用PyPDF2提取PDF元数据失败: {e}")
+            logger.error(f"Failed to extract PDF metadata using PyPDF2: {e}")
         return {
                 'pdf_pages': 'error',
                 'pdf_author': 'error',

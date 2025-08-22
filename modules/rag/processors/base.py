@@ -6,6 +6,8 @@
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
+
+from ...schemas.enums import ChunkingStrategy
 from ...models import Document, DocumentChunk, ProcessingRequest, ProcessingResult
 
 
@@ -101,3 +103,21 @@ class IDocumentProcessor(ABC):
             List[str]: 支持的策略列表
         """
         pass
+
+
+def register_chunking_strategy(strategy_name: ChunkingStrategy):
+    """
+    注册文档分块策略
+
+    Args:
+        strategy_name: 策略名称
+
+    Returns:
+        Callable: 装饰器函数
+    """
+    def decorator(func):
+        if not hasattr(IDocumentProcessor, 'chunking_strategies'):
+            IDocumentProcessor.chunking_strategies = {}
+        IDocumentProcessor.chunking_strategies[strategy_name] = func
+        return func
+    return decorator

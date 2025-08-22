@@ -130,7 +130,7 @@ class Document(Base):
     
     # 文件关联
     file_id: Mapped[Optional[str]] = mapped_column(
-        String(255), ForeignKey("files.id"), nullable=True
+        UUID(as_uuid=False), ForeignKey("files.id"), nullable=True
     )
     file_path: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     file_size: Mapped[int] = mapped_column(BigInteger, default=0)

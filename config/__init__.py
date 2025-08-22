@@ -11,35 +11,18 @@
 等基础设施配置。
 """
 
-# 应用程序配置
-from .app import (
+# 统一配置系统 - 基于Pydantic BaseSettings
+from .settings import (
+    # 主要配置类
     AppConfig,
     Environment,
-    default_app_config
-)
-
-# 数据库配置
-from .database import (
-    DatabaseConfig,
-    default_db_config
-)
-
-# 存储配置
-from .storage import (
-    StorageConfig,
-    StorageProvider,
-    default_storage_config
-)
-
-# 应用程序设置配置（从modules.config合并过来）
-from .settings import (
-    AppConfig as PydanticAppConfig,
-    DatabaseConfig as PydanticDatabaseConfig,
-    StorageConfig as PydanticStorageConfig,
-    LoggingConfig,
     get_config,
     reload_config,
-    # 任务配置（从config.tasks合并过来）
+    
+    # 子配置类
+    DatabaseConfig,
+    StorageConfig,
+    LoggingConfig,
     RedisConfig,
     WorkerConfig,
     TaskConfig,
@@ -47,6 +30,25 @@ from .settings import (
     MonitoringConfig,
     CeleryConfig
 )
+
+# 向后兼容的别名
+PydanticAppConfig = AppConfig
+PydanticDatabaseConfig = DatabaseConfig
+PydanticStorageConfig = StorageConfig
+
+# 默认配置实例
+default_app_config = get_config()
+
+# 存储相关的额外导入（如果需要）
+try:
+    from .storage import StorageProvider
+except ImportError:
+    # 如果storage.py文件不存在，从其他地方导入或定义默认值
+    class StorageProvider:
+        MINIO = "minio"
+        AWS_S3 = "aws_s3"
+        GOOGLE_GCS = "google_gcs"
+        LOCAL = "local"
 
 # API文档配置（从modules.config合并过来）
 from .docs import (
@@ -76,42 +78,36 @@ from .tasks.monitoring import (
 )
 
 __all__ = [
-    # 应用程序配置
+    # 主要配置类
     "AppConfig",
     "Environment", 
-    "default_app_config",
-    
-    # 数据库配置
-    "DatabaseConfig",
-    "default_db_config",
-    
-    # 存储配置
-    "StorageConfig",
-    "StorageProvider",
-    "default_storage_config",
-    
-    # Pydantic应用程序设置配置（从modules.config合并过来）
-    "PydanticAppConfig",
-    "PydanticDatabaseConfig",
-    "PydanticStorageConfig",
-    "LoggingConfig",
     "get_config",
     "reload_config",
+    "default_app_config",
     
-    # API文档配置（从modules.config合并过来）
-    "SWAGGER_UI_PARAMETERS",
-    "OPENAPI_TAGS",
-    "CUSTOM_SWAGGER_CSS",
-    "CUSTOM_SWAGGER_JS",
-    "get_openapi_config",
-    
-    # 任务配置数据类（从config.tasks合并过来）
+    # 子配置类
+    "DatabaseConfig",
+    "StorageConfig", 
+    "StorageProvider",
+    "LoggingConfig",
     "RedisConfig",
     "WorkerConfig",
     "TaskConfig",
     "RetryConfig",
     "MonitoringConfig",
     "CeleryConfig",
+    
+    # 向后兼容别名
+    "PydanticAppConfig",
+    "PydanticDatabaseConfig",
+    "PydanticStorageConfig",
+    
+    # API文档配置
+    "SWAGGER_UI_PARAMETERS",
+    "OPENAPI_TAGS",
+    "CUSTOM_SWAGGER_CSS",
+    "CUSTOM_SWAGGER_JS",
+    "get_openapi_config",
     
     # 任务监控接口
     "ITaskMonitoringService",

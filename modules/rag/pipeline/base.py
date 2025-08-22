@@ -9,6 +9,8 @@ from typing import List, Dict, Any, Optional, AsyncIterator
 from enum import Enum
 from datetime import datetime
 
+from modules.schemas.enums import ContentType
+
 
 class PipelineStatus(Enum):
     """管道状态"""
@@ -59,6 +61,7 @@ class DocumentProcessingRequest:
     def __init__(self,
                  file_id: str,
                  file_path: str,
+                 content_type: Optional[ContentType] = None,
                  topic_id: Optional[int] = None,
                  config: Optional[PipelineConfig] = None,
                  metadata: Optional[Dict[str, Any]] = None,
@@ -70,6 +73,7 @@ class DocumentProcessingRequest:
         self.metadata = metadata or {}
         self.priority = priority
         self.created_at = datetime.utcnow()
+        self.content_type = content_type or ContentType.TXT  # default to text content
 
 
 class ProcessingStageResult:
