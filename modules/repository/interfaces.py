@@ -13,7 +13,7 @@ EntityType = TypeVar('EntityType')
 IdType = TypeVar('IdType')
 
 class IBaseRepository(ABC, Generic[EntityType, IdType]):
-    """基础Repository接口"""
+    """Base repository接口"""
     
     @abstractmethod
     async def create(self, entity_data: Dict[str, Any]) -> EntityType:
@@ -143,7 +143,7 @@ class IFileRepository(IBaseRepository):
         pass
 
 class IDocumentRepository(IBaseRepository):
-    """文档Repository接口"""
+    """Document repository interface"""
     
     @abstractmethod
     async def create_document(self,
@@ -151,12 +151,12 @@ class IDocumentRepository(IBaseRepository):
                             title: str,
                             content_type: str,
                             **kwargs) -> Any:
-        """创建文档"""
+        """Create document"""
         pass
     
     @abstractmethod
     async def get_document_by_id(self, document_id: str) -> Optional[Any]:
-        """根据ID获取文档"""
+        """根据IDGet document"""
         pass
     
     @abstractmethod
@@ -165,7 +165,7 @@ class IDocumentRepository(IBaseRepository):
                                   content: str,
                                   chunk_index: int,
                                   **kwargs) -> Any:
-        """创建文档块"""
+        """Create document块"""
         pass
     
     @abstractmethod
@@ -178,20 +178,20 @@ class IDocumentRepository(IBaseRepository):
     
     @abstractmethod
     async def delete_document(self, document_id: str) -> bool:
-        """删除文档"""
+        """Delete document"""
         pass
     
     @abstractmethod
     async def get_documents_by_file(self, file_id: str) -> List[Any]:
-        """根据文件ID获取文档列表"""
+        """根据文件IDGet document列表"""
         pass
     
     @abstractmethod
     async def get_document_chunks(self, document_id: str) -> List[Any]:
-        """获取文档的所有块"""
+        """Get document的所有块"""
         pass
     
     @abstractmethod
     async def update_document_status(self, document_id: str, status: str) -> bool:
-        """更新文档状态"""
+        """Update document状态"""
         pass

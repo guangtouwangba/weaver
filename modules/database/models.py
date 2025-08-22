@@ -29,7 +29,7 @@ class Topic(Base):
     """主题模型"""
     __tablename__ = "topics"
     
-    # 主键
+    # Primary key
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     
     # 基础信息
@@ -76,10 +76,10 @@ class File(Base):
     """文件模型 - 匹配实际数据库结构"""
     __tablename__ = "files"
     
-    # 主键
+    # Primary key
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
     
-    # 关联信息 - 添加外键约束
+    # 关联信息 - 添加Foreign key约束
     topic_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("topics.id"), nullable=True
     )
@@ -117,10 +117,10 @@ class File(Base):
     documents: Mapped[List["Document"]] = relationship("Document", back_populates="file")
 
 class Document(Base):
-    """文档模型"""
+    """Document model"""
     __tablename__ = "documents"
     
-    # 主键
+    # Primary key
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     
     # 基础信息
@@ -155,10 +155,10 @@ class Document(Base):
     chunks: Mapped[List["DocumentChunk"]] = relationship("DocumentChunk", back_populates="document")
 
 class DocumentChunk(Base):
-    """文档块模型"""
+    """Document chunk model"""
     __tablename__ = "document_chunks"
     
-    # 主键
+    # Primary key
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     
     # 文档关联

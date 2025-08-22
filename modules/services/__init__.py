@@ -1,7 +1,7 @@
 """
 Services模块
 
-提供业务逻辑服务层，负责编排Repository和处理业务规则。
+提供Business logicService layer，负责编排Repository和处理业务规则。
 """
 
 from .base_service import BaseService

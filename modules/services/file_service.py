@@ -1,7 +1,7 @@
 """
 文件Service层
 
-处理文件相关的业务逻辑。
+处理文件相关的Business logic。
 """
 
 import logging
@@ -23,7 +23,7 @@ from ..storage import IStorage
 logger = logging.getLogger(__name__)
 
 class FileService(BaseService):
-    """文件业务服务"""
+    """文件Business service"""
     
     def __init__(self, session: AsyncSession, storage: IStorage):
         super().__init__(session)

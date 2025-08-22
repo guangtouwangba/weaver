@@ -1,5 +1,5 @@
 """
-文档Repository实现
+Document repository implementation
 
 处理文档和文档块相关的数据访问逻辑。
 """
@@ -19,14 +19,14 @@ from ..database.models import Document, DocumentChunk
 logger = logging.getLogger(__name__)
 
 class DocumentRepository(BaseRepository, IDocumentRepository):
-    """文档Repository实现"""
+    """Document repository implementation"""
     
     async def create_document(self,
                             document_id: str,
                             title: str,
                             content_type: str,
                             **kwargs) -> Document:
-        """创建文档"""
+        """Create document"""
         document = Document(
             id=document_id,
             title=title,
@@ -43,11 +43,11 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         await self.session.flush()
         await self.session.refresh(document)
         
-        logger.info(f"创建文档: {title} (ID: {document_id})")
+        logger.info(f"Create document: {title} (ID: {document_id})")
         return document
     
     async def get_document_by_id(self, document_id: str) -> Optional[Document]:
-        """根据ID获取文档"""
+        """根据IDGet document"""
         result = await self.session.execute(
             select(Document)
             .where(Document.id == document_id)
@@ -60,7 +60,7 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
                                   content: str,
                                   chunk_index: int,
                                   **kwargs) -> DocumentChunk:
-        """创建文档块"""
+        """Create document块"""
         chunk_id = kwargs.get('chunk_id', f"{document_id}_chunk_{chunk_index}")
         
         chunk = DocumentChunk(
@@ -78,7 +78,7 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         await self.session.flush()
         await self.session.refresh(chunk)
         
-        logger.info(f"创建文档块: {chunk_id}")
+        logger.info(f"Create document块: {chunk_id}")
         return chunk
     
     async def search_documents(self,
@@ -104,25 +104,25 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         return result.scalars().all()
     
     async def delete_document(self, document_id: str) -> bool:
-        """删除文档"""
-        # 先删除文档块
+        """Delete document"""
+        # 先Delete document块
         await self.session.execute(
             delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
         )
         
-        # 再删除文档
+        # 再Delete document
         result = await self.session.execute(
             delete(Document).where(Document.id == document_id)
         )
         
         success = result.rowcount > 0
         if success:
-            logger.info(f"删除文档: {document_id}")
+            logger.info(f"Delete document: {document_id}")
         
         return success
     
     async def get_documents_by_file(self, file_id: str) -> List[Document]:
-        """根据文件ID获取文档列表"""
+        """根据文件IDGet document列表"""
         result = await self.session.execute(
             select(Document)
             .where(Document.file_id == file_id)
@@ -131,7 +131,7 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         return result.scalars().all()
     
     async def get_document_chunks(self, document_id: str) -> List[DocumentChunk]:
-        """获取文档的所有块"""
+        """Get document的所有块"""
         result = await self.session.execute(
             select(DocumentChunk)
             .where(DocumentChunk.document_id == document_id)
@@ -140,7 +140,7 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         return result.scalars().all()
     
     async def update_document_status(self, document_id: str, status: str) -> bool:
-        """更新文档状态"""
+        """Update document状态"""
         result = await self.session.execute(
             update(Document)
             .where(Document.id == document_id)

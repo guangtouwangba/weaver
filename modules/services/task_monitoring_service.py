@@ -1,7 +1,7 @@
 """
-任务监控服务实现
+Task monitoringService implementation
 
-基于Redis和Celery的任务监控功能实现。
+基于Redis和Celery的Task monitoring功能实现。
 """
 
 import logging
@@ -22,7 +22,7 @@ from config import WorkerConfig, TaskConfig, RetryConfig, get_config
 logger = logging.getLogger(__name__)
 
 class RedisTaskMonitoringService(ITaskMonitoringService):
-    """基于Redis的任务监控服务"""
+    """基于Redis的Task monitoring服务"""
     
     def __init__(self, redis_url: str = "redis://localhost:6379/0"):
         """
@@ -232,7 +232,7 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
             return active_tasks
             
         except Exception as e:
-            logger.error(f"获取活跃任务失败: {e}")
+            logger.error(f"获取活跃Task failure: {e}")
             return []
     
     async def get_failed_tasks(self, hours: int = 24, limit: int = 100) -> List[Dict[str, Any]]:
@@ -268,13 +268,13 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
             return failed_tasks[:limit]
             
         except Exception as e:
-            logger.error(f"获取失败任务失败: {e}")
+            logger.error(f"获取失败Task failure: {e}")
             return []
     
     async def get_task_history(self, 
                              task_id: str,
                              include_logs: bool = False) -> Optional[Dict[str, Any]]:
-        """获取任务执行历史"""
+        """获取Task execution历史"""
         try:
             client = await self._get_redis_client()
             
@@ -355,7 +355,7 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
             return []
 
 class TaskConfigurationService(ITaskConfiguration):
-    """任务配置服务实现"""
+    """任务配置Service implementation"""
     
     def __init__(self):
         """初始化配置服务"""

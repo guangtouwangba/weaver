@@ -10,6 +10,8 @@ import logging
 from typing import Optional, Dict, Any
 import asyncio
 
+from .factory import register_multi_type_file_loader
+
 # 可选依赖：chardet 用于更好的编码检测
 try:
     import chardet
@@ -25,6 +27,9 @@ from ..schemas.enums import ContentType
 logger = logging.getLogger(__name__)
 
 
+@register_multi_type_file_loader(
+    content_types=[ContentType.TXT]
+)
 class TextFileLoader(IFileLoader):
     """文本文件加载器"""
     

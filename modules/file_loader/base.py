@@ -5,7 +5,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from ..models import Document, FileLoadRequest
 from ..schemas.enums import ContentType
 
@@ -21,7 +21,7 @@ class FileLoaderError(Exception):
 
 class IFileLoader(ABC):
     """文件加载器接口"""
-    
+
     @abstractmethod
     async def load_document(self, request: FileLoadRequest) -> Document:
         """
@@ -63,24 +63,13 @@ class IFileLoader(ABC):
             bool: 文件是否有效
         """
         pass
-    
-    @property
-    @abstractmethod
-    def supported_types(self) -> list[ContentType]:
-        """
-        获取支持的内容类型列表
-        
-        Returns:
-            list[ContentType]: 支持的内容类型
-        """
-        pass
-    
+
     @property
     @abstractmethod
     def loader_name(self) -> str:
         """
         获取加载器名称
-        
+
         Returns:
             str: 加载器名称
         """
