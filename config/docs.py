@@ -1,7 +1,7 @@
 """
-API文档配置模块
+API documentation configuration module
 
-配置Swagger UI和ReDoc的自定义样式和行为。
+Configure custom styles and behaviors for Swagger UI and ReDoc.
 """
 
 from typing import Dict, Any
@@ -13,54 +13,54 @@ SWAGGER_UI_PARAMETERS = {
     "defaultModelsExpandDepth": 2,
     "defaultModelExpandDepth": 2,
     "displayRequestDuration": True,
-    "docExpansion": "list",  # 展开操作列表
-    "filter": True,  # 启用搜索过滤
+    "docExpansion": "list",  # Expand operation list
+    "filter": True,  # Enable search filter
     "showExtensions": True,
     "showCommonExtensions": True,
     "tryItOutEnabled": True,
-    "persistAuthorization": True,  # 保持授权状态
+    "persistAuthorization": True,  # Maintain authorization state
     "layout": "BaseLayout",
     "supportedSubmitMethods": ["get", "post", "put", "delete", "patch"],
-    # 自定义主题配色
+    # Custom theme colors
     "theme": {
         "primaryColor": "#1976d2",
         "backgroundColor": "#fafafa"
     }
 }
 
-# OpenAPI文档的标签定义
+# OpenAPI document tag definitions
 OPENAPI_TAGS = [
     {
-        "name": "系统信息",
-        "description": "系统健康检查和基本信息接口"
+        "name": "System Information",
+        "description": "System health check and basic information endpoints"
     },
     {
         "name": "topics", 
-        "description": "**🏷️ 主题管理**\n\n管理知识主题的创建、编辑、删除和查询。主题是组织文档和知识的容器。",
+        "description": "**🏷️ Topic Management**\n\nManage the creation, editing, deletion and querying of knowledge topics. Topics are containers for organizing documents and knowledge.",
         "externalDocs": {
-            "description": "主题管理最佳实践",
+            "description": "Topic Management Best Practices",
             "url": "https://docs.example.com/topics"
         }
     },
     {
         "name": "files",
-        "description": "**📁 文件管理**\n\n处理文件上传、下载、存储和元数据管理。支持多种文件格式和存储后端。",
+        "description": "**📁 File Management**\n\nHandle file upload, download, storage and metadata management. Support multiple file formats and storage backends.",
         "externalDocs": {
-            "description": "文件上传指南",
+            "description": "File Upload Guide",
             "url": "https://docs.example.com/files"
         }
     },
     {
         "name": "documents",
-        "description": "**📄 文档处理**\n\n文档的解析、分块、向量化和智能搜索。核心的RAG功能实现。",
+        "description": "**📄 Document Processing**\n\nDocument parsing, chunking, vectorization and intelligent search. Core RAG functionality implementation.",
         "externalDocs": {
-            "description": "RAG搜索技术文档", 
+            "description": "RAG Search Technical Documentation", 
             "url": "https://docs.example.com/rag"
         }
     }
 ]
 
-# 自定义CSS样式
+# Custom CSS styles
 CUSTOM_SWAGGER_CSS = """
 <style>
 .swagger-ui .topbar {
@@ -103,12 +103,12 @@ CUSTOM_SWAGGER_CSS = """
 </style>
 """
 
-# 自定义JavaScript
+# Custom JavaScript
 CUSTOM_SWAGGER_JS = """
 <script>
-// 页面加载完成后的自定义逻辑
+// Custom logic after page load
 window.onload = function() {
-    // 设置默认的服务器URL
+    // Set default server URL
     if (window.ui) {
         setTimeout(function() {
             const serverSelect = document.querySelector('.scheme-container select');
@@ -118,9 +118,9 @@ window.onload = function() {
         }, 1000);
     }
     
-    // 添加快捷键支持
+    // Add keyboard shortcut support
     document.addEventListener('keydown', function(e) {
-        // Ctrl+F 打开搜索
+        // Ctrl+F open search
         if (e.ctrlKey && e.key === 'f') {
             e.preventDefault();
             const filterInput = document.querySelector('.swagger-ui .filter input');
@@ -128,7 +128,7 @@ window.onload = function() {
                 filterInput.focus();
             }
         }
-        // Ctrl+H 切换到主页
+        // Ctrl+H navigate to home
         if (e.ctrlKey && e.key === 'h') {
             e.preventDefault();
             window.location.href = '/';
@@ -139,55 +139,55 @@ window.onload = function() {
 """
 
 def get_openapi_config() -> Dict[str, Any]:
-    """获取OpenAPI配置"""
+    """Get OpenAPI configuration"""
     return {
         "title": "RAG Knowledge Management API",
         "description": """
-# 🔍 RAG知识管理系统API
+# 🔍 RAG Knowledge Management System API
 
-基于DDD架构和Service层编排的智能知识管理系统，提供文档上传、处理、向量化搜索等完整的RAG功能。
+Intelligent knowledge management system based on DDD architecture and Service layer orchestration, providing complete RAG functionality including document upload, processing, and vectorized search.
 
-## 🚀 核心特性
+## 🚀 Core Features
 
-- **📚 智能文档处理**: 支持PDF、Word、TXT等多种格式
-- **🔍 语义搜索**: 基于向量相似度的智能内容检索
-- **🏷️ 主题组织**: 灵活的知识分类和管理体系
-- **⚡ 异步处理**: 高性能的非阻塞I/O操作
-- **🔒 安全上传**: 基于签名URL的安全文件传输
-- **📊 实时监控**: 完整的处理状态跟踪和错误处理
+- **📚 Intelligent Document Processing**: Support for PDF, Word, TXT and other formats
+- **🔍 Semantic Search**: Intelligent content retrieval based on vector similarity
+- **🏷️ Topic Organization**: Flexible knowledge classification and management system
+- **⚡ Async Processing**: High-performance non-blocking I/O operations
+- **🔒 Secure Upload**: Secure file transfer based on signed URLs
+- **📊 Real-time Monitoring**: Complete processing status tracking and error handling
 
-## 🛠️ 技术架构
+## 🛠️ Technical Architecture
 
-- **后端框架**: FastAPI + SQLAlchemy + Pydantic
-- **数据库**: PostgreSQL (关系数据) + Weaviate (向量数据)
-- **存储**: MinIO/AWS S3/GCS (多后端支持)
-- **缓存**: Redis (会话和队列管理)
-- **搜索**: Elasticsearch + 向量数据库混合搜索
+- **Backend Framework**: FastAPI + SQLAlchemy + Pydantic
+- **Database**: PostgreSQL (relational data) + Weaviate (vector data)
+- **Storage**: MinIO/AWS S3/GCS (multi-backend support)
+- **Cache**: Redis (session and queue management)
+- **Search**: Elasticsearch + vector database hybrid search
 
-## 📖 使用指南
+## 📖 Usage Guide
 
-### 基本工作流程
+### Basic Workflow
 
-1. **创建主题** → `POST /api/v1/topics`
-2. **获取上传URL** → `POST /api/v1/files/upload/signed-url`
-3. **上传文件** → 使用返回的签名URL
-4. **确认上传** → `POST /api/v1/files/confirm`
-5. **搜索内容** → `POST /api/v1/documents/search`
+1. **Create Topic** → `POST /api/v1/topics`
+2. **Get Upload URL** → `POST /api/v1/files/upload/signed-url`
+3. **Upload File** → Use returned signed URL
+4. **Confirm Upload** → `POST /api/v1/files/confirm`
+5. **Search Content** → `POST /api/v1/documents/search`
 
-### 认证方式
+### Authentication Methods
 
-系统支持多种认证方式：
-- **API Key**: 在请求头中添加 `X-API-Key`
-- **Bearer Token**: 标准的JWT令牌认证
-- **OAuth2**: 支持第三方OAuth2提供商
+The system supports multiple authentication methods:
+- **API Key**: Add `X-API-Key` in request headers
+- **Bearer Token**: Standard JWT token authentication
+- **OAuth2**: Support for third-party OAuth2 providers
 
-### 错误处理
+### Error Handling
 
-所有API响应都遵循统一的错误格式：
+All API responses follow a unified error format:
 ```json
 {
   "success": false,
-  "message": "错误描述",
+  "message": "Error description",
   "error": {
     "code": "ERROR_CODE",
     "details": {}
@@ -196,21 +196,21 @@ def get_openapi_config() -> Dict[str, Any]:
 }
 ```
 
-## 🔗 相关链接
+## 🔗 Related Links
 
-- [API文档 (Swagger UI)](/docs)
-- [API文档 (ReDoc)](/redoc)
-- [OpenAPI规范](/openapi.json)
-- [开发者文档](https://docs.example.com)
-- [GitHub仓库](https://github.com/your-repo/research-agent-rag)
+- [API Documentation (Swagger UI)](/docs)
+- [API Documentation (ReDoc)](/redoc)
+- [OpenAPI Specification](/openapi.json)
+- [Developer Documentation](https://docs.example.com)
+- [GitHub Repository](https://github.com/your-repo/research-agent-rag)
 
 ---
 
-**💡 提示**: 使用右上角的搜索框可以快速找到所需的API端点。
+**💡 Tip**: Use the search box in the top right corner to quickly find the API endpoints you need.
         """,
         "version": "2.0.0",
         "contact": {
-            "name": "RAG API技术支持",
+            "name": "RAG API Technical Support",
             "url": "https://github.com/your-repo/research-agent-rag",
             "email": "support@example.com"
         },
@@ -221,15 +221,15 @@ def get_openapi_config() -> Dict[str, Any]:
         "servers": [
             {
                 "url": "http://localhost:8000",
-                "description": "开发环境"
+                "description": "Development Environment"
             },
             {
                 "url": "https://api-staging.example.com", 
-                "description": "测试环境"
+                "description": "Testing Environment"
             },
             {
                 "url": "https://api.example.com",
-                "description": "生产环境"
+                "description": "Production Environment"
             }
         ],
         "tags": OPENAPI_TAGS
