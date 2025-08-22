@@ -10,28 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
-
-# 枚举类型
-class ContentType(str, Enum):
-    """内容类型"""
-
-    PDF = "pdf"
-    DOC = "doc"
-    DOCX = "docx"
-    TXT = "txt"
-    HTML = "html"
-    MD = "md"
-    JSON = "json"
-    CSV = "csv"
-
-
-class ChunkingStrategy(str, Enum):
-    """分块策略"""
-
-    FIXED_SIZE = "fixed_size"
-    SENTENCE = "sentence"
-    PARAGRAPH = "paragraph"
-    SEMANTIC = "semantic"
+from .schemas.enums import ChunkingStrategy, ContentType
 
 
 # 核心数据模型

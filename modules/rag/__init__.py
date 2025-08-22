@@ -5,7 +5,6 @@ RAG (Retrieval-Augmented Generation) 模块
 - processors: 文档处理器
 - orchestrator: RAG编排器
 - router: 文档路由器
-- api: RAG专用API
 - embedding: 嵌入服务
 - vector_store: 向量存储
 - search: 搜索服务

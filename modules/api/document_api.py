@@ -9,15 +9,15 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db_session
-from ...schemas import (
+from ..database import get_db_session
+from ..schemas import (
     APIResponse,
     DocumentCreate,
     DocumentUpdate,
     ProcessingRequest,
     SearchRequest,
 )
-from ...services import DocumentService
+from ..services import DocumentService
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
