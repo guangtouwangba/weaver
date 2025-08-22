@@ -1,7 +1,7 @@
 """
-基于Service层编排的RAG系统主应用
+RAG system main application based on Service layer orchestration
 
-使用新的架构：Schema + Repository + Service + API
+Using new architecture: Schema + Repository + Service + API
 """
 
 from fastapi import FastAPI, HTTPException
@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 import logging
 
 from config.settings import AppConfig
-# 导入新的Service层API
+# Import new Service layer API
 from modules.api import api_router
 from modules.database import DatabaseConnection
 from modules.schemas import APIResponse, HealthCheckResponse
@@ -22,43 +22,43 @@ from modules.api.error_handlers import (
 )
 from config.docs import SWAGGER_UI_PARAMETERS
 
-# 配置日志
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 创建FastAPI应用
+# Create FastAPI application
 app = FastAPI(
     title="RAG Knowledge Management API",
-    description="""🔍 **基于Service层编排的RAG知识管理系统**
+    description="""🔍 **RAG Knowledge Management System Based on Service Layer Orchestration**
     
-    ## 🚀 核心功能
+    ## 🚀 Core Features
     
-    ### 📚 文档管理
-    - **文件上传**: 支持PDF、Word、TXT等格式的文档上传
-    - **文档处理**: 智能文本分块和向量化处理
-    - **内容检索**: 语义搜索和关键词搜索
+    ### 📚 Document Management
+    - **File Upload**: Support for document upload in PDF, Word, TXT and other formats
+    - **Document Processing**: Intelligent text chunking and vectorization
+    - **Content Retrieval**: Semantic search and keyword search
     
-    ### 🏷️ 主题组织
-    - **主题创建**: 创建和管理知识主题
-    - **文档分类**: 将文档关联到相应主题
-    - **知识图谱**: 构建主题间的关联关系
+    ### 🏷️ Topic Organization
+    - **Topic Creation**: Create and manage knowledge topics
+    - **Document Classification**: Associate documents with relevant topics
+    - **Knowledge Graph**: Build relationships between topics
     
-    ### ⚡ 技术架构
-    - **领域驱动**: DDD架构设计
-    - **服务编排**: 清晰的业务逻辑分层
-    - **异步处理**: 高性能的异步I/O操作
-    - **多存储支持**: MinIO/AWS S3/GCS等存储后端
+    ### ⚡ Technical Architecture
+    - **Domain Driven**: DDD architecture design
+    - **Service Orchestration**: Clear business logic layering
+    - **Async Processing**: High-performance async I/O operations
+    - **Multi-storage Support**: MinIO/AWS S3/GCS and other storage backends
     
-    ## 🔧 快速开始
+    ## 🔧 Quick Start
     
-    1. **健康检查**: `GET /health` - 检查系统状态
-    2. **创建主题**: `POST /api/v1/topics` - 创建知识主题
-    3. **上传文件**: `POST /api/v1/files/upload/signed-url` - 获取上传URL
-    4. **文档搜索**: `POST /api/v1/documents/search` - 搜索相关内容
+    1. **Health Check**: `GET /health` - Check system status
+    2. **Create Topic**: `POST /api/v1/topics` - Create knowledge topic
+    3. **Upload File**: `POST /api/v1/files/upload/signed-url` - Get upload URL
+    4. **Document Search**: `POST /api/v1/documents/search` - Search related content
     
     ---
     
-    💡 **提示**: 使用下方的API文档探索所有可用的端点和功能
+    💡 **Tip**: Use the API documentation below to explore all available endpoints and features
     """,
     version="2.0.0",
     contact={
@@ -73,11 +73,11 @@ app = FastAPI(
     servers=[
         {
             "url": "http://localhost:8000",
-            "description": "开发环境"
+            "description": "Development Environment"
         },
         {
             "url": "https://api.example.com",
-            "description": "生产环境"
+            "description": "Production Environment"
         }
     ],
     docs_url="/docs",
@@ -85,12 +85,12 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# 注册错误处理器
+# Register error handlers
 app.add_exception_handler(UnicodeDecodeError, unicode_decode_error_handler)
 app.add_exception_handler(RequestValidationError, request_validation_error_handler)
 app.add_exception_handler(Exception, general_exception_handler)
 
-# 添加CORS中间件
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -99,46 +99,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 注册新的Service层API路由
+# Register new Service layer API routes
 app.include_router(api_router)
 
-# 自定义Swagger UI页面
+# Custom Swagger UI page
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
-    """自定义Swagger UI页面带额外样式和功能"""
+    """Custom Swagger UI page with additional styles and features"""
     from fastapi.openapi.docs import get_swagger_ui_html
     return get_swagger_ui_html(
         openapi_url=app.openapi_url,
-        title=f"{app.title} - 交互式文档",
+        title=f"{app.title} - Interactive Documentation",
         swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
         swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css",
         swagger_ui_parameters=SWAGGER_UI_PARAMETERS,
         swagger_favicon_url="/favicon.ico"
     )
 
-# 自定义ReDoc页面
+# Custom ReDoc page
 @app.get("/redoc", include_in_schema=False)
 async def custom_redoc_html():
-    """自定义ReDoc页面"""
+    """Custom ReDoc page"""
     from fastapi.openapi.docs import get_redoc_html
     return get_redoc_html(
         openapi_url=app.openapi_url,
-        title=f"{app.title} - ReDoc文档",
+        title=f"{app.title} - ReDoc Documentation",
         redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js",
         redoc_favicon_url="/favicon.ico"
     )
 
-# 添加文档首页
+# Add documentation homepage
 @app.get("/api-docs", response_class=HTMLResponse, include_in_schema=False)
 async def api_documentation():
     """
-API文档首页，提供各种文档入口
+API documentation homepage providing various documentation entries
 """
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>{app.title} - API文档中心</title>
+        <title>{app.title} - API Documentation Center</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -203,60 +203,60 @@ API文档首页，提供各种文档入口
     <body>
         <div class="header">
             <h1>🔍 {app.title}</h1>
-            <p>基于DDD架构的智能知识管理系统</p>
+            <p>Intelligent Knowledge Management System Based on DDD Architecture</p>
             <p>Version: {app.version}</p>
         </div>
         
         <div class="cards">
             <a href="/docs" class="card">
                 <h3>📊 Swagger UI</h3>
-                <p>交互式的API文档，支持在线测试和调试。提供丰富的界面和参数验证。</p>
-                <p><strong>适用于</strong>：开发者测试、API探索</p>
+                <p>Interactive API documentation with online testing and debugging support. Provides rich interface and parameter validation.</p>
+                <p><strong>Suitable for</strong>: Developer testing, API exploration</p>
             </a>
             
             <a href="/redoc" class="card">
                 <h3>📚 ReDoc</h3>
-                <p>美观的文档阅读界面，优化的排版和导航。适合产品文档和用户手册。</p>
-                <p><strong>适用于</strong>：文档阅读、产品介绍</p>
+                <p>Beautiful documentation reading interface with optimized layout and navigation. Perfect for product documentation and user manuals.</p>
+                <p><strong>Suitable for</strong>: Documentation reading, product introduction</p>
             </a>
             
             <a href="/openapi.json" class="card">
                 <h3>⚙️ OpenAPI JSON</h3>
-                <p>OpenAPI规范的JSON格式，可用于生成客户端代码、测试工具等。</p>
-                <p><strong>适用于</strong>：代码生成、工具集成</p>
+                <p>OpenAPI specification in JSON format, can be used for client code generation, testing tools, etc.</p>
+                <p><strong>Suitable for</strong>: Code generation, tool integration</p>
             </a>
             
             <a href="/health" class="card">
-                <h3>❤️ 系统状态</h3>
-                <p>检查系统各组件的运行状态，包括数据库、存储、缓存等。</p>
-                <p><strong>适用于</strong>：运维监控、系统诊断</p>
+                <h3>❤️ System Status</h3>
+                <p>Check the running status of system components including database, storage, cache, etc.</p>
+                <p><strong>Suitable for</strong>: Operations monitoring, system diagnostics</p>
             </a>
         </div>
         
         <div class="features">
-            <h2>🚀 系统特性</h2>
+            <h2>🚀 System Features</h2>
             <div class="feature-grid">
                 <div class="feature">
-                    <h4>📚 智能文档处理</h4>
-                    <p>支持PDF、Word、TXT等格式，自动提取、分块、向量化</p>
+                    <h4>📚 Intelligent Document Processing</h4>
+                    <p>Support PDF, Word, TXT and other formats with automatic extraction, chunking, and vectorization</p>
                 </div>
                 <div class="feature">
-                    <h4>🔍 语义搜索</h4>
-                    <p>基于向量相似度的智能内容检索，支持多语言</p>
+                    <h4>🔍 Semantic Search</h4>
+                    <p>Intelligent content retrieval based on vector similarity, supporting multiple languages</p>
                 </div>
                 <div class="feature">
-                    <h4>🏷️ 主题管理</h4>
-                    <p>灵活的知识分类和组织体系，构建知识图谱</p>
+                    <h4>🏷️ Topic Management</h4>
+                    <p>Flexible knowledge classification and organization system, building knowledge graphs</p>
                 </div>
                 <div class="feature">
-                    <h4>⚡ 高性能异步</h4>
-                    <p>非阻塞I/O操作，支持大并发和实时处理</p>
+                    <h4>⚡ High-Performance Async</h4>
+                    <p>Non-blocking I/O operations supporting high concurrency and real-time processing</p>
                 </div>
             </div>
         </div>
         
         <footer style="text-align: center; margin-top: 3rem; padding: 2rem; color: #666;">
-            <p>由 FastAPI + RAG 技术驱动 | 遵循MIT许可证</p>
+            <p>Powered by FastAPI + RAG Technology | Licensed under MIT</p>
         </footer>
         
         <style>
@@ -269,7 +269,7 @@ API文档首页，提供各种文档入口
             }}
         </style>
         <script>
-            // 添加简单的页面交互功能
+            // Add simple page interaction features
             document.addEventListener('DOMContentLoaded', function() {{
                 console.log('API Documentation Center loaded');
             }});
@@ -279,21 +279,21 @@ API文档首页，提供各种文档入口
     """
     return HTMLResponse(content=html_content)
 
-@app.get("/", response_model=APIResponse, summary="API根目录", tags=["系统信息"])
+@app.get("/", response_model=APIResponse, summary="API Root Directory", tags=["System Information"])
 async def root():
     """
-    # API服务根目录
+    # API Service Root Directory
     
-    返回RAG知识管理系统的基本信息和版本详情。
+    Returns basic information and version details of the RAG Knowledge Management System.
     
-    ## 响应内容
-    - 🚀 **服务名称**: RAG Knowledge Management API
-    - 📦 **版本信息**: 当前系统版本号
-    - 🏗️ **架构模式**: DDD + Service Layer
-    - 📊 **技术栈**: FastAPI + SQLAlchemy + Pydantic
+    ## Response Content
+    - 🚀 **Service Name**: RAG Knowledge Management API
+    - 📦 **Version Info**: Current system version
+    - 🏗️ **Architecture Pattern**: DDD + Service Layer
+    - 📊 **Technology Stack**: FastAPI + SQLAlchemy + Pydantic
     
-    ## 使用场景
-    用于检查API服务是否正常运行，以及获取基本的系统信息。
+    ## Use Cases
+    Used to check if the API service is running normally and to get basic system information.
     """
     return APIResponse(
         success=True,
@@ -303,11 +303,11 @@ async def root():
             "version": "2.0.0", 
             "architecture": "DDD + Service Layer",
             "features": [
-                "文档上传与处理",
-                "智能文本分块",
-                "向量化搜索",
-                "主题管理",
-                "多存储后端支持"
+                "Document upload and processing",
+                "Intelligent text chunking",
+                "Vector search",
+                "Topic management",
+                "Multi-storage backend support"
             ],
             "endpoints": {
                 "docs": "/docs",
@@ -318,39 +318,39 @@ async def root():
         }
     )
 
-@app.get("/health", response_model=APIResponse, summary="系统健康检查", tags=["系统信息"])
+@app.get("/health", response_model=APIResponse, summary="System Health Check", tags=["System Information"])
 async def health_check():
     """
-    # 系统健康状态检查
+    # System Health Status Check
     
-    检查RAG系统各个组件的运行状态，包括数据库连接、服务层状态等。
+    Check the running status of various components of the RAG system, including database connections, service layer status, etc.
     
-    ## 检查项目
-    - 🗄️ **数据库**: PostgreSQL连接状态
-    - ⚙️ **API服务**: FastAPI应用状态
-    - 🔧 **业务服务**: Service层组件状态
-    - 📊 **数据层**: Repository层状态
-    - 📋 **Schema**: Pydantic模型验证状态
+    ## Check Items
+    - 🗄️ **Database**: PostgreSQL connection status
+    - ⚙️ **API Service**: FastAPI application status
+    - 🔧 **Business Services**: Service layer component status
+    - 📊 **Data Layer**: Repository layer status
+    - 📋 **Schema**: Pydantic model validation status
     
-    ## 返回状态
-    - ✅ **healthy**: 所有组件正常
-    - ⚠️ **degraded**: 部分组件异常但服务可用
-    - ❌ **unhealthy**: 关键组件异常，服务不可用
+    ## Return Status
+    - ✅ **healthy**: All components normal
+    - ⚠️ **degraded**: Some components abnormal but service available
+    - ❌ **unhealthy**: Critical components abnormal, service unavailable
     
-    ## 监控建议
-    建议将此接口用于:
-    - 负载均衡器健康检查
-    - 监控系统状态轮询
-    - 容器编排健康探测
-    - 运维自动化脚本
+    ## Monitoring Recommendations
+    Recommend using this endpoint for:
+    - Load balancer health checks
+    - Monitoring system status polling
+    - Container orchestration health probes
+    - Operations automation scripts
     """
     try:
-        # 检查数据库连接
+        # Check database connection
         db_status = "healthy"
         try:
             from modules.database import get_database_connection
             db = await get_database_connection()
-            # 执行简单的健康检查
+            # Execute simple health check
             health_ok = await db.health_check()
             if not health_ok:
                 db_status = "unhealthy: health check failed"
@@ -377,31 +377,31 @@ async def health_check():
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=500, detail="Health check failed")
 
-# 完整的依赖检查端点
-@app.get("/health/detailed", summary="详细健康检查", tags=["系统信息"])
+# Complete dependency check endpoint
+@app.get("/health/detailed", summary="Detailed Health Check", tags=["System Information"])
 async def detailed_health_check():
     """
-    # 详细的健康检查端点
+    # Detailed Health Check Endpoint
     
-    运行完整的依赖服务检查，包含所有中间件和外部服务的状态。
+    Run complete dependency service checks including status of all middleware and external services.
     
-    ## 检查的服务
-    - 🗄️ **数据库**: PostgreSQL连接、配置验证、性能状态
-    - 🤖 **AI服务**: OpenAI、Anthropic、HuggingFace API配置
-    - 💾 **存储服务**: 本地存储或MinIO连接状态
-    - 🔍 **向量数据库**: Weaviate、ChromaDB等库可用性
+    ## Services Checked
+    - 🗄️ **Database**: PostgreSQL connection, configuration validation, performance status
+    - 🤖 **AI Services**: OpenAI, Anthropic, HuggingFace API configuration
+    - 💾 **Storage Services**: Local storage or MinIO connection status
+    - 🔍 **Vector Database**: Weaviate, ChromaDB and other library availability
     
-    ## 返回信息
-    - 总体状态汇总
-    - 各服务详细状态
-    - 配置警告和错误
-    - 性能指标和容量信息
+    ## Return Information
+    - Overall status summary
+    - Detailed status of each service
+    - Configuration warnings and errors
+    - Performance metrics and capacity information
     
-    ## 适用场景
-    - 系统部署后的完整验证
-    - 故障排查和诊断
-    - 运维监控和报告
-    - 配置变更后的验证
+    ## Application Scenarios
+    - Complete verification after system deployment
+    - Troubleshooting and diagnosis
+    - Operations monitoring and reporting
+    - Validation after configuration changes
     """
     try:
         from config import get_config
@@ -430,16 +430,16 @@ async def detailed_health_check():
 
 @app.on_event("startup")
 async def startup_event():
-    """应用启动事件"""
+    """Application startup event"""
     logger.info("🚀 Starting RAG API with Service Layer...")
     
-    # 运行依赖健康检查
+    # Run dependency health checks
     try:
         from config import get_config
         config = get_config()
         health_result = await initialize_checks(config)
         
-        # 根据健康检查结果决定是否继续启动
+        # Decide whether to continue startup based on health check results
         if health_result["overall_status"] == "error":
             logger.error("🚨 Critical dependencies failed health check!")
             logger.error("   Application may not function correctly.")
@@ -460,16 +460,16 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """应用关闭事件"""
+    """Application shutdown event"""
     logger.info("👋 Shutting down RAG API...")
 
 
 async def database_connection_check(config: AppConfig) -> dict:
     """
-    检查数据库连接状态
+    Check database connection status
     
     Returns:
-        dict: 检查结果，包含状态和详细信息
+        dict: Check results including status and detailed information
     """
     result = {
         "service": "PostgreSQL Database",

@@ -1,7 +1,7 @@
 """
-模块化API interface定义
+Modular API interface definitions
 
-定义统一的、简化的API interface。
+Define unified, simplified API interfaces.
 """
 
 from abc import ABC, abstractmethod
@@ -11,7 +11,7 @@ from ..models import Document, DocumentChunk, SearchResult
 
 
 class APIError(Exception):
-    """API错误"""
+    """API error"""
 
     def __init__(
         self,
@@ -27,123 +27,123 @@ class APIError(Exception):
 
 
 class IModularAPI(ABC):
-    """模块化API interface"""
+    """Modular API interface"""
 
     @abstractmethod
     async def process_file(self, file_path: str, **options) -> Dict[str, Any]:
         """
-        处理单个文件
+        Process single file
 
         Args:
-            file_path: 文件路径
-            **options: 处理选项
+            file_path: File path
+            **options: Processing options
 
         Returns:
-            Dict[str, Any]: 处理结果
+            Dict[str, Any]: Processing result
 
         Raises:
-            APIError: 处理失败时抛出
+            APIError: Thrown when processing fails
         """
         pass
 
     @abstractmethod
     async def process_files(self, file_paths: List[str], **options) -> List[Dict[str, Any]]:
         """
-        批量处理文件
+        Batch process files
 
         Args:
-            file_paths: 文件路径列表
-            **options: 处理选项
+            file_paths: List of file paths
+            **options: Processing options
 
         Returns:
-            List[Dict[str, Any]]: 处理结果列表
+            List[Dict[str, Any]]: List of processing results
         """
         pass
 
     @abstractmethod
     async def search(self, query: str, limit: int = 10, **filters) -> Dict[str, Any]:
         """
-        搜索文档
+        Search documents
 
         Args:
-            query: 搜索查询
-            limit: 结果数量限制
-            **filters: 搜索过滤器
+            query: Search query
+            limit: Result count limit
+            **filters: Search filters
 
         Returns:
-            Dict[str, Any]: 搜索结果
+            Dict[str, Any]: Search results
         """
         pass
 
     @abstractmethod
     async def get_document(self, document_id: str) -> Optional[Dict[str, Any]]:
         """
-        获取文档
+        Get document
 
         Args:
-            document_id: 文档ID
+            document_id: Document ID
 
         Returns:
-            Optional[Dict[str, Any]]: 文档信息，如果不存在返回None
+            Optional[Dict[str, Any]]: Document information, returns None if not exists
         """
         pass
 
     @abstractmethod
     async def get_document_chunks(self, document_id: str) -> List[Dict[str, Any]]:
         """
-        获取文档块
+        Get document chunks
 
         Args:
-            document_id: 文档ID
+            document_id: Document ID
 
         Returns:
-            List[Dict[str, Any]]: 文档块列表
+            List[Dict[str, Any]]: List of document chunks
         """
         pass
 
     @abstractmethod
     async def delete_document(self, document_id: str) -> bool:
         """
-        删除文档
+        Delete document
 
         Args:
-            document_id: 文档ID
+            document_id: Document ID
 
         Returns:
-            bool: 删除是否成功
+            bool: Whether deletion was successful
         """
         pass
 
     @abstractmethod
     async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
         """
-        更新文档元数据
+        Update document metadata
 
         Args:
-            document_id: 文档ID
-            metadata: 新的元数据
+            document_id: Document ID
+            metadata: New metadata
 
         Returns:
-            bool: 更新是否成功
+            bool: Whether update was successful
         """
         pass
 
     @abstractmethod
     async def get_status(self) -> Dict[str, Any]:
         """
-        获取系统状态
+        Get system status
 
         Returns:
-            Dict[str, Any]: 系统状态信息
+            Dict[str, Any]: System status information
         """
         pass
 
     @abstractmethod
     async def get_supported_formats(self) -> List[str]:
         """
-        获取支持的文件格式
+        Get supported file formats
 
         Returns:
-            List[str]: 支持的格式列表
+            List[str]: List of supported formats
         """
         pass
