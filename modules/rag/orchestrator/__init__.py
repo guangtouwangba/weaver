@@ -7,8 +7,4 @@
 from .base import IOrchestrator, OrchestrationError
 from .implementation import DocumentOrchestrator
 
-__all__ = [
-    'IOrchestrator',
-    'OrchestrationError', 
-    'DocumentOrchestrator'
-]
+__all__ = ["IOrchestrator", "OrchestrationError", "DocumentOrchestrator"]
