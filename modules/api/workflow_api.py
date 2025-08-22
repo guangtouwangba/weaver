@@ -141,7 +141,9 @@ async def create_document_only(
         service = WorkflowService(session)
 
         result = await service.create_document_only(
-            file_id=request.file_id, document_data=request.document_data, **request.metadata
+            file_id=request.file_id,
+            document_data=request.document_data,
+            **request.metadata,
         )
 
         return TaskSubmitResponse(
@@ -189,7 +191,9 @@ async def process_rag_only(
 
 
 @router.get("/status/{execution_id}", response_model=WorkflowStatusResponse)
-async def get_workflow_status(execution_id: str, session: AsyncSession = Depends(get_session)):
+async def get_workflow_status(
+    execution_id: str, session: AsyncSession = Depends(get_session)
+):
     """获取工作流执行状态"""
     try:
         service = WorkflowService(session)
@@ -200,7 +204,10 @@ async def get_workflow_status(execution_id: str, session: AsyncSession = Depends
             raise HTTPException(status_code=404, detail="工作流执行不存在")
 
         return WorkflowStatusResponse(
-            success=True, message="状态获取成功", execution_id=execution_id, status=status
+            success=True,
+            message="状态获取成功",
+            execution_id=execution_id,
+            status=status,
         )
 
     except HTTPException:
@@ -225,7 +232,9 @@ async def cancel_workflow(
         if not success:
             raise HTTPException(status_code=404, detail="工作流执行不存在或取消失败")
 
-        return BaseResponse(success=True, message=f"工作流已取消: {request.reason or '用户取消'}")
+        return BaseResponse(
+            success=True, message=f"工作流已取消: {request.reason or '用户取消'}"
+        )
 
     except HTTPException:
         raise
@@ -242,7 +251,9 @@ async def list_workflows(session: AsyncSession = Depends(get_session)):
 
         workflows = await service.get_available_workflows()
 
-        return WorkflowListResponse(success=True, message="工作流列表获取成功", workflows=workflows)
+        return WorkflowListResponse(
+            success=True, message="工作流列表获取成功", workflows=workflows
+        )
 
     except Exception as e:
         logger.error(f"获取工作流列表失败: {e}")
@@ -250,7 +261,9 @@ async def list_workflows(session: AsyncSession = Depends(get_session)):
 
 
 @router.get("/definition/{workflow_id}")
-async def get_workflow_definition(workflow_id: str, session: AsyncSession = Depends(get_session)):
+async def get_workflow_definition(
+    workflow_id: str, session: AsyncSession = Depends(get_session)
+):
     """获取工作流定义详情"""
     try:
         service = WorkflowService(session)

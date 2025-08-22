@@ -7,15 +7,19 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+from modules.schemas.enums import ChunkingStrategy
+
 from ...models import Document, DocumentChunk, ProcessingRequest, ProcessingResult
-from ...schemas.enums import ChunkingStrategy
 
 
 class DocumentProcessorError(Exception):
     """文档处理错误"""
 
     def __init__(
-        self, message: str, document_id: Optional[str] = None, error_code: Optional[str] = None
+        self,
+        message: str,
+        document_id: Optional[str] = None,
+        error_code: Optional[str] = None,
     ):
         self.document_id = document_id
         self.error_code = error_code

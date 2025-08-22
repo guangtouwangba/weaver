@@ -159,7 +159,9 @@ class RedisService(IRedisService):
             config: Redis配置，如果不提供则使用全局配置管理器
         """
         if not REDIS_AVAILABLE:
-            raise ImportError("Redis not available. Please install redis: pip install redis")
+            raise ImportError(
+                "Redis not available. Please install redis: pip install redis"
+            )
 
         self.config = config or get_config().redis
         self.client: Optional[redis.Redis] = None
@@ -225,7 +227,8 @@ class RedisService(IRedisService):
             raise ValueError("Redis哨兵配置无效")
 
         self.sentinel_client = redis.Sentinel(
-            sentinel_config["sentinels"], socket_timeout=sentinel_config["socket_timeout"]
+            sentinel_config["sentinels"],
+            socket_timeout=sentinel_config["socket_timeout"],
         )
         self._is_sentinel = True
 

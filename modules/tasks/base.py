@@ -212,7 +212,9 @@ class ITaskHandler(ABC):
         """
         pass
 
-    async def on_retry(self, task_id: str, error: Exception, retry_count: int, **kwargs) -> None:
+    async def on_retry(
+        self, task_id: str, error: Exception, retry_count: int, **kwargs
+    ) -> None:
         """
         任务重试回调
 

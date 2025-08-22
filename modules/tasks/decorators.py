@@ -41,7 +41,9 @@ def log_execution_time(threshold_ms: int = 1000):
                         f"(exceeded threshold: {threshold_ms}ms)"
                     )
                 else:
-                    logger.debug(f"Task {func.__name__} execution time: {execution_time_ms:.2f}ms")
+                    logger.debug(
+                        f"Task {func.__name__} execution time: {execution_time_ms:.2f}ms"
+                    )
 
                 return result
 
@@ -49,7 +51,9 @@ def log_execution_time(threshold_ms: int = 1000):
                 end_time = time.time()
                 execution_time_ms = (end_time - start_time) * 1000
 
-                logger.error(f"Task {func.__name__} failed after {execution_time_ms:.2f}ms: {e}")
+                logger.error(
+                    f"Task {func.__name__} failed after {execution_time_ms:.2f}ms: {e}"
+                )
                 raise
 
         return wrapper
@@ -75,7 +79,9 @@ def retry_on_failure(max_retries: int = 3, delay_seconds: float = 1.0):
                 try:
                     result = await func(*args, **kwargs)
                     if attempt > 0:
-                        logger.info(f"Task {func.__name__} succeeded on attempt {attempt + 1}")
+                        logger.info(
+                            f"Task {func.__name__} succeeded on attempt {attempt + 1}"
+                        )
                     return result
 
                 except Exception as e:
@@ -126,14 +132,18 @@ def task_context_manager(task_name: str = None):
                 end_time = datetime.utcnow()
                 duration = (end_time - start_time).total_seconds()
 
-                logger.info(f"Completed task: {actual_task_name} (duration: {duration:.2f}s)")
+                logger.info(
+                    f"Completed task: {actual_task_name} (duration: {duration:.2f}s)"
+                )
                 return result
 
             except Exception as e:
                 end_time = datetime.utcnow()
                 duration = (end_time - start_time).total_seconds()
 
-                logger.error(f"Failed task: {actual_task_name} (duration: {duration:.2f}s): {e}")
+                logger.error(
+                    f"Failed task: {actual_task_name} (duration: {duration:.2f}s): {e}"
+                )
                 raise
 
         return wrapper

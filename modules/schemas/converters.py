@@ -16,7 +16,9 @@ from .topic import TopicResponse, TopicSchema
 
 
 # Topic转换器
-def topic_to_schema(topic_model: TopicModel, include_stats: bool = False) -> TopicSchema:
+def topic_to_schema(
+    topic_model: TopicModel, include_stats: bool = False
+) -> TopicSchema:
     """将SQLAlchemy Topic模型转换为Pydantic Schema"""
     schema_data = {
         "id": topic_model.id,
@@ -72,12 +74,16 @@ def topic_to_response(
 
 def schema_to_topic_dict(schema: TopicSchema) -> Dict[str, Any]:
     """将Pydantic Topic Schema转换为字典（用于SQLAlchemy创建）"""
-    data = schema.model_dump(exclude={"id", "created_at", "updated_at"}, exclude_none=True)
+    data = schema.model_dump(
+        exclude={"id", "created_at", "updated_at"}, exclude_none=True
+    )
     return data
 
 
 # File转换器
-def file_to_schema(file_model: FileModel, include_topic_name: bool = False) -> FileSchema:
+def file_to_schema(
+    file_model: FileModel, include_topic_name: bool = False
+) -> FileSchema:
     """将SQLAlchemy File模型转换为Pydantic Schema"""
     schema_data = {
         "id": file_model.id,
@@ -102,7 +108,9 @@ def file_to_schema(file_model: FileModel, include_topic_name: bool = False) -> F
     if include_topic_name:
         # 如果需要主题名称，转换为FileResponse
         topic_name = (
-            file_model.topic.name if hasattr(file_model, "topic") and file_model.topic else None
+            file_model.topic.name
+            if hasattr(file_model, "topic") and file_model.topic
+            else None
         )
         schema_data["topic_name"] = topic_name
         return FileResponse(**schema_data)
@@ -110,7 +118,9 @@ def file_to_schema(file_model: FileModel, include_topic_name: bool = False) -> F
     return FileSchema(**schema_data)
 
 
-def file_to_response(file_model: FileModel, topic_name: Optional[str] = None) -> FileResponse:
+def file_to_response(
+    file_model: FileModel, topic_name: Optional[str] = None
+) -> FileResponse:
     """将SQLAlchemy File模型转换为响应Schema"""
     if topic_name is None and hasattr(file_model, "topic") and file_model.topic:
         topic_name = file_model.topic.name
@@ -178,7 +188,9 @@ def document_to_schema(
     return DocumentSchema(**schema_data)
 
 
-def document_to_response(document_model: DocumentModel, chunk_count: int = 0) -> DocumentResponse:
+def document_to_response(
+    document_model: DocumentModel, chunk_count: int = 0
+) -> DocumentResponse:
     """将SQLAlchemy Document模型转换为响应Schema"""
     if chunk_count == 0 and hasattr(document_model, "chunks") and document_model.chunks:
         chunk_count = len(document_model.chunks)
@@ -201,7 +213,9 @@ def document_to_response(document_model: DocumentModel, chunk_count: int = 0) ->
 
 def schema_to_document_dict(schema: DocumentSchema) -> Dict[str, Any]:
     """将Pydantic Document Schema转换为字典（用于SQLAlchemy创建）"""
-    data = schema.model_dump(exclude={"id", "created_at", "updated_at"}, exclude_none=True)
+    data = schema.model_dump(
+        exclude={"id", "created_at", "updated_at"}, exclude_none=True
+    )
     # 重命名metadata字段以匹配SQLAlchemy模型
     if "doc_metadata" in data:
         data["metadata"] = data.pop("doc_metadata")
@@ -219,6 +233,8 @@ def files_to_responses(file_models: List[FileModel]) -> List[FileResponse]:
     return [file_to_response(file) for file in file_models]
 
 
-def documents_to_responses(document_models: List[DocumentModel]) -> List[DocumentResponse]:
+def documents_to_responses(
+    document_models: List[DocumentModel],
+) -> List[DocumentResponse]:
     """批量转换文档模型为响应Schema"""
     return [document_to_response(doc) for doc in document_models]

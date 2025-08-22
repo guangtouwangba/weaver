@@ -29,12 +29,16 @@ logger = logging.getLogger(__name__)
 
 
 # 依赖注入
-async def get_topic_service(session: AsyncSession = Depends(get_db_session)) -> TopicService:
+async def get_topic_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> TopicService:
     """获取主题服务实例"""
     return TopicService(session)
 
 
-async def get_document_service(session: AsyncSession = Depends(get_db_session)) -> DocumentService:
+async def get_document_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> DocumentService:
     """获取文档服务实例"""
     return DocumentService(session)
 
@@ -59,7 +63,9 @@ async def get_file_service_for_topic(
 
 
 @router.post("", response_model=APIResponse, summary="创建知识主题")
-async def create_topic(topic_data: TopicCreate, service: TopicService = Depends(get_topic_service)):
+async def create_topic(
+    topic_data: TopicCreate, service: TopicService = Depends(get_topic_service)
+):
     """
     # 创建新的知识主题
 
@@ -128,7 +134,9 @@ async def get_topic(topic_id: int, service: TopicService = Depends(get_topic_ser
 
 @router.put("/{topic_id}", response_model=APIResponse, summary="更新主题信息")
 async def update_topic(
-    topic_id: int, topic_data: TopicUpdate, service: TopicService = Depends(get_topic_service)
+    topic_id: int,
+    topic_data: TopicUpdate,
+    service: TopicService = Depends(get_topic_service),
 ):
     """
     # 更新指定主题的信息
@@ -169,7 +177,9 @@ async def update_topic(
 
 
 @router.delete("/{topic_id}", response_model=APIResponse, summary="删除主题")
-async def delete_topic(topic_id: int, service: TopicService = Depends(get_topic_service)):
+async def delete_topic(
+    topic_id: int, service: TopicService = Depends(get_topic_service)
+):
     """
     # 删除指定的主题
 
@@ -215,8 +225,12 @@ async def delete_topic(topic_id: int, service: TopicService = Depends(get_topic_
 @router.get("", response_model=APIResponse, summary="获取主题列表")
 async def list_topics(
     page: int = Query(1, ge=1, description="页码，从1开始"),
-    page_size: int = Query(20, ge=1, le=100, description="每页返回的主题数量，1-100之间"),
-    status: Optional[str] = Query(None, description="按状态过滤（active/archived/draft）"),
+    page_size: int = Query(
+        20, ge=1, le=100, description="每页返回的主题数量，1-100之间"
+    ),
+    status: Optional[str] = Query(
+        None, description="按状态过滤（active/archived/draft）"
+    ),
     user_id: Optional[int] = Query(None, description="按创建者ID过滤"),
     category: Optional[str] = Query(None, description="按分类过滤"),
     service: TopicService = Depends(get_topic_service),
@@ -253,7 +267,11 @@ async def list_topics(
     """
     try:
         topic_list = await service.list_topics(
-            page=page, page_size=page_size, status=status, user_id=user_id, category=category
+            page=page,
+            page_size=page_size,
+            status=status,
+            user_id=user_id,
+            category=category,
         )
 
         return APIResponse(success=True, data=topic_list)
@@ -261,12 +279,16 @@ async def list_topics(
         raise HTTPException(status_code=500, detail=f"获取主题列表失败: {str(e)}")
 
 
-@router.get("/{topic_id}/files", response_model=APIResponse, summary="获取主题的文件列表")
+@router.get(
+    "/{topic_id}/files", response_model=APIResponse, summary="获取主题的文件列表"
+)
 async def get_topic_files(
     topic_id: int,
     page: int = Query(1, ge=1, description="页码，从1开始"),
     page_size: int = Query(20, ge=1, le=100, description="每页返回的文件数量"),
-    sort_by: str = Query("created_at", description="排序字段（created_at/updated_at/name/size）"),
+    sort_by: str = Query(
+        "created_at", description="排序字段（created_at/updated_at/name/size）"
+    ),
     sort_order: str = Query(
         "desc", regex="^(asc|desc)$", description="排序方向（asc:升序，desc:降序）"
     ),
@@ -372,8 +394,12 @@ async def search_topics(
         raise HTTPException(status_code=500, detail=f"搜索主题失败: {str(e)}")
 
 
-@router.get("/users/{user_id}/topics", response_model=APIResponse, summary="获取用户的主题列表")
-async def get_user_topics(user_id: int, service: TopicService = Depends(get_topic_service)):
+@router.get(
+    "/users/{user_id}/topics", response_model=APIResponse, summary="获取用户的主题列表"
+)
+async def get_user_topics(
+    user_id: int, service: TopicService = Depends(get_topic_service)
+):
     """
     # 获取指定用户创建的所有主题
 
@@ -411,7 +437,9 @@ async def get_user_topics(user_id: int, service: TopicService = Depends(get_topi
         raise HTTPException(status_code=500, detail=f"获取用户主题失败: {str(e)}")
 
 
-@router.post("/{topic_id}/resources", response_model=APIResponse, summary="向主题添加资源")
+@router.post(
+    "/{topic_id}/resources", response_model=APIResponse, summary="向主题添加资源"
+)
 async def add_resource_to_topic(
     topic_id: int,
     resource_data: AddResourceRequest,
@@ -621,7 +649,9 @@ async def upload_file_to_topic(
 
 
 @router.delete(
-    "/{topic_id}/resources/{file_id}", response_model=APIResponse, summary="从主题移除资源"
+    "/{topic_id}/resources/{file_id}",
+    response_model=APIResponse,
+    summary="从主题移除资源",
 )
 async def remove_resource_from_topic(
     topic_id: int, file_id: str, service: TopicService = Depends(get_topic_service)
@@ -653,7 +683,9 @@ async def remove_resource_from_topic(
         success = await service.remove_resource_from_topic(topic_id, file_id)
 
         if success:
-            return APIResponse(success=True, message=f"成功从主题 {topic_id} 移除资源 {file_id}")
+            return APIResponse(
+                success=True, message=f"成功从主题 {topic_id} 移除资源 {file_id}"
+            )
         else:
             raise HTTPException(status_code=500, detail="移除资源失败")
 
@@ -665,7 +697,9 @@ async def remove_resource_from_topic(
         raise HTTPException(status_code=500, detail=f"移除资源失败: {str(e)}")
 
 
-@router.get("/{topic_id}/resources", response_model=APIResponse, summary="获取主题的所有资源")
+@router.get(
+    "/{topic_id}/resources", response_model=APIResponse, summary="获取主题的所有资源"
+)
 async def get_topic_resources(
     topic_id: int,
     page: int = Query(1, ge=1, description="页码，从1开始"),
@@ -711,7 +745,9 @@ async def get_topic_resources(
         resources_data = await service.get_topic_resources(topic_id, page, page_size)
 
         return APIResponse(
-            success=True, data=resources_data, message=f"获取主题 {topic_id} 的资源列表成功"
+            success=True,
+            data=resources_data,
+            message=f"获取主题 {topic_id} 的资源列表成功",
         )
 
     except ValueError as e:

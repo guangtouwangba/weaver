@@ -129,9 +129,13 @@ class TextProcessor(IDocumentProcessor):
                     document, content, chunk_size, overlap
                 )
             elif strategy == ChunkingStrategy.PARAGRAPH:
-                chunks = await self._create_paragraph_chunks(document, content, chunk_size)
+                chunks = await self._create_paragraph_chunks(
+                    document, content, chunk_size
+                )
             elif strategy == ChunkingStrategy.SENTENCE:
-                chunks = await self._create_sentence_chunks(document, content, chunk_size)
+                chunks = await self._create_sentence_chunks(
+                    document, content, chunk_size
+                )
             else:
                 raise DocumentProcessorError(
                     f"不支持的分块策略: {strategy}",
@@ -141,7 +145,9 @@ class TextProcessor(IDocumentProcessor):
 
             # 过滤太小的块
             valid_chunks = [
-                chunk for chunk in chunks if len(chunk.content.strip()) >= self.min_chunk_size
+                chunk
+                for chunk in chunks
+                if len(chunk.content.strip()) >= self.min_chunk_size
             ]
 
             logger.info(f"文档 {document.id} 创建了 {len(valid_chunks)} 个块")
@@ -152,7 +158,9 @@ class TextProcessor(IDocumentProcessor):
         except Exception as e:
             logger.error(f"创建文档块失败 {document.id}: {e}")
             raise DocumentProcessorError(
-                f"创建文档块失败: {str(e)}", document_id=document.id, error_code="CHUNKING_FAILED"
+                f"创建文档块失败: {str(e)}",
+                document_id=document.id,
+                error_code="CHUNKING_FAILED",
             )
 
     async def process_document(self, request: ProcessingRequest) -> ProcessingResult:
@@ -197,7 +205,9 @@ class TextProcessor(IDocumentProcessor):
                 },
             )
 
-            logger.info(f"文档处理完成 {document.id}: {len(chunks)} 块, {processing_time:.2f}ms")
+            logger.info(
+                f"文档处理完成 {document.id}: {len(chunks)} 块, {processing_time:.2f}ms"
+            )
             return result
 
         except DocumentProcessorError:

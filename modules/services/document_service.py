@@ -159,7 +159,9 @@ class DocumentService(BaseService):
             )
 
             # 获取总数
-            all_documents = await self.document_repo.list(page=1, page_size=1000, filters=filters)
+            all_documents = await self.document_repo.list(
+                page=1, page_size=1000, filters=filters
+            )
             total = len(all_documents)
             total_pages = (total + page_size - 1) // page_size
 
@@ -188,13 +190,17 @@ class DocumentService(BaseService):
                 raise ValueError(f"文档 {request.document_id} 不存在")
 
             # 更新文档状态为处理中
-            await self.document_repo.update_document_status(request.document_id, "processing")
+            await self.document_repo.update_document_status(
+                request.document_id, "processing"
+            )
 
             # 执行文档分块
             chunks_created = await self._chunk_document(document, request)
 
             # 更新文档状态为已完成
-            await self.document_repo.update_document_status(request.document_id, "processed")
+            await self.document_repo.update_document_status(
+                request.document_id, "processed"
+            )
 
             processing_time = (datetime.utcnow() - start_time).total_seconds()
 
@@ -216,7 +222,9 @@ class DocumentService(BaseService):
 
         except Exception as e:
             # 更新文档状态为失败
-            await self.document_repo.update_document_status(request.document_id, "failed")
+            await self.document_repo.update_document_status(
+                request.document_id, "failed"
+            )
 
             return ProcessingResult(
                 document_id=request.document_id,
@@ -232,7 +240,9 @@ class DocumentService(BaseService):
 
             # 执行搜索
             documents = await self.document_repo.search_documents(
-                query=request.query, limit=request.limit, content_type=request.content_type
+                query=request.query,
+                limit=request.limit,
+                content_type=request.content_type,
             )
 
             # 构建搜索结果
@@ -244,7 +254,9 @@ class DocumentService(BaseService):
                     SearchResult(
                         document_id=doc.id,
                         title=doc.title,
-                        content=doc.content[:500] if doc.content else "",  # 截取前500字符
+                        content=(
+                            doc.content[:500] if doc.content else ""
+                        ),  # 截取前500字符
                         score=0.8,  # 简化评分
                         content_type=doc.content_type,
                         file_id=doc.file_id,
@@ -274,7 +286,9 @@ class DocumentService(BaseService):
         except Exception as e:
             self._handle_error(e, f"get_file_documents_{file_id}")
 
-    async def get_document_chunks(self, document_id: str) -> List[DocumentChunkResponse]:
+    async def get_document_chunks(
+        self, document_id: str
+    ) -> List[DocumentChunkResponse]:
         """获取文档的所有块"""
         try:
             chunks = await self.document_repo.get_document_chunks(document_id)
@@ -395,7 +409,9 @@ class DocumentService(BaseService):
             logger.info(f"got document metadata: {document_metadata}")
 
             content_type_str = document_metadata.get("detected_type", {})
-            content_type = ContentType(content_type_str) if content_type_str else ContentType.TXT
+            content_type = (
+                ContentType(content_type_str) if content_type_str else ContentType.TXT
+            )
             file_loader = FileLoaderFactory.get_loader(content_type)
 
             # Document processor
@@ -485,7 +501,9 @@ class DocumentService(BaseService):
             logger.error(f"RAG管道处理失败: {e}")
             raise
 
-    async def get_rag_processing_status(self, request_id: str) -> Optional[Dict[str, Any]]:
+    async def get_rag_processing_status(
+        self, request_id: str
+    ) -> Optional[Dict[str, Any]]:
         """获取RAG处理状态"""
         if not self.enable_rag or not self._rag_initialized:
             return None
@@ -638,9 +656,13 @@ class DocumentService(BaseService):
 
                     if request_id:
                         # Add RAG processing info to metadata
-                        document_response.doc_metadata = document_response.doc_metadata or {}
+                        document_response.doc_metadata = (
+                            document_response.doc_metadata or {}
+                        )
                         document_response.doc_metadata["rag_request_id"] = request_id
-                        document_response.doc_metadata["rag_processing_triggered"] = True
+                        document_response.doc_metadata["rag_processing_triggered"] = (
+                            True
+                        )
 
                 except Exception as e:
                     logger.error(f"RAG处理触发失败: {e}")
@@ -652,6 +674,8 @@ class DocumentService(BaseService):
             self._handle_error(e, "create_document_with_rag")
 
 
-def create_document_service(session: AsyncSession, enable_rag: bool = True) -> DocumentService:
+def create_document_service(
+    session: AsyncSession, enable_rag: bool = True
+) -> DocumentService:
     """创建Document service实例"""
     return DocumentService(session=session, enable_rag=enable_rag)

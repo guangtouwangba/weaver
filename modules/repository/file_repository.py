@@ -12,8 +12,9 @@ from sqlalchemy import and_, asc, delete, desc, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from modules.schemas.enums import FileStatus
+
 from ..database.models import File
-from ..schemas.enums import FileStatus
 from .base_repository import BaseRepository
 from .interfaces import IFileRepository
 
@@ -24,7 +25,12 @@ class FileRepository(BaseRepository, IFileRepository):
     """文件Repository实现"""
 
     async def create_file(
-        self, file_id: str, original_name: str, content_type: str, file_size: int = 0, **kwargs
+        self,
+        file_id: str,
+        original_name: str,
+        content_type: str,
+        file_size: int = 0,
+        **kwargs,
     ) -> File:
         """创建文件记录"""
         # 提供必需字段的默认值
@@ -76,7 +82,9 @@ class FileRepository(BaseRepository, IFileRepository):
         sort_order: str = "desc",
     ) -> List[File]:
         """获取主题下的文件列表"""
-        query = select(File).where(and_(File.topic_id == topic_id, File.is_deleted == False))
+        query = select(File).where(
+            and_(File.topic_id == topic_id, File.is_deleted == False)
+        )
 
         if status:
             query = query.where(File.status == status)
@@ -155,7 +163,9 @@ class FileRepository(BaseRepository, IFileRepository):
         """搜索文件"""
         search_query = (
             select(File)
-            .where(and_(File.original_name.ilike(f"%{query}%"), File.is_deleted == False))
+            .where(
+                and_(File.original_name.ilike(f"%{query}%"), File.is_deleted == False)
+            )
             .limit(limit)
         )
 

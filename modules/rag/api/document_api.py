@@ -27,14 +27,17 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 # 依赖注入
-async def get_document_service(session: AsyncSession = Depends(get_db_session)) -> DocumentService:
+async def get_document_service(
+    session: AsyncSession = Depends(get_db_session),
+) -> DocumentService:
     """获取文档服务实例"""
     return DocumentService(session)
 
 
 @router.post("/", response_model=APIResponse, summary="创建文档记录")
 async def create_document(
-    document_data: DocumentCreate, service: DocumentService = Depends(get_document_service)
+    document_data: DocumentCreate,
+    service: DocumentService = Depends(get_document_service),
 ):
     """
     # 创建新的文档记录
@@ -70,7 +73,9 @@ async def create_document(
 
 
 @router.get("/{document_id}", response_model=APIResponse)
-async def get_document(document_id: str, service: DocumentService = Depends(get_document_service)):
+async def get_document(
+    document_id: str, service: DocumentService = Depends(get_document_service)
+):
     """获取文档详情"""
     try:
         async with service:
@@ -149,7 +154,9 @@ async def list_documents(
 
 
 @router.post(
-    "/{document_id}/process", response_model=APIResponse, summary="处理文档（分块和向量化）"
+    "/{document_id}/process",
+    response_model=APIResponse,
+    summary="处理文档（分块和向量化）",
 )
 async def process_document(
     document_id: str,
@@ -254,7 +261,8 @@ async def process_document(
 
 @router.post("/search", response_model=APIResponse, summary="智能文档搜索")
 async def search_documents(
-    search_request: SearchRequest, service: DocumentService = Depends(get_document_service)
+    search_request: SearchRequest,
+    service: DocumentService = Depends(get_document_service),
 ):
     """
     # 智能文档搜索（RAG检索增强生成）

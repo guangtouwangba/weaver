@@ -52,7 +52,8 @@ class Topic(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(
-        ENUM("active", "archived", "draft", "completed", name="topic_status_enum"), default="active"
+        ENUM("active", "archived", "draft", "completed", name="topic_status_enum"),
+        default="active",
     )
 
     # 统计信息
@@ -73,7 +74,9 @@ class Topic(Base):
     settings: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
 
     # 时间戳
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -83,7 +86,9 @@ class Topic(Base):
     parent_topic: Mapped[Optional["Topic"]] = relationship(
         "Topic", remote_side=[id], back_populates="child_topics"
     )
-    child_topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="parent_topic")
+    child_topics: Mapped[List["Topic"]] = relationship(
+        "Topic", back_populates="parent_topic"
+    )
 
 
 class File(Base):
@@ -97,7 +102,9 @@ class File(Base):
     )
 
     # 关联信息 - 添加Foreign key约束
-    topic_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("topics.id"), nullable=True)
+    topic_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("topics.id"), nullable=True
+    )
 
     # 文件信息 - 匹配实际数据库字段
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -125,7 +132,13 @@ class File(Base):
         default="uploading",
     )
     access_level: Mapped[str] = mapped_column(
-        ENUM("private", "public_read", "shared", "authenticated", name="access_level_enum"),
+        ENUM(
+            "private",
+            "public_read",
+            "shared",
+            "authenticated",
+            name="access_level_enum",
+        ),
         default="private",
     )
     download_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -143,7 +156,9 @@ class File(Base):
 
     # 关系
     topic: Mapped[Optional["Topic"]] = relationship("Topic", back_populates="files")
-    documents: Mapped[List["Document"]] = relationship("Document", back_populates="file")
+    documents: Mapped[List["Document"]] = relationship(
+        "Document", back_populates="file"
+    )
 
 
 class Document(Base):
@@ -174,14 +189,18 @@ class Document(Base):
     doc_metadata: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
 
     # 时间戳
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     # 关系
     file: Mapped[Optional["File"]] = relationship("File", back_populates="documents")
-    chunks: Mapped[List["DocumentChunk"]] = relationship("DocumentChunk", back_populates="document")
+    chunks: Mapped[List["DocumentChunk"]] = relationship(
+        "DocumentChunk", back_populates="document"
+    )
 
 
 class DocumentChunk(Base):
@@ -210,7 +229,9 @@ class DocumentChunk(Base):
     chunk_metadata: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
 
     # 时间戳
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     # 关系
     document: Mapped["Document"] = relationship("Document", back_populates="chunks")

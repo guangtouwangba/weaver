@@ -7,15 +7,18 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from ..models import Document, FileLoadRequest
-from ..schemas.enums import ContentType
+from modules.models import Document, FileLoadRequest
+from modules.schemas.enums import ContentType
 
 
 class FileLoaderError(Exception):
     """文件加载错误"""
 
     def __init__(
-        self, message: str, file_path: Optional[str] = None, error_code: Optional[str] = None
+        self,
+        message: str,
+        file_path: Optional[str] = None,
+        error_code: Optional[str] = None,
     ):
         self.file_path = file_path
         self.error_code = error_code
