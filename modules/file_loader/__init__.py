@@ -7,9 +7,17 @@ Provides unified interface and multiple loading strategies.
 
 from .base import IFileLoader, FileLoaderError
 from .text_loader import TextFileLoader
-from .multi_format_loader import MultiFormatFileLoader
 from .pdf_loader import PDFFileLoader
-from .factory import FileLoaderFactory, register_file_loader, register_multi_type_file_loader
+from .factory import (
+    FileLoaderFactory, 
+    register_file_loader, 
+    register_multi_type_file_loader,
+    # Convenience functions for easier usage
+    load_document,
+    detect_content_type,
+    get_supported_types,
+    is_supported
+)
 
 # Ensure loaders are registered to factory - trigger decorators by importing them
 from . import text_loader  # Trigger text_loader decorator registration
@@ -19,9 +27,13 @@ __all__ = [
     "IFileLoader",
     "FileLoaderError", 
     "TextFileLoader",
-    "MultiFormatFileLoader",
     "PDFFileLoader",
     "FileLoaderFactory",
     "register_file_loader",
     "register_multi_type_file_loader",
+    # Convenience functions
+    "load_document",
+    "detect_content_type", 
+    "get_supported_types",
+    "is_supported",
 ]

@@ -27,7 +27,7 @@ services:
 
   # Weaviate vector database
   weaviate:
-    image: semitechnologies/weaviate:1.21.8
+    image: semitechnologies/weaviate:1.25.6
     container_name: rag-weaviate
     environment:
       QUERY_DEFAULTS_LIMIT: 25
@@ -44,7 +44,7 @@ services:
       - rag-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
       interval: 10s
       timeout: 5s
       retries: 5

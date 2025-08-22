@@ -7,8 +7,17 @@
 import os
 import getpass
 from typing import Optional, List, Dict, Any, Union
+from enum import Enum
 from pydantic import BaseModel, Field, validator
 from pydantic_settings import BaseSettings
+
+
+class Environment(Enum):
+    """环境枚举"""
+    DEVELOPMENT = "development"
+    TESTING = "testing"
+    STAGING = "staging"
+    PRODUCTION = "production"
 
 
 class RedisConfig(BaseModel):
@@ -169,7 +178,7 @@ class CeleryConfig(BaseModel):
     )
 
 
-class DatabaseConfig(BaseModel):
+class DatabaseConfig(BaseSettings):
     """数据库配置"""
     
     host: str = Field(default="localhost", description="数据库主机")
@@ -232,6 +241,10 @@ class DatabaseConfig(BaseModel):
         
         return v
     
+    class Config:
+        env_prefix = "DATABASE__"
+        case_sensitive = False
+    
     @validator('user')
     def validate_user(cls, v):
         """验证用户名"""
@@ -291,6 +304,125 @@ class StorageConfig(BaseModel):
         return v
 
 
+class OpenAIConfig(BaseModel):
+    """OpenAI Configuration"""
+    api_key: Optional[str] = Field(default=None, description="OpenAI API Key")
+    api_base: Optional[str] = Field(default=None, description="OpenAI API Base URL")
+    organization: Optional[str] = Field(default=None, description="OpenAI Organization ID")
+    
+    # Model configurations
+    chat_model: str = Field(default="gpt-3.5-turbo", description="Default chat model")
+    embedding_model: str = Field(default="text-embedding-ada-002", description="Default embedding model")
+    
+    # Request configurations
+    max_tokens: int = Field(default=1024, description="Maximum tokens per request")
+    temperature: float = Field(default=0.7, description="Generation temperature")
+    timeout: int = Field(default=60, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, description="Maximum retry attempts")
+
+
+class AnthropicConfig(BaseModel):
+    """Anthropic Configuration"""
+    api_key: Optional[str] = Field(default=None, description="Anthropic API Key")
+    api_base: Optional[str] = Field(default=None, description="Anthropic API Base URL")
+    
+    # Model configurations
+    chat_model: str = Field(default="claude-3-sonnet-20240229", description="Default chat model")
+    
+    # Request configurations
+    max_tokens: int = Field(default=1024, description="Maximum tokens per request")
+    temperature: float = Field(default=0.7, description="Generation temperature")
+    timeout: int = Field(default=60, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, description="Maximum retry attempts")
+
+
+class HuggingFaceConfig(BaseModel):
+    """HuggingFace Configuration"""
+    api_key: Optional[str] = Field(default=None, description="HuggingFace API Key")
+    api_base: Optional[str] = Field(default="https://api-inference.huggingface.co", description="HuggingFace API Base URL")
+    
+    # Model configurations
+    chat_model: str = Field(default="microsoft/DialoGPT-medium", description="Default chat model")
+    embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", description="Default embedding model")
+    
+    # Request configurations
+    timeout: int = Field(default=60, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, description="Maximum retry attempts")
+
+
+class LocalLLMConfig(BaseModel):
+    """Local LLM Configuration (Ollama, etc.)"""
+    api_base: str = Field(default="http://localhost:11434", description="Local LLM API Base URL")
+    
+    # Model configurations
+    chat_model: str = Field(default="llama2", description="Default chat model")
+    embedding_model: str = Field(default="nomic-embed-text", description="Default embedding model")
+    
+    # Request configurations
+    timeout: int = Field(default=120, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, description="Maximum retry attempts")
+
+
+class EmbeddingConfig(BaseModel):
+    """Embedding Service Configuration"""
+    provider: str = Field(default="openai", description="Embedding provider (openai, huggingface, local)")
+    
+    # Provider-specific configurations
+    openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
+    huggingface: HuggingFaceConfig = Field(default_factory=HuggingFaceConfig)
+    local: LocalLLMConfig = Field(default_factory=LocalLLMConfig)
+    
+    # General embedding settings
+    chunk_size: int = Field(default=1000, description="Text chunk size for embeddings")
+    overlap: int = Field(default=200, description="Chunk overlap size")
+    batch_size: int = Field(default=100, description="Batch size for embedding requests")
+
+    @validator('provider')
+    def validate_provider(cls, v):
+        allowed_providers = ["openai", "huggingface", "local"]
+        if v not in allowed_providers:
+            raise ValueError(f"Embedding provider must be one of {allowed_providers}")
+        return v
+
+
+class ChatConfig(BaseModel):
+    """Chat Service Configuration"""
+    provider: str = Field(default="openai", description="Chat provider (openai, anthropic, huggingface, local)")
+    
+    # Provider-specific configurations
+    openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
+    anthropic: AnthropicConfig = Field(default_factory=AnthropicConfig)
+    huggingface: HuggingFaceConfig = Field(default_factory=HuggingFaceConfig)
+    local: LocalLLMConfig = Field(default_factory=LocalLLMConfig)
+    
+    # General chat settings
+    max_context_length: int = Field(default=4000, description="Maximum context length")
+    system_prompt: str = Field(default="You are a helpful AI assistant.", description="Default system prompt")
+
+    @validator('provider')
+    def validate_provider(cls, v):
+        allowed_providers = ["openai", "anthropic", "huggingface", "local"]
+        if v not in allowed_providers:
+            raise ValueError(f"Chat provider must be one of {allowed_providers}")
+        return v
+
+
+class AIConfig(BaseModel):
+    """AI Services Configuration"""
+    # Provider configurations
+    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig, description="Embedding service configuration")
+    chat: ChatConfig = Field(default_factory=ChatConfig, description="Chat service configuration")
+    
+    # Global AI settings
+    enable_caching: bool = Field(default=True, description="Enable response caching")
+    cache_ttl: int = Field(default=3600, description="Cache TTL in seconds")
+    enable_fallback: bool = Field(default=True, description="Enable provider fallback")
+    
+    # Rate limiting
+    rate_limit_requests_per_minute: int = Field(default=60, description="Rate limit per minute")
+    rate_limit_tokens_per_minute: int = Field(default=100000, description="Token rate limit per minute")
+
+
 class LoggingConfig(BaseModel):
     """日志配置"""
     
@@ -315,17 +447,61 @@ class AppConfig(BaseSettings):
     port: int = Field(default=8000, description="服务器端口")
     
     # 环境配置
-    environment: str = Field(default="development", description="运行环境")
+    environment: Environment = Field(default=Environment.DEVELOPMENT, description="运行环境")
+    
+    # API配置
+    api_prefix: str = Field(default="/api/v1", description="API前缀")
+    docs_url: Optional[str] = Field(default="/docs", description="文档URL")
+    redoc_url: Optional[str] = Field(default="/redoc", description="ReDoc URL")
+    openapi_url: Optional[str] = Field(default="/openapi.json", description="OpenAPI JSON URL")
+    
+    # 安全配置
+    secret_key: str = Field(default="your-secret-key-here", description="应用密钥")
+    allowed_hosts: List[str] = Field(default=["*"], description="允许的主机")
     
     # CORS配置
     cors_origins: Union[str, List[str]] = Field(default=["*"], description="允许的CORS源")
-    cors_methods: Union[str, List[str]] = Field(default=["*"], description="允许的CORS方法")  
+    cors_methods: Union[str, List[str]] = Field(default=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], description="允许的CORS方法")  
     cors_headers: Union[str, List[str]] = Field(default=["*"], description="允许的CORS头")
+    cors_credentials: bool = Field(default=True, description="是否允许凭据")
+    
+    # 性能配置
+    request_timeout: int = Field(default=30, description="请求超时时间")
+    keepalive_timeout: int = Field(default=5, description="保持连接超时时间")
+    max_request_size: int = Field(default=100 * 1024 * 1024, description="最大请求大小")
+    
+    # 文件处理配置
+    max_file_size: int = Field(default=100 * 1024 * 1024, description="最大文件大小")
+    allowed_file_types: List[str] = Field(
+        default=[
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+            "text/markdown",
+            "text/html",
+            "text/csv",
+            "application/json"
+        ],
+        description="允许的文件类型"
+    )
+    upload_timeout: int = Field(default=300, description="上传超时时间")
+    
+    # RAG配置
+    default_chunk_size: int = Field(default=1000, description="默认分块大小")
+    chunk_overlap: int = Field(default=200, description="分块重叠")
+    max_chunks_per_document: int = Field(default=1000, description="每个文档最大分块数")
+    
+    # 监控配置
+    enable_metrics: bool = Field(default=True, description="是否启用指标")
+    metrics_path: str = Field(default="/metrics", description="指标路径")
+    health_check_path: str = Field(default="/health", description="健康检查路径")
     
     # 子配置
     database: DatabaseConfig = Field(default_factory=DatabaseConfig, description="数据库配置")
     storage: StorageConfig = Field(default_factory=StorageConfig, description="存储配置")
     logging: LoggingConfig = Field(default_factory=LoggingConfig, description="日志配置")
+    ai: AIConfig = Field(default_factory=AIConfig, description="AI服务配置")
 
     redis: RedisConfig = Field(default_factory=RedisConfig, description="Redis配置")
     
@@ -345,13 +521,100 @@ class AppConfig(BaseSettings):
         # 忽略未定义的额外字段，避免旧环境变量导致验证错误
         extra = "ignore"
     
-    @validator('environment')
+    @validator('environment', pre=True)
     def validate_environment(cls, v):
         """验证运行环境"""
-        allowed_envs = ['development', 'testing', 'staging', 'production']
-        if v.lower() not in allowed_envs:
-            raise ValueError(f"Environment must be one of {allowed_envs}")
-        return v.lower()
+        if isinstance(v, str):
+            try:
+                return Environment(v.lower())
+            except ValueError:
+                allowed_envs = [e.value for e in Environment]
+                raise ValueError(f"Environment must be one of {allowed_envs}")
+        return v
+    
+    def model_post_init(self, __context):
+        """配置初始化后处理 - 根据环境调整配置"""
+        # 生产环境安全调整
+        if self.environment == Environment.PRODUCTION:
+            self.debug = False
+            self.docs_url = None
+            self.redoc_url = None 
+            self.openapi_url = None
+            if self.allowed_hosts == ["*"]:
+                self.allowed_hosts = []
+            if self.cors_origins == ["*"]:
+                self.cors_origins = []
+        
+        # 开发环境便利性调整
+        elif self.environment == Environment.DEVELOPMENT:
+            self.debug = True
+    
+    def get_cors_config(self) -> Dict[str, Any]:
+        """获取CORS配置"""
+        origins = self.cors_origins if isinstance(self.cors_origins, list) else [self.cors_origins]
+        methods = self.cors_methods if isinstance(self.cors_methods, list) else [self.cors_methods]
+        headers = self.cors_headers if isinstance(self.cors_headers, list) else [self.cors_headers]
+        
+        return {
+            "allow_origins": origins,
+            "allow_credentials": self.cors_credentials,
+            "allow_methods": methods,
+            "allow_headers": headers
+        }
+    
+    def get_logging_config(self) -> Dict[str, Any]:
+        """获取日志配置"""
+        log_level = self.logging.level.upper()
+        log_file = self.logging.file
+        
+        config = {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S"
+                },
+                "json": {
+                    "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+                    "class": "pythonjsonlogger.jsonlogger.JsonFormatter"
+                }
+            },
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default",
+                    "level": log_level
+                }
+            },
+            "root": {
+                "level": log_level,
+                "handlers": ["console"]
+            }
+        }
+        
+        # 添加文件日志处理器
+        if log_file:
+            config["handlers"]["file"] = {
+                "class": "logging.handlers.TimedRotatingFileHandler",
+                "filename": log_file,
+                "when": "D",
+                "interval": 1,
+                "backupCount": 30,
+                "formatter": "json" if self.environment == Environment.PRODUCTION else "default",
+                "level": log_level
+            }
+            config["root"]["handlers"].append("file")
+        
+        return config
+    
+    def is_production(self) -> bool:
+        """是否为生产环境"""
+        return self.environment == Environment.PRODUCTION
+    
+    def is_development(self) -> bool:
+        """是否为开发环境"""
+        return self.environment == Environment.DEVELOPMENT
     
     @validator('cors_origins', 'cors_methods', 'cors_headers')
     def validate_cors_list(cls, v):
@@ -366,13 +629,10 @@ class AppConfig(BaseSettings):
         else:
             return ["*"]
     
-    def is_development(self) -> bool:
-        """是否为开发环境"""
-        return self.environment == 'development'
-    
-    def is_production(self) -> bool:
-        """是否为生产环境"""
-        return self.environment == 'production'
+    @classmethod
+    def from_env(cls) -> "AppConfig":
+        """从环境变量创建配置实例 - 便捷方法"""
+        return cls()
 
 
 # 全局配置实例

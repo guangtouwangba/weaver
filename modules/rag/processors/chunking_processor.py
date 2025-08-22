@@ -47,6 +47,11 @@ class ChunkingProcessor(IDocumentProcessor):
         # 使用文本处理器进行预处理
         self.text_processor = TextProcessor(min_chunk_size=min_chunk_size)
     
+    async def initialize(self):
+        """Initialize the chunking processor"""
+        # All components are already initialized in __init__, nothing more needed
+        pass
+    
     @property
     def processor_name(self) -> str:
         """获取处理器名称"""
