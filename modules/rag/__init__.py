@@ -3,7 +3,7 @@ RAG (Retrieval-Augmented Generation) 模块
 
 包含RAG系统特有的组件：
 - processors: 文档处理器
-- orchestrator: RAG编排器  
+- orchestrator: RAG编排器
 - router: 文档路由器
 - api: RAG专用API
 - embedding: 嵌入服务
@@ -11,61 +11,79 @@ RAG (Retrieval-Augmented Generation) 模块
 - search: 搜索服务
 """
 
-# RAG处理器
-from .processors import (
-    IDocumentProcessor, DocumentProcessorError,
-    TextProcessor, ChunkingProcessor
+# RAG嵌入服务
+from .embedding import (
+    EmbeddingConfig,
+    EmbeddingError,
+    EmbeddingProvider,
+    EmbeddingResult,
+    IEmbeddingService,
 )
 
 # RAG编排器
-from .orchestrator import (
-    IOrchestrator, OrchestrationError,
-    DocumentOrchestrator
-)
-
-# RAG路由器
-from .router import (
-    IRouter, DocumentRouter
-)
-
-# RAG嵌入服务
-from .embedding import (
-    IEmbeddingService, EmbeddingProvider, EmbeddingConfig, EmbeddingResult, EmbeddingError
-)
-
-# RAG向量存储
-from .vector_store import (
-    IVectorStore, VectorStoreProvider, VectorStoreConfig, VectorDocument, 
-    SearchResult, SearchFilter, VectorStoreError
-)
+from .orchestrator import DocumentOrchestrator, IOrchestrator, OrchestrationError
 
 # RAG处理管道
 from .pipeline import (
-    IDocumentPipeline, PipelineConfig, DocumentProcessingRequest, 
-    DocumentProcessingResult, PipelineStatus, ProcessingStage, PipelineError
+    DocumentProcessingRequest,
+    DocumentProcessingResult,
+    IDocumentPipeline,
+    PipelineConfig,
+    PipelineError,
+    PipelineStatus,
+    ProcessingStage,
+)
+
+# RAG处理器
+from .processors import ChunkingProcessor, DocumentProcessorError, IDocumentProcessor, TextProcessor
+
+# RAG路由器
+from .router import DocumentRouter, IRouter
+
+# RAG向量存储
+from .vector_store import (
+    IVectorStore,
+    SearchFilter,
+    SearchResult,
+    VectorDocument,
+    VectorStoreConfig,
+    VectorStoreError,
+    VectorStoreProvider,
 )
 
 __all__ = [
     # 处理器
-    'IDocumentProcessor', 'DocumentProcessorError',
-    'TextProcessor', 'ChunkingProcessor',
-    
+    "IDocumentProcessor",
+    "DocumentProcessorError",
+    "TextProcessor",
+    "ChunkingProcessor",
     # 编排器
-    'IOrchestrator', 'OrchestrationError', 
-    'DocumentOrchestrator',
-    
+    "IOrchestrator",
+    "OrchestrationError",
+    "DocumentOrchestrator",
     # 路由器
-    'IRouter', 'DocumentRouter',
-    
+    "IRouter",
+    "DocumentRouter",
     # 嵌入服务
-    'IEmbeddingService', 'EmbeddingProvider', 'EmbeddingConfig', 
-    'EmbeddingResult', 'EmbeddingError',
-    
+    "IEmbeddingService",
+    "EmbeddingProvider",
+    "EmbeddingConfig",
+    "EmbeddingResult",
+    "EmbeddingError",
     # 向量存储
-    'IVectorStore', 'VectorStoreProvider', 'VectorStoreConfig', 
-    'VectorDocument', 'SearchResult', 'SearchFilter', 'VectorStoreError',
-    
+    "IVectorStore",
+    "VectorStoreProvider",
+    "VectorStoreConfig",
+    "VectorDocument",
+    "SearchResult",
+    "SearchFilter",
+    "VectorStoreError",
     # 处理管道
-    'IDocumentPipeline', 'PipelineConfig', 'DocumentProcessingRequest', 
-    'DocumentProcessingResult', 'PipelineStatus', 'ProcessingStage', 'PipelineError',
+    "IDocumentPipeline",
+    "PipelineConfig",
+    "DocumentProcessingRequest",
+    "DocumentProcessingResult",
+    "PipelineStatus",
+    "ProcessingStage",
+    "PipelineError",
 ]

@@ -6,7 +6,7 @@ high-level workflows for document processing and retrieval.
 
 Key Features:
 - Document ingestion workflows
-- Search and retrieval orchestration  
+- Search and retrieval orchestration
 - Module coordination
 - Error handling and recovery
 """

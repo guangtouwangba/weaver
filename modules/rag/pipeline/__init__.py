@@ -10,16 +10,16 @@
 """
 
 from .base import (
-    IDocumentPipeline,
-    PipelineConfig,
+    BatchProcessingResult,
     DocumentProcessingRequest,
     DocumentProcessingResult,
-    ProcessingStageResult,
-    ProcessingProgress,
-    BatchProcessingResult,
+    IDocumentPipeline,
+    PipelineConfig,
     PipelineError,
     PipelineStatus,
-    ProcessingStage
+    ProcessingProgress,
+    ProcessingStage,
+    ProcessingStageResult,
 )
 
 __all__ = [
@@ -32,5 +32,5 @@ __all__ = [
     "BatchProcessingResult",
     "PipelineError",
     "PipelineStatus",
-    "ProcessingStage"
+    "ProcessingStage",
 ]
