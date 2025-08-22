@@ -1,7 +1,7 @@
 """
-API模块
+API module
 
-提供基于Service层编排的REST API interface。
+Provides REST API interface based on Service layer orchestration.
 """
 
 from fastapi import APIRouter
@@ -10,10 +10,10 @@ from .file_api import router as file_router
 from .resource_api import router as resource_router
 from .topic_api import router as topic_router
 
-# 创建主API route器
+# Create main API router
 api_router = APIRouter(prefix="/api/v1")
 
-# 注册共用子路由 (document_api已移至rag模块)
+# Register shared sub-routes (document_api moved to rag module)
 api_router.include_router(topic_router)
 api_router.include_router(file_router)
 api_router.include_router(resource_router)

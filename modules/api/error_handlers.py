@@ -1,7 +1,7 @@
 """
-API错误处理器
+API error handlers
 
-自定义错误处理器来处理各种API错误情况，包括Unicode解码错误。
+Custom error handlers to handle various API error scenarios, including Unicode decode errors.
 """
 
 import logging
@@ -16,18 +16,18 @@ logger = logging.getLogger(__name__)
 
 
 async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError) -> JSONResponse:
-    """处理Unicode解码错误"""
+    """Handle Unicode decode errors"""
     logger.warning(f"Unicode decode error at {request.url}: {exc}")
 
     return JSONResponse(
         status_code=400,
         content={
             "success": False,
-            "message": "请求数据编码错误",
+            "message": "Request data encoding error",
             "error": {
                 "type": "EncodingError",
-                "detail": "请求包含无法解码的字符数据，请检查文件编码或数据格式",
-                "suggestion": "请确保上传的文件使用正确的编码格式，或使用正确的Content-Type头",
+                "detail": "Request contains character data that cannot be decoded, please check file encoding or data format",
+                "suggestion": "Please ensure uploaded files use correct encoding format, or use proper Content-Type headers",
             },
         },
     )
@@ -36,10 +36,10 @@ async def unicode_decode_error_handler(request: Request, exc: UnicodeDecodeError
 async def request_validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    """处理Request validation错误，特别是multipart数据错误"""
+    """Handle Request validation errors, especially multipart data errors"""
     logger.warning(f"Request validation error at {request.url}: {exc}")
 
-    # 检查是否是编码相关的错误
+    # Check if it's an encoding-related error
     error_details = []
     encoding_error = False
 
@@ -50,7 +50,7 @@ async def request_validation_error_handler(
             "message": error.get("msg", "validation error"),
         }
 
-        # 检查是否是编码错误
+        # Check if it's an encoding error
         if (
             "decode" in str(error).lower()
             or "encoding" in str(error).lower()
@@ -65,11 +65,11 @@ async def request_validation_error_handler(
             status_code=400,
             content={
                 "success": False,
-                "message": "请求数据编码错误",
+                "message": "Request data encoding error",
                 "error": {
                     "type": "RequestEncodingError",
-                    "detail": "请求数据包含无法处理的字符编码",
-                    "suggestion": "请检查请求的Content-Type是否正确，确保文件数据使用正确的编码格式",
+                    "detail": "Request data contains character encoding that cannot be processed",
+                    "suggestion": "Please check if the request Content-Type is correct, ensure file data uses proper encoding format",
                     "errors": error_details,
                 },
             },
@@ -79,10 +79,10 @@ async def request_validation_error_handler(
         status_code=422,
         content={
             "success": False,
-            "message": "请求Parameter validation失败",
+            "message": "Request parameter validation failed",
             "error": {
                 "type": "ValidationError",
-                "detail": "Request parameters不符合API要求",
+                "detail": "Request parameters do not meet API requirements",
                 "errors": error_details,
             },
         },
@@ -90,17 +90,17 @@ async def request_validation_error_handler(
 
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """处理一般异常"""
+    """Handle general exceptions"""
     logger.error(f"Unhandled error at {request.url}: {type(exc).__name__}: {exc}")
 
     return JSONResponse(
         status_code=500,
         content={
             "success": False,
-            "message": "服务器内部错误",
+            "message": "Internal server error",
             "error": {
                 "type": type(exc).__name__,
-                "detail": "服务器处理请求时发生错误，请稍后重试或联系技术支持",
+                "detail": "An error occurred while the server was processing the request, please try again later or contact technical support",
             },
         },
     )
@@ -108,7 +108,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 def safe_encode_errors(errors: Any) -> Any:
     """
-    安全编码错误信息，避免Unicode解码错误
+    Safely encode error information to avoid Unicode decode errors
     """
     if isinstance(errors, bytes):
         try:
