@@ -11,8 +11,8 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from logging_system import task_context
+from modules.schemas.enums import ContentType
 
-from ...schemas.enums import ContentType
 from ...services.task_service import register_task_handler, task_handler
 from ..base import ITaskHandler, TaskPriority
 from ..decorators import log_execution_time

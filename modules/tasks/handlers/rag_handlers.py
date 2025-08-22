@@ -754,8 +754,9 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
 
                 try:
                     # 使用工厂模式加载文档
+                    from modules.schemas.enums import ContentType
+
                     from ...file_loader import detect_content_type, load_document
-                    from ...schemas.enums import ContentType
 
                     # 转换内容类型
                     try:

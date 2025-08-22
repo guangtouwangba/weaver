@@ -12,8 +12,9 @@ from sqlalchemy import and_, asc, delete, desc, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from modules.schemas.enums import TopicStatus
+
 from ..database.models import Topic
-from ..schemas.enums import TopicStatus
 from .base_repository import BaseRepository
 from .interfaces import ITopicRepository
 

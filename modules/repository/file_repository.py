@@ -12,8 +12,9 @@ from sqlalchemy import and_, asc, delete, desc, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from modules.schemas.enums import FileStatus
+
 from ..database.models import File
-from ..schemas.enums import FileStatus
 from .base_repository import BaseRepository
 from .interfaces import IFileRepository
 

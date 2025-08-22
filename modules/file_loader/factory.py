@@ -6,7 +6,8 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel
 
-from ..schemas.enums import ContentType
+from modules.schemas.enums import ContentType
+
 from .base import IFileLoader
 
 logger = logging.getLogger(__name__)
@@ -307,7 +308,7 @@ def detect_content_type(file_path: str) -> ContentType:
     """
     from pathlib import Path
 
-    from ..schemas.enums import ContentType
+    from modules.schemas.enums import ContentType
 
     ext = Path(file_path).suffix.lower()
 
