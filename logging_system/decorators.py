@@ -8,12 +8,12 @@ import asyncio
 import functools
 import inspect
 import time
-from typing import Any, Callable, Optional, Dict, Union
 from contextlib import contextmanager
+from typing import Any, Callable, Dict, Optional, Union
 
-from .factory import LoggerFactory
-from .config import LogLevel
-from .context import log_context
+from logging_system.config import LogLevel
+from logging_system.context import log_context
+from logging_system.factory import LoggerFactory
 
 
 def log_execution_time(

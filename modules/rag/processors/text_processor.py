@@ -9,15 +9,15 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from ...schemas import Document
-from ...models import (
+from modules.models import (
     ChunkingStrategy,
     DocumentChunk,
     ProcessingRequest,
     ProcessingResult,
     ProcessingStatus,
 )
-from .base import DocumentProcessorError, IDocumentProcessor
+from modules.rag.processors.base import DocumentProcessorError, IDocumentProcessor
+from modules.schemas import Document
 
 logger = logging.getLogger(__name__)
 

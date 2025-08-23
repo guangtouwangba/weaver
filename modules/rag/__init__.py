@@ -12,7 +12,7 @@ RAG (Retrieval-Augmented Generation) 模块
 """
 
 # RAG嵌入服务
-from .embedding import (
+from modules.rag.embedding import (
     EmbeddingConfig,
     EmbeddingError,
     EmbeddingProvider,
@@ -21,10 +21,14 @@ from .embedding import (
 )
 
 # RAG编排器
-from .orchestrator import DocumentOrchestrator, IOrchestrator, OrchestrationError
+from modules.rag.orchestrator import (
+    DocumentOrchestrator,
+    IOrchestrator,
+    OrchestrationError,
+)
 
 # RAG处理管道
-from .pipeline import (
+from modules.rag.pipeline import (
     DocumentProcessingRequest,
     DocumentProcessingResult,
     IDocumentPipeline,
@@ -35,7 +39,7 @@ from .pipeline import (
 )
 
 # RAG处理器
-from .processors import (
+from modules.rag.processors import (
     ChunkingProcessor,
     DocumentProcessorError,
     IDocumentProcessor,
@@ -43,10 +47,10 @@ from .processors import (
 )
 
 # RAG路由器
-from .router import DocumentRouter, IRouter
+from modules.rag.router import DocumentRouter, IRouter
 
 # RAG向量存储
-from .vector_store import (
+from modules.rag.vector_store import (
     IVectorStore,
     SearchFilter,
     SearchResult,

@@ -7,12 +7,12 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from ..database.models import Document as DocumentModel
-from ..database.models import File as FileModel
-from ..database.models import Topic as TopicModel
-from .document import DocumentResponse, DocumentSchema
-from .file import FileResponse, FileSchema
-from .topic import TopicResponse, TopicSchema
+from modules.database.models import Document as DocumentModel
+from modules.database.models import File as FileModel
+from modules.database.models import Topic as TopicModel
+from modules.schemas.document import DocumentResponse, DocumentSchema
+from modules.schemas.file import FileResponse, FileSchema
+from modules.schemas.topic import TopicResponse, TopicSchema
 
 
 # Topic转换器

@@ -18,12 +18,15 @@ from logging_system import (
     request_context,
     task_context,
 )
-
-from ...rag.embedding import EmbeddingProvider
-from ...rag.pipeline import DocumentProcessingRequest, PipelineConfig, PipelineStatus
-from ...rag.vector_store import VectorDocument, VectorStoreProvider
-from ...services.task_service import register_task_handler, task_handler
-from ..base import ITaskHandler, TaskConfig, TaskPriority, TaskProgress
+from modules.rag.embedding import EmbeddingProvider
+from modules.rag.pipeline import (
+    DocumentProcessingRequest,
+    PipelineConfig,
+    PipelineStatus,
+)
+from modules.rag.vector_store import VectorDocument, VectorStoreProvider
+from modules.services.task_service import register_task_handler, task_handler
+from modules.tasks.base import ITaskHandler, TaskConfig, TaskPriority, TaskProgress
 
 logger = get_logger(__name__)
 

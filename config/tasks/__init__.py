@@ -6,19 +6,16 @@
 
 # 配置数据类已移动到 config.settings 中
 
-from .monitoring import (
-    # 监控接口
-    ITaskMonitoringService,
-    ITaskConfiguration,
-    ITaskAlerting,
-    # 监控数据类
-    QueueMetrics,
-    TaskMetrics,
-    SystemHealth,
-    AlertRule,
-    # 预定义常量
-    MONITORING_METRICS,
+from config.tasks.monitoring import (  # 监控接口; 监控数据类; 预定义常量
     DEFAULT_ALERT_RULES,
+    MONITORING_METRICS,
+    AlertRule,
+    ITaskAlerting,
+    ITaskConfiguration,
+    ITaskMonitoringService,
+    QueueMetrics,
+    SystemHealth,
+    TaskMetrics,
 )
 
 __all__ = [

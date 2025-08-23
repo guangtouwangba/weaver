@@ -9,20 +9,24 @@ import asyncio
 import logging
 import os
 from typing import Any, Dict, Optional
-from modules.schemas import Document, ContentType, create_document_from_path
-from modules.file_loader import register_multi_type_file_loader, FileLoaderError, IFileLoader
+
+from modules.file_loader import (
+    FileLoaderError,
+    IFileLoader,
+    register_multi_type_file_loader,
+)
+from modules.schemas import ContentType, Document, create_document_from_path
 
 logger = logging.getLogger(__name__)
 
 
 try:
     import chardet
+
     HAS_CHARDET = True
 except ImportError:
     HAS_CHARDET = False
     chardet = None
-
-
 
 
 @register_multi_type_file_loader(content_types=[ContentType.TXT])
@@ -30,10 +34,10 @@ class TextFileLoader(IFileLoader):
     """Text file loader"""
 
     def __init__(
-            self,
-            default_encoding: str = "utf-8",
-            fallback_encodings: list = None,
-            max_file_size: int = 100 * 1024 * 1024,
+        self,
+        default_encoding: str = "utf-8",
+        fallback_encodings: list = None,
+        max_file_size: int = 100 * 1024 * 1024,
     ):  # 100MB
         """
         Initialize text file loader
@@ -109,7 +113,7 @@ class TextFileLoader(IFileLoader):
                         1 for byte in sample if byte < 32 and byte not in [9, 10, 13]
                     )
                     if (
-                            non_text_chars / len(sample) > 0.3
+                        non_text_chars / len(sample) > 0.3
                     ):  # More than 30% non-text characters
                         return False
 
@@ -141,7 +145,7 @@ class TextFileLoader(IFileLoader):
         return await self.load_file(file_path, metadata)
 
     async def load_file(
-            self, file_path: str, metadata: Optional[Dict[str, Any]] = None
+        self, file_path: str, metadata: Optional[Dict[str, Any]] = None
     ) -> Document:
         """Load text file"""
         try:
@@ -257,7 +261,7 @@ class TextFileLoader(IFileLoader):
 
                     def read_fallback():
                         with open(
-                                file_path, "r", encoding=fallback_encoding, errors="replace"
+                            file_path, "r", encoding=fallback_encoding, errors="replace"
                         ) as f:
                             return f.read()
 

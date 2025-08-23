@@ -4,17 +4,17 @@ Services模块
 提供Business logicService layer，负责编排Repository和处理业务规则。
 """
 
-from .base_service import BaseService
-from .document_service import DocumentService
-from .file_service import FileService
-from .redis_service import RedisService, redis_service
-from .task_monitoring_service import (
+from modules.services.base_service import BaseService
+from modules.services.document_service import DocumentService
+from modules.services.file_service import FileService
+from modules.services.redis_service import RedisService, redis_service
+from modules.services.task_monitoring_service import (
     RedisTaskMonitoringService,
     TaskConfigurationService,
     configuration_service,
     monitoring_service,
 )
-from .topic_service import TopicService
+from modules.services.topic_service import TopicService
 
 __all__ = [
     "BaseService",

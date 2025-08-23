@@ -9,9 +9,9 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
-from .base import BaseSchema, PaginationSchema
-from .document import DocumentChunkResponse
-from .enums import ProcessingStatus
+from modules.schemas.base import BaseSchema, PaginationSchema
+from modules.schemas.document import DocumentChunkResponse
+from modules.schemas.enums import ProcessingStatus
 
 
 class ProcessingResult(BaseSchema):

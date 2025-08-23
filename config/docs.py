@@ -4,7 +4,7 @@ API documentation configuration module
 Configure custom styles and behaviors for Swagger UI and ReDoc.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Swagger UI自定义配置
 SWAGGER_UI_PARAMETERS = {

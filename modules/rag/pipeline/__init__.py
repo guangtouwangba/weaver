@@ -9,7 +9,7 @@
 - 处理状态跟踪
 """
 
-from .base import (
+from modules.rag.pipeline.base import (
     BatchProcessingResult,
     DocumentProcessingRequest,
     DocumentProcessingResult,

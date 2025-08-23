@@ -4,13 +4,13 @@
 提供简单、直接的数据库交互功能，支持RAG系统的数据持久化需求。
 """
 
-from .connection import (
+from modules.database.connection import (
     DatabaseConnection,
     get_database_connection,
     get_db_session,
     get_session,
 )
-from .models import Document, DocumentChunk, File, Topic
+from modules.database.models import Document, DocumentChunk, File, Topic
 
 # DatabaseService removed to avoid circular imports
 

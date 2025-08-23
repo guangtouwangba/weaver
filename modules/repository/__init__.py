@@ -5,16 +5,16 @@ Repository模块
 遵循Repository模式，将数据访问逻辑与Business logic分离。
 """
 
-from .base_repository import BaseRepository
-from .document_repository import DocumentRepository
-from .file_repository import FileRepository
-from .interfaces import (
+from modules.repository.base_repository import BaseRepository
+from modules.repository.document_repository import DocumentRepository
+from modules.repository.file_repository import FileRepository
+from modules.repository.interfaces import (
     IBaseRepository,
     IDocumentRepository,
     IFileRepository,
     ITopicRepository,
 )
-from .topic_repository import TopicRepository
+from modules.repository.topic_repository import TopicRepository
 
 __all__ = [
     # 接口

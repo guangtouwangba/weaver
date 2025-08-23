@@ -10,8 +10,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db_session
-from ..schemas import (
+from modules.database import get_db_session
+from modules.schemas import (
     AddResourceRequest,
     APIResponse,
     FileList,
@@ -22,7 +22,7 @@ from ..schemas import (
     TopicResponse,
     TopicUpdate,
 )
-from ..services import DocumentService, FileService, TopicService
+from modules.services import DocumentService, FileService, TopicService
 
 router = APIRouter(prefix="/topics", tags=["topics"])
 logger = logging.getLogger(__name__)

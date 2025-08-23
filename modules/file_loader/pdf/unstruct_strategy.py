@@ -1,6 +1,11 @@
 from typing import Any, List
+
+from modules.file_loader.pdf.base import (
+    PDFLoadStrategy,
+    StrategyName,
+    register_pdf_load_strategy,
+)
 from modules.schemas import Document
-from modules.file_loader.pdf.base import PDFLoadStrategy, register_pdf_load_strategy, StrategyName
 
 
 @register_pdf_load_strategy(StrategyName.UNSTRUCTURED)

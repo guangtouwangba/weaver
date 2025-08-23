@@ -7,9 +7,8 @@ Main router implementation that orchestrates the document processing pipeline.
 from datetime import datetime
 from typing import Any, AsyncIterator, Dict, List
 
-from ...file_loader import IFileLoader
-from ...schemas import Document
-from ...models import (
+from modules.file_loader import IFileLoader
+from modules.models import (
     DocumentProcessorError,
     FileLoaderError,
     ModuleConfig,
@@ -20,8 +19,9 @@ from ...models import (
 )
 
 # TODO: MultiFormatFileLoader will be refactored to use factory pattern
-from ..processors import ChunkingProcessor, IDocumentProcessor
-from .base import IRouter, RouterError
+from modules.rag.processors import ChunkingProcessor, IDocumentProcessor
+from modules.rag.router.base import IRouter, RouterError
+from modules.schemas import Document
 
 
 class DocumentRouter(IRouter):

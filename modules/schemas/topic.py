@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field, validator
 
-from .base import BaseSchema, TimestampMixin
-from .enums import TopicStatus
+from modules.schemas.base import BaseSchema, TimestampMixin
+from modules.schemas.enums import TopicStatus
 
 
 class TopicSchema(BaseSchema, TimestampMixin):

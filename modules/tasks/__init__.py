@@ -30,8 +30,7 @@ from config.tasks.monitoring import (  # 监控接口; 监控数据类; 预定�
     SystemHealth,
     TaskMetrics,
 )
-
-from .base import (  # 接口; 枚举; 数据类; 异常; 类型
+from modules.tasks.base import (  # 接口; 枚举; 数据类; 异常; 类型
     ITaskHandler,
     ITaskRegistry,
     ITaskService,

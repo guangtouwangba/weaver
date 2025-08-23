@@ -6,9 +6,8 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel
 
+from modules.file_loader.base import IFileLoader
 from modules.schemas import ContentType, Document
-
-from .base import IFileLoader
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,7 @@ class FileLoaderFactory:
 
     @classmethod
     async def load_document(
-            cls, request, auto_detect: bool = True, fallback_to_text: bool = True
+        cls, request, auto_detect: bool = True, fallback_to_text: bool = True
     ):
         """
         One-step document loading with automatic type detection and fallback

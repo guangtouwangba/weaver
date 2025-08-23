@@ -11,20 +11,20 @@ from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..file_loader import FileLoaderFactory
-from ..rag.embedding import EmbeddingProvider
+from modules.file_loader import FileLoaderFactory
+from modules.rag.embedding import EmbeddingProvider
 
 # RAG pipeline imports will be imported dynamically to avoid circular import
-from ..rag.pipeline import (
+from modules.rag.pipeline import (
     DocumentProcessingRequest,
     PipelineConfig,
     PipelineStatus,
     ProcessingStage,
 )
-from ..rag.processors import ChunkingProcessor
-from ..rag.vector_store import VectorStoreProvider
-from ..repository import DocumentRepository, FileRepository
-from ..schemas import (
+from modules.rag.processors import ChunkingProcessor
+from modules.rag.vector_store import VectorStoreProvider
+from modules.repository import DocumentRepository, FileRepository
+from modules.schemas import (
     ContentType,
     DocumentChunkCreate,
     DocumentChunkResponse,
@@ -40,7 +40,7 @@ from ..schemas import (
     document_to_response,
     documents_to_responses,
 )
-from .base_service import BaseService
+from modules.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
 
@@ -246,7 +246,7 @@ class DocumentService(BaseService):
             )
 
             # 构建搜索结果
-            from ..schemas.responses import SearchResult
+            from modules.schemas.responses import SearchResult
 
             results = []
             for doc in documents:
@@ -294,7 +294,7 @@ class DocumentService(BaseService):
             chunks = await self.document_repo.get_document_chunks(document_id)
 
             # 转换为响应Schema
-            from ..schemas.document import DocumentChunkResponse
+            from modules.schemas.document import DocumentChunkResponse
 
             chunk_responses = []
             for chunk in chunks:
@@ -397,8 +397,8 @@ class DocumentService(BaseService):
                 embedding_provider = ai_config.embedding.provider
 
             # Import dynamically to avoid circular import
-            from ..models import ModuleConfig
-            from .rag_service import (
+            from modules.models import ModuleConfig
+            from modules.services.rag_service import (
                 create_document_pipeline,
                 create_embedding_service,
                 create_vector_store,
@@ -560,7 +560,7 @@ class DocumentService(BaseService):
             query_vector = await embedding_service.generate_single_embedding(query)
 
             # Search in vector store
-            from ..rag.vector_store import SearchFilter
+            from modules.rag.vector_store import SearchFilter
 
             filters = SearchFilter()
             if document_ids:
@@ -577,7 +577,7 @@ class DocumentService(BaseService):
             )
 
             # Convert to SearchResponse format
-            from ..schemas.responses import SearchResult
+            from modules.schemas.responses import SearchResult
 
             results = []
             for vector_result in vector_results:

@@ -7,14 +7,14 @@ Defines the contract for routing and orchestration implementations.
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, List, Optional
 
-from ...schemas import Document
-from ...models import (
+from modules.models import (
     ModuleConfig,
     ModuleInterface,
     ProcessingResult,
     SearchQuery,
     SearchResponse,
 )
+from modules.schemas import Document
 
 
 class RouterError(Exception):

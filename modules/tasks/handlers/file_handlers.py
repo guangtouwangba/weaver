@@ -8,32 +8,31 @@ Contains various async task handlers for file system operations:
 - File cleanup
 """
 
+import json
 import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import json
 
 from modules import schemas
 from modules.file_loader.factory import FileLoaderFactory
 from modules.models import FileLoadRequest
 from modules.schemas import ContentType, Document
-
-from ...services.task_service import register_task_handler, task_handler
-from ...storage.base import create_storage_service, IStorage
-from ..base import ITaskHandler, TaskPriority
+from modules.services.task_service import register_task_handler, task_handler
+from modules.storage.base import IStorage, create_storage_service
+from modules.tasks.base import ITaskHandler, TaskPriority
 
 logger = logging.getLogger(__name__)
 
 
 def sanitize_for_json_serialization(obj: Any) -> Any:
     """
-    Sanitize objects to ensure they are JSON serializable by converting 
+    Sanitize objects to ensure they are JSON serializable by converting
     problematic objects like HTTPHeaderDict to regular dictionaries.
-    
+
     Args:
         obj: Object to sanitize
-        
+
     Returns:
         JSON-serializable version of the object
     """
@@ -43,16 +42,19 @@ def sanitize_for_json_serialization(obj: Any) -> Any:
         return obj
     except (TypeError, ValueError):
         pass
-    
-    if hasattr(obj, '__dict__'):
+
+    if hasattr(obj, "__dict__"):
         # Convert objects with __dict__ to dictionaries
-        if hasattr(obj, '__class__') and 'HTTPHeaderDict' in str(obj.__class__):
+        if hasattr(obj, "__class__") and "HTTPHeaderDict" in str(obj.__class__):
             # Specifically handle HTTPHeaderDict objects
             return dict(obj)
         else:
             # Handle other objects with __dict__
             try:
-                return {k: sanitize_for_json_serialization(v) for k, v in obj.__dict__.items()}
+                return {
+                    k: sanitize_for_json_serialization(v)
+                    for k, v in obj.__dict__.items()
+                }
             except:
                 return str(obj)
     elif isinstance(obj, dict):
@@ -61,7 +63,7 @@ def sanitize_for_json_serialization(obj: Any) -> Any:
     elif isinstance(obj, (list, tuple)):
         # Recursively sanitize list/tuple items
         return [sanitize_for_json_serialization(item) for item in obj]
-    elif hasattr(obj, 'items') and callable(getattr(obj, 'items')):
+    elif hasattr(obj, "items") and callable(getattr(obj, "items")):
         # Handle dict-like objects (including HTTPHeaderDict)
         return {k: sanitize_for_json_serialization(v) for k, v in obj.items()}
     else:

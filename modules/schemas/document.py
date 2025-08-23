@@ -6,10 +6,10 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import Field, validator, BaseModel
+from pydantic import BaseModel, Field, validator
 
-from .base import BaseSchema, TimestampMixin
-from .enums import ContentType
+from modules.schemas.base import BaseSchema, TimestampMixin
+from modules.schemas.enums import ContentType
 
 
 class Document(BaseModel):
@@ -23,7 +23,6 @@ class Document(BaseModel):
     content_type: ContentType
     file_path: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-
 
 
 class DocumentSchema(BaseSchema, TimestampMixin):
@@ -129,7 +128,6 @@ class DocumentList(BaseSchema):
     total_pages: int = Field(description="总页数")
 
 
-
 def create_document_from_path(
     file_path: str, content: str, content_type: str = "text"
 ) -> Document:
@@ -169,4 +167,3 @@ def create_document_from_path(
         file_path=file_path,
         metadata={"original_path": file_path, "file_size": len(content)},
     )
-

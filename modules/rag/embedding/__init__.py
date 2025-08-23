@@ -7,7 +7,7 @@
 - 本地嵌入模型
 """
 
-from .base import (
+from modules.rag.embedding.base import (
     EmbeddingConfig,
     EmbeddingError,
     EmbeddingProvider,
