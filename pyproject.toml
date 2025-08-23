@@ -45,13 +45,18 @@ dependencies = [
     # Cache and messaging
     "redis>=5.0.1",
     "aioredis>=2.0.1",
+    # Task queue system
+    "celery[redis]>=5.3.4",
+    "kombu>=5.3.4",
     # Vector databases
     "weaviate-client>=3.25.0",
     "chromadb>=0.4.18",
     # Document processing
     "langchain>=0.1.0",
     "langchain-community>=0.0.10",
-    "pypdf>=3.17.0",
+    "unstructured[pdf]>=0.12.0",  # Primary PDF parsing library with advanced layout detection
+    "pymupdf>=1.23.0",  # Secondary PDF library (fitz)
+    "PyPDF2>=3.0.1",    # Fallback PDF library
     "python-docx>=1.1.0",
     "python-pptx>=0.6.23",
     "openpyxl>=3.1.2",
@@ -71,6 +76,7 @@ dependencies = [
     # Logging and monitoring
     "structlog>=23.2.0",
     "prometheus-client>=0.19.0",
+    "psutil>=5.9.0",
     # Configuration and environment
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
@@ -86,11 +92,8 @@ dependencies = [
     # JSON and serialization
     "orjson>=3.9.10",
     "msgpack>=1.0.7",
-    "greenlet>=3.2.4",
-    "celery>=5.5.3",
-    "psutil>=7.0.0",
-    "pypdf2>=3.0.1",
-    "pymupdf>=1.26.3",
+    # Core Python utilities
+    "greenlet>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -100,6 +103,8 @@ dev = [
     "pytest-asyncio>=0.21.1",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-benchmark>=4.0.0",
     "black>=23.11.0",
     "isort>=5.12.0",
     "flake8>=6.1.0",
@@ -107,6 +112,9 @@ dev = [
     "pre-commit>=3.5.0",
     "jupyter>=1.0.0",
     "ipython>=8.18.0",
+    # Additional dev tools
+    "ruff>=0.1.0",  # Fast Python linter
+    "bandit>=1.7.0",  # Security linter
 ]
 
 # Test dependencies
@@ -115,9 +123,13 @@ test = [
     "pytest-asyncio>=0.21.1",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-benchmark>=4.0.0",
     "factory-boy>=3.3.0",
     "faker>=20.1.0",
     "httpx>=0.25.0",
+    # Additional testing utilities
+    "respx>=0.20.0",  # HTTP mocking for tests
 ]
 
 # Documentation dependencies
@@ -219,6 +231,12 @@ markers = [
     "database: marks tests as database integration tests",
     "api: marks tests as API integration tests",
     "fullstack: marks tests as full stack integration tests",
+    "file_loader: marks tests as file loader tests",
+    "pdf_loader: marks tests as PDF loader specific tests",
+    "requires_pdf_lib: marks tests requiring PDF libraries (pymupdf/PyPDF2)",
+    "performance: marks tests as performance tests",
+    "error_handling: marks tests as error handling tests",
+    "mock_heavy: marks tests with extensive mocking",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

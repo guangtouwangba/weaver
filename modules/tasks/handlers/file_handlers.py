@@ -12,16 +12,61 @@ import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import json
 
 from modules import schemas
 from modules.file_loader.factory import FileLoaderFactory
-from modules.models import Document, FileLoadRequest
-from modules.schemas.enums import ContentType
+from modules.models import FileLoadRequest
+from modules.schemas import ContentType, Document
 
 from ...services.task_service import register_task_handler, task_handler
-from ...storage.base import create_storage_service
+from ...storage.base import create_storage_service, IStorage
+from ..base import ITaskHandler, TaskPriority
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_for_json_serialization(obj: Any) -> Any:
+    """
+    Sanitize objects to ensure they are JSON serializable by converting 
+    problematic objects like HTTPHeaderDict to regular dictionaries.
+    
+    Args:
+        obj: Object to sanitize
+        
+    Returns:
+        JSON-serializable version of the object
+    """
+    try:
+        # Test if object is already JSON serializable
+        json.dumps(obj)
+        return obj
+    except (TypeError, ValueError):
+        pass
+    
+    if hasattr(obj, '__dict__'):
+        # Convert objects with __dict__ to dictionaries
+        if hasattr(obj, '__class__') and 'HTTPHeaderDict' in str(obj.__class__):
+            # Specifically handle HTTPHeaderDict objects
+            return dict(obj)
+        else:
+            # Handle other objects with __dict__
+            try:
+                return {k: sanitize_for_json_serialization(v) for k, v in obj.__dict__.items()}
+            except:
+                return str(obj)
+    elif isinstance(obj, dict):
+        # Recursively sanitize dictionary values
+        return {k: sanitize_for_json_serialization(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        # Recursively sanitize list/tuple items
+        return [sanitize_for_json_serialization(item) for item in obj]
+    elif hasattr(obj, 'items') and callable(getattr(obj, 'items')):
+        # Handle dict-like objects (including HTTPHeaderDict)
+        return {k: sanitize_for_json_serialization(v) for k, v in obj.items()}
+    else:
+        # Convert non-serializable objects to string representation
+        return str(obj)
 
 
 async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Document:
@@ -137,7 +182,7 @@ async def load_document_from_path_with_factory(file_path: str, **kwargs) -> Docu
 
 
 @task_handler(
-    schemas.TaskName.FILE_UPLOAD_CONFIRM,
+    schemas.TaskName.FILE_UPLOAD_CONFIRM.value,
     priority=TaskPriority.HIGH,
     max_retries=3,
     timeout=300,
@@ -149,7 +194,7 @@ class FileUploadCompleteHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return schemas.TaskName.FILE_UPLOAD_CONFIRM
+        return schemas.TaskName.FILE_UPLOAD_CONFIRM.value
 
     async def handle(self, file_id: str, file_path: str, **metadata) -> Dict[str, Any]:
         """
@@ -211,18 +256,21 @@ class FileUploadCompleteHandler(ITaskHandler):
                 "document_processing": document_processing_result,
             }
 
+            # Sanitize the result to ensure JSON serialization compatibility
+            sanitized_result = sanitize_for_json_serialization(result)
             logger.info(f"File upload completion processing successful: {file_id}")
-            return result
+            return sanitized_result
 
         except Exception as e:
             logger.error(f"File upload completion processing failed: {file_id}, {e}")
-            return {
+            error_result = {
                 "success": False,
                 "file_id": file_id,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "failed_at": datetime.utcnow().isoformat(),
             }
+            return sanitize_for_json_serialization(error_result)
 
     async def _process_document_with_rag(
         self,
@@ -594,17 +642,18 @@ class FileContentAnalysisHandler(ITaskHandler):
             analysis_result["security"] = security_check
 
             logger.info(f"File content analysis completed: {file_id}")
-            return analysis_result
+            return sanitize_for_json_serialization(analysis_result)
 
         except Exception as e:
             logger.error(f"File content analysis failed: {file_id}, {e}")
-            return {
+            error_result = {
                 "success": False,
                 "file_id": file_id,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "failed_at": datetime.utcnow().isoformat(),
             }
+            return sanitize_for_json_serialization(error_result)
 
     async def _analyze_text_file(self, file_path: str) -> Dict[str, Any]:
         """Analyze text file"""
@@ -773,16 +822,17 @@ class TempFileCleanupHandler(ITaskHandler):
             logger.info(
                 f"Temporary file cleanup completed: deleted {len(deleted_files)}, failed {len(failed_files)}, skipped {len(skipped_files)}"
             )
-            return result
+            return sanitize_for_json_serialization(result)
 
         except Exception as e:
             logger.error(f"Temporary file cleanup failed: {e}")
-            return {
+            error_result = {
                 "success": False,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "failed_at": datetime.utcnow().isoformat(),
             }
+            return sanitize_for_json_serialization(error_result)
 
 
 @task_handler(
@@ -855,11 +905,11 @@ class FileFormatConversionHandler(ITaskHandler):
                     }
 
             logger.info(f"File format conversion completed: {source_file}")
-            return conversion_result
+            return sanitize_for_json_serialization(conversion_result)
 
         except Exception as e:
             logger.error(f"File format conversion failed: {source_file}, {e}")
-            return {
+            error_result = {
                 "success": False,
                 "source_file": source_file,
                 "target_format": target_format,
@@ -867,6 +917,7 @@ class FileFormatConversionHandler(ITaskHandler):
                 "error_type": type(e).__name__,
                 "failed_at": datetime.utcnow().isoformat(),
             }
+            return sanitize_for_json_serialization(error_result)
 
     async def _convert_file(
         self,

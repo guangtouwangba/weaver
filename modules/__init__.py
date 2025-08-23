@@ -18,6 +18,7 @@ from .schemas import (
     APIResponse,
     ChunkingStrategy,
     ContentType,
+    Document,
     DocumentSchema,
     FileSchema,
     HealthCheckResponse,

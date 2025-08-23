@@ -10,10 +10,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from ...file_loader.base import IFileLoader
+from ...schemas import Document
 from ...models import (
     ChunkingStrategy,
-    ContentType,
-    Document,
     DocumentChunk,
     OrchestrationRequest,
     OrchestrationResult,
@@ -23,6 +22,7 @@ from ...models import (
     SearchRequest,
     SearchResult,
 )
+from ...schemas.enums import ContentType
 from ..embedding import EmbeddingProvider
 
 # RAG service imports will be done dynamically to avoid circular imports

@@ -28,7 +28,7 @@ from .document import (
     DocumentList,
     DocumentResponse,
     DocumentSchema,
-    DocumentUpdate,
+    DocumentUpdate, Document, create_document_from_path,
 )
 from .enums import (
     ChunkingStrategy,
@@ -81,6 +81,7 @@ __all__ = [
     "FileResponse",
     "FileList",
     # 文档Schema
+    "Document",
     "DocumentSchema",
     "DocumentCreate",
     "DocumentUpdate",
@@ -127,4 +128,6 @@ __all__ = [
     "schema_to_topic_dict",
     "schema_to_file_dict",
     "schema_to_document_dict",
+
+    "create_document_from_path",
 ]

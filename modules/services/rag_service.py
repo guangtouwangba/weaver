@@ -16,7 +16,8 @@ from uuid import uuid4
 
 # Other dependencies
 from ..file_loader import IFileLoader
-from ..models import Document, DocumentChunk, FileLoadRequest
+from ..schemas import Document
+from ..models import DocumentChunk, FileLoadRequest
 
 # RAG interfaces
 from ..rag.embedding import (

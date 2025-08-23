@@ -79,6 +79,7 @@ def create_celery_app():
             "rag.semantic_search": {"queue": "rag_queue"},
             "rag.cleanup_document": {"queue": "rag_queue"},
             # 文件处理任务
+            "file_upload_confirm": {"queue": "file_queue"},
             "TaskName.FILE_UPLOAD_CONFIRM": {"queue": "file_queue"},
             "file.analyze_content": {"queue": "file_queue"},
             "file.cleanup_temp": {"queue": "file_queue"},
@@ -99,7 +100,7 @@ def create_celery_app():
         # 序列化配置
         task_serializer="json",
         result_serializer="json",
-        accept_content=["json"],
+        accept_content=["json", "pickle"],  # 临时允许pickle以兼容mingle过程
         # 时间配置
         timezone="UTC",
         enable_utc=True,
@@ -200,6 +201,39 @@ def get_queue_config(specialized=None, custom_queues=None):
         return {"queues": all_queues, "description": "通用Worker"}
 
 
+def setup_enhanced_logging(loglevel="info"):
+    """设置增强的日志记录"""
+    import logging
+    from datetime import datetime
+    
+    # 设置日志级别
+    numeric_level = getattr(logging, loglevel.upper(), logging.INFO)
+    
+    # 创建详细的日志格式
+    log_format = "[%(asctime)s: %(levelname)s/%(processName)s] %(name)s:%(lineno)d | %(message)s"
+    
+    # 配置根日志记录器
+    logging.basicConfig(
+        level=numeric_level,
+        format=log_format,
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    
+    # 设置 Celery 相关日志
+    celery_logger = logging.getLogger('celery')
+    celery_logger.setLevel(numeric_level)
+    
+    # 设置任务执行日志
+    task_logger = logging.getLogger('celery.task')
+    task_logger.setLevel(numeric_level)
+    
+    print(f"📋 日志配置:")
+    print(f"  - 日志级别: {loglevel.upper()}")
+    print(f"  - 时间戳: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"  - 进程名称: 包含在日志中")
+    print()
+
+
 def main():
     """主函数 - 启动 Celery Worker"""
 
@@ -209,8 +243,13 @@ def main():
     print("🚀 启动 Celery Worker - 架构优化版")
     print("=" * 60)
 
+    # 设置增强日志
+    setup_enhanced_logging(args.loglevel)
+
     # 创建 Celery 应用
+    print("🔧 正在初始化 Celery 应用...")
     app = create_celery_app()
+    print("✅ Celery 应用初始化完成")
 
     # 获取配置
     config = get_config()
@@ -276,13 +315,26 @@ def main():
         "pool": args.pool,
     }
 
+    print(f"🔧 Worker启动参数详情:")
+    print(f"  - 预取乘数: {worker_kwargs['prefetch_multiplier']}")
+    print(f"  - 每个子进程最大任务数: {worker_kwargs['max_tasks_per_child']}")
+    print(f"  - 任务时间限制: {worker_kwargs['time_limit']}秒")
+    print(f"  - 软时间限制: {worker_kwargs['soft_time_limit']}秒")
+    print()
+
     worker = app.Worker(**worker_kwargs)
 
     try:
+        print("🚀 正在启动 Celery Worker...")
         worker.start()
     except KeyboardInterrupt:
-        print("\n🛑 Worker 停止")
+        print("\n🛑 接收到停止信号，正在关闭 Worker...")
         worker.stop()
+        print("✅ Worker 已安全停止")
+    except Exception as e:
+        print(f"\n❌ Worker 启动失败: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
