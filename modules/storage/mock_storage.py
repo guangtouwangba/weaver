@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from .base import IStorage, StorageError
+from modules.storage.base import IStorage, StorageError
 
 logger = logging.getLogger(__name__)
 

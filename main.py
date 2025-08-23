@@ -6,21 +6,22 @@ Architecture: Schema + Repository + Service + API
 """
 
 import logging
+
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from fastapi.exceptions import RequestValidationError
 
-from config.settings import AppConfig
 from config.docs import SWAGGER_UI_PARAMETERS
+from config.settings import AppConfig
 from modules.api import api_router
+from modules.api.error_handlers import (
+    general_exception_handler,
+    request_validation_error_handler,
+    unicode_decode_error_handler,
+)
 from modules.database import DatabaseConnection
 from modules.schemas import APIResponse, HealthCheckResponse
-from modules.api.error_handlers import (
-    unicode_decode_error_handler,
-    request_validation_error_handler,
-    general_exception_handler,
-)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

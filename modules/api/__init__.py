@@ -6,9 +6,9 @@ Provides REST API interface based on Service layer orchestration.
 
 from fastapi import APIRouter
 
-from .file_api import router as file_router
-from .resource_api import router as resource_router
-from .topic_api import router as topic_router
+from modules.api.file_api import router as file_router
+from modules.api.resource_api import router as resource_router
+from modules.api.topic_api import router as topic_router
 
 # Create main API router
 api_router = APIRouter(prefix="/api/v1")

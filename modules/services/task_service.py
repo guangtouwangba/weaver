@@ -18,7 +18,8 @@ try:
 except ImportError:
     CELERY_AVAILABLE = False
 
-from ..tasks.base import (
+from logging_system import get_logger, log_errors, log_execution_time
+from modules.tasks.base import (
     ITaskHandler,
     ITaskRegistry,
     ITaskService,
@@ -31,7 +32,6 @@ from ..tasks.base import (
     TaskStatus,
     TaskTimeoutError,
 )
-from logging_system import get_logger, log_execution_time, log_errors
 
 logger = get_logger(__name__)
 
@@ -520,8 +520,8 @@ class CeleryTaskService(ITaskService):
         """导入Task processing器模块以触发装饰器注册"""
         try:
             # 导入所有Task processing器模块
-            import modules.tasks.handlers.file_handlers
             import modules.tasks.handlers.document_handlers
+            import modules.tasks.handlers.file_handlers
             import modules.tasks.handlers.rag_handlers
 
             logger.info("Task processing器模块导入完成")

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .interfaces import IBaseRepository
+from modules.repository.interfaces import IBaseRepository
 
 logger = logging.getLogger(__name__)
 

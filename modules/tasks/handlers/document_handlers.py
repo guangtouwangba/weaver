@@ -12,10 +12,9 @@ from uuid import uuid4
 
 from logging_system import task_context
 from modules.schemas.enums import ContentType
-
-from ...services.task_service import register_task_handler, task_handler
-from ..base import ITaskHandler, TaskPriority
-from ..decorators import log_execution_time
+from modules.services.task_service import register_task_handler, task_handler
+from modules.tasks.base import ITaskHandler, TaskPriority
+from modules.tasks.decorators import log_execution_time
 
 logger = logging.getLogger(__name__)
 

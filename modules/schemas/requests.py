@@ -8,8 +8,13 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import Field
 
-from .base import BaseSchema
-from .enums import ChunkingStrategy, ContentType, ProcessingStatus, SearchType
+from modules.schemas.base import BaseSchema
+from modules.schemas.enums import (
+    ChunkingStrategy,
+    ContentType,
+    ProcessingStatus,
+    SearchType,
+)
 
 
 class FileLoadRequest(BaseSchema):

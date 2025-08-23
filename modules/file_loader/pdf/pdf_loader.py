@@ -12,10 +12,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, Optional
 
+from modules.file_loader.base import FileLoaderError, IFileLoader
 from modules.file_loader.factory import register_file_loader
 from modules.schemas import ContentType, Document, create_document_from_path
 from modules.schemas.document import Document
-from modules.file_loader.base import FileLoaderError, IFileLoader
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +45,16 @@ except ImportError:
     PyPDF2 = None
 
 
-
-
 @register_file_loader(content_type=ContentType.PDF)
 class PDFFileLoader(IFileLoader):
     """PDF file loader implementation."""
 
-    def __init__(self, max_file_size: int = 100 * 1024 * 1024, 
-                 parsing_strategy: str = "hi_res",
-                 ocr_languages: List[str] = None):
+    def __init__(
+        self,
+        max_file_size: int = 100 * 1024 * 1024,
+        parsing_strategy: str = "hi_res",
+        ocr_languages: List[str] = None,
+    ):
         """
         Initialize PDF file loader
 
@@ -69,9 +70,13 @@ class PDFFileLoader(IFileLoader):
 
         # Check available PDF processing libraries and set priority
         if HAS_UNSTRUCTURED:
-            logger.info("PDFFileLoader uses Unstructured for advanced PDF processing (primary)")
+            logger.info(
+                "PDFFileLoader uses Unstructured for advanced PDF processing (primary)"
+            )
         elif HAS_PYMUPDF:
-            logger.info("PDFFileLoader uses pymupdf (fitz) for PDF processing (fallback)")
+            logger.info(
+                "PDFFileLoader uses pymupdf (fitz) for PDF processing (fallback)"
+            )
         elif HAS_PYPDF2:
             logger.info("PDFFileLoader uses PyPDF2 for PDF processing (fallback)")
         else:
@@ -91,7 +96,7 @@ class PDFFileLoader(IFileLoader):
     def supports_content_type(self, content_type: ContentType) -> bool:
         """Check if specified content type is supported"""
         return content_type == ContentType.PDF
-    
+
     def _validate_language_codes(self, languages: List[str]) -> List[str]:
         """
         validate and fix language codes
@@ -99,67 +104,72 @@ class PDFFileLoader(IFileLoader):
 
         valid_languages = []
         language_mapping = {
-            'c': 'chi_sim',        
-            'chinese': 'chi_sim',   # chinese simple
-            'zh': 'chi_sim',       # chinses simple
-            'zh-cn': 'chi_sim',    # chinese simple
-            'zh-tw': 'chi_tra',    # chinese traditional
-            'english': 'eng',      # english
-            'en': 'eng'           # english
+            "c": "chi_sim",
+            "chinese": "chi_sim",  # chinese simple
+            "zh": "chi_sim",  # chinses simple
+            "zh-cn": "chi_sim",  # chinese simple
+            "zh-tw": "chi_tra",  # chinese traditional
+            "english": "eng",  # english
+            "en": "eng",  # english
         }
-        
+
         for lang in languages:
             if lang in language_mapping:
                 corrected = language_mapping[lang]
                 logger.info(f"OCR language code corrected: '{lang}' -> '{corrected}'")
                 valid_languages.append(corrected)
-            elif lang in ['eng', 'chi_sim', 'chi_tra', 'jpn', 'kor']:
+            elif lang in ["eng", "chi_sim", "chi_tra", "jpn", "kor"]:
                 valid_languages.append(lang)
             else:
                 logger.warning(f"Unknown OCR language code: {lang}, skip")
-        
+
         return valid_languages
-    
+
     async def _detect_scanned_pdf(self, path: Path) -> bool:
         """detect if the pdf is scanned"""
         if not HAS_UNSTRUCTURED:
             return False
-    
+
         try:
+
             def quick_check():
                 # use fast strategy to quickly check
                 elements = partition_pdf(str(path), strategy="fast")
-                
+
                 # calculate text density
-                text_elements = [e for e in elements if hasattr(e, 'category') 
-                            and e.category in ['NarrativeText', 'Title', 'Header']]
+                text_elements = [
+                    e
+                    for e in elements
+                    if hasattr(e, "category")
+                    and e.category in ["NarrativeText", "Title", "Header"]
+                ]
                 text_content = " ".join([str(e) for e in text_elements])
-                
+
                 # if the text is less, it may be scanned
                 return len(text_content.strip()) < 100
-            
+
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, quick_check)
-            
+
         except Exception as e:
             logger.debug(f"Scan detection failed: {e}")
             return False
-        
+
     async def _select_optimal_strategy(self, path: Path) -> str:
         """select the optimal strategy based on the pdf features"""
-        
+
         # user specified strategy priority
-        if hasattr(self, 'parsing_strategy') and self.parsing_strategy != "auto":
+        if hasattr(self, "parsing_strategy") and self.parsing_strategy != "auto":
             return self.parsing_strategy
-        
+
         file_size = path.stat().st_size
-        
+
         # detect if the pdf is scanned
         is_likely_scanned = await self._detect_scanned_pdf(path)
-        
+
         if is_likely_scanned:
             logger.info(f"Detected scanned PDF, using OCR strategy: {path.name}")
-            if hasattr(self, 'enable_chinese_ocr') and self.enable_chinese_ocr:
+            if hasattr(self, "enable_chinese_ocr") and self.enable_chinese_ocr:
                 return "hi_res"  # high quality OCR for chinese
             else:
                 return "ocr_only"  # pure OCR
@@ -199,8 +209,17 @@ class PDFFileLoader(IFileLoader):
                 try:
                     # Quick validation using Unstructured with fast strategy
                     elements = partition_pdf(file_path, strategy="fast")
-                    page_count = len([e for e in elements if hasattr(e, 'metadata') and 
-                                    e.metadata.get('page_number')]) or 1
+                    page_count = (
+                        len(
+                            [
+                                e
+                                for e in elements
+                                if hasattr(e, "metadata")
+                                and e.metadata.get("page_number")
+                            ]
+                        )
+                        or 1
+                    )
                     logger.debug(
                         f"PDF validation successful (Unstructured): {file_path} ({page_count} pages)"
                     )
@@ -213,10 +232,14 @@ class PDFFileLoader(IFileLoader):
                             doc = fitz.open(file_path)
                             page_count = len(doc)
                             doc.close()
-                            logger.debug(f"PDF validation successful (fallback pymupdf): {file_path} ({page_count} pages)")
+                            logger.debug(
+                                f"PDF validation successful (fallback pymupdf): {file_path} ({page_count} pages)"
+                            )
                             return True
                         except Exception as e2:
-                            logger.error(f"PDF format validation failed (fallback pymupdf): {e2}")
+                            logger.error(
+                                f"PDF format validation failed (fallback pymupdf): {e2}"
+                            )
                             return False
                     return False
             elif HAS_PYMUPDF:
@@ -338,13 +361,17 @@ class PDFFileLoader(IFileLoader):
         # Determine strategy based on file size for performance optimization
         file_size = path.stat().st_size
         strategy = self._select_parsing_strategy(file_size)
-        
+
         if HAS_UNSTRUCTURED:
-            logger.info(f"Extracting text content with Unstructured ({strategy} strategy) from PDF file: {path.name}")
+            logger.info(
+                f"Extracting text content with Unstructured ({strategy} strategy) from PDF file: {path.name}"
+            )
             try:
                 return await self._extract_content_with_unstructured(path, strategy)
             except Exception as e:
-                logger.warning(f"Unstructured extraction failed: {e}, falling back to pymupdf")
+                logger.warning(
+                    f"Unstructured extraction failed: {e}, falling back to pymupdf"
+                )
                 if HAS_PYMUPDF:
                     return await self._extract_content_with_pymupdf(path)
                 elif HAS_PYPDF2:
@@ -352,7 +379,9 @@ class PDFFileLoader(IFileLoader):
                 else:
                     raise
         elif HAS_PYMUPDF:
-            logger.info(f"Extracting text content with pymupdf from PDF file: {path.name}")
+            logger.info(
+                f"Extracting text content with pymupdf from PDF file: {path.name}"
+            )
             return await self._extract_content_with_pymupdf(path)
         elif HAS_PYPDF2:
             logger.info(f"Extracting text content with PyPDF2: {path.name}")
@@ -366,16 +395,16 @@ class PDFFileLoader(IFileLoader):
     def _select_parsing_strategy(self, file_size: int) -> str:
         """
         Select parsing strategy based on file size and configuration
-        
+
         Args:
             file_size: File size in bytes
-            
+
         Returns:
             Strategy string for Unstructured
         """
-        if hasattr(self, 'parsing_strategy') and self.parsing_strategy != "auto":
+        if hasattr(self, "parsing_strategy") and self.parsing_strategy != "auto":
             return self.parsing_strategy
-        
+
         # Auto-select strategy based on file size
         if file_size < 5 * 1024 * 1024:  # < 5MB: Use high-resolution parsing
             return "hi_res"
@@ -383,7 +412,7 @@ class PDFFileLoader(IFileLoader):
             return "auto"
         else:  # > 20MB: Use fast strategy to avoid timeouts
             return "fast"
-    
+
     @staticmethod
     def _format_unstructured_elements(elements) -> str:
         """
@@ -400,19 +429,23 @@ class PDFFileLoader(IFileLoader):
 
         for element in elements:
             # Handle page breaks
-            if hasattr(element, 'category') and element.category == "PageBreak":
+            if hasattr(element, "category") and element.category == "PageBreak":
                 current_page += 1
                 formatted_parts.append(f"\n--- Page {current_page} ---\n")
                 continue
 
             # Get text content
-            text = str(element) if hasattr(element, '__str__') else getattr(element, 'text', '')
+            text = (
+                str(element)
+                if hasattr(element, "__str__")
+                else getattr(element, "text", "")
+            )
 
             if not text.strip():
                 continue
 
             # Format different element types
-            if hasattr(element, 'category'):
+            if hasattr(element, "category"):
                 if element.category == "Title":
                     formatted_parts.append(f"# {text}\n")
                 elif element.category == "NarrativeText":
@@ -429,12 +462,17 @@ class PDFFileLoader(IFileLoader):
                 formatted_parts.append(f"{text}\n")
 
         return "\n".join(formatted_parts)
-    
-    async def _extract_content_with_unstructured(self, path: Path, strategy: str = "hi_res") -> str:
+
+    async def _extract_content_with_unstructured(
+        self, path: Path, strategy: str = "hi_res"
+    ) -> str:
         """Enhanced Unstructured extraction with OCR support"""
         try:
+
             def extract_elements():
-                logger.debug(f"Unstructured参数: strategy={strategy}, languages={self.ocr_languages}")
+                logger.debug(
+                    f"Unstructured参数: strategy={strategy}, languages={self.ocr_languages}"
+                )
 
                 extracted_elements = partition_pdf(
                     str(path),
@@ -454,9 +492,17 @@ class PDFFileLoader(IFileLoader):
 
             if not content.strip():
                 # if the content is empty, try OCR strategy
-                if strategy != "ocr_only" and hasattr(self, 'enable_chinese_ocr') and self.enable_chinese_ocr:
-                    logger.warning(f"Text extraction is empty, trying OCR mode: {path.name}")
-                    return await self._extract_content_with_unstructured(path, "ocr_only")
+                if (
+                    strategy != "ocr_only"
+                    and hasattr(self, "enable_chinese_ocr")
+                    and self.enable_chinese_ocr
+                ):
+                    logger.warning(
+                        f"Text extraction is empty, trying OCR mode: {path.name}"
+                    )
+                    return await self._extract_content_with_unstructured(
+                        path, "ocr_only"
+                    )
                 else:
                     logger.warning(f"PDF content extraction is empty: {path.name}")
                     return f"[PDF file {path.name} cannot extract text content, maybe scanned document needs OCR processing]"
@@ -561,10 +607,11 @@ class PDFFileLoader(IFileLoader):
     async def _extract_metadata_with_unstructured(self, path: Path) -> Dict[str, Any]:
         """
         Extract PDF metadata using Unstructured library
-        
+
         Leverages document structure analysis to provide enhanced metadata
         """
         try:
+
             def extract_metadata() -> Dict[str, Any]:
                 # Use fast strategy for metadata extraction to optimize performance
                 elements = partition_pdf(
@@ -573,31 +620,49 @@ class PDFFileLoader(IFileLoader):
                     include_page_breaks=True,
                     extract_images_in_pdf=False,
                 )
-                
+
                 # Count pages by counting page breaks + 1
-                page_breaks = sum(1 for e in elements if hasattr(e, 'category') and e.category == "PageBreak")
+                page_breaks = sum(
+                    1
+                    for e in elements
+                    if hasattr(e, "category") and e.category == "PageBreak"
+                )
                 page_count = page_breaks + 1 if page_breaks > 0 else 1
-                
+
                 # Extract titles and headers for document analysis
-                titles = [str(e) for e in elements if hasattr(e, 'category') and e.category == "Title"]
-                headers = [str(e) for e in elements if hasattr(e, 'category') and e.category == "Header"]
-                
+                titles = [
+                    str(e)
+                    for e in elements
+                    if hasattr(e, "category") and e.category == "Title"
+                ]
+                headers = [
+                    str(e)
+                    for e in elements
+                    if hasattr(e, "category") and e.category == "Header"
+                ]
+
                 # Infer title from document structure
-                inferred_title = titles[0] if titles else (headers[0] if headers else path.stem)
-                
+                inferred_title = (
+                    titles[0] if titles else (headers[0] if headers else path.stem)
+                )
+
                 # Extract text elements for analysis
-                text_elements = [str(e) for e in elements if hasattr(e, 'category') and 
-                               e.category in ["NarrativeText", "Title", "Header"]]
-                
+                text_elements = [
+                    str(e)
+                    for e in elements
+                    if hasattr(e, "category")
+                    and e.category in ["NarrativeText", "Title", "Header"]
+                ]
+
                 # Calculate document statistics
                 total_chars = sum(len(text) for text in text_elements)
-                
+
                 return {
                     "pdf_pages": page_count,
                     "pdf_title": inferred_title,
                     "pdf_author": "unknown",  # Unstructured doesn't extract document properties
                     "pdf_subject": "unknown",
-                    "pdf_creator": "unknown", 
+                    "pdf_creator": "unknown",
                     "pdf_producer": "unknown",
                     "extraction_method": "unstructured",
                     "document_structure": {
@@ -605,13 +670,13 @@ class PDFFileLoader(IFileLoader):
                         "header_count": len(headers),
                         "total_elements": len(elements),
                         "content_length": total_chars,
-                    }
+                    },
                 }
-            
+
             # Use thread pool executor for CPU-intensive operation
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, extract_metadata)
-            
+
         except Exception as e:
             logger.warning(f"Failed to extract PDF metadata using Unstructured: {e}")
             # Fallback to basic metadata
@@ -623,7 +688,7 @@ class PDFFileLoader(IFileLoader):
                 "pdf_creator": "unknown",
                 "pdf_producer": "unknown",
                 "extraction_method": "unstructured_fallback",
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _extract_metadata_with_pymupdf(self, path: Path) -> Dict[str, Any]:

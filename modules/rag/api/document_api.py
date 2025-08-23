@@ -9,8 +9,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db_session
-from ...schemas import (
+from modules.database import get_db_session
+from modules.schemas import (
     APIResponse,
     DocumentCreate,
     DocumentList,
@@ -21,7 +21,7 @@ from ...schemas import (
     SearchRequest,
     SearchResponse,
 )
-from ...services import DocumentService
+from modules.services import DocumentService
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 

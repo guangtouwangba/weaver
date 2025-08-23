@@ -8,11 +8,10 @@ import asyncio
 import threading
 import uuid
 from contextlib import contextmanager
-from typing import Dict, Any, Optional, Generator
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime
-
+from typing import Any, Dict, Generator, Optional
 
 # ContextVar for async context
 _async_context: ContextVar[Optional["LogContext"]] = ContextVar(

@@ -10,10 +10,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.schemas.enums import FileStatus
-
-from ..repository import FileRepository, TopicRepository
-from ..schemas import (
+from modules.repository import FileRepository, TopicRepository
+from modules.schemas import (
     ConfirmUploadRequest,
     ConfirmUploadResponse,
     FileCreate,
@@ -25,8 +23,9 @@ from ..schemas import (
     file_to_response,
     files_to_responses,
 )
-from ..storage import IStorage
-from .base_service import BaseService
+from modules.schemas.enums import FileStatus
+from modules.services.base_service import BaseService
+from modules.storage import IStorage
 
 logger = logging.getLogger(__name__)
 

@@ -8,10 +8,10 @@ import json
 import logging
 import traceback
 from datetime import datetime
-from typing import Dict, Any, Optional
 from logging import LogRecord
+from typing import Any, Dict, Optional
 
-from .context import LogContext
+from logging_system.context import LogContext
 
 
 class BaseFormatter(logging.Formatter):

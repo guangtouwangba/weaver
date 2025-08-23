@@ -11,9 +11,9 @@ import queue
 import threading
 import time
 from datetime import datetime
-from pathlib import Path
-from typing import Optional, Dict, Any, Callable
 from logging import LogRecord
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
 
 class AsyncFileHandler(logging.Handler):

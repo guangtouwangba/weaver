@@ -9,13 +9,12 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from logging_system import get_logger, log_errors, log_execution_time
+from modules.database import get_session
+from modules.file_upload.base import IFileUploadService
+from modules.repository import FileRepository
 from modules.schemas.enums import FileStatus
-
-from ..database import get_session
-from ..repository import FileRepository
-from ..storage import IStorage, MinIOStorage, MockStorage
-from ..tasks.base import ITaskService, TaskPriority
-from .base import IFileUploadService
+from modules.storage import IStorage, MinIOStorage, MockStorage
+from modules.tasks.base import ITaskService, TaskPriority
 
 logger = get_logger(__name__)
 

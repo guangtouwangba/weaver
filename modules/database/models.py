@@ -34,7 +34,7 @@ except ImportError:
     # 如果没有pgvector，使用Text作为替代
     VECTOR = lambda x: Text
 
-from .connection import Base
+from modules.database.connection import Base
 
 # Import enums will be done at the class level to avoid circular imports
 

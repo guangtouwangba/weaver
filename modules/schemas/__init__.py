@@ -5,8 +5,13 @@ Schema模块
 减少数据分层，统一数据定义。
 """
 
-from .base import BaseSchema, ErrorSchema, PaginationSchema, TimestampMixin
-from .converters import (
+from modules.schemas.base import (
+    BaseSchema,
+    ErrorSchema,
+    PaginationSchema,
+    TimestampMixin,
+)
+from modules.schemas.converters import (
     document_to_response,
     document_to_schema,
     documents_to_responses,
@@ -20,7 +25,8 @@ from .converters import (
     topic_to_schema,
     topics_to_responses,
 )
-from .document import (
+from modules.schemas.document import (
+    Document,
     DocumentChunkCreate,
     DocumentChunkResponse,
     DocumentChunkSchema,
@@ -28,9 +34,10 @@ from .document import (
     DocumentList,
     DocumentResponse,
     DocumentSchema,
-    DocumentUpdate, Document, create_document_from_path,
+    DocumentUpdate,
+    create_document_from_path,
 )
-from .enums import (
+from modules.schemas.enums import (
     ChunkingStrategy,
     ContentType,
     FileStatus,
@@ -39,8 +46,14 @@ from .enums import (
     TaskName,
     TopicStatus,
 )
-from .file import FileCreate, FileList, FileResponse, FileSchema, FileUpdate
-from .requests import (
+from modules.schemas.file import (
+    FileCreate,
+    FileList,
+    FileResponse,
+    FileSchema,
+    FileUpdate,
+)
+from modules.schemas.requests import (
     AddResourceRequest,
     ConfirmUploadRequest,
     FileLoadRequest,
@@ -49,7 +62,7 @@ from .requests import (
     SearchRequest,
     UploadUrlRequest,
 )
-from .responses import (
+from modules.schemas.responses import (
     APIResponse,
     ConfirmUploadResponse,
     HealthCheckResponse,
@@ -60,7 +73,13 @@ from .responses import (
     SearchResult,
     UploadUrlResponse,
 )
-from .topic import TopicCreate, TopicList, TopicResponse, TopicSchema, TopicUpdate
+from modules.schemas.topic import (
+    TopicCreate,
+    TopicList,
+    TopicResponse,
+    TopicSchema,
+    TopicUpdate,
+)
 
 __all__ = [
     # 基础Schema
@@ -128,6 +147,5 @@ __all__ = [
     "schema_to_topic_dict",
     "schema_to_file_dict",
     "schema_to_document_dict",
-
     "create_document_from_path",
 ]

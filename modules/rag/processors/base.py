@@ -7,10 +7,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+from modules.models import DocumentChunk, ProcessingRequest, ProcessingResult
+from modules.schemas import Document
 from modules.schemas.enums import ChunkingStrategy
-
-from ...schemas import Document
-from ...models import DocumentChunk, ProcessingRequest, ProcessingResult
 
 
 class DocumentProcessorError(Exception):

@@ -21,10 +21,9 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from logging_system import get_logger, log_context, log_errors, log_execution_time
-
-from .. import schemas
-from ..database import get_db_session
-from ..schemas import (
+from modules import schemas
+from modules.database import get_db_session
+from modules.schemas import (
     APIResponse,
     ConfirmUploadRequest,
     ConfirmUploadResponse,
@@ -35,9 +34,9 @@ from ..schemas import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
-from ..services import FileService
-from ..services.task_service import CeleryTaskService
-from ..storage import IStorage, MinIOStorage
+from modules.services import FileService
+from modules.services.task_service import CeleryTaskService
+from modules.storage import IStorage, MinIOStorage
 
 router = APIRouter(prefix="/files", tags=["files"])
 logger = get_logger(__name__)

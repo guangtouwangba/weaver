@@ -8,13 +8,13 @@ This package contains all the core modules for the RAG system following DDD arch
 - Schema layer: Data models and validation
 """
 
-from .database import DatabaseConnection
-from .repository import (
+from modules.database import DatabaseConnection
+from modules.repository import (
     DocumentRepository,
     FileRepository,
     TopicRepository,
 )
-from .schemas import (
+from modules.schemas import (
     APIResponse,
     ChunkingStrategy,
     ContentType,
@@ -25,7 +25,7 @@ from .schemas import (
     ProcessingStatus,
     TopicSchema,
 )
-from .services import (
+from modules.services import (
     DocumentService,
     FileService,
     TopicService,

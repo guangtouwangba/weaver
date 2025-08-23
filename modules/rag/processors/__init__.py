@@ -5,9 +5,9 @@
 提供灵活的处理策略和可配置的参数。
 """
 
-from .base import DocumentProcessorError, IDocumentProcessor
-from .chunking_processor import ChunkingProcessor
-from .text_processor import TextProcessor
+from modules.rag.processors.base import DocumentProcessorError, IDocumentProcessor
+from modules.rag.processors.chunking_processor import ChunkingProcessor
+from modules.rag.processors.text_processor import TextProcessor
 
 __all__ = [
     "IDocumentProcessor",

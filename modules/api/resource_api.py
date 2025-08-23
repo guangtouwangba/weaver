@@ -10,10 +10,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db_session
-from ..schemas import APIResponse
-from ..services import FileService
-from ..storage import MinIOStorage
+from modules.database import get_db_session
+from modules.schemas import APIResponse
+from modules.services import FileService
+from modules.storage import MinIOStorage
 
 router = APIRouter(prefix="/resources", tags=["resources"])
 logger = logging.getLogger(__name__)

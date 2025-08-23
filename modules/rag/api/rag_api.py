@@ -9,17 +9,17 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from ...api.base import APIError, IModularAPI
-from ...file_loader import MultiFormatFileLoader
-from ...models import (
+from modules.api.base import APIError, IModularAPI
+from modules.file_loader import MultiFormatFileLoader
+from modules.models import (
     ChunkingStrategy,
     ContentType,
     OrchestrationRequest,
     ProcessingStatus,
     SearchRequest,
 )
-from ..orchestrator import DocumentOrchestrator
-from ..processors import ChunkingProcessor
+from modules.rag.orchestrator import DocumentOrchestrator
+from modules.rag.processors import ChunkingProcessor
 
 logger = logging.getLogger(__name__)
 

@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..repository import DocumentRepository, FileRepository, TopicRepository
-from ..schemas import (
+from modules.repository import DocumentRepository, FileRepository, TopicRepository
+from modules.schemas import (
     AddResourceRequest,
     FileResponse,
     TopicCreate,
@@ -22,7 +22,7 @@ from ..schemas import (
     topic_to_response,
     topics_to_responses,
 )
-from .base_service import BaseService
+from modules.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@
 - Milvus
 """
 
-from .base import (
+from modules.rag.vector_store.base import (
     BulkOperationResult,
     IVectorStore,
     SearchFilter,

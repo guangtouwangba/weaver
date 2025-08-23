@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 
-
 # 枚举类型
 class ContentType(str, Enum):
     """内容类型"""

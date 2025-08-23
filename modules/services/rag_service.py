@@ -15,19 +15,18 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import uuid4
 
 # Other dependencies
-from ..file_loader import IFileLoader
-from ..schemas import Document
-from ..models import DocumentChunk, FileLoadRequest
+from modules.file_loader import IFileLoader
+from modules.models import DocumentChunk, FileLoadRequest
 
 # RAG interfaces
-from ..rag.embedding import (
+from modules.rag.embedding import (
     EmbeddingConfig,
     EmbeddingError,
     EmbeddingProvider,
     EmbeddingResult,
     IEmbeddingService,
 )
-from ..rag.pipeline import (
+from modules.rag.pipeline import (
     DocumentProcessingRequest,
     DocumentProcessingResult,
     IDocumentPipeline,
@@ -38,8 +37,8 @@ from ..rag.pipeline import (
     ProcessingStage,
     ProcessingStageResult,
 )
-from ..rag.processors import IDocumentProcessor
-from ..rag.vector_store import (
+from modules.rag.processors import IDocumentProcessor
+from modules.rag.vector_store import (
     BulkOperationResult,
     IVectorStore,
     SearchFilter,
@@ -50,6 +49,7 @@ from ..rag.vector_store import (
     VectorStoreError,
     VectorStoreProvider,
 )
+from modules.schemas import Document
 
 logger = logging.getLogger(__name__)
 

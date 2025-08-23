@@ -14,8 +14,7 @@ from minio import Minio
 from minio.error import S3Error
 
 from logging_system import get_logger, log_errors, log_execution_time
-
-from .base import IStorage, StorageError
+from modules.storage.base import IStorage, StorageError
 
 logger = get_logger(__name__)
 

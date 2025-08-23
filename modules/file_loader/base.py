@@ -7,8 +7,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from modules.schemas import ContentType, Document
 from modules.models import FileLoadRequest
+from modules.schemas import ContentType, Document
 
 
 class FileLoaderError(Exception):

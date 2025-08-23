@@ -369,7 +369,7 @@ class RedisTaskMonitoringService(ITaskMonitoringService):
         """获取所有任务名称"""
         try:
             # 从注册表获取任务名称
-            from .task_service import task_registry
+            from modules.services.task_service import task_registry
 
             return list(task_registry.handlers.keys())
         except Exception as e:

@@ -9,9 +9,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from ...file_loader.base import IFileLoader
-from ...schemas import Document
-from ...models import (
+from modules.file_loader.base import IFileLoader
+from modules.models import (
     ChunkingStrategy,
     DocumentChunk,
     OrchestrationRequest,
@@ -22,14 +21,19 @@ from ...models import (
     SearchRequest,
     SearchResult,
 )
-from ...schemas.enums import ContentType
-from ..embedding import EmbeddingProvider
+from modules.rag.embedding import EmbeddingProvider
+from modules.rag.orchestrator.base import IOrchestrator, OrchestrationError
 
 # RAG service imports will be done dynamically to avoid circular imports
-from ..pipeline import DocumentProcessingRequest, PipelineConfig, PipelineStatus
-from ..processors.base import IDocumentProcessor
-from ..vector_store import VectorStoreProvider
-from .base import IOrchestrator, OrchestrationError
+from modules.rag.pipeline import (
+    DocumentProcessingRequest,
+    PipelineConfig,
+    PipelineStatus,
+)
+from modules.rag.processors.base import IDocumentProcessor
+from modules.rag.vector_store import VectorStoreProvider
+from modules.schemas import Document
+from modules.schemas.enums import ContentType
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +117,7 @@ class DocumentOrchestrator(IOrchestrator):
 
         try:
             # Import dynamically to avoid circular import
-            from ...services.rag_service import (
+            from modules.services.rag_service import (
                 create_document_pipeline,
                 create_embedding_service,
                 create_vector_store,
@@ -496,7 +500,7 @@ class DocumentOrchestrator(IOrchestrator):
     async def _load_file(self, request: OrchestrationRequest) -> Document:
         """加载文件"""
         try:
-            from ..models import FileLoadRequest
+            from modules.models import FileLoadRequest
 
             # 创建FileLoadRequest对象
             file_request = FileLoadRequest(

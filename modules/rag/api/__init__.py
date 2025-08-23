@@ -6,9 +6,9 @@ RAG API模块
 - rag_api: RAG核心API实现
 """
 
-from .document_api import *
+from modules.rag.api.document_api import *
 
-# TODO: from .rag_api import RagAPI, APIError
+# TODO: from modules.rag.api.rag_api import RagAPI, APIError
 
 __all__ = [
     # 文档API导出项将从document_api模块自动导入

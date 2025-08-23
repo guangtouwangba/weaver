@@ -11,8 +11,8 @@ Key Features:
 - Error handling and recovery
 """
 
-from .base import IRouter
-from .document_router import DocumentRouter
+from modules.rag.router.base import IRouter
+from modules.rag.router.document_router import DocumentRouter
 
 __all__ = [
     "IRouter",
