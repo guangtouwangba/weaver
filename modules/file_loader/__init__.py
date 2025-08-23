@@ -6,8 +6,9 @@ Provides unified interface and multiple loading strategies.
 """
 
 # Ensure loaders are registered to factory - trigger decorators by importing them
-from . import pdf_loader  # Trigger pdf_loader decorator registration
-from . import text_loader  # Trigger text_loader decorator registration
+from modules.file_loader.pdf import (
+  PDFFileLoader,
+)
 from .base import FileLoaderError, IFileLoader
 from .factory import (  # Convenience functions for easier usage
     FileLoaderFactory,
@@ -18,14 +19,11 @@ from .factory import (  # Convenience functions for easier usage
     register_file_loader,
     register_multi_type_file_loader,
 )
-from .pdf_loader import PDFFileLoader
-from .text_loader import TextFileLoader
 
 __all__ = [
     "IFileLoader",
-    "FileLoaderError",
-    "TextFileLoader",
     "PDFFileLoader",
+    "FileLoaderError",
     "FileLoaderFactory",
     "register_file_loader",
     "register_multi_type_file_loader",

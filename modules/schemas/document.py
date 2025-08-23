@@ -6,10 +6,24 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import Field, validator
+from pydantic import Field, validator, BaseModel
 
 from .base import BaseSchema, TimestampMixin
 from .enums import ContentType
+
+
+class Document(BaseModel):
+    """
+    document schema for domain layer
+    """
+
+    id: str
+    title: str
+    content: str
+    content_type: ContentType
+    file_path: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
 
 
 class DocumentSchema(BaseSchema, TimestampMixin):
@@ -113,3 +127,46 @@ class DocumentList(BaseSchema):
     page: int = Field(description="当前页")
     page_size: int = Field(description="每页大小")
     total_pages: int = Field(description="总页数")
+
+
+
+def create_document_from_path(
+    file_path: str, content: str, content_type: str = "text"
+) -> Document:
+    """从文件路径创建文档对象"""
+    import os
+    from uuid import uuid4
+
+    document_id = str(uuid4())
+    title = os.path.basename(file_path)
+
+    # 根据文件扩展名推断内容类型
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == ".pdf":
+        doc_content_type = ContentType.PDF
+    elif ext == ".doc":
+        doc_content_type = ContentType.DOC
+    elif ext == ".docx":
+        doc_content_type = ContentType.DOCX
+    elif ext == ".txt":
+        doc_content_type = ContentType.TXT
+    elif ext == ".html":
+        doc_content_type = ContentType.HTML
+    elif ext == ".md":
+        doc_content_type = ContentType.MD
+    elif ext == ".json":
+        doc_content_type = ContentType.JSON
+    elif ext == ".csv":
+        doc_content_type = ContentType.CSV
+    else:
+        doc_content_type = ContentType.TXT  # 默认为文本
+
+    return Document(
+        id=document_id,
+        title=title,
+        content=content,
+        content_type=doc_content_type,
+        file_path=file_path,
+        metadata={"original_path": file_path, "file_size": len(content)},
+    )
+

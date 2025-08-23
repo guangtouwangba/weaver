@@ -8,8 +8,8 @@ from datetime import datetime
 from typing import Any, AsyncIterator, Dict, List
 
 from ...file_loader import IFileLoader
+from ...schemas import Document
 from ...models import (
-    Document,
     DocumentProcessorError,
     FileLoaderError,
     ModuleConfig,

@@ -7,8 +7,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
+from ...schemas import Document
 from ...models import (
-    Document,
     DocumentChunk,
     OrchestrationRequest,
     OrchestrationResult,

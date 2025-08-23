@@ -7,8 +7,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from modules.models import Document, FileLoadRequest
-from modules.schemas.enums import ContentType
+from modules.schemas import ContentType, Document
+from modules.models import FileLoadRequest
 
 
 class FileLoaderError(Exception):

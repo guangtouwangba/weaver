@@ -7,8 +7,8 @@ Defines the contract for routing and orchestration implementations.
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, List, Optional
 
+from ...schemas import Document
 from ...models import (
-    Document,
     ModuleConfig,
     ModuleInterface,
     ProcessingResult,

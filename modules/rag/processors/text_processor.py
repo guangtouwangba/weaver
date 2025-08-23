@@ -9,9 +9,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
+from ...schemas import Document
 from ...models import (
     ChunkingStrategy,
-    Document,
     DocumentChunk,
     ProcessingRequest,
     ProcessingResult,

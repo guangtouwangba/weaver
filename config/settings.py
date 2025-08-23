@@ -25,7 +25,7 @@ class RedisConfig(BaseModel):
     """Redis配置"""
 
     # 连接配置
-    host: str = Field(default="localhost", description="Redis主机")
+    host: str = Field(default="127.0.0.1", description="Redis主机")
     port: int = Field(default=6379, description="Redis端口")
     db: int = Field(default=0, description="Redis数据库编号")
     password: Optional[str] = Field(default=None, description="Redis密码")
@@ -152,10 +152,10 @@ class CeleryConfig(BaseModel):
     """Celery配置"""
 
     broker_url: str = Field(
-        default="redis://localhost:6379/0", description="消息代理URL"
+        default="redis://127.0.0.1:6379/0", description="消息代理URL"
     )
     result_backend: str = Field(
-        default="redis://localhost:6379/1", description="结果后端URL"
+        default="redis://127.0.0.1:6379/1", description="结果后端URL"
     )
     app_name: str = Field(default="rag_tasks", description="应用名称")
 

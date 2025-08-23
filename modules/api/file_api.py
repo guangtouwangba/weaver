@@ -219,7 +219,7 @@ async def confirm_upload(
             asyncio.create_task(
                 _submit_task_async(
                     task_service,
-                    schemas.TaskName.FILE_UPLOAD_CONFIRM,
+                    schemas.TaskName.FILE_UPLOAD_CONFIRM.value,
                     file_id=confirm_response.file_id,
                     file_path=confirm_response.file_path,
                 )
