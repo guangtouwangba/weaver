@@ -57,7 +57,8 @@ class ProcessingStatus(str, Enum):
     """Processing status enum"""
 
     PENDING = "pending"
-    RUNNING = "running"
+    PROCESSING = "processing"  # Standardize on this from models.py
+    RUNNING = "running"  # Keep for backward compatibility
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
