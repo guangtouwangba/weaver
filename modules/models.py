@@ -11,27 +11,8 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 
-# 枚举类型
-class ContentType(str, Enum):
-    """内容类型"""
-
-    PDF = "pdf"
-    DOC = "doc"
-    DOCX = "docx"
-    TXT = "txt"
-    HTML = "html"
-    MD = "md"
-    JSON = "json"
-    CSV = "csv"
-
-
-class ChunkingStrategy(str, Enum):
-    """分块策略"""
-
-    FIXED_SIZE = "fixed_size"
-    SENTENCE = "sentence"
-    PARAGRAPH = "paragraph"
-    SEMANTIC = "semantic"
+# Import enums from centralized location
+from modules.schemas.enums import ChunkingStrategy, ContentType, ProcessingStatus
 
 
 # 核心数据模型
@@ -104,14 +85,7 @@ class ModuleInterface:
     pass
 
 
-# 处理状态枚举
-class ProcessingStatus(str, Enum):
-    """处理状态"""
-
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+# ProcessingStatus now imported from schemas.enums
 
 
 # 请求和结果模型
@@ -180,44 +154,4 @@ class DocumentProcessorError(Exception):
     pass
 
 
-# API请求响应模型 (Pydantic)
-class UploadUrlRequest(BaseModel):
-    """上传URL请求模型"""
-
-    filename: str
-    content_type: str
-    topic_id: Optional[int] = None
-    expires_in: int = 3600
-
-
-class UploadUrlResponse(BaseModel):
-    """上传URL响应模型"""
-
-    file_id: str
-    upload_url: str
-    method: str
-    headers: Dict[str, str]
-    fields: Dict[str, str]
-    expires_at: str
-    max_file_size: int
-    allowed_types: list
-
-
-class ConfirmUploadRequest(BaseModel):
-    """确认上传请求模型"""
-
-    file_id: str
-    actual_size: Optional[int] = None
-    file_hash: Optional[str] = None
-
-
-class ConfirmUploadResponse(BaseModel):
-    """确认上传响应模型"""
-
-    success: bool
-    file_id: str
-    status: str
-    message: str
-    file_size: Optional[int] = None
-    download_url: Optional[str] = None
-    error: Optional[str] = None
+# API request/response models moved to modules/schemas/ - use those instead

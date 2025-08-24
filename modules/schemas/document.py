@@ -92,7 +92,7 @@ class DocumentChunkSchema(BaseSchema, TimestampMixin):
     embedding_vector: Optional[List[float]] = Field(
         default=None, description="嵌入向量"
     )
-    chunk_metadata: Dict[str, Any] = Field(default_factory=dict, description="块元数据")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="块元数据")
 
 
 class DocumentChunkCreate(BaseSchema):
@@ -107,7 +107,7 @@ class DocumentChunkCreate(BaseSchema):
     embedding_vector: Optional[List[float]] = Field(
         default=None, description="嵌入向量"
     )
-    chunk_metadata: Optional[Dict[str, Any]] = Field(
+    metadata: Optional[Dict[str, Any]] = Field(
         default_factory=dict, description="块元数据"
     )
 

@@ -225,7 +225,7 @@ class DocumentChunk(Base):
     # 向量嵌入（如果使用pgvector）
     embedding_vector: Mapped[Optional[str]] = mapped_column(VECTOR(1536), nullable=True)
 
-    # 元数据
+    # 元数据 - use chunk_metadata to avoid SQLAlchemy reserved word
     chunk_metadata: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
 
     # 时间戳

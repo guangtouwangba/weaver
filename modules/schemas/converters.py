@@ -150,9 +150,7 @@ def file_to_response(
 def schema_to_file_dict(schema: FileSchema) -> Dict[str, Any]:
     """将Pydantic File Schema转换为字典（用于SQLAlchemy创建）"""
     data = schema.model_dump(exclude={"created_at", "updated_at"}, exclude_none=True)
-    # 重命名metadata字段以匹配SQLAlchemy模型
-    if "file_metadata" in data:
-        data["metadata"] = data.pop("file_metadata")
+    # Field names are now standardized, no renaming needed for file metadata
     return data
 
 
@@ -216,9 +214,10 @@ def schema_to_document_dict(schema: DocumentSchema) -> Dict[str, Any]:
     data = schema.model_dump(
         exclude={"id", "created_at", "updated_at"}, exclude_none=True
     )
-    # 重命名metadata字段以匹配SQLAlchemy模型
+    # Field names are now standardized, no renaming needed for most fields
+    # Note: doc_metadata still needs mapping until database model is updated
     if "doc_metadata" in data:
-        data["metadata"] = data.pop("doc_metadata")
+        data["doc_metadata"] = data["doc_metadata"]  # Keep as-is for now
     return data
 
 
@@ -238,3 +237,32 @@ def documents_to_responses(
 ) -> List[DocumentResponse]:
     """批量转换文档模型为响应Schema"""
     return [document_to_response(doc) for doc in document_models]
+
+
+# DocumentChunk转换器
+def schema_to_document_chunk_dict(
+    schema: Dict[str, Any]
+) -> Dict[str, Any]:
+    """将DocumentChunk Schema转换为字典（用于SQLAlchemy创建）"""
+    data = schema.copy()
+    # Map metadata field to chunk_metadata for database model
+    if "metadata" in data:
+        data["chunk_metadata"] = data.pop("metadata")
+    return data
+
+
+def document_chunk_to_schema_dict(chunk_model) -> Dict[str, Any]:
+    """将SQLAlchemy DocumentChunk模型转换为Schema字典"""
+    data = {
+        "id": chunk_model.id,
+        "document_id": chunk_model.document_id,
+        "content": chunk_model.content,
+        "chunk_index": chunk_model.chunk_index,
+        "start_char": chunk_model.start_char,
+        "end_char": chunk_model.end_char,
+        "embedding_vector": getattr(chunk_model, "embedding_vector", None),
+        # Map chunk_metadata back to metadata for schema
+        "metadata": chunk_model.chunk_metadata or {},
+        "created_at": getattr(chunk_model, "created_at", None),
+    }
+    return data
