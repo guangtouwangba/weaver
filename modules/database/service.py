@@ -5,15 +5,11 @@
 """
 
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
-from uuid import uuid4
 
 from modules.database.connection import get_session
 
 # Repository imports moved to method level to avoid circular import
-from modules.database.models import Document, File, Topic
-from modules.schemas.enums import FileStatus, TopicStatus
 
 logger = logging.getLogger(__name__)
 

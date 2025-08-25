@@ -1053,3 +1053,4 @@ export const useWebSocket = () => {
 这个前端设计方案提供了完整的React组件架构、状态管理、WebSocket集成和样式设计，为用户提供现代化的聊天体验。
 
 
+

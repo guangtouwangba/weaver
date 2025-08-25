@@ -14,12 +14,8 @@ from modules.database import get_db_session
 from modules.schemas import (
     AddResourceRequest,
     APIResponse,
-    FileList,
-    FileResponse,
     FileStatus,
     TopicCreate,
-    TopicList,
-    TopicResponse,
     TopicUpdate,
 )
 from modules.services import DocumentService, FileService, TopicService

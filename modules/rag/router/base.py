@@ -4,11 +4,10 @@ Router Interface
 Defines the contract for routing and orchestration implementations.
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import AsyncIterator, List, Optional
 
 from modules.models import (
-    ModuleConfig,
     ModuleInterface,
     ProcessingResult,
     SearchQuery,

@@ -10,7 +10,6 @@ from typing import Optional
 
 from fastapi import (
     APIRouter,
-    Body,
     Depends,
     File,
     Form,
@@ -26,17 +25,13 @@ from modules.database import get_db_session
 from modules.schemas import (
     APIResponse,
     ConfirmUploadRequest,
-    ConfirmUploadResponse,
-    FileList,
-    FileResponse,
     FileStatus,
     FileUpdate,
     UploadUrlRequest,
-    UploadUrlResponse,
 )
 from modules.services import FileService
 from modules.services.task_service import CeleryTaskService
-from modules.storage import IStorage, MinIOStorage
+from modules.storage import MinIOStorage
 
 router = APIRouter(prefix="/files", tags=["files"])
 logger = get_logger(__name__)

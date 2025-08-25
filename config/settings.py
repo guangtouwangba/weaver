@@ -588,6 +588,15 @@ class AppConfig(BaseSettings):
     redis: RedisConfig = Field(default_factory=RedisConfig, description="Redis配置")
 
     celery: CeleryConfig = Field(default_factory=CeleryConfig, description="Celery配置")
+    
+    # File loader configurations (lazy import to avoid circular dependencies)
+    @property
+    def pdf_loader(self):
+        """PDF loader configuration (lazy loaded)."""
+        if not hasattr(self, '_pdf_loader'):
+            from config.file_loader_config import PDFLoaderConfig
+            self._pdf_loader = PDFLoaderConfig()
+        return self._pdf_loader
 
     class Config:
         # 从.env文件读取环境变量

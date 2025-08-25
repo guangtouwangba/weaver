@@ -5,10 +5,7 @@ Define unified, simplified API interfaces.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
-
-from modules.models import DocumentChunk, SearchResult
-from modules.schemas import Document
+from typing import Any, Dict, List, Optional
 
 
 class APIError(Exception):

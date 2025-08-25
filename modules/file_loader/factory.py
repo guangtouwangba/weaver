@@ -4,8 +4,6 @@ import mimetypes
 from pathlib import Path
 from typing import List, Optional, Union
 
-from pydantic import BaseModel
-
 from modules.file_loader.base import IFileLoader
 from modules.schemas import ContentType, Document
 
