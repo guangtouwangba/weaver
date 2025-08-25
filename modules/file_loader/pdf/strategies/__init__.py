@@ -8,5 +8,6 @@ capabilities for different PDF processing libraries and use cases.
 
 from modules.file_loader.pdf.strategies.pymupdf_strategy import PyMuPDFStrategy
 from modules.file_loader.pdf.strategies.unstructured_strategy import UnstructuredStrategy
+from modules.file_loader.pdf.strategies.ocr_enhanced_strategy import OCREnhancedStrategy
 
-__all__ = ["UnstructuredStrategy", "PyMuPDFStrategy"]
+__all__ = ["UnstructuredStrategy", "PyMuPDFStrategy", "OCREnhancedStrategy"]

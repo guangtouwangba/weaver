@@ -28,7 +28,7 @@ class PDFLoaderConfig(BaseModel):
     )
     
     default_strategy: str = Field(
-        default="auto", 
+        default="ocr_enhanced",
         description="Default strategy to use for PDF processing"
     )
     
@@ -74,10 +74,44 @@ class PDFLoaderConfig(BaseModel):
         description="PyPDF2 library specific configuration"
     )
     
+    ocr_enhanced: Dict[str, Any] = Field(
+        default_factory=lambda: {
+            # OCR engine preferences (in order of preference)
+            "preferred_engines": ["paddleocr", "easyocr", "tesseract"],
+            
+            # Language support
+            "languages": ["en", "zh"],             # English and Chinese
+            "tesseract_lang": "eng+chi_sim",       # Tesseract language codes
+            
+            # Image processing
+            "enhance_images": True,                # Apply image enhancement
+            "dpi": 300,                           # PDF to image conversion DPI
+            "contrast_factor": 1.2,               # Image contrast enhancement
+            "brightness_factor": 1.1,             # Image brightness enhancement
+            
+            # OCR parameters
+            "confidence_threshold": 0.6,          # Minimum confidence threshold
+            "use_gpu": False,                     # Use GPU acceleration
+            "parallel_processing": True,          # Process pages in parallel
+            
+            # Scan detection
+            "auto_detect_scanned": True,          # Auto-detect scanned documents
+            "text_density_threshold": 0.1,       # Text density for scan detection
+            "image_area_threshold": 0.8,         # Image area threshold
+            
+            # Performance
+            "max_pages_parallel": 4,             # Max parallel page processing
+            "timeout_per_page": 60,              # Timeout per page (seconds)
+            "max_file_size": 200 * 1024 * 1024  # Max file size (200MB)
+        },
+        description="OCR Enhanced strategy for scanned documents"
+    )
+    
     # Strategy priority mapping (lower number = higher priority)
     strategy_priorities: Dict[str, int] = Field(
         default_factory=lambda: {
-            "unstructured": 1,                     # Highest priority for accuracy
+            "ocr_enhanced": 0,                     # Highest priority for scanned documents
+            "unstructured": 1,                     # High priority for accuracy
             "pymupdf": 2,                          # Good balance of speed/accuracy
             "pypdf2": 3                            # Basic fallback option
         },
@@ -193,7 +227,8 @@ class PDFLoaderConfig(BaseModel):
         strategy_configs = {
             "unstructured": self.unstructured,
             "pymupdf": self.pymupdf,
-            "pypdf2": self.pypdf2
+            "pypdf2": self.pypdf2,
+            "ocr_enhanced": self.ocr_enhanced
         }
         
         if strategy_name not in strategy_configs:
