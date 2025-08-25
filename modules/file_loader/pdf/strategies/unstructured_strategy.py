@@ -12,6 +12,10 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+# 抑制Unstructured的语言检测警告
+unstructured_logger = logging.getLogger('unstructured')
+unstructured_logger.setLevel(logging.ERROR)
+
 from modules.file_loader.pdf.base import IPDFLoadStrategy, PDFStrategyError
 from modules.file_loader.pdf.factory import register_pdf_strategy
 

@@ -54,9 +54,9 @@ dependencies = [
     # Document processing
     "langchain>=0.1.0",
     "langchain-community>=0.0.10",
-    "unstructured[pdf]>=0.12.0",  # Primary PDF parsing library with advanced layout detection
-    "pymupdf>=1.23.0",  # Secondary PDF library (fitz)
-    "PyPDF2>=3.0.1",    # Fallback PDF library
+    "unstructured[pdf]>=0.12.0", # Primary PDF parsing library with advanced layout detection
+    "pymupdf>=1.23.0", # Secondary PDF library (fitz)
+    "PyPDF2>=3.0.1", # Fallback PDF library
     "python-docx>=1.1.0",
     "python-pptx>=0.6.23",
     "openpyxl>=3.1.2",
@@ -94,6 +94,13 @@ dependencies = [
     "msgpack>=1.0.7",
     # Core Python utilities
     "greenlet>=3.0.0",
+    "pytesseract>=0.3.13",
+    "pillow>=11.3.0",
+    "opencv-python>=4.11.0.86",
+    "easyocr>=1.7.2",
+    "paddlepaddle>=3.1.1",
+    "paddleocr>=3.2.0",
+    "scipy>=1.13.1",
 ]
 
 [project.optional-dependencies]
