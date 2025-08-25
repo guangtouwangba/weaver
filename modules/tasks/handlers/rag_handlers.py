@@ -15,7 +15,6 @@ from logging_system import (
     get_logger,
     log_errors,
     log_execution_time,
-    request_context,
     task_context,
 )
 from modules.rag.embedding import EmbeddingProvider
@@ -24,9 +23,9 @@ from modules.rag.pipeline import (
     PipelineConfig,
     PipelineStatus,
 )
-from modules.rag.vector_store import VectorDocument, VectorStoreProvider
+from modules.rag.vector_store import VectorStoreProvider
 from modules.services.task_service import register_task_handler, task_handler
-from modules.tasks.base import ITaskHandler, TaskConfig, TaskPriority, TaskProgress
+from modules.tasks.base import ITaskHandler, TaskPriority, TaskProgress
 
 logger = get_logger(__name__)
 

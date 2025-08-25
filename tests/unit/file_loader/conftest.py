@@ -8,7 +8,7 @@ from typing import Dict, Any
 from unittest.mock import Mock, MagicMock
 
 import pytest
-from modules.file_loader.pdf_loader import PDFFileLoader
+from modules.file_loader.pdf.pdf_loader import PDFFileLoader
 from modules.models import FileLoadRequest
 from modules.schemas.enums import ContentType
 
@@ -35,6 +35,14 @@ def pdf_loader_config() -> Dict[str, Any]:
 def real_pdf_file_path():
     return Path(
         __file__).parent.parent.parent / "test_files" / "用户故事地图 (JEFF PATTON著) (Z-Library).pdf"
+
+
+@pytest.fixture
+def mock_pdf_file_path(temp_dir):
+    """Create a mock PDF file path for testing"""
+    mock_pdf = temp_dir / "mock_test.pdf"
+    mock_pdf.write_bytes(b"%PDF-1.4\n%Mock PDF content for testing\n%%EOF")
+    return mock_pdf
 
 
 @pytest.fixture

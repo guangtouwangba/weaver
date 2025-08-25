@@ -7,23 +7,21 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from modules.file_loader.base import IFileLoader
 from modules.models import (
-    ChunkingStrategy,
     DocumentChunk,
     OrchestrationRequest,
     OrchestrationResult,
     ProcessingRequest,
     ProcessingResult,
-    ProcessingStatus,
     SearchRequest,
     SearchResult,
 )
+from modules.schemas.enums import ProcessingStatus
 from modules.rag.embedding import EmbeddingProvider
 from modules.rag.orchestrator.base import IOrchestrator, OrchestrationError
-
 # RAG service imports will be done dynamically to avoid circular imports
 from modules.rag.pipeline import (
     DocumentProcessingRequest,
@@ -33,7 +31,6 @@ from modules.rag.pipeline import (
 from modules.rag.processors.base import IDocumentProcessor
 from modules.rag.vector_store import VectorStoreProvider
 from modules.schemas import Document
-from modules.schemas.enums import ContentType
 
 logger = logging.getLogger(__name__)
 

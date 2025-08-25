@@ -456,10 +456,8 @@ class FileUploadCompleteHandler(ITaskHandler):
         metadata: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Helper method to create document using synchronous SQLAlchemy in worker context"""
-        import json
 
-        import sqlalchemy as sa
-        from sqlalchemy import create_engine, text
+        from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 
         from config import get_config

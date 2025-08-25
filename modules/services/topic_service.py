@@ -5,12 +5,11 @@
 """
 
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from modules.repository import DocumentRepository, FileRepository, TopicRepository
+from modules.repository import FileRepository, TopicRepository
 from modules.schemas import (
     AddResourceRequest,
     FileResponse,

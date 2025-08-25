@@ -7,15 +7,15 @@
 import asyncio
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import List
 
 from modules.models import (
     ChunkingStrategy,
     DocumentChunk,
     ProcessingRequest,
     ProcessingResult,
-    ProcessingStatus,
 )
+from modules.schemas.enums import ProcessingStatus
 from modules.rag.processors.base import DocumentProcessorError, IDocumentProcessor
 from modules.schemas import Document
 

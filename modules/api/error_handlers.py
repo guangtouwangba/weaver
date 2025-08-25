@@ -5,12 +5,11 @@ Custom error handlers to handle various API error scenarios, including Unicode d
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 

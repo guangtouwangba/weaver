@@ -4,7 +4,6 @@ MinIO存储实现
 基于MinIO的真实存储服务实现。
 """
 
-import hashlib
 import urllib.parse
 from datetime import datetime, timedelta
 from io import BytesIO

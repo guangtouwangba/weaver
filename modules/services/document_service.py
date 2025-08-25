@@ -7,26 +7,21 @@
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.file_loader import FileLoaderFactory
 from modules.rag.embedding import EmbeddingProvider
-
 # RAG pipeline imports will be imported dynamically to avoid circular import
 from modules.rag.pipeline import (
     DocumentProcessingRequest,
-    PipelineConfig,
     PipelineStatus,
-    ProcessingStage,
 )
 from modules.rag.processors import ChunkingProcessor
 from modules.rag.vector_store import VectorStoreProvider
 from modules.repository import DocumentRepository, FileRepository
 from modules.schemas import (
     ContentType,
-    DocumentChunkCreate,
     DocumentChunkResponse,
     DocumentCreate,
     DocumentList,

@@ -5,10 +5,8 @@ Async taskService implementation
 """
 
 import asyncio
-import json
-import pickle
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 
 try:
     from celery import Celery
@@ -28,9 +26,7 @@ from modules.tasks.base import (
     TaskPriority,
     TaskProgress,
     TaskResult,
-    TaskRetryError,
     TaskStatus,
-    TaskTimeoutError,
 )
 
 logger = get_logger(__name__)

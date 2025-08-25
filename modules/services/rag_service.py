@@ -10,14 +10,12 @@ RAGService implementation
 import asyncio
 import logging
 import time
-from datetime import datetime
 from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import uuid4
 
 # Other dependencies
 from modules.file_loader import IFileLoader
-from modules.models import DocumentChunk, FileLoadRequest
-
+from modules.models import FileLoadRequest
 # RAG interfaces
 from modules.rag.embedding import (
     EmbeddingConfig,
@@ -31,7 +29,6 @@ from modules.rag.pipeline import (
     DocumentProcessingResult,
     IDocumentPipeline,
     PipelineConfig,
-    PipelineError,
     PipelineStatus,
     ProcessingProgress,
     ProcessingStage,
@@ -43,13 +40,11 @@ from modules.rag.vector_store import (
     IVectorStore,
     SearchFilter,
     SearchResult,
-    SimilarityMetric,
     VectorDocument,
     VectorStoreConfig,
     VectorStoreError,
     VectorStoreProvider,
 )
-from modules.schemas import Document
 
 logger = logging.getLogger(__name__)
 

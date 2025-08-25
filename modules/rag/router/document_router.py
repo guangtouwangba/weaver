@@ -17,7 +17,6 @@ from modules.models import (
     SearchResponse,
     SearchResult,
 )
-
 # TODO: MultiFormatFileLoader will be refactored to use factory pattern
 from modules.rag.processors import ChunkingProcessor, IDocumentProcessor
 from modules.rag.router.base import IRouter, RouterError

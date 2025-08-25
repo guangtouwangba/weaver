@@ -5,14 +5,10 @@
 """
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
-
-
 # Import enums from centralized location
-from modules.schemas.enums import ChunkingStrategy, ContentType, ProcessingStatus
+from modules.schemas.enums import ChunkingStrategy
 
 
 # 核心数据模型

@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional
 from pydantic import Field
 
 from modules.schemas.base import BaseSchema, PaginationSchema
-from modules.schemas.document import DocumentChunkResponse
 from modules.schemas.enums import ProcessingStatus
 
 

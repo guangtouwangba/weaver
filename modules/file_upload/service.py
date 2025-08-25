@@ -4,7 +4,6 @@
 提供完整的文件上传管理功能。
 """
 
-from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -13,7 +12,7 @@ from modules.database import get_session
 from modules.file_upload.base import IFileUploadService
 from modules.repository import FileRepository
 from modules.schemas.enums import FileStatus
-from modules.storage import IStorage, MinIOStorage, MockStorage
+from modules.storage import IStorage, MinIOStorage
 from modules.tasks.base import ITaskService, TaskPriority
 
 logger = get_logger(__name__)

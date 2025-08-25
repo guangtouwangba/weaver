@@ -12,7 +12,6 @@ from modules.schemas.base import BaseSchema
 from modules.schemas.enums import (
     ChunkingStrategy,
     ContentType,
-    ProcessingStatus,
     SearchType,
 )
 
