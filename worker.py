@@ -19,16 +19,19 @@ Worker 进程会：
 python worker.py [选项]
 
 示例:
-python worker.py --loglevel=info
-python worker.py --queues=document_queue,file_queue,rag_queue --concurrency=4
-python worker.py --specialized=document  # 专用文档处理worker
-python worker.py --specialized=rag       # 专用RAG处理worker
+python worker.py --loglevel=info                    # 默认统一worker
+python worker.py --specialized=unified              # 明确指定统一worker
+python worker.py --specialized=document             # 专用文档处理worker
+python worker.py --specialized=rag                  # 专用RAG处理worker
+python worker.py --specialized=file                 # 专用文件处理worker
+python worker.py --queues=document_queue,rag_queue  # 自定义队列
 """
 
 import sys
 import os
 import logging
 import argparse
+import platform
 from pathlib import Path
 
 # 添加项目根目录到 Python 路径
@@ -48,6 +51,67 @@ except Exception as e:
 logger = logging.getLogger(__name__)
 
 
+async def initialize_vector_collections():
+    """初始化向量存储集合，在Worker启动时创建"""
+    try:
+        from modules.rag.vector_store.weaviate_service import WeaviateVectorStore
+        from modules.rag.vector_store.base import VectorStoreConfig, VectorStoreProvider, SimilarityMetric
+        
+        config = get_config()
+        
+        # 创建WeaviateVectorStore实例，启用集合创建
+        weaviate_store = WeaviateVectorStore(
+            url=getattr(config, 'weaviate_url', None) or 
+                config.vector_db.weaviate_url or 
+                "http://localhost:8080",
+            api_key=getattr(config, 'weaviate_api_key', None),
+            create_collections_on_init=True  # 启动时创建集合
+        )
+        
+        # 初始化连接并创建集合
+        await weaviate_store.initialize()
+        
+        print("🎉 向量存储服务已启动，集合已准备就绪")
+        
+        # 清理连接
+        await weaviate_store.cleanup()
+        
+    except ImportError as e:
+        print(f"向量存储模块不可用: {e}")
+        raise
+    except Exception as e:
+        print(f"向量存储初始化失败: {e}")
+        raise
+
+
+def setup_macos_compatibility():
+    """设置macOS兼容性配置以避免fork安全问题"""
+    if platform.system() == "Darwin":  # macOS
+        print("🍎 检测到macOS系统，设置fork安全配置...")
+        
+        # 设置环境变量以避免CoreFoundation fork问题
+        os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+        os.environ["PYTHONUNBUFFERED"] = "1"  # 确保输出实时显示
+        
+        print("  ✅ 已设置 OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES")
+        print("  ✅ 已设置 PYTHONUNBUFFERED=1")
+        
+        return True
+    return False
+
+
+def get_safe_pool_type(requested_pool: str) -> str:
+    """为macOS返回安全的worker pool类型"""
+    if platform.system() == "Darwin":  # macOS
+        if requested_pool == "prefork":
+            print("⚠️  macOS系统: 将prefork pool改为threads以避免fork安全问题")
+            return "threads"
+        elif requested_pool in ["eventlet", "gevent"]:
+            print(f"⚠️  macOS系统: {requested_pool} pool可能有兼容问题，建议使用threads")
+    
+    return requested_pool
+
+
 def create_celery_app():
     """创建并配置 Celery 应用"""
     config = get_config()
@@ -63,6 +127,14 @@ def create_celery_app():
     import asyncio
 
     asyncio.run(task_service.initialize())
+    
+    # 初始化向量存储集合 (fail fast)
+    try:
+        asyncio.run(initialize_vector_collections())
+        print("✅ Weaviate集合初始化成功")
+    except Exception as e:
+        print(f"❌ Weaviate集合初始化失败: {e}")
+        print("⚠️  Worker将在没有向量存储的情况下启动")
 
     # 更新任务路由配置以支持新架构
     app = task_service.app
@@ -130,8 +202,8 @@ def parse_args():
 
     parser.add_argument(
         "--specialized",
-        choices=["document", "rag", "file", "workflow"],
-        help="专用worker类型",
+        choices=["document", "rag", "file", "workflow", "unified"],
+        help="worker类型: document, rag, file, workflow, unified",
     )
 
     parser.add_argument(
@@ -144,8 +216,8 @@ def parse_args():
     parser.add_argument(
         "--pool",
         default="prefork",
-        choices=["prefork", "eventlet", "gevent", "solo"],
-        help="Worker池类型 (default: prefork)",
+        choices=["prefork", "eventlet", "gevent", "solo", "threads"],
+        help="Worker池类型 (default: prefork, macOS自动转换为threads)",
     )
 
     return parser.parse_args()
@@ -164,27 +236,32 @@ def get_queue_config(specialized=None, custom_queues=None):
         "notification_queue",  # 通知队列
     ]
 
-    # 专用worker配置
+    # 专用worker配置（保留向后兼容性）
     specialized_configs = {
         "document": {
             "queues": ["document_queue", "default"],
-            "concurrency": 4,
+            "concurrency": 2,  # 降低并发数
             "description": "专用文档处理Worker",
         },
         "rag": {
             "queues": ["rag_queue"],
-            "concurrency": 2,  # RAG任务通常消耗更多资源
+            "concurrency": 1,  # 降低并发数，避免内存问题
             "description": "专用RAG处理Worker",
         },
         "file": {
             "queues": ["file_queue", "default"],
-            "concurrency": 3,
+            "concurrency": 1,  # 降低并发数，避免PDF处理内存问题
             "description": "专用文件处理Worker",
         },
         "workflow": {
             "queues": ["workflow_queue", "default"],
-            "concurrency": 2,
+            "concurrency": 1,  # 降低并发数
             "description": "专用工作流协调Worker",
+        },
+        "unified": {
+            "queues": all_queues,
+            "concurrency": 2,  # 统一worker，适度并发
+            "description": "统一处理Worker（推荐）",
         },
     }
 
@@ -197,8 +274,12 @@ def get_queue_config(specialized=None, custom_queues=None):
             specialized, {"queues": all_queues, "description": "通用Worker"}
         )
     else:
-        # 默认：监听所有队列
-        return {"queues": all_queues, "description": "通用Worker"}
+        # 默认：统一worker监听所有队列
+        return {
+            "queues": all_queues, 
+            "concurrency": 2,  # 默认并发数，平衡性能和资源使用
+            "description": "统一处理Worker（默认）"
+        }
 
 
 def setup_enhanced_logging(loglevel="info"):
@@ -243,6 +324,9 @@ def main():
     print("🚀 启动 Celery Worker - 架构优化版")
     print("=" * 60)
 
+    # 设置macOS兼容性配置
+    is_macos = setup_macos_compatibility()
+
     # 设置增强日志
     setup_enhanced_logging(args.loglevel)
 
@@ -268,8 +352,14 @@ def main():
         or queue_config.get("concurrency")
         or config.celery.worker_concurrency
     )
+    
+    # 获取安全的pool类型（macOS兼容）
+    safe_pool_type = get_safe_pool_type(args.pool)
+    
     print(f"  - 并发数: {concurrency}")
-    print(f"  - 池类型: {args.pool}")
+    print(f"  - 池类型: {safe_pool_type}")
+    if safe_pool_type != args.pool:
+        print(f"    (原始请求: {args.pool}, 已调整为macOS兼容)")
 
     # 队列配置
     print(f"  - 监听队列: {', '.join(queue_config['queues'])}")
@@ -312,7 +402,7 @@ def main():
         ),
         "time_limit": config.celery.task_time_limit,
         "soft_time_limit": config.celery.task_soft_time_limit,
-        "pool": args.pool,
+        "pool": safe_pool_type,
     }
 
     print(f"🔧 Worker启动参数详情:")
@@ -320,6 +410,7 @@ def main():
     print(f"  - 每个子进程最大任务数: {worker_kwargs['max_tasks_per_child']}")
     print(f"  - 任务时间限制: {worker_kwargs['time_limit']}秒")
     print(f"  - 软时间限制: {worker_kwargs['soft_time_limit']}秒")
+    print(f"  - 实际池类型: {worker_kwargs['pool']}")
     print()
 
     worker = app.Worker(**worker_kwargs)

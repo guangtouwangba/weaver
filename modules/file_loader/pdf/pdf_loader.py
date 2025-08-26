@@ -166,8 +166,9 @@ class PDFFileLoader(IFileLoader):
                 logger.warning(f"Metadata extraction failed for {file_path}: {e}")
                 pdf_metadata = self._get_fallback_metadata(path, strategy.strategy_name, str(e))
 
-            # Create document object
-            document = create_document_from_path(file_path, content)
+            # Create document object，优先使用metadata中的原始文件名
+            original_filename = metadata.get("original_filename") if metadata else None
+            document = create_document_from_path(file_path, content, original_filename=original_filename)
 
             # Update document metadata
             document.metadata.update({

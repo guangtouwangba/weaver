@@ -488,6 +488,111 @@ class AIConfig(BaseModel):
     )
 
 
+class VectorDBConfig(BaseModel):
+    """Vector Database Configuration"""
+
+    # Weaviate configuration
+    weaviate_url: str = Field(
+        default="http://localhost:8080", description="Weaviate server URL"
+    )
+    weaviate_api_key: Optional[str] = Field(
+        default=None, description="Weaviate API key for authentication"
+    )
+    weaviate_timeout: int = Field(default=30, description="Weaviate request timeout")
+    
+    # General vector DB settings
+    batch_size: int = Field(default=100, description="Batch size for vector operations")
+    collection_name: str = Field(
+        default="documents", description="Default collection name"
+    )
+    distance_metric: str = Field(
+        default="cosine", description="Distance metric for similarity search"
+    )
+
+
+class ChunkingMode(Enum):
+    """分块模式"""
+    AUTO = "auto"
+    FIXED_SIZE = "fixed_size"
+    PARAGRAPH = "paragraph"
+    SENTENCE = "sentence"
+    SEMANTIC = "semantic"
+    ADAPTIVE = "adaptive"
+    HYBRID = "hybrid"
+
+
+class DocumentType(Enum):
+    """文档类型"""
+    GENERAL = "general"
+    ACADEMIC = "academic"
+    TECHNICAL = "technical"
+    DIALOGUE = "dialogue"
+    NARRATIVE = "narrative"
+    CODE = "code"
+    LEGAL = "legal"
+
+
+class ChunkingStrategyConfig(BaseModel):
+    """单个分块策略配置"""
+    
+    name: str = Field(description="策略名称")
+    enabled: bool = Field(default=True, description="是否启用")
+    priority: int = Field(default=0, description="优先级")
+    weight: float = Field(default=1.0, description="选择权重")
+    config: Dict[str, Any] = Field(default_factory=dict, description="策略特定配置")
+
+
+class ChunkingConfig(BaseModel):
+    """分块配置"""
+    
+    # 基本配置
+    default_mode: ChunkingMode = Field(default=ChunkingMode.AUTO, description="默认分块模式")
+    target_chunk_size: int = Field(default=1000, description="目标分块大小")
+    overlap_size: int = Field(default=200, description="重叠大小")
+    min_chunk_size: int = Field(default=50, description="最小分块大小")
+    max_chunk_size: int = Field(default=4000, description="最大分块大小")
+    
+    # 质量配置
+    quality_threshold: float = Field(default=0.7, description="质量阈值")
+    preserve_structure: bool = Field(default=True, description="保持结构")
+    maintain_context: bool = Field(default=True, description="维持上下文")
+    
+    # 策略配置
+    strategy_configs: Dict[str, ChunkingStrategyConfig] = Field(
+        default_factory=dict, description="策略配置"
+    )
+    
+    # 文档类型映射
+    document_type_mappings: Dict[DocumentType, ChunkingMode] = Field(
+        default_factory=lambda: {
+            DocumentType.GENERAL: ChunkingMode.AUTO,
+            DocumentType.ACADEMIC: ChunkingMode.PARAGRAPH,
+            DocumentType.TECHNICAL: ChunkingMode.ADAPTIVE,
+            DocumentType.DIALOGUE: ChunkingMode.SENTENCE,
+            DocumentType.NARRATIVE: ChunkingMode.PARAGRAPH,
+            DocumentType.CODE: ChunkingMode.SEMANTIC,
+            DocumentType.LEGAL: ChunkingMode.PARAGRAPH
+        },
+        description="文档类型到分块模式的映射"
+    )
+    
+    # 高级配置
+    enable_auto_optimization: bool = Field(default=True, description="启用自动优化")
+    enable_quality_feedback: bool = Field(default=True, description="启用质量反馈")
+    enable_performance_monitoring: bool = Field(default=True, description="启用性能监控")
+    
+    # 混合策略配置
+    hybrid_strategies: List[str] = Field(default_factory=list, description="混合策略列表")
+    hybrid_weights: Dict[str, float] = Field(default_factory=dict, description="混合权重")
+    
+    # 性能配置
+    max_processing_time_ms: Optional[int] = Field(default=30000, description="最大处理时间(毫秒)")
+    memory_limit_mb: Optional[int] = Field(default=512, description="内存限制(MB)")
+    parallel_processing: bool = Field(default=False, description="并行处理")
+    cache_enabled: bool = Field(default=True, description="启用缓存")
+    cache_ttl: int = Field(default=3600, description="缓存过期时间(秒)")
+
+
 class LoggingConfig(BaseModel):
     """日志配置"""
 
@@ -584,6 +689,12 @@ class AppConfig(BaseSettings):
         default_factory=LoggingConfig, description="日志配置"
     )
     ai: AIConfig = Field(default_factory=AIConfig, description="AI服务配置")
+    vector_db: VectorDBConfig = Field(
+        default_factory=VectorDBConfig, description="向量数据库配置"
+    )
+    chunking: ChunkingConfig = Field(
+        default_factory=ChunkingConfig, description="分块配置"
+    )
 
     redis: RedisConfig = Field(default_factory=RedisConfig, description="Redis配置")
 

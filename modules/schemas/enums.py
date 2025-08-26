@@ -76,10 +76,30 @@ class SearchType(str, Enum):
 class TaskName(str, Enum):
     """Task name enum"""
 
+    # File related tasks
     FILE_UPLOAD = "file_upload"  # File upload
     FILE_UPLOAD_CONFIRM = "file_upload_confirm"  # File upload confirmation
     FILE_PROCESSING = "file_processing"  # File processing
+    FILE_ANALYZE_CONTENT = "file.analyze_content"  # File content analysis
+    FILE_CLEANUP_TEMP = "file.cleanup_temp"  # Temporary file cleanup
+    FILE_CONVERT_FORMAT = "file.convert_format"  # File format conversion
+    
+    # Document related tasks
+    DOCUMENT_CREATE = "document.create"  # Document creation
+    DOCUMENT_UPDATE_METADATA = "document.update_metadata"  # Document metadata update
+    
+    # RAG related tasks
+    RAG_PROCESS_DOCUMENT = "rag.process_document"  # RAG document processing
+    RAG_PROCESS_DOCUMENT_ASYNC = "rag.process_document_async"  # RAG async document processing
+    RAG_GENERATE_EMBEDDINGS = "rag.generate_embeddings"  # Generate embeddings
+    RAG_STORE_VECTORS = "rag.store_vectors"  # Store vectors
+    RAG_SEMANTIC_SEARCH = "rag.semantic_search"  # Semantic search
+    RAG_CLEANUP_DOCUMENT = "rag.cleanup_document"  # Cleanup document
+    
+    # Topic related tasks
     TOPIC_CREATION = "topic_creation"  # Topic creation
     TOPIC_PROCESSING = "topic_processing"  # Topic processing
+    
+    # Search and orchestration tasks
     SEARCH = "search"  # Search
     ORCHESTRATION = "orchestration"  # Orchestration processing

@@ -5,7 +5,7 @@ Document repository implementation
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import and_, delete, desc, or_, select, update
@@ -138,9 +138,29 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
         result = await self.session.execute(
             update(Document)
             .where(Document.id == document_id)
-            .values(status=status, updated_at=datetime.utcnow())
+            .values(status=status, updated_at=datetime.now(timezone.utc))
         )
         return result.rowcount > 0
+
+    async def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> bool:
+        """Update document metadata"""
+        try:
+            document = await self.get_document_by_id(document_id)
+            if document:
+                # 合并现有元数据和新元数据
+                current_metadata = document.doc_metadata or {}
+                current_metadata.update(metadata)
+                
+                result = await self.session.execute(
+                    update(Document)
+                    .where(Document.id == document_id)
+                    .values(doc_metadata=current_metadata, updated_at=datetime.now(timezone.utc))
+                )
+                return result.rowcount > 0
+            return False
+        except Exception as e:
+            logger.error(f"Failed to update document metadata: {e}")
+            return False
 
     # 实现基类抽象方法
     async def create(self, entity_data: Dict[str, Any]) -> Document:
@@ -160,7 +180,7 @@ class DocumentRepository(BaseRepository, IDocumentRepository):
             if hasattr(document, key):
                 setattr(document, key, value)
 
-        document.updated_at = datetime.utcnow()
+        document.updated_at = datetime.now(timezone.utc)
         await self.session.flush()
         await self.session.refresh(document)
 

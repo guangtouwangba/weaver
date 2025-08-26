@@ -985,12 +985,16 @@ def create_vector_store(provider: VectorStoreProvider, **kwargs) -> IVectorStore
         connection_string = kwargs.pop("connection_string", "http://localhost:8080")
         collection_name = kwargs.pop("collection_name", "documents")
         dimension = kwargs.pop("dimension", 1536)
+        enable_auto_vectorization = kwargs.pop("enable_auto_vectorization", False)
+        description = kwargs.pop("description", f"RAG文档集合: {collection_name}")
 
         config = VectorStoreConfig(
             provider=provider,
             connection_string=connection_string,
             collection_name=collection_name,
             dimension=dimension,
+            enable_auto_vectorization=enable_auto_vectorization,
+            description=description,
             **kwargs,
         )
         return WeaviateVectorStore(config)

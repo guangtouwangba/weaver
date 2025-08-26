@@ -508,6 +508,36 @@ class FileUploadCompleteHandler(ITaskHandler):
                 try:
                     from celery import current_app
 
+                    # 获取智能分块推荐
+                    try:
+                        from ...rag.chunking.integration import get_document_chunking_recommendation
+                        
+                        # 创建临时文档对象用于分析
+                        temp_doc = Document(
+                            id=document.id,
+                            title=document.title,
+                            content=document.content,
+                            content_type=document.content_type
+                        )
+                        
+                        chunking_recommendation = get_document_chunking_recommendation(temp_doc)
+                        logger.info(f"文档 {document.id} 推荐分块策略: {chunking_recommendation['recommended_strategy']}")
+                        
+                        # 准备chunking配置
+                        chunking_config = {
+                            "recommended_strategy": chunking_recommendation["recommended_strategy"],
+                            "confidence": chunking_recommendation["confidence"],
+                            "reasons": chunking_recommendation["reasons"],
+                            "enable_enhanced_chunking": True
+                        }
+                        
+                    except Exception as e:
+                        logger.warning(f"获取分块推荐失败: {e}, 使用默认配置")
+                        chunking_config = {
+                            "recommended_strategy": "auto",
+                            "enable_enhanced_chunking": True
+                        }
+
                     # Use Celery directly to submit the RAG task
                     rag_task = current_app.send_task(
                         "rag.process_document_async",
@@ -522,6 +552,7 @@ class FileUploadCompleteHandler(ITaskHandler):
                             "topic_id": topic_id,
                             "embedding_provider": "openai",
                             "vector_store_provider": "weaviate",
+                            "chunking_config": chunking_config,  # 添加分块配置
                         },
                         queue="rag_queue",
                         priority=1,
@@ -561,7 +592,7 @@ class FileUploadCompleteHandler(ITaskHandler):
 
 
 @task_handler(
-    "file.analyze_content",
+    schemas.TaskName.FILE_ANALYZE_CONTENT.value,
     priority=TaskPriority.NORMAL,
     max_retries=2,
     timeout=180,
@@ -573,7 +604,7 @@ class FileContentAnalysisHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "file.analyze_content"
+        return schemas.TaskName.FILE_ANALYZE_CONTENT.value
 
     async def handle(
         self,
@@ -739,7 +770,7 @@ class FileContentAnalysisHandler(ITaskHandler):
 
 
 @task_handler(
-    "file.cleanup_temp",
+    schemas.TaskName.FILE_CLEANUP_TEMP.value,
     priority=TaskPriority.LOW,
     max_retries=1,
     timeout=60,
@@ -751,7 +782,7 @@ class TempFileCleanupHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "file.cleanup_temp"
+        return schemas.TaskName.FILE_CLEANUP_TEMP.value
 
     async def handle(
         self, file_paths: List[str], max_age_hours: int = 24, **config
@@ -836,7 +867,7 @@ class TempFileCleanupHandler(ITaskHandler):
 
 
 @task_handler(
-    "file.convert_format",
+    schemas.TaskName.FILE_CONVERT_FORMAT.value,
     priority=TaskPriority.NORMAL,
     max_retries=2,
     timeout=300,
@@ -848,7 +879,7 @@ class FileFormatConversionHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "file.convert_format"
+        return schemas.TaskName.FILE_CONVERT_FORMAT.value
 
     async def handle(
         self,

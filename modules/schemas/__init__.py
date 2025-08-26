@@ -27,6 +27,7 @@ from modules.schemas.converters import (
 )
 from modules.schemas.document import (
     Document,
+    DocumentChunk,
     DocumentChunkCreate,
     DocumentChunkResponse,
     DocumentChunkSchema,
@@ -101,6 +102,7 @@ __all__ = [
     "FileList",
     # 文档Schema
     "Document",
+    "DocumentChunk",
     "DocumentSchema",
     "DocumentCreate",
     "DocumentUpdate",

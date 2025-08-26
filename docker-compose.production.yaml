@@ -276,6 +276,38 @@ services:
       - prometheus
 
   # ===========================================================================
+  # Weaviate UI Service (Vector Database Management Interface)
+  # ===========================================================================
+  weaviate-ui:
+    image: naaive/weaviate-ui:latest
+    container_name: rag-weaviate-ui-prod
+    restart: unless-stopped
+    environment:
+      WEAVIATE_URL: http://weaviate:8080
+      WEAVIATE_API_KEYS: ${WEAVIATE_API_KEY:-}  # Use environment variable if API key is set
+    ports:
+      - "${WEAVIATE_UI_PORT:-8091}:8080"
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    depends_on:
+      weaviate:
+        condition: service_healthy
+
+  # ===========================================================================
   # RAG API Application Service
   # ===========================================================================
   rag-api:

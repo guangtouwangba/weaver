@@ -118,6 +118,10 @@ class DocumentChunkResponse(DocumentChunkSchema):
     id: str = Field(description="文档块ID")
 
 
+# 为兼容性创建别名
+DocumentChunk = DocumentChunkSchema
+
+
 class DocumentList(BaseSchema):
     """文档列表Schema"""
 
@@ -129,14 +133,15 @@ class DocumentList(BaseSchema):
 
 
 def create_document_from_path(
-    file_path: str, content: str, content_type: str = "text"
+    file_path: str, content: str, content_type: str = "text", original_filename: str = None
 ) -> Document:
     """从文件路径创建文档对象"""
     import os
     from uuid import uuid4
 
     document_id = str(uuid4())
-    title = os.path.basename(file_path)
+    # 使用原始文件名作为标题，如果没有提供则使用文件路径的basename
+    title = original_filename if original_filename else os.path.basename(file_path)
 
     # 根据文件扩展名推断内容类型
     ext = os.path.splitext(file_path)[1].lower()

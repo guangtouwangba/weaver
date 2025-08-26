@@ -8,7 +8,7 @@ Contains various async task handlers for the RAG system:
 - Document search functionality
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from logging_system import (
@@ -17,6 +17,7 @@ from logging_system import (
     log_execution_time,
     task_context,
 )
+from modules import schemas
 from modules.rag.embedding import EmbeddingProvider
 from modules.rag.pipeline import (
     DocumentProcessingRequest,
@@ -31,7 +32,14 @@ logger = get_logger(__name__)
 
 
 @task_handler(
-    "rag.process_document",
+    schemas.TaskName.RAG_PROCESS_DOCUMENT.value,
+    priority=TaskPriority.HIGH,
+    max_retries=3,
+    timeout=600,  # 10分钟超时
+    queue="rag_queue",
+)
+@task_handler(
+    schemas.TaskName.RAG_PROCESS_DOCUMENT_ASYNC.value, 
     priority=TaskPriority.HIGH,
     max_retries=3,
     timeout=600,  # 10分钟超时
@@ -43,7 +51,7 @@ class DocumentProcessingHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "rag.process_document"
+        return schemas.TaskName.RAG_PROCESS_DOCUMENT.value  # 主要任务名
 
     @log_execution_time(threshold_ms=1000)
     async def handle(
@@ -51,8 +59,11 @@ class DocumentProcessingHandler(ITaskHandler):
         file_id: str,
         file_path: str,
         topic_id: Optional[int] = None,
+        document_id: Optional[str] = None,  # 支持传入document_id
+        content_type: Optional[str] = None,  # 支持传入content_type
         embedding_provider: str = "openai",
         vector_store_provider: str = "weaviate",
+        chunking_config: Optional[Dict[str, Any]] = None,  # 新的chunking配置
         **config,
     ) -> Dict[str, Any]:
         """
@@ -62,8 +73,11 @@ class DocumentProcessingHandler(ITaskHandler):
             file_id: 文件ID
             file_path: 文件路径
             topic_id: 主题ID
+            document_id: 文档ID（可选，用于异步处理）
+            content_type: 内容类型（可选）
             embedding_provider: 嵌入服务提供商
             vector_store_provider: 向量存储提供商
+            chunking_config: 分块配置（可选）
             **config: 其他配置参数
 
         Returns:
@@ -77,6 +91,10 @@ class DocumentProcessingHandler(ITaskHandler):
             ):
                 logger.info(f"开始RAG文档处理: {file_id} at {file_path}")
 
+                # 初始化Chunking集成系统
+                from ...rag.chunking.integration import initialize_chunking_integration
+                await initialize_chunking_integration()
+
                 # 更新文件状态为处理中
                 await self._update_file_status(
                     file_id, "processing", "RAG处理中: 初始化组件"
@@ -85,7 +103,7 @@ class DocumentProcessingHandler(ITaskHandler):
             # 动态导入以避免循环依赖
             from ...file_loader import MultiFormatFileLoader
             from ...models import ModuleConfig
-            from ...rag.processors import ChunkingProcessor
+            from ...rag.processors.enhanced_chunking_processor import EnhancedChunkingProcessor
             from ...services.rag_service import create_document_pipeline
 
             # 更新进度: 初始化
@@ -117,7 +135,26 @@ class DocumentProcessingHandler(ITaskHandler):
             await self._update_progress("创建RAG管道组件", 10, 100)
 
             file_loader = MultiFormatFileLoader(module_config)
-            document_processor = ChunkingProcessor(module_config)
+            
+            # 使用增强的分块处理器
+            processor_config = {
+                "default_chunk_size": pipeline_config.chunk_size,
+                "default_overlap": pipeline_config.chunk_overlap,
+            }
+            
+            # 合并chunking_config参数
+            if chunking_config:
+                logger.info(f"应用智能分块配置: {chunking_config}")
+                processor_config.update(chunking_config)
+                
+                # 如果有推荐策略，应用到处理器配置
+                if "recommended_strategy" in chunking_config:
+                    processor_config["preferred_strategy"] = chunking_config["recommended_strategy"]
+            
+            # 合并其他配置
+            processor_config.update(config.get("chunking_config", {}))
+            
+            document_processor = EnhancedChunkingProcessor(**processor_config)
 
             embedding_service = create_embedding_service(
                 provider=EmbeddingProvider(embedding_provider),
@@ -157,7 +194,7 @@ class DocumentProcessingHandler(ITaskHandler):
                     "task_type": "async_processing",
                     "embedding_provider": embedding_provider,
                     "vector_store_provider": vector_store_provider,
-                    "started_at": datetime.utcnow().isoformat(),
+                    "started_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
 
@@ -209,7 +246,7 @@ class DocumentProcessingHandler(ITaskHandler):
                     for stage in result.stage_results
                 ],
                 "metadata": result.metadata,
-                "completed_at": datetime.utcnow().isoformat(),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
             }
 
             if not processing_result["success"]:
@@ -233,7 +270,7 @@ class DocumentProcessingHandler(ITaskHandler):
                 "file_id": file_id,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "failed_at": datetime.utcnow().isoformat(),
+                "failed_at": datetime.now(timezone.utc).isoformat(),
             }
 
     async def _update_progress(self, description: str, current: int, total: int):
@@ -278,7 +315,7 @@ class DocumentProcessingHandler(ITaskHandler):
 
 
 @task_handler(
-    "rag.generate_embeddings",
+    schemas.TaskName.RAG_GENERATE_EMBEDDINGS.value,
     priority=TaskPriority.NORMAL,
     max_retries=2,
     timeout=300,
@@ -290,7 +327,7 @@ class EmbeddingGenerationHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "rag.generate_embeddings"
+        return schemas.TaskName.RAG_GENERATE_EMBEDDINGS.value
 
     @log_execution_time(threshold_ms=500)
     @log_errors()
@@ -365,7 +402,7 @@ class EmbeddingGenerationHandler(ITaskHandler):
 
 
 @task_handler(
-    "rag.store_vectors",
+    schemas.TaskName.RAG_STORE_VECTORS.value,
     priority=TaskPriority.NORMAL,
     max_retries=3,
     timeout=180,
@@ -377,7 +414,7 @@ class VectorStorageHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "rag.store_vectors"
+        return schemas.TaskName.RAG_STORE_VECTORS.value
 
     @log_execution_time(threshold_ms=800)
     @log_errors()
@@ -436,7 +473,7 @@ class VectorStorageHandler(ITaskHandler):
                     metadata={
                         "document_id": document_id,
                         "chunk_index": i,
-                        "stored_at": datetime.utcnow().isoformat(),
+                        "stored_at": datetime.now(timezone.utc).isoformat(),
                     },
                     document_id=document_id,
                     chunk_index=i,
@@ -473,7 +510,7 @@ class VectorStorageHandler(ITaskHandler):
 
 
 @task_handler(
-    "rag.semantic_search",
+    schemas.TaskName.RAG_SEMANTIC_SEARCH.value,
     priority=TaskPriority.HIGH,
     max_retries=2,
     timeout=60,
@@ -485,7 +522,7 @@ class SemanticSearchHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "rag.semantic_search"
+        return schemas.TaskName.RAG_SEMANTIC_SEARCH.value
 
     @log_execution_time(threshold_ms=300)
     @log_errors()
@@ -585,7 +622,7 @@ class SemanticSearchHandler(ITaskHandler):
                 "total_results": len(results),
                 "embedding_provider": embedding_provider,
                 "vector_store_provider": vector_store_provider,
-                "search_time": datetime.utcnow().isoformat(),
+                "search_time": datetime.now(timezone.utc).isoformat(),
             }
 
         except Exception as e:
@@ -599,7 +636,7 @@ class SemanticSearchHandler(ITaskHandler):
 
 
 @task_handler(
-    "rag.cleanup_document",
+    schemas.TaskName.RAG_CLEANUP_DOCUMENT.value,
     priority=TaskPriority.LOW,
     max_retries=2,
     timeout=120,
@@ -611,7 +648,7 @@ class DocumentCleanupHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "rag.cleanup_document"
+        return schemas.TaskName.RAG_CLEANUP_DOCUMENT.value
 
     @log_execution_time(threshold_ms=400)
     @log_errors()
@@ -659,7 +696,7 @@ class DocumentCleanupHandler(ITaskHandler):
                 "success": True,
                 "document_id": document_id,
                 "vectors_deleted": result.success_count,
-                "cleanup_time": datetime.utcnow().isoformat(),
+                "cleanup_time": datetime.now(timezone.utc).isoformat(),
                 "provider": vector_store_provider,
             }
 
@@ -674,7 +711,7 @@ class DocumentCleanupHandler(ITaskHandler):
 
 
 @task_handler(
-    "rag.process_document_async",
+    schemas.TaskName.RAG_PROCESS_DOCUMENT_ASYNC.value,
     priority=TaskPriority.HIGH,
     max_retries=3,
     timeout=600,
@@ -686,7 +723,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "rag.process_document_async"
+        return schemas.TaskName.RAG_PROCESS_DOCUMENT_ASYNC.value
 
     @log_execution_time(threshold_ms=1000)
     async def handle(
@@ -701,6 +738,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
         execution_id: str = None,
         workflow_id: str = None,
         orchestrated: bool = False,
+        chunking_config: Optional[Dict[str, Any]] = None,
         **config,
     ) -> Dict[str, Any]:
         """
@@ -749,13 +787,17 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
 
                 storage = create_storage_service()
 
+                # 获取文件信息（包括原始文件名）
+                file_info = await self._get_file_info(file_id) if file_id else {}
+                original_filename = file_info.get("original_name")
+
                 # 下载文件到临时位置
                 temp_file_path = await self._download_file_to_temp(
                     storage, file_path, file_id or document_id
                 )
 
                 try:
-                    # 使用工厂模式加载文档
+                    # 使用工厂模式加载文档，传递原始文件名
                     from modules.schemas.enums import ContentType
 
                     from ...file_loader import detect_content_type, load_document
@@ -766,8 +808,12 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                     except ValueError:
                         ct = detect_content_type(temp_file_path)
 
-                    # 加载文档
-                    document = await load_document(temp_file_path, ct)
+                    # 加载文档，传递原始文件名到metadata中
+                    document = await load_document(
+                        temp_file_path, 
+                        ct, 
+                        original_filename=original_filename
+                    )
                     logger.info(
                         f"Document loaded: {document.title}, content length: {len(document.content)}"
                     )
@@ -776,6 +822,11 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                     await self._initialize_rag_pipeline(
                         embedding_provider, vector_store_provider
                     )
+
+                    # 设置分块配置
+                    if chunking_config:
+                        self._current_chunking_config = chunking_config
+                        logger.info(f"使用自定义分块配置: {chunking_config}")
 
                     # 处理文档
                     result = await self._process_with_rag_pipeline(
@@ -795,7 +846,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                         "embeddings_generated": result.get("embeddings_generated", 0),
                         "vectors_stored": result.get("vectors_stored", 0),
                         "processing_time_ms": result.get("processing_time_ms", 0),
-                        "processed_at": datetime.utcnow().isoformat(),
+                        "processed_at": datetime.now(timezone.utc).isoformat(),
                         # 工作流相关信息
                         "orchestrated": orchestrated,
                         "execution_id": execution_id,
@@ -823,7 +874,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                     {
                         "rag_processing_status": "failed",
                         "rag_error": str(e),
-                        "rag_failed_at": datetime.utcnow().isoformat(),
+                        "rag_failed_at": datetime.now(timezone.utc).isoformat(),
                     },
                 )
             except Exception as update_error:
@@ -835,7 +886,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                 "file_id": file_id or document_id,
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "failed_at": datetime.utcnow().isoformat(),
+                "failed_at": datetime.now(timezone.utc).isoformat(),
                 # 工作流相关信息
                 "orchestrated": orchestrated,
                 "execution_id": execution_id,
@@ -897,24 +948,37 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
     ) -> Dict[str, Any]:
         """使用RAG管道处理文档"""
         try:
-            # 简化的RAG处理逻辑
-            # 在实际环境中，这里会调用完整的RAG管道进行文档分块、嵌入生成和向量存储
-
-            logger.info("模拟RAG处理: 文档分块...")
-            chunks_created = len(document.content) // 1000  # 模拟分块数量
-
-            logger.info(f"模拟RAG处理: 生成嵌入...")
-            embeddings_generated = chunks_created  # 模拟嵌入数量
-
-            logger.info(f"模拟RAG处理: 存储向量...")
-            vectors_stored = embeddings_generated  # 模拟存储的向量数量
-
+            # 获取RAG处理器实例
+            rag_processor = await self._get_rag_processor()
+            
+            # 准备分块配置（如果有的话）
+            chunking_config = getattr(self, '_chunking_config', {})
+            
+            # 如果从外部传入了分块配置，则使用它
+            if hasattr(self, '_current_chunking_config') and self._current_chunking_config:
+                chunking_config = self._current_chunking_config
+            
+            logger.info(f"开始RAG管道处理文档: {document_id}")
+            
+            # 调用真实的RAG处理器
+            result = await rag_processor.process_document(
+                document=document,
+                chunking_config=chunking_config,
+                topic_id=str(topic_id) if topic_id else None,
+                file_id=file_id
+            )
+            
+            # 转换结果格式
             return {
-                "chunks_created": chunks_created,
-                "embeddings_generated": embeddings_generated,
-                "vectors_stored": vectors_stored,
-                "processing_time_ms": 1000,  # 模拟处理时间
-                "status": "completed",
+                "chunks_created": result.chunks_created,
+                "embeddings_generated": result.embeddings_generated,
+                "vectors_stored": result.vectors_stored,
+                "processing_time_ms": result.processing_time_ms,
+                "status": "completed" if result.status.value == "completed" else "failed",
+                "strategy_used": result.strategy_used,
+                "quality_score": result.quality_score,
+                "error": result.error_message,
+                "stage_details": result.stage_details,
             }
 
         except Exception as e:
@@ -927,6 +991,47 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                 "status": "failed",
                 "error": str(e),
             }
+    
+    async def _get_rag_processor(self):
+        """获取RAG处理器实例"""
+        from modules.rag.services.rag_processor import RAGProcessor, RAGProcessorConfig
+        from modules.rag.embedding.openai_service import OpenAIEmbeddingService
+        from modules.rag.vector_store.weaviate_service import WeaviateVectorStore
+        from config import get_config
+        
+        config = get_config()
+        
+        # 创建嵌入服务
+        embedding_service = OpenAIEmbeddingService(
+            api_key=getattr(config, 'openai_api_key', None) or config.ai.embedding.openai.api_key,
+            model="text-embedding-3-small",
+            max_batch_size=50,
+        )
+        
+        # 创建向量存储服务
+        vector_store = WeaviateVectorStore(
+            url=getattr(config, 'weaviate_url', None) or config.vector_db.weaviate_url or "http://localhost:8080",
+            api_key=getattr(config, 'weaviate_api_key', None),
+            batch_size=50,
+        )
+        
+        # 创建RAG处理器配置
+        rag_config = RAGProcessorConfig(
+            embedding_provider="openai",
+            vector_store_provider="weaviate",
+            collection_name="documents",
+            batch_size=50,
+            max_concurrent_embeddings=3,
+        )
+        
+        # 创建RAG处理器
+        rag_processor = RAGProcessor(
+            config=rag_config,
+            embedding_service=embedding_service,
+            vector_store=vector_store,
+        )
+        
+        return rag_processor
 
     async def _update_document_metadata(
         self, document_id: str, metadata: Dict[str, Any]
@@ -947,7 +1052,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                 doc_repo = DocumentRepository(session)
 
                 # 获取现有文档
-                document = await doc_repo.get_document(document_id)
+                document = await doc_repo.get_document_by_id(document_id)
                 if document:
                     # 更新元数据
                     current_metadata = document.doc_metadata or {}
@@ -964,7 +1069,7 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                             "rag_processing_time_ms": metadata.get(
                                 "processing_time_ms", 0
                             ),
-                            "rag_processed_at": datetime.utcnow().isoformat(),
+                            "rag_processed_at": datetime.now(timezone.utc).isoformat(),
                             **metadata,
                         }
                     )
@@ -983,6 +1088,31 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
 
         except Exception as e:
             logger.error(f"更新文档元数据失败: {e}")
+
+    async def _get_file_info(self, file_id: str) -> Dict[str, Any]:
+        """从数据库获取文件信息"""
+        try:
+            from ...database import get_session
+            from ...repository import FileRepository
+            
+            async with get_session() as session:
+                file_repo = FileRepository(session)
+                file_record = await file_repo.get_file_by_id(file_id)
+                
+                if file_record:
+                    return {
+                        "original_name": file_record.original_name,
+                        "filename": file_record.filename,
+                        "content_type": file_record.content_type,
+                        "file_size": file_record.file_size,
+                    }
+                else:
+                    logger.warning(f"文件记录未找到: {file_id}")
+                    return {}
+                    
+        except Exception as e:
+            logger.error(f"获取文件信息失败: {file_id}, {e}")
+            return {}
 
 
 logger.info("RAG任务处理器模块已加载")

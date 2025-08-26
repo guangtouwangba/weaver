@@ -34,20 +34,27 @@ services:
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
-      ENABLE_MODULES: 'text2vec-openai,text2vec-cohere,text2vec-huggingface,ref2vec-centroid,generative-openai,qna-openai'
+      ENABLE_MODULES: ''  # 禁用所有外部模块，避免网络连接问题
       CLUSTER_HOSTNAME: 'node1'
+      # 禁用遥测以避免外部连接
+      DISABLE_TELEMETRY: 'true'
+      # 禁用外部网络请求
+      HTTP_PROXY: ''
+      HTTPS_PROXY: ''
+      NO_PROXY: '*'
     ports:
-      - "8080:8080"
+      - "8080:8080"      # HTTP API
+      - "50051:50051"    # gRPC API (修复批量操作连接问题)
     volumes:
       - weaviate_data:/var/lib/weaviate
     networks:
       - rag-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/meta"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/v1/meta"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Redis cache and session storage
   redis:
@@ -118,6 +125,26 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
+      retries: 3
+
+  # Weaviate UI (web interface for managing vector data)
+  weaviate-ui:
+    image: naaive/weaviate-ui:latest
+    container_name: rag-weaviate-ui
+    environment:
+      WEAVIATE_URL: http://weaviate:8080
+      WEAVIATE_API_KEYS: ""  # Empty since anonymous access is enabled
+    ports:
+      - "8091:7777"
+    networks:
+      - rag-network
+    restart: unless-stopped
+    depends_on:
+      - weaviate
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7777/')"]
+      interval: 30s
+      timeout: 10s
       retries: 3
 
 

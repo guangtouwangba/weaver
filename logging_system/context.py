@@ -10,7 +10,7 @@ import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Generator, Optional
 
 # ContextVar for async context
@@ -45,7 +45,7 @@ class LogContext:
 
     def __post_init__(self):
         if self.started_at is None:
-            self.started_at = datetime.utcnow()
+            self.started_at = datetime.now(timezone.utc)
 
         # Auto-generate request_id
         if self.request_id is None:
@@ -72,7 +72,7 @@ class LogContext:
 
         if self.started_at:
             result["started_at"] = self.started_at.isoformat()
-            result["duration"] = (datetime.utcnow() - self.started_at).total_seconds()
+            result["duration"] = (datetime.now(timezone.utc) - self.started_at).total_seconds()
 
         # Add custom fields
         result.update(self.extra)

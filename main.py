@@ -23,6 +23,40 @@ from modules.api.error_handlers import (
 from modules.database import DatabaseConnection
 from modules.schemas import APIResponse, HealthCheckResponse
 
+
+async def initialize_vector_collections():
+    """初始化向量存储集合，在服务启动时创建"""
+    try:
+        from modules.rag.vector_store.weaviate_service import WeaviateVectorStore
+        from modules.rag.vector_store.base import VectorStoreConfig, VectorStoreProvider, SimilarityMetric
+        from config import get_config
+        
+        config = get_config()
+        
+        # 创建WeaviateVectorStore实例，启用集合创建
+        weaviate_store = WeaviateVectorStore(
+            url=getattr(config, 'weaviate_url', None) or 
+                config.vector_db.weaviate_url or 
+                "http://localhost:8080",
+            api_key=getattr(config, 'weaviate_api_key', None),
+            create_collections_on_init=True  # 启动时创建集合
+        )
+        
+        # 初始化连接并创建集合
+        await weaviate_store.initialize()
+        
+        logger.info("🎉 向量存储服务已启动，集合已准备就绪")
+        
+        # 清理连接
+        await weaviate_store.cleanup()
+        
+    except ImportError as e:
+        logger.warning(f"向量存储模块不可用: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"向量存储初始化失败: {e}")
+        raise
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -148,27 +182,26 @@ async def health_check():
     try:
         # Check database connection
         db = DatabaseConnection()
-        db_status = await db.check_connection()
+        await db.initialize()  # 需要先初始化数据库连接
+        db_status = await db.health_check()
 
         return HealthCheckResponse(
-            success=True,
-            message="System is healthy",
-            data={
-                "status": "healthy",
-                "version": app.version,
-                "database": "connected" if db_status else "disconnected",
-                "components": {
-                    "api": "operational",
-                    "database": "operational" if db_status else "degraded",
-                },
-            },
+            status="healthy",
+            version=app.version,
+            components={
+                "api": "operational",
+                "database": "operational" if db_status else "degraded",
+            }
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return HealthCheckResponse(
-            success=False,
-            message=f"Health check failed: {str(e)}",
-            data={"status": "unhealthy", "version": app.version, "error": str(e)},
+            status="unhealthy",
+            version=app.version,
+            components={
+                "api": "operational",
+                "database": "error",
+            }
         )
 
 
@@ -177,6 +210,17 @@ async def health_check():
 async def startup_event():
     """Initialize application on startup."""
     logger.info(f"Starting {app.title} v{app.version}")
+    
+    # 初始化向量存储集合 (fail fast)
+    try:
+        await initialize_vector_collections()
+        logger.info("✅ Weaviate集合初始化成功")
+    except Exception as e:
+        logger.error(f"❌ Weaviate集合初始化失败: {e}")
+        # 这里可以选择是否要fail fast（抛出异常使应用启动失败）
+        # 对于生产环境，可以考虑graceful degradation
+        logger.warning("⚠️  应用将在没有向量存储的情况下启动")
+    
     logger.info("RAG Knowledge Management System initialized successfully")
 
 
