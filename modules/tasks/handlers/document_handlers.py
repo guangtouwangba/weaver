@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from logging_system import task_context
+from modules import schemas
 from modules.services.task_service import register_task_handler, task_handler
 from modules.tasks.base import ITaskHandler, TaskPriority
 from modules.tasks.decorators import log_execution_time
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @task_handler(
-    "document.create",
+    schemas.TaskName.DOCUMENT_CREATE.value,
     priority=TaskPriority.HIGH,
     max_retries=3,
     timeout=300,
@@ -30,7 +31,7 @@ class DocumentCreateHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "document.create"
+        return schemas.TaskName.DOCUMENT_CREATE.value
 
     @log_execution_time(threshold_ms=1000)
     async def handle(
@@ -211,7 +212,7 @@ class DocumentCreateHandler(ITaskHandler):
 
 
 @task_handler(
-    "document.update_metadata",
+    schemas.TaskName.DOCUMENT_UPDATE_METADATA.value,
     priority=TaskPriority.NORMAL,
     max_retries=2,
     timeout=60,
@@ -223,7 +224,7 @@ class DocumentMetadataUpdateHandler(ITaskHandler):
 
     @property
     def task_name(self) -> str:
-        return "document.update_metadata"
+        return schemas.TaskName.DOCUMENT_UPDATE_METADATA.value
 
     @log_execution_time(threshold_ms=500)
     async def handle(

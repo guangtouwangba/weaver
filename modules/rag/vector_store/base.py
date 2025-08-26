@@ -5,7 +5,7 @@
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -42,6 +42,8 @@ class VectorStoreConfig:
         index_type: Optional[str] = None,
         batch_size: int = 100,
         max_connections: int = 10,
+        enable_auto_vectorization: bool = False,
+        description: Optional[str] = None,
         **kwargs,
     ):
         self.provider = provider
@@ -52,6 +54,8 @@ class VectorStoreConfig:
         self.index_type = index_type
         self.batch_size = batch_size
         self.max_connections = max_connections
+        self.enable_auto_vectorization = enable_auto_vectorization
+        self.description = description
         self.extra_params = kwargs
 
 
@@ -74,7 +78,7 @@ class VectorDocument:
         self.metadata = metadata or {}
         self.document_id = document_id
         self.chunk_index = chunk_index
-        self.created_at = created_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
 
 
 class SearchResult:

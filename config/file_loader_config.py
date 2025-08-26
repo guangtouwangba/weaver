@@ -28,7 +28,7 @@ class PDFLoaderConfig(BaseModel):
     )
     
     default_strategy: str = Field(
-        default="ocr_enhanced",
+        default="pymupdf",  # 改为轻量级策略
         description="Default strategy to use for PDF processing"
     )
     
@@ -110,10 +110,10 @@ class PDFLoaderConfig(BaseModel):
     # Strategy priority mapping (lower number = higher priority)
     strategy_priorities: Dict[str, int] = Field(
         default_factory=lambda: {
-            "ocr_enhanced": 0,                     # Highest priority for scanned documents
+            "pymupdf": 0,                          # 最高优先级 - 轻量级且有效
             "unstructured": 1,                     # High priority for accuracy
-            "pymupdf": 2,                          # Good balance of speed/accuracy
-            "pypdf2": 3                            # Basic fallback option
+            "pypdf2": 2,                           # Basic fallback option
+            "ocr_enhanced": 3,                     # 降低OCR策略优先级
         },
         description="Strategy priority mapping for auto-selection"
     )
@@ -127,7 +127,7 @@ class PDFLoaderConfig(BaseModel):
             "performance_mode": False,                   # Prioritize speed over accuracy
             "enable_scan_detection": True,               # Detect scanned PDFs automatically
             "scan_detection_strategy": "fast",           # Strategy for scan detection
-            "max_concurrent_processes": 4                # Max concurrent PDF processing
+            "max_concurrent_processes": 1                # 减少并发处理避免内存问题
         },
         description="Auto strategy selection configuration"
     )
@@ -139,7 +139,7 @@ class PDFLoaderConfig(BaseModel):
             "cache_ttl": 3600,                          # Cache time-to-live in seconds
             "enable_metrics": True,                     # Enable performance metrics collection
             "log_processing_time": True,                # Log processing times
-            "memory_limit_mb": 512,                     # Memory limit per process
+            "memory_limit_mb": 256,                     # 降低内存限制
             "processing_timeout": 600                   # Global processing timeout in seconds
         },
         description="Performance and monitoring configuration"

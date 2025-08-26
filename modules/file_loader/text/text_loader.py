@@ -159,8 +159,9 @@ class TextFileLoader(IFileLoader):
             # Read file content
             content = await self._read_file_content(file_path, encoding)
 
-            # Create document object
-            document = create_document_from_path(file_path, content)
+            # Create document object，优先使用metadata中的原始文件名
+            original_filename = metadata.get("original_filename") if metadata else None
+            document = create_document_from_path(file_path, content, original_filename=original_filename)
 
             # Add metadata
             document.metadata.update(

@@ -7,6 +7,7 @@
 
 from modules.rag.processors.base import DocumentProcessorError, IDocumentProcessor
 from modules.rag.processors.chunking_processor import ChunkingProcessor
+from modules.rag.processors.enhanced_chunking_processor import EnhancedChunkingProcessor
 from modules.rag.processors.text_processor import TextProcessor
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "DocumentProcessorError",
     "TextProcessor",
     "ChunkingProcessor",
+    "EnhancedChunkingProcessor",
 ]

@@ -52,6 +52,9 @@ help: ## Show help information
 	@echo "$(YELLOW)Server Management:$(NC)"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(server)"
 	@echo ""
+	@echo "$(YELLOW)Worker Management:$(NC)"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(worker)"
+	@echo ""
 	@echo "$(YELLOW)Cleanup:$(NC)"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(clean)"
 
@@ -182,6 +185,12 @@ health-check: ## Check service health status
 	else \
 		echo "  $(RED)✗ Not running$(NC)"; \
 	fi
+	@echo "$(YELLOW)Weaviate UI:$(NC)"
+	@if curl -s http://localhost:8091 > /dev/null 2>&1; then \
+		echo "  $(GREEN)✓ Running$(NC)"; \
+	else \
+		echo "  $(RED)✗ Not running$(NC)"; \
+	fi
 
 # =============================================================================
 # Development Tools
@@ -295,6 +304,11 @@ server-status: ## Check server status
 	@echo "  $(GREEN)OpenAPI Schema:$(NC)    http://localhost:8000/openapi.json"
 	@echo "  $(GREEN)Topics API:$(NC)        http://localhost:8000/api/v1/topics"
 	@echo "  $(GREEN)Metrics:$(NC)           http://localhost:8000/metrics"
+	@echo ""
+	@echo "$(YELLOW)Middleware Services:$(NC)"
+	@echo "  $(GREEN)Weaviate UI:$(NC)       http://localhost:8091"
+	@echo "  $(GREEN)MinIO Console:$(NC)     http://localhost:9001"
+	@echo "  $(GREEN)Grafana:$(NC)           http://localhost:3000"
 
 server-stop: ## Stop server (find and kill process)
 	@echo "$(BLUE)Stopping RAG API server...$(NC)"
@@ -594,5 +608,67 @@ version: ## Display project version
 	$(UV) run python -c "import rag; print(rag.__version__)"
 
 
-worker:
-	@python worker.py --queues=file_queue,rag_queue --concurrency=2
+# =============================================================================
+# Worker Management
+# =============================================================================
+
+worker: ## Start unified worker (all queues)
+	@echo "$(BLUE)Starting unified worker for all task types...$(NC)"
+	@echo "$(YELLOW)Worker will handle: file, rag, document, workflow tasks$(NC)"
+	$(UV) run python worker.py --loglevel=info --specialized=unified
+
+worker-background: ## Start unified worker in background
+	@echo "$(BLUE)Starting unified worker in background...$(NC)"
+	@mkdir -p logs
+	$(UV) run python worker.py --loglevel=info --specialized=unified > logs/worker_unified.log 2>&1 &
+	@echo "$(GREEN)Unified worker started in background$(NC)"
+	@echo "$(YELLOW)View logs with: tail -f logs/worker_unified.log$(NC)"
+
+worker-stop: ## Stop all workers
+	@echo "$(BLUE)Stopping all worker processes...$(NC)"
+	@if pgrep -f "worker.py" > /dev/null; then \
+		echo "$(YELLOW)Found running worker process(es):$(NC)"; \
+		pgrep -f "worker.py" | xargs ps -p; \
+		echo "$(BLUE)Stopping workers...$(NC)"; \
+		pkill -f "worker.py"; \
+		sleep 2; \
+		if pgrep -f "worker.py" > /dev/null; then \
+			echo "$(YELLOW)Force killing workers...$(NC)"; \
+			pkill -9 -f "worker.py"; \
+		fi; \
+		echo "$(GREEN)All workers stopped!$(NC)"; \
+	else \
+		echo "$(YELLOW)No running workers found$(NC)"; \
+	fi
+
+worker-status: ## Check worker status
+	@echo "$(BLUE)Checking worker status...$(NC)"
+	@if pgrep -f "worker.py" > /dev/null; then \
+		echo "$(GREEN)✓ Workers are running:$(NC)"; \
+		ps aux | grep worker.py | grep -v grep | awk '{print "  PID:", $$2, "CPU:", $$3"%", "MEM:", $$4"%", "CMD:", $$11, $$12, $$13, $$14, $$15}'; \
+	else \
+		echo "$(RED)✗ No workers running$(NC)"; \
+	fi
+
+worker-logs: ## Show worker logs
+	@echo "$(BLUE)Showing unified worker logs...$(NC)"
+	@if [ -f logs/worker_unified.log ]; then \
+		tail -f logs/worker_unified.log; \
+	else \
+		echo "$(YELLOW)No unified worker log found. Start worker with: make worker-background$(NC)"; \
+	fi
+
+worker-restart: worker-stop worker-background ## Restart unified worker
+
+# Legacy worker commands (for backward compatibility)
+worker-file: ## Start file processing worker (legacy)
+	@echo "$(YELLOW)Note: Consider using 'make worker' for unified processing$(NC)"
+	$(UV) run python worker.py --loglevel=info --specialized=file
+
+worker-rag: ## Start RAG processing worker (legacy)
+	@echo "$(YELLOW)Note: Consider using 'make worker' for unified processing$(NC)"
+	$(UV) run python worker.py --loglevel=info --specialized=rag
+
+worker-document: ## Start document processing worker (legacy)
+	@echo "$(YELLOW)Note: Consider using 'make worker' for unified processing$(NC)"
+	$(UV) run python worker.py --loglevel=info --specialized=document
