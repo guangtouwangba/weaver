@@ -15,6 +15,11 @@ from modules.services.task_monitoring_service import (
     monitoring_service,
 )
 from modules.services.topic_service import TopicService
+from modules.services.chat_service import ChatService, get_chat_service
+from modules.services.elasticsearch_service import (
+    ElasticsearchChatService,
+    elasticsearch_chat_service
+)
 
 __all__ = [
     "BaseService",
@@ -27,4 +32,8 @@ __all__ = [
     "TaskConfigurationService",
     "monitoring_service",
     "configuration_service",
+    "ChatService",
+    "get_chat_service",
+    "ElasticsearchChatService",
+    "elasticsearch_chat_service",
 ]

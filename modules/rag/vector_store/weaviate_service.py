@@ -435,31 +435,53 @@ class WeaviateVectorStore(IVectorStore):
         try:
             collection = self._client.collections.get(collection_name)
             
-            # 构建查询
-            query_builder = collection.query.near_vector(
+            # 检查集合中的文档总数
+            try:
+                total_objects = collection.aggregate.over_all(total_count=True)
+                total_count = total_objects.total_count
+                logger.info(f"📚 向量数据库状态: collection='{collection_name}', 总文档数={total_count}")
+                
+                if total_count == 0:
+                    logger.warning(f"⚠️ 向量数据库为空！collection '{collection_name}' 中没有任何文档")
+                    return []
+                    
+            except Exception as count_error:
+                logger.warning(f"⚠️ 无法获取文档总数: {count_error}")
+            
+            # 执行基本的向量搜索（暂时不使用Weaviate内置过滤，在应用层过滤）
+            # 增加搜索数量以补偿后续的应用层过滤
+            search_limit = limit * 3 if filters else limit
+            
+            logger.debug(f"🔎 Weaviate搜索参数: collection={collection_name}, "
+                        f"向量维度={len(query_vector)}, limit={search_limit}, "
+                        f"score_threshold={score_threshold}")
+            
+            response = collection.query.near_vector(
                 near_vector=query_vector,
-                limit=limit,
+                limit=search_limit,
                 return_metadata=["score", "distance"]
             )
             
-            # 添加过滤条件
-            if filters:
-                where_filter = self._build_where_filter(filters)
-                if where_filter:
-                    query_builder = query_builder.where(where_filter)
+            logger.debug(f"📊 Weaviate原始响应: {len(response.objects)} 个对象")
             
-            # 执行查询
-            response = query_builder
-            
-            # 处理结果
+            # 处理结果并应用应用层过滤
             results = []
-            for obj in response.objects:
+            filtered_count = 0
+            score_filtered_count = 0
+            
+            logger.debug(f"🔍 开始处理 {len(response.objects)} 个Weaviate响应对象")
+            
+            for i, obj in enumerate(response.objects):
                 # 计算相似度分数
                 score = getattr(obj.metadata, 'score', 0.0)
                 distance = getattr(obj.metadata, 'distance', 1.0)
                 
+                logger.debug(f"📄 处理对象 {i+1}: UUID={obj.uuid}, score={score:.4f}, distance={distance:.4f}")
+                
                 # 应用分数阈值
                 if score_threshold and score < score_threshold:
+                    score_filtered_count += 1
+                    logger.debug(f"❌ 对象 {i+1} 被分数阈值过滤 (score={score:.4f} < threshold={score_threshold})")
                     continue
                 
                 # 反序列化metadata JSON字符串
@@ -469,16 +491,51 @@ class WeaviateVectorStore(IVectorStore):
                         properties["metadata"] = json.loads(properties["metadata"])
                     except (json.JSONDecodeError, TypeError):
                         # 如果解析失败，保持原始字符串
+                        logger.debug(f"⚠️ 对象 {i+1} metadata JSON解析失败，保持原始字符串")
                         pass
                 
-                result = SearchResult(
+                # 应用层过滤（如果有过滤条件）
+                if filters and not self._apply_filters_on_result(properties, filters):
+                    filtered_count += 1
+                    logger.debug(f"❌ 对象 {i+1} 被应用层过滤器过滤")
+                    continue
+                
+                # 如果已经有足够的结果，停止处理
+                if len(results) >= limit:
+                    logger.debug(f"✅ 已达到结果限制 {limit}，停止处理")
+                    break
+                
+                # 提取文档信息用于日志
+                content = obj.properties.get("content", "")
+                content_preview = content[:50] + "..." if len(content) > 50 else content
+                doc_id = obj.properties.get("document_id", "")
+                
+                logger.debug(f"✅ 对象 {i+1} 通过所有过滤: UUID={obj.uuid}, "
+                           f"doc_id={doc_id}, content_preview='{content_preview}'")
+                
+                # 创建VectorDocument
+                vector_doc = VectorDocument(
                     id=str(obj.uuid),
+                    content=content,
+                    metadata=properties.get("metadata", {}),
+                    vector=None  # 向量不需要在搜索结果中返回
+                )
+                
+                result = SearchResult(
+                    document=vector_doc,
                     score=score,
-                    distance=distance,
-                    metadata=properties,
-                    content=obj.properties.get("content", "")
+                    rank=0,  # Weaviate不提供rank，设为0
+                    metadata=properties
                 )
                 results.append(result)
+            
+            # 详细的过滤统计日志
+            if score_filtered_count > 0:
+                logger.info(f"🎯 分数阈值过滤移除了 {score_filtered_count} 个结果 (< {score_threshold})")
+            if filtered_count > 0:
+                logger.info(f"🎯 应用层过滤移除了 {filtered_count} 个结果")
+            
+            logger.info(f"📊 Weaviate搜索完成: 原始{len(response.objects)}个 → 最终{len(results)}个结果")
             
             logger.debug(f"向量搜索完成: 查询向量维度 {len(query_vector)}, 返回 {len(results)} 结果")
             
@@ -648,47 +705,121 @@ class WeaviateVectorStore(IVectorStore):
     
     def _build_where_filter(self, filters: SearchFilter) -> Optional[Filter]:
         """构建Weaviate查询过滤器"""
-        if not filters or not filters.conditions:
+        if not filters:
             return None
         
         try:
-            # 简化的过滤器实现
             conditions = []
-            for condition in filters.conditions:
-                if condition.operator == "eq":
-                    conditions.append(
-                        Filter.by_property(condition.field).equal(condition.value)
-                    )
-                elif condition.operator == "neq":
-                    conditions.append(
-                        Filter.by_property(condition.field).not_equal(condition.value)
-                    )
-                elif condition.operator == "in":
-                    if isinstance(condition.value, list):
+            
+            # 处理metadata_filters
+            if filters.metadata_filters:
+                for field, value in filters.metadata_filters.items():
+                    if value is not None:
+                        # 根据值类型决定过滤方式
+                        if isinstance(value, list):
+                            conditions.append(
+                                Filter.by_property(field).contains_any(value)
+                            )
+                        else:
+                            conditions.append(
+                                Filter.by_property(field).equal(value)
+                            )
+            
+            # 处理document_ids
+            if filters.document_ids:
+                conditions.append(
+                    Filter.by_property("document_id").contains_any(filters.document_ids)
+                )
+            
+            # 处理content_filters
+            if filters.content_filters:
+                for field, value in filters.content_filters.items():
+                    if value:
                         conditions.append(
-                            Filter.by_property(condition.field).contains_any(condition.value)
+                            Filter.by_property(field).like(f"*{value}*")
                         )
             
-            # 组合条件
+            # 处理date_range
+            if filters.date_range:
+                start_date, end_date = filters.date_range
+                conditions.append(
+                    Filter.by_property("created_at").greater_or_equal(start_date.isoformat())
+                )
+                conditions.append(
+                    Filter.by_property("created_at").less_or_equal(end_date.isoformat())
+                )
+            
+            # 组合条件 (默认使用AND)
             if len(conditions) == 1:
                 return conditions[0]
             elif len(conditions) > 1:
-                if filters.operator == "AND":
-                    result = conditions[0]
-                    for condition in conditions[1:]:
-                        result = result & condition
-                    return result
-                else:  # OR
-                    result = conditions[0]
-                    for condition in conditions[1:]:
-                        result = result | condition
-                    return result
+                result = conditions[0]
+                for condition in conditions[1:]:
+                    result = result & condition
+                return result
         
         except Exception as e:
             logger.warning(f"构建过滤器失败: {e}")
             return None
         
         return None
+
+    def _apply_filters_on_result(self, properties: Dict[str, Any], filters: SearchFilter) -> bool:
+        """在应用层应用过滤条件"""
+        try:
+            # 获取实际的metadata
+            metadata = properties.get("metadata", {})
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except (json.JSONDecodeError, TypeError):
+                    metadata = {}
+            
+            # 检查metadata_filters
+            if filters.metadata_filters:
+                for key, expected_value in filters.metadata_filters.items():
+                    actual_value = None
+                    
+                    # 在properties或metadata中查找值
+                    if key in properties:
+                        actual_value = properties[key]
+                    elif key in metadata:
+                        actual_value = metadata[key]
+                    
+                    # 检查值是否匹配
+                    if actual_value is None:
+                        return False
+                    
+                    if isinstance(expected_value, list):
+                        if actual_value not in expected_value:
+                            return False
+                    else:
+                        if actual_value != expected_value:
+                            return False
+            
+            # 检查document_ids
+            if filters.document_ids:
+                document_id = properties.get("document_id") or metadata.get("document_id")
+                if document_id not in filters.document_ids:
+                    return False
+            
+            # 检查content_filters
+            if filters.content_filters:
+                content = properties.get("content", "")
+                for field, pattern in filters.content_filters.items():
+                    if pattern and pattern.lower() not in content.lower():
+                        return False
+            
+            # 检查date_range (简化实现)
+            if filters.date_range:
+                # 这里可以根据需要实现日期范围过滤
+                pass
+            
+            return True
+            
+        except Exception as e:
+            logger.warning(f"应用过滤器时出错: {e}")
+            return True  # 出错时不过滤
 
     async def get_vector_by_id(self, vector_id: str) -> Optional[VectorDocument]:
         """根据ID获取向量"""

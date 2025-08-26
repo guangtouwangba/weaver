@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Chat SSE Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: #4f46e5;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .message.user .avatar {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .message.assistant .avatar {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .status {
+            padding: 8px 20px;
+            background: #f1f5f9;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 14px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        .status.processing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            background: white;
+        }
+
+        .input-form {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .message-input {
+            width: 100%;
+            min-height: 44px;
+            max-height: 120px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .message-input:focus {
+            border-color: #4f46e5;
+        }
+
+        .send-button {
+            padding: 12px 20px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            height: 44px;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: #4338ca;
+        }
+
+        .send-button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .context-info {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #0369a1;
+        }
+
+        .context-info strong {
+            color: #1e40af;
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 2px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #64748b;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { 
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% { 
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .config-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 280px;
+            font-size: 14px;
+        }
+
+        .config-item {
+            margin-bottom: 12px;
+        }
+
+        .config-item label {
+            display: block;
+            margin-bottom: 4px;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .config-item input, .config-item select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+
+        @media (max-width: 768px) {
+            .config-panel {
+                position: static;
+                margin-bottom: 20px;
+                max-width: none;
+            }
+            
+            .container {
+                height: calc(100vh - 20px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="config-panel">
+        <h3 style="margin-bottom: 12px; color: #374151;">⚙️ 配置</h3>
+        
+        <div class="config-item">
+            <label for="topic-id">主题ID:</label>
+            <input type="number" id="topic-id" placeholder="可选">
+        </div>
+        
+        <div class="config-item">
+            <label for="search-type">搜索类型:</label>
+            <select id="search-type">
+                <option value="semantic">语义搜索</option>
+                <option value="keyword">关键词搜索</option>
+                <option value="hybrid">混合搜索</option>
+            </select>
+        </div>
+        
+        <div class="config-item">
+            <label for="max-results">检索数量:</label>
+            <input type="number" id="max-results" value="5" min="1" max="20">
+        </div>
+        
+        <div class="config-item">
+            <label for="temperature">生成温度:</label>
+            <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1">
+        </div>
+        
+        <div class="config-item">
+            <label>
+                <input type="checkbox" id="include-context" checked> 包含RAG上下文
+            </label>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🤖 智能聊天助手</h1>
+            <p>基于 SSE + RAG 的实时对话系统</p>
+        </div>
+        
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message assistant">
+                    <div class="avatar">🤖</div>
+                    <div class="message-content">
+                        您好！我是智能助手，可以为您回答问题。我会基于已有的文档知识为您提供准确的答案。请问有什么可以帮助您的吗？
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status" id="status">
+                准备就绪，请输入您的问题...
+            </div>
+            
+            <div class="input-container">
+                <form class="input-form" id="chat-form">
+                    <div class="input-wrapper">
+                        <textarea 
+                            class="message-input" 
+                            id="message-input" 
+                            placeholder="输入您的问题..." 
+                            rows="1"
+                        ></textarea>
+                    </div>
+                    <button type="submit" class="send-button" id="send-button">
+                        发送
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ChatSSEClient {
+            constructor() {
+                this.messagesContainer = document.getElementById('messages');
+                this.statusElement = document.getElementById('status');
+                this.messageInput = document.getElementById('message-input');
+                this.sendButton = document.getElementById('send-button');
+                this.chatForm = document.getElementById('chat-form');
+                
+                this.conversationId = this.generateUUID();
+                this.isProcessing = false;
+                this.currentAssistantMessage = null;
+                
+                this.initializeEventListeners();
+                this.autoResizeTextarea();
+            }
+            
+            initializeEventListeners() {
+                this.chatForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.sendMessage();
+                });
+                
+                this.messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+                
+                this.messageInput.addEventListener('input', () => {
+                    this.autoResizeTextarea();
+                });
+            }
+            
+            autoResizeTextarea() {
+                const textarea = this.messageInput;
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+            }
+            
+            generateUUID() {
+                return 'xxxx-xxxx-4xxx-yxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+            
+            getConfig() {
+                return {
+                    topic_id: document.getElementById('topic-id').value || null,
+                    search_type: document.getElementById('search-type').value,
+                    max_results: parseInt(document.getElementById('max-results').value),
+                    temperature: parseFloat(document.getElementById('temperature').value),
+                    include_context: document.getElementById('include-context').checked,
+                    conversation_id: this.conversationId
+                };
+            }
+            
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || this.isProcessing) return;
+                
+                this.isProcessing = true;
+                this.sendButton.disabled = true;
+                this.messageInput.disabled = true;
+                
+                // 添加用户消息
+                this.addMessage('user', message);
+                this.messageInput.value = '';
+                this.autoResizeTextarea();
+                
+                // 准备助手消息
+                this.currentAssistantMessage = this.addMessage('assistant', '');
+                this.showTypingIndicator();
+                
+                try {
+                    const config = this.getConfig();
+                    const requestBody = {
+                        message: message,
+                        ...config
+                    };
+                    
+                    const response = await fetch('/api/v1/chat/stream', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    await this.handleSSEStream(response);
+                    
+                } catch (error) {
+                    console.error('发送消息失败:', error);
+                    this.showError(`发送失败: ${error.message}`);
+                } finally {
+                    this.isProcessing = false;
+                    this.sendButton.disabled = false;
+                    this.messageInput.disabled = false;
+                    this.messageInput.focus();
+                    this.updateStatus('准备就绪，请输入您的问题...');
+                }
+            }
+            
+            async handleSSEStream(response) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+                        
+                        let currentEvent = '';
+                        for (const line of lines) {
+                            if (line.startsWith('event:')) {
+                                currentEvent = line.substring(6).trim();
+                            } else if (line.startsWith('data:')) {
+                                try {
+                                    const data = JSON.parse(line.substring(5).trim());
+                                    this.handleSSEEvent(currentEvent, data);
+                                } catch (e) {
+                                    console.error('解析SSE数据失败:', e, line);
+                                }
+                            }
+                        }
+                    }
+                } finally {
+                    reader.releaseLock();
+                }
+            }
+            
+            handleSSEEvent(eventType, data) {
+                switch (eventType) {
+                    case 'start':
+                        console.log('开始处理:', data);
+                        this.updateStatus('开始处理您的问题...');
+                        break;
+                        
+                    case 'progress':
+                        console.log('进度更新:', data);
+                        this.updateStatus(data.message, true);
+                        break;
+                        
+                    case 'context':
+                        console.log('检索结果:', data);
+                        this.updateStatus(`找到 ${data.total_results} 个相关文档 (${data.search_time_ms}ms)`, true);
+                        if (data.total_results > 0) {
+                            this.showContextInfo(data.contexts, data.search_time_ms);
+                        }
+                        break;
+                        
+                    case 'delta':
+                        console.log('AI输出:', data);
+                        this.appendToAssistantMessage(data.content);
+                        break;
+                        
+                    case 'complete':
+                        console.log('处理完成:', data);
+                        this.updateStatus(`回答完成 (${data.total_tokens} tokens, ${data.generation_time_ms}ms)`);
+                        this.hideTypingIndicator();
+                        break;
+                        
+                    case 'error':
+                        console.error('处理错误:', data);
+                        this.showError(data.error);
+                        this.hideTypingIndicator();
+                        break;
+                        
+                    default:
+                        console.log('未知事件:', eventType, data);
+                }
+            }
+            
+            addMessage(role, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar';
+                avatar.textContent = role === 'user' ? '👤' : '🤖';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = content;
+                
+                if (role === 'user') {
+                    messageDiv.appendChild(contentDiv);
+                    messageDiv.appendChild(avatar);
+                } else {
+                    messageDiv.appendChild(avatar);
+                    messageDiv.appendChild(contentDiv);
+                }
+                
+                this.messagesContainer.appendChild(messageDiv);
+                this.scrollToBottom();
+                
+                return contentDiv;
+            }
+            
+            appendToAssistantMessage(content) {
+                if (this.currentAssistantMessage) {
+                    this.currentAssistantMessage.textContent += content;
+                    this.scrollToBottom();
+                }
+            }
+            
+            showTypingIndicator() {
+                if (this.currentAssistantMessage) {
+                    this.currentAssistantMessage.innerHTML = `
+                        <div class="typing-indicator">
+                            <span class="typing-dots">
+                                <span class="typing-dot"></span>
+                                <span class="typing-dot"></span>
+                                <span class="typing-dot"></span>
+                            </span>
+                            <span style="margin-left: 8px;">正在思考...</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            hideTypingIndicator() {
+                // Typing indicator will be replaced by actual content
+            }
+            
+            showContextInfo(contexts, searchTime) {
+                if (this.currentAssistantMessage && contexts.length > 0) {
+                    const contextInfo = document.createElement('div');
+                    contextInfo.className = 'context-info';
+                    contextInfo.innerHTML = `
+                        📚 <strong>参考了 ${contexts.length} 个文档片段</strong> (搜索耗时: ${searchTime}ms)<br>
+                        ${contexts.slice(0, 2).map(ctx => 
+                            `• ${ctx.document_title || '未知文档'} (相似度: ${(ctx.similarity_score * 100).toFixed(1)}%)`
+                        ).join('<br>')}
+                        ${contexts.length > 2 ? `<br>• 还有 ${contexts.length - 2} 个相关文档...` : ''}
+                    `;
+                    
+                    this.currentAssistantMessage.parentNode.appendChild(contextInfo);
+                }
+            }
+            
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = `❌ ${message}`;
+                
+                if (this.currentAssistantMessage) {
+                    this.currentAssistantMessage.textContent = '抱歉，处理您的请求时出现了错误。';
+                    this.currentAssistantMessage.parentNode.appendChild(errorDiv);
+                }
+            }
+            
+            updateStatus(message, isProcessing = false) {
+                this.statusElement.textContent = message;
+                this.statusElement.className = isProcessing ? 'status processing' : 'status';
+            }
+            
+            scrollToBottom() {
+                this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            }
+        }
+        
+        // 初始化聊天客户端
+        document.addEventListener('DOMContentLoaded', () => {
+            window.chatClient = new ChatSSEClient();
+            console.log('🤖 Chat SSE客户端已初始化');
+        });
+    </script>
+</body>
+</html>

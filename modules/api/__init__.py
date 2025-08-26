@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from modules.api.file_api import router as file_router
 from modules.api.resource_api import router as resource_router
 from modules.api.topic_api import router as topic_router
+from modules.api.chat_api import router as chat_router
 
 # Create main API router
 api_router = APIRouter(prefix="/api/v1")
@@ -17,5 +18,6 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(topic_router)
 api_router.include_router(file_router)
 api_router.include_router(resource_router)
+api_router.include_router(chat_router)
 
-__all__ = ["api_router", "topic_router", "file_router", "resource_router"]
+__all__ = ["api_router", "topic_router", "file_router", "resource_router", "chat_router"]

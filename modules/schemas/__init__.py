@@ -81,6 +81,41 @@ from modules.schemas.topic import (
     TopicSchema,
     TopicUpdate,
 )
+from modules.schemas.chat import (
+    # Enums
+    MessageRole,
+    SSEEventType,
+    
+    # Basic schemas
+    RetrievedContext,
+    ChatMessage,
+    ChatRequest,
+    ChatResponse,
+    AIMetadata,
+    
+    # SSE event schemas
+    SSEStartEvent,
+    SSEProgressEvent,
+    SSEContextEvent,
+    SSEDeltaEvent,
+    SSECompleteEvent,
+    SSEErrorEvent,
+    
+    # Conversation management
+    ConversationSummary,
+    ConversationListRequest,
+    ConversationListResponse,
+    MessageHistoryRequest,
+    MessageHistoryResponse,
+    
+    # Search functionality
+    ChatSearchRequest,
+    ChatSearchResult,
+    ChatSearchResponse,
+    
+    # Statistics
+    ChatStatisticsResponse,
+)
 
 __all__ = [
     # 基础Schema
@@ -150,4 +185,27 @@ __all__ = [
     "schema_to_file_dict",
     "schema_to_document_dict",
     "create_document_from_path",
+    # Chat相关Schema
+    "MessageRole",
+    "SSEEventType",
+    "RetrievedContext",
+    "ChatMessage",
+    "ChatRequest",
+    "ChatResponse",
+    "AIMetadata",
+    "SSEStartEvent",
+    "SSEProgressEvent",
+    "SSEContextEvent",
+    "SSEDeltaEvent",
+    "SSECompleteEvent",
+    "SSEErrorEvent",
+    "ConversationSummary",
+    "ConversationListRequest",
+    "ConversationListResponse",
+    "MessageHistoryRequest",
+    "MessageHistoryResponse",
+    "ChatSearchRequest",
+    "ChatSearchResult",
+    "ChatSearchResponse",
+    "ChatStatisticsResponse",
 ]

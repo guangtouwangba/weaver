@@ -510,6 +510,71 @@ class VectorDBConfig(BaseModel):
     )
 
 
+class ElasticsearchConfig(BaseModel):
+    """Elasticsearch配置"""
+    
+    host: str = Field(default="localhost", description="Elasticsearch主机")
+    port: int = Field(default=9200, description="Elasticsearch端口")
+    scheme: str = Field(default="http", description="连接协议 (http/https)")
+    username: Optional[str] = Field(default=None, description="用户名")
+    password: Optional[str] = Field(default=None, description="密码")
+    
+    # 连接选项
+    timeout: int = Field(default=30, description="连接超时时间(秒)")
+    max_retries: int = Field(default=3, description="最大重试次数")
+    retry_on_timeout: bool = Field(default=True, description="超时时重试")
+    
+    # 索引设置
+    chat_index_prefix: str = Field(default="chat-messages", description="聊天索引前缀")
+    log_index_prefix: str = Field(default="rag-logs", description="日志索引前缀")
+    default_shards: int = Field(default=1, description="默认分片数")
+    default_replicas: int = Field(default=0, description="默认副本数")
+    
+    # SSL/TLS选项
+    use_ssl: bool = Field(default=False, description="是否启用SSL")
+    verify_certs: bool = Field(default=True, description="是否验证证书")
+    ca_certs: Optional[str] = Field(default=None, description="CA证书文件路径")
+    client_cert: Optional[str] = Field(default=None, description="客户端证书文件路径")
+    client_key: Optional[str] = Field(default=None, description="客户端私钥文件路径")
+    
+    @property
+    def connection_url(self) -> str:
+        """构建Elasticsearch连接URL"""
+        if self.username and self.password:
+            auth = f"{self.username}:{self.password}@"
+        else:
+            auth = ""
+        
+        return f"{self.scheme}://{auth}{self.host}:{self.port}"
+    
+    @property
+    def connection_config(self) -> Dict[str, Any]:
+        """获取连接配置字典"""
+        config = {
+            'host': self.host,
+            'port': self.port,
+            'scheme': self.scheme,
+            'timeout': self.timeout,
+            'max_retries': self.max_retries,
+            'retry_on_timeout': self.retry_on_timeout,
+        }
+        
+        if self.username and self.password:
+            config['http_auth'] = (self.username, self.password)
+        
+        if self.use_ssl:
+            config['use_ssl'] = True
+            config['verify_certs'] = self.verify_certs
+            if self.ca_certs:
+                config['ca_certs'] = self.ca_certs
+            if self.client_cert:
+                config['client_cert'] = self.client_cert
+            if self.client_key:
+                config['client_key'] = self.client_key
+        
+        return config
+
+
 class ChunkingMode(Enum):
     """分块模式"""
     AUTO = "auto"
@@ -699,6 +764,10 @@ class AppConfig(BaseSettings):
     redis: RedisConfig = Field(default_factory=RedisConfig, description="Redis配置")
 
     celery: CeleryConfig = Field(default_factory=CeleryConfig, description="Celery配置")
+    
+    elasticsearch: ElasticsearchConfig = Field(
+        default_factory=ElasticsearchConfig, description="Elasticsearch配置"
+    )
     
     # File loader configurations (lazy import to avoid circular dependencies)
     @property
