@@ -187,6 +187,18 @@ class OpenAIEmbeddingService(IEmbeddingService):
             raise EmbeddingError("未能生成嵌入向量", provider="openai")
         return result.vectors[0]
     
+    async def generate_embedding(self, text: str) -> List[float]:
+        """
+        生成单个文本的嵌入向量 (别名方法)
+        
+        Args:
+            text: 待嵌入的文本
+            
+        Returns:
+            List[float]: 嵌入向量
+        """
+        return await self.generate_single_embedding(text)
+    
     async def get_embedding_dimension(self) -> int:
         """获取嵌入向量维度"""
         return self._config.dimension
