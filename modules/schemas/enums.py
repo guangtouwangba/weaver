@@ -96,6 +96,10 @@ class TaskName(str, Enum):
     RAG_SEMANTIC_SEARCH = "rag.semantic_search"  # Semantic search
     RAG_CLEANUP_DOCUMENT = "rag.cleanup_document"  # Cleanup document
     
+    # Summary related tasks
+    SUMMARY_GENERATE_DOCUMENT = "summary.generate_document"  # Generate document summary
+    SUMMARY_UPDATE_INDEX = "summary.update_index"  # Update summary index
+    
     # Topic related tasks
     TOPIC_CREATION = "topic_creation"  # Topic creation
     TOPIC_PROCESSING = "topic_processing"  # Topic processing

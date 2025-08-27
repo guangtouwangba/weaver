@@ -32,8 +32,8 @@ from modules.schemas.chat import (
     ChatSearchResult,
     SearchType
 )
-from modules.rag.vector_store.weaviate_service import WeaviateVectorStore
-from modules.rag.embedding.openai_service import OpenAIEmbeddingService
+from modules.vector_store.weaviate_service import WeaviateVectorStore
+from modules.embedding.openai_service import OpenAIEmbeddingService
 
 logger = get_logger(__name__)
 
@@ -184,6 +184,218 @@ class ChatService(BaseService):
             logger.error(f"❌ 聊天处理失败: {e}")
             raise
     
+    async def chat_with_summary(self, request: Dict[str, Any]) -> ChatResponse:
+        """基于摘要索引的聊天功能"""
+        try:
+            query = request.get("query", "")
+            topic_id = request.get("topic_id")
+            max_results = request.get("max_results", 5)
+            score_threshold = request.get("score_threshold", 0.75)
+            enhanced_query = request.get("enhanced_query", query)
+            
+            logger.info(f"🔍 开始摘要聊天 - 查询: '{query[:50]}{'...' if len(query) > 50 else ''}', topic_id: {topic_id}")
+            
+            # 检索摘要上下文
+            summary_contexts, context_count = await self._retrieve_summary_contexts(
+                query=query,
+                topic_id=topic_id,
+                max_results=max_results,
+                score_threshold=score_threshold
+            )
+            
+            # 如果摘要上下文不足，回退到普通检索
+            if context_count < 2:
+                logger.info("🔄 摘要上下文不足，回退到普通检索")
+                contexts, context_count = await self._retrieve_contexts(
+                    query=query,
+                    topic_id=topic_id,
+                    max_results=max_results,
+                    score_threshold=score_threshold
+                )
+            else:
+                contexts = summary_contexts
+            
+            # 构建摘要风格的提示
+            prompt = self._build_summary_prompt(
+                query=enhanced_query or query,
+                contexts=contexts,
+                style=request.get("response_style", "summary")
+            )
+            
+            # 生成AI响应
+            if request.get("stream", False):
+                response_content = await self._generate_ai_response_stream(prompt)
+            else:
+                response_content = await self._generate_ai_response(prompt)
+            
+            # 构建响应
+            response = ChatResponse(
+                content=response_content,
+                retrieved_context=contexts,
+                ai_metadata=AIMetadata(
+                    model="gpt-3.5-turbo",
+                    search_type="summary",
+                    context_count=context_count,
+                    processing_time=0.0
+                ),
+                timestamp=datetime.now(timezone.utc)
+            )
+            
+            logger.info(f"✅ 摘要聊天完成 - 上下文: {context_count}个")
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ 摘要聊天处理失败: {e}")
+            raise
+    
+    async def _retrieve_summary_contexts(
+        self,
+        query: str,
+        topic_id: Optional[str] = None,
+        max_results: int = 5,
+        score_threshold: float = 0.75
+    ) -> tuple[List[RetrievedContext], int]:
+        """检索摘要上下文"""
+        logger.info(f"🔍 开始摘要检索 - 查询: '{query[:50]}{'...' if len(query) > 50 else ''}', "
+                   f"topic_id: {topic_id}, max_results: {max_results}, "
+                   f"score_threshold: {score_threshold}")
+        
+        if not self._vector_store or not self._embedding_service:
+            logger.warning("⚠️ 向量存储或嵌入服务未初始化，跳过摘要检索")
+            return [], 0
+        
+        try:
+            # 生成查询嵌入
+            logger.debug("🧮 生成查询向量嵌入...")
+            query_embedding = await self._embedding_service.generate_embedding(query)
+            logger.debug(f"✅ 查询向量生成成功，维度: {len(query_embedding)}")
+            
+            # 准备过滤条件
+            filters = None
+            if topic_id:
+                from modules.vector_store.base import SearchFilter
+                filters = SearchFilter(metadata_filters={"topic_id": topic_id})
+                logger.info(f"🎯 应用过滤条件: topic_id={topic_id}")
+            else:
+                logger.info("🌐 无过滤条件，搜索所有摘要文档")
+            
+            # 摘要向量搜索
+            logger.debug(f"🔎 执行摘要向量相似度搜索...")
+            search_results = await self._vector_store.search_summaries(
+                query_vector=query_embedding,
+                top_k=max_results,
+                score_threshold=score_threshold,
+                filters=filters
+            )
+            
+            # 记录原始搜索结果
+            logger.info(f"📊 摘要搜索返回 {len(search_results)} 个原始结果")
+            
+            # 转换为RetrievedContext
+            contexts = []
+            empty_content_filtered = 0
+            
+            for i, result in enumerate(search_results, 1):
+                doc = result.document
+                doc_metadata = doc.metadata or {}
+                
+                # 检查是否是摘要文档
+                if not doc_metadata.get('summary_document', False):
+                    continue
+                
+                # 过滤空内容摘要
+                if not doc.content or len(doc.content.strip()) < 20:
+                    empty_content_filtered += 1
+                    logger.debug(f"❌ 摘要{i} 被过滤：内容为空或太短")
+                    continue
+                
+                # 创建摘要上下文
+                context = RetrievedContext(
+                    content=doc.content,
+                    source="summary",
+                    score=result.score,
+                    document_id=doc_metadata.get('document_ids', [None])[0] if doc_metadata.get('document_ids') else doc.id,
+                    chunk_index=0,  # 摘要没有chunk概念
+                    metadata={
+                        "type": "summary",
+                        "scope_level": doc_metadata.get('scope_level', 'document'),
+                        "key_topics": doc_metadata.get('key_topics', []),
+                        "source_documents": doc_metadata.get('document_ids', []),
+                        "original_score": result.score,
+                        "rank": result.rank
+                    }
+                )
+                contexts.append(context)
+                
+                logger.debug(f"✅ 摘要{i}: score={result.score:.3f}, "
+                           f"scope={doc_metadata.get('scope_level')}, "
+                           f"topics={len(doc_metadata.get('key_topics', []))}, "
+                           f"content_len={len(doc.content)}")
+            
+            # 记录过滤统计
+            if empty_content_filtered > 0:
+                logger.info(f"🚮 过滤空摘要: {empty_content_filtered}个")
+            
+            final_count = len(contexts)
+            logger.info(f"📋 最终摘要上下文: {final_count}个")
+            
+            return contexts, final_count
+            
+        except Exception as e:
+            logger.error(f"❌ 摘要检索失败: {e}")
+            return [], 0
+    
+    def _build_summary_prompt(
+        self,
+        query: str,
+        contexts: List[RetrievedContext],
+        style: str = "summary"
+    ) -> str:
+        """构建摘要风格的提示"""
+        if not contexts:
+            return f"""请回答以下问题：{query}
+            
+注意：当前没有相关的文档摘要可供参考，请基于你的知识进行回答。"""
+        
+        # 构建上下文部分
+        context_text = ""
+        for i, context in enumerate(contexts, 1):
+            metadata = context.metadata or {}
+            scope_level = metadata.get('scope_level', 'document')
+            key_topics = metadata.get('key_topics', [])
+            
+            topics_text = f" (关键主题: {', '.join(key_topics)})" if key_topics else ""
+            
+            context_text += f"""
+=== 摘要 {i} ({scope_level} 级别{topics_text}) ===
+{context.content}
+相关性得分: {context.score:.3f}
+"""
+        
+        # 根据风格调整提示
+        if style == "summary":
+            style_instruction = """请基于以上文档摘要，从高层次角度回答用户问题。
+重点关注：
+1. 主要概念和核心观点
+2. 整体趋势和模式
+3. 关键要点的综合分析
+4. 避免过多具体细节
+
+请用清晰、结构化的方式组织回答。"""
+        else:
+            style_instruction = "请基于以上摘要信息回答用户问题。"
+        
+        return f"""你是一个智能助手，需要基于提供的文档摘要回答用户问题。
+
+=== 相关文档摘要 ===
+{context_text}
+
+=== 用户问题 ===
+{query}
+
+=== 回答指导 ===
+{style_instruction}"""
+    
     async def _retrieve_contexts(
         self,
         query: str,
@@ -214,7 +426,7 @@ class ChatService(BaseService):
             # 准备过滤条件
             filters = None
             if topic_id:
-                from modules.rag.vector_store.base import SearchFilter
+                from modules.vector_store.base import SearchFilter
                 filters = SearchFilter(metadata_filters={"topic_id": topic_id})
                 logger.info(f"🎯 应用过滤条件: topic_id={topic_id}")
             else:

@@ -560,6 +560,28 @@ class FileUploadCompleteHandler(ITaskHandler):
                     logger.info(
                         f"RAG processing task submitted for document {document_model.id}: {rag_task.id}"
                     )
+                    
+                    # 提交摘要生成任务 (新增)
+                    try:
+                        summary_task = current_app.send_task(
+                            "summary.generate_document",
+                            args=[],
+                            kwargs={
+                                "document_id": str(document_model.id),
+                                "content": document.content,
+                                "topic_id": topic_id,
+                                "file_id": file_id,
+                                "force_regenerate": False,
+                            },
+                            queue="summary_queue",
+                            priority=3,  # 较低优先级，在RAG处理后执行
+                        )
+                        logger.info(
+                            f"Summary generation task submitted for document {document_model.id}: {summary_task.id}"
+                        )
+                    except Exception as summary_error:
+                        logger.warning(f"Failed to submit summary generation task: {summary_error}")
+                        
                 except Exception as e:
                     logger.warning(f"Failed to submit RAG processing task: {e}")
                     logger.info(
@@ -570,8 +592,9 @@ class FileUploadCompleteHandler(ITaskHandler):
                     "document_id": str(document_model.id),
                     "rag_processing_pending": True,
                     "rag_processing_triggered": True,
+                    "summary_generation_triggered": True,  # 新增
                     "celery_processed": True,
-                    "note": "Document created successfully using sync SQLAlchemy. Separate RAG processing task has been submitted.",
+                    "note": "Document created successfully using sync SQLAlchemy. Separate RAG processing and summary generation tasks have been submitted.",
                 }
 
             except Exception as e:

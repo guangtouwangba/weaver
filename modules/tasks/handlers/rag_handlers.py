@@ -18,13 +18,13 @@ from logging_system import (
     task_context,
 )
 from modules import schemas
-from modules.rag.embedding import EmbeddingProvider
-from modules.rag.pipeline import (
+from modules.embedding import EmbeddingProvider
+from modules.pipeline import (
     DocumentProcessingRequest,
     PipelineConfig,
     PipelineStatus,
 )
-from modules.rag.vector_store import VectorStoreProvider
+from modules.vector_store import VectorStoreProvider
 from modules.services.task_service import register_task_handler, task_handler
 from modules.tasks.base import ITaskHandler, TaskPriority, TaskProgress
 
@@ -994,18 +994,22 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
     
     async def _get_rag_processor(self):
         """获取RAG处理器实例"""
-        from modules.rag.services.rag_processor import RAGProcessor, RAGProcessorConfig
-        from modules.rag.embedding.openai_service import OpenAIEmbeddingService
-        from modules.rag.vector_store.weaviate_service import WeaviateVectorStore
+        from modules.services.rag_processor import RAGProcessor, RAGProcessorConfig
+        from modules.embedding.openai_service import OpenAIEmbeddingService
+        from modules.vector_store.weaviate_service import WeaviateVectorStore
         from config import get_config
         
         config = get_config()
         
         # 创建嵌入服务
+        openai_config = config.ai.embedding.openai
         embedding_service = OpenAIEmbeddingService(
-            api_key=getattr(config, 'openai_api_key', None) or config.ai.embedding.openai.api_key,
+            api_key=getattr(config, 'openai_api_key', None) or openai_config.api_key,
             model="text-embedding-3-small",
             max_batch_size=50,
+            http_proxy=openai_config.http_proxy,
+            https_proxy=openai_config.https_proxy,
+            api_base=openai_config.api_base,
         )
         
         # 创建向量存储服务

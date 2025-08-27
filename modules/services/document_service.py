@@ -11,14 +11,14 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.file_loader import FileLoaderFactory
-from modules.rag.embedding import EmbeddingProvider
+from modules.embedding import EmbeddingProvider
 # RAG pipeline imports will be imported dynamically to avoid circular import
-from modules.rag.pipeline import (
+from modules.pipeline import (
     DocumentProcessingRequest,
     PipelineStatus,
 )
-from modules.rag.processors import ChunkingProcessor
-from modules.rag.vector_store import VectorStoreProvider
+from modules.processors import ChunkingProcessor
+from modules.vector_store import VectorStoreProvider
 from modules.repository import DocumentRepository, FileRepository
 from modules.schemas import (
     ContentType,
@@ -555,7 +555,7 @@ class DocumentService(BaseService):
             query_vector = await embedding_service.generate_single_embedding(query)
 
             # Search in vector store
-            from modules.rag.vector_store import SearchFilter
+            from modules.vector_store import SearchFilter
 
             filters = SearchFilter()
             if document_ids:

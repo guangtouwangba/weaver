@@ -71,6 +71,8 @@ dependencies = [
     "transformers>=4.36.0",
     "torch>=2.1.0",
     "numpy>=1.24.0",
+    # Semantic routing
+    "semantic-router>=0.0.54",
     # HTTP and async utilities
     "httpx>=0.25.0",
     "aiofiles>=23.2.0",

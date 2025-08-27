@@ -519,6 +519,7 @@ class CeleryTaskService(ITaskService):
             import modules.tasks.handlers.document_handlers
             import modules.tasks.handlers.file_handlers
             import modules.tasks.handlers.rag_handlers
+            import modules.tasks.handlers.summary_handlers  # 新增摘要处理器
 
             logger.info("Task processing器模块导入完成")
         except Exception as e:

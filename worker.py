@@ -38,11 +38,25 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+# 显式加载.env文件
+from dotenv import load_dotenv
+env_file = project_root / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
+    print(f"✅ 已加载环境配置文件: {env_file}")
+else:
+    print(f"⚠️  环境配置文件不存在: {env_file}")
+
 from modules.services.task_service import CeleryTaskService
 from config import get_config
 
 # 确保新的任务处理器被加载
 try:
+    # 显式导入所有任务处理器以确保它们被注册
+    import modules.tasks.handlers.file_handlers
+    import modules.tasks.handlers.rag_handlers  
+    import modules.tasks.handlers.document_handlers
+    import modules.tasks.handlers.summary_handlers  # 新增摘要处理器
     print("✅ 新架构任务处理器加载成功")
 except Exception as e:
     print(f"⚠️  新架构任务处理器加载失败: {e}")
@@ -54,8 +68,8 @@ logger = logging.getLogger(__name__)
 async def initialize_vector_collections():
     """初始化向量存储集合，在Worker启动时创建"""
     try:
-        from modules.rag.vector_store.weaviate_service import WeaviateVectorStore
-        from modules.rag.vector_store.base import VectorStoreConfig, VectorStoreProvider, SimilarityMetric
+        from modules.vector_store.weaviate_service import WeaviateVectorStore
+        from modules.vector_store.base import VectorStoreConfig, VectorStoreProvider, SimilarityMetric
         
         config = get_config()
         
@@ -150,6 +164,9 @@ def create_celery_app():
             "rag.store_vectors": {"queue": "rag_queue"},
             "rag.semantic_search": {"queue": "rag_queue"},
             "rag.cleanup_document": {"queue": "rag_queue"},
+            # 摘要相关任务 (新增)
+            "summary.generate_document": {"queue": "summary_queue"},
+            "summary.update_index": {"queue": "summary_queue"},
             # 文件处理任务
             "file_upload_confirm": {"queue": "file_queue"},
             "TaskName.FILE_UPLOAD_CONFIRM": {"queue": "file_queue"},
@@ -158,8 +175,12 @@ def create_celery_app():
             "file.convert_format": {"queue": "file_queue"},
             "file.workflow_status": {"queue": "file_queue"},
             "file.cancel_workflow": {"queue": "file_queue"},
-            # 工作流任务
+            # 通配符路由（按优先级排序）
             "workflow.*": {"queue": "workflow_queue"},
+            "rag.*": {"queue": "rag_queue"},
+            "summary.*": {"queue": "summary_queue"},  # 新增摘要通配符路由
+            "file.*": {"queue": "file_queue"},
+            "notification.*": {"queue": "notification_queue"},
         },
         # 队列优先级配置
         task_queue_max_priority=10,
@@ -202,8 +223,8 @@ def parse_args():
 
     parser.add_argument(
         "--specialized",
-        choices=["document", "rag", "file", "workflow", "unified"],
-        help="worker类型: document, rag, file, workflow, unified",
+        choices=["document", "rag", "summary", "file", "workflow", "unified"],
+        help="worker类型: document, rag, summary, file, workflow, unified",
     )
 
     parser.add_argument(
@@ -231,6 +252,7 @@ def get_queue_config(specialized=None, custom_queues=None):
         "default",  # 默认队列
         "document_queue",  # 文档创建队列
         "rag_queue",  # RAG处理队列
+        "summary_queue",  # 摘要处理队列 (新增)
         "file_queue",  # 文件处理队列
         "workflow_queue",  # 工作流队列
         "notification_queue",  # 通知队列
@@ -247,6 +269,11 @@ def get_queue_config(specialized=None, custom_queues=None):
             "queues": ["rag_queue"],
             "concurrency": 1,  # 降低并发数，避免内存问题
             "description": "专用RAG处理Worker",
+        },
+        "summary": {  # 新增摘要专用worker配置
+            "queues": ["summary_queue"],
+            "concurrency": 1,  # 摘要生成通常是CPU密集型
+            "description": "专用摘要生成Worker",
         },
         "file": {
             "queues": ["file_queue", "default"],
