@@ -39,6 +39,8 @@ class LogOutput(Enum):
     ROTATING_FILE = "rotating_file"
     ELASTICSEARCH = "elasticsearch"
     ASYNC_FILE = "async_file"
+    LOKI = "loki"
+    ASYNC_LOKI = "async_loki"
 
 
 @dataclass
@@ -59,6 +61,10 @@ class HandlerConfig:
     es_host: Optional[str] = None
     es_port: int = 9200
     es_index: Optional[str] = None
+
+    # Loki相关配置
+    loki_url: Optional[str] = None
+    loki_labels: Optional[Dict[str, str]] = None
 
     # 其他配置
     extra_config: Dict[str, Any] = field(default_factory=dict)
@@ -226,6 +232,48 @@ class LoggingConfig:
                     filename="error.log",
                     max_bytes=20 * 1024 * 1024,  # 20MB
                     backup_count=5,
+                ),
+                # Loki for centralized log aggregation
+                HandlerConfig(
+                    type=LogOutput.ASYNC_LOKI,
+                    level=LogLevel.INFO,
+                    format=LogFormat.JSON,
+                    loki_url="http://loki:3100",
+                    loki_labels={"environment": "production", "service": "rag-system"},
+                ),
+            ],
+        )
+
+    @classmethod 
+    def for_observability(cls) -> "LoggingConfig":
+        """AI观测性增强配置"""
+        return cls(
+            level=LogLevel.DEBUG,
+            format=LogFormat.JSON,
+            environment="development",
+            include_context=True,
+            include_performance=True,
+            async_logging=True,
+            handlers=[
+                HandlerConfig(
+                    type=LogOutput.CONSOLE,
+                    level=LogLevel.INFO,
+                    format=LogFormat.COLORED,
+                ),
+                HandlerConfig(
+                    type=LogOutput.ASYNC_LOKI,
+                    level=LogLevel.DEBUG,
+                    format=LogFormat.JSON,
+                    loki_url="http://localhost:3100",
+                    loki_labels={"environment": "development", "service": "rag-system"},
+                ),
+                HandlerConfig(
+                    type=LogOutput.ROTATING_FILE,
+                    level=LogLevel.DEBUG,
+                    format=LogFormat.JSON,
+                    filename="observability.log",
+                    max_bytes=10 * 1024 * 1024,  # 10MB
+                    backup_count=3,
                 ),
             ],
         )

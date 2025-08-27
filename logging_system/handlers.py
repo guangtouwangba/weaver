@@ -423,6 +423,14 @@ class MemoryHandler(logging.handlers.MemoryHandler):
         return stats
 
 
+# Import Loki handler
+try:
+    from logging_system.loki_handler import LokiHandler, AsyncLokiHandler
+    LOKI_AVAILABLE = True
+except ImportError:
+    LOKI_AVAILABLE = False
+
+
 # 处理器工厂函数
 def create_handler(handler_type: str, **config) -> logging.Handler:
     """创建日志处理器"""
@@ -435,6 +443,11 @@ def create_handler(handler_type: str, **config) -> logging.Handler:
         "elasticsearch": ElasticsearchHandler,
         "memory": MemoryHandler,
     }
+    
+    # Add Loki handlers if available
+    if LOKI_AVAILABLE:
+        handlers["loki"] = LokiHandler
+        handlers["async_loki"] = AsyncLokiHandler
 
     handler_class = handlers.get(handler_type.lower())
     if not handler_class:

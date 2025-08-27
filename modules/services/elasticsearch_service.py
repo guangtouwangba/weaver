@@ -89,9 +89,25 @@ class ElasticsearchChatService:
             return False
             
         try:
-            # 使用配置创建连接
-            connection_config = self.es_config.connection_config
-            self.es_client = AsyncElasticsearch([connection_config])
+            # 创建连接配置，分离主机配置和客户端配置
+            host_config = {
+                'host': self.es_config.host,
+                'port': self.es_config.port,
+                'scheme': self.es_config.scheme,
+            }
+            
+            if self.es_config.username and self.es_config.password:
+                host_config['http_auth'] = (self.es_config.username, self.es_config.password)
+            
+            # 客户端配置参数
+            client_config = {
+                'hosts': [host_config],
+                'timeout': self.es_config.timeout,
+                'max_retries': self.es_config.max_retries,
+                'retry_on_timeout': self.es_config.retry_on_timeout,
+            }
+            
+            self.es_client = AsyncElasticsearch(**client_config)
             
             # 测试连接
             if await self.es_client.ping():

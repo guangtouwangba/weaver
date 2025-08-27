@@ -10,7 +10,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from config.docs import SWAGGER_UI_PARAMETERS
 from config.settings import AppConfig
@@ -22,6 +22,15 @@ from modules.api.error_handlers import (
 )
 from modules.database import DatabaseConnection
 from modules.schemas import APIResponse, HealthCheckResponse
+
+# Prometheus metrics support
+try:
+    from prometheus_client import generate_latest, Counter, Histogram, Gauge
+    from prometheus_client.multiprocess import MultiProcessCollector
+    from prometheus_client.registry import CollectorRegistry
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
 
 
 async def initialize_vector_collections():
@@ -56,6 +65,29 @@ async def initialize_vector_collections():
     except Exception as e:
         logger.error(f"向量存储初始化失败: {e}")
         raise
+
+
+async def initialize_elasticsearch():
+    """初始化Elasticsearch聊天服务"""
+    try:
+        from modules.services.elasticsearch_service import elasticsearch_chat_service
+        
+        # 初始化Elasticsearch连接
+        success = await elasticsearch_chat_service.initialize()
+        
+        if success:
+            logger.info("🎉 Elasticsearch聊天服务已启动，索引已准备就绪")
+        else:
+            logger.warning("⚠️ Elasticsearch聊天服务初始化失败，将使用空实现")
+        
+        return success
+        
+    except ImportError as e:
+        logger.warning(f"Elasticsearch模块不可用: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Elasticsearch初始化失败: {e}")
+        return False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -205,6 +237,46 @@ async def health_check():
         )
 
 
+@app.get("/metrics", include_in_schema=False, summary="Prometheus Metrics")
+async def metrics():
+    """
+    Prometheus metrics endpoint for monitoring and alerting.
+    
+    Returns application metrics in Prometheus format including:
+    - Request counts and durations
+    - System resource usage  
+    - Application-specific metrics
+    """
+    if not PROMETHEUS_AVAILABLE:
+        return Response(
+            content="# Prometheus client not available\n", 
+            media_type="text/plain"
+        )
+    
+    try:
+        # Create a new registry for this request
+        registry = CollectorRegistry()
+        
+        # Add multiprocess collector if available
+        try:
+            MultiProcessCollector(registry)
+        except (OSError, ValueError):
+            # Fallback to default registry if multiprocess not available
+            from prometheus_client import REGISTRY
+            registry = REGISTRY
+        
+        # Generate metrics
+        metrics_output = generate_latest(registry)
+        return Response(content=metrics_output, media_type="text/plain")
+        
+    except Exception as e:
+        logger.error(f"Failed to generate metrics: {e}")
+        return Response(
+            content=f"# Error generating metrics: {e}\n", 
+            media_type="text/plain"
+        )
+
+
 # Application startup
 @app.on_event("startup")
 async def startup_event():
@@ -220,6 +292,14 @@ async def startup_event():
         # 这里可以选择是否要fail fast（抛出异常使应用启动失败）
         # 对于生产环境，可以考虑graceful degradation
         logger.warning("⚠️  应用将在没有向量存储的情况下启动")
+    
+    # 初始化Elasticsearch聊天服务
+    try:
+        await initialize_elasticsearch()
+        logger.info("✅ Elasticsearch聊天服务初始化成功")
+    except Exception as e:
+        logger.error(f"❌ Elasticsearch聊天服务初始化失败: {e}")
+        logger.warning("⚠️  应用将在没有Elasticsearch聊天历史的情况下启动")
     
     logger.info("RAG Knowledge Management System initialized successfully")
 
