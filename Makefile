@@ -55,6 +55,9 @@ help: ## Show help information
 	@echo "$(YELLOW)Worker Management:$(NC)"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(worker)"
 	@echo ""
+	@echo "$(YELLOW)Observability & Monitoring:$(NC)"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(obs-|logs-)"
+	@echo ""
 	@echo "$(YELLOW)Cleanup:$(NC)"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(clean)"
 
@@ -609,56 +612,160 @@ version: ## Display project version
 
 
 # =============================================================================
-# Worker Management
+# Worker Management - Integrated with Observability Stack
 # =============================================================================
 
-worker: ## Start unified worker (all queues)
+worker: ## Start unified worker (all queues) with monitoring integration
 	@echo "$(BLUE)Starting unified worker for all task types...$(NC)"
 	@echo "$(YELLOW)Worker will handle: file, rag, document, workflow tasks$(NC)"
-	$(UV) run python worker.py --loglevel=info --specialized=unified
-
-worker-background: ## Start unified worker in background
-	@echo "$(BLUE)Starting unified worker in background...$(NC)"
+	@echo "$(YELLOW)Logs will be captured by Promtail for Grafana monitoring$(NC)"
 	@mkdir -p logs
-	$(UV) run python worker.py --loglevel=info --specialized=unified > logs/worker_unified.log 2>&1 &
-	@echo "$(GREEN)Unified worker started in background$(NC)"
-	@echo "$(YELLOW)View logs with: tail -f logs/worker_unified.log$(NC)"
+	$(UV) run python worker.py --loglevel=info --specialized=unified 2>&1 | tee logs/worker.log
+
+worker-background: ## Start unified worker in background with full logging
+	@echo "$(BLUE)Starting unified worker in background with monitoring integration...$(NC)"
+	@mkdir -p logs
+	@echo "$(YELLOW)✓ Creating log directory: logs/$(NC)"
+	@echo "$(YELLOW)✓ Worker logs will be available in Grafana at: http://localhost:3000$(NC)"
+	@echo "$(YELLOW)✓ Query in Grafana: {job=\"worker-logs\"}$(NC)"
+	@nohup $(UV) run python worker.py --loglevel=info --specialized=unified > logs/worker.log 2>&1 &
+	@echo "$$!" > logs/worker.pid
+	@sleep 2
+	@echo "$(GREEN)✓ Unified worker started in background (PID: $$(cat logs/worker.pid))$(NC)"
+	@echo "$(BLUE)Monitoring Information:$(NC)"
+	@echo "  $(GREEN)Log File:$(NC)        logs/worker.log"
+	@echo "  $(GREEN)PID File:$(NC)        logs/worker.pid"
+	@echo "  $(GREEN)Grafana Logs:$(NC)    http://localhost:3000/explore (select Loki → {job=\"worker-logs\"})"
+	@echo "  $(GREEN)Local Logs:$(NC)      make worker-logs"
+
+worker-dev: ## Start worker in development mode (foreground with detailed logging)
+	@echo "$(BLUE)Starting worker in development mode...$(NC)"
+	@echo "$(YELLOW)This will run in foreground with detailed logging$(NC)"
+	@mkdir -p logs
+	$(UV) run python worker.py --loglevel=debug --specialized=unified 2>&1 | tee logs/worker.log
+
+worker-production: ## Start worker in production mode (background, optimized logging)
+	@echo "$(BLUE)Starting worker in production mode...$(NC)"
+	@mkdir -p logs
+	@nohup $(UV) run python worker.py --loglevel=warning --specialized=unified > logs/worker.log 2>&1 &
+	@echo "$$!" > logs/worker.pid
+	@echo "$(GREEN)✓ Production worker started (PID: $$(cat logs/worker.pid))$(NC)"
+	@echo "$(YELLOW)Use 'make worker-logs' to view logs or check Grafana$(NC)"
 
 worker-stop: ## Stop all workers
 	@echo "$(BLUE)Stopping all worker processes...$(NC)"
+	@if [ -f logs/worker.pid ]; then \
+		PID=$$(cat logs/worker.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			echo "$(YELLOW)Stopping worker with PID: $$PID$(NC)"; \
+			kill $$PID; \
+			sleep 2; \
+			if ps -p $$PID > /dev/null 2>&1; then \
+				echo "$(YELLOW)Force killing worker...$(NC)"; \
+				kill -9 $$PID; \
+			fi; \
+		fi; \
+		rm -f logs/worker.pid; \
+	fi
 	@if pgrep -f "worker.py" > /dev/null; then \
-		echo "$(YELLOW)Found running worker process(es):$(NC)"; \
+		echo "$(YELLOW)Found additional worker process(es):$(NC)"; \
 		pgrep -f "worker.py" | xargs ps -p; \
-		echo "$(BLUE)Stopping workers...$(NC)"; \
+		echo "$(BLUE)Stopping additional workers...$(NC)"; \
 		pkill -f "worker.py"; \
 		sleep 2; \
 		if pgrep -f "worker.py" > /dev/null; then \
-			echo "$(YELLOW)Force killing workers...$(NC)"; \
+			echo "$(YELLOW)Force killing remaining workers...$(NC)"; \
 			pkill -9 -f "worker.py"; \
 		fi; \
-		echo "$(GREEN)All workers stopped!$(NC)"; \
-	else \
-		echo "$(YELLOW)No running workers found$(NC)"; \
 	fi
+	@echo "$(GREEN)✓ All workers stopped!$(NC)"
 
-worker-status: ## Check worker status
-	@echo "$(BLUE)Checking worker status...$(NC)"
+worker-status: ## Check worker status with detailed information
+	@echo "$(BLUE)Worker Status Check:$(NC)"
+	@echo ""
+	@if [ -f logs/worker.pid ]; then \
+		PID=$$(cat logs/worker.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			echo "$(GREEN)✓ Main worker is running (PID: $$PID)$(NC)"; \
+			ps aux | grep "$$PID" | grep -v grep | awk '{print "  CPU:", $$3"%, MEM:", $$4"%, START:", $$9}'; \
+		else \
+			echo "$(RED)✗ Main worker not running (stale PID file)$(NC)"; \
+			rm -f logs/worker.pid; \
+		fi; \
+	else \
+		echo "$(YELLOW)⚠ No PID file found$(NC)"; \
+	fi
+	@echo ""
 	@if pgrep -f "worker.py" > /dev/null; then \
-		echo "$(GREEN)✓ Workers are running:$(NC)"; \
+		echo "$(BLUE)All worker processes:$(NC)"; \
 		ps aux | grep worker.py | grep -v grep | awk '{print "  PID:", $$2, "CPU:", $$3"%", "MEM:", $$4"%", "CMD:", $$11, $$12, $$13, $$14, $$15}'; \
 	else \
-		echo "$(RED)✗ No workers running$(NC)"; \
+		echo "$(RED)✗ No worker processes found$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Log Status:$(NC)"
+	@if [ -f logs/worker.log ]; then \
+		LOG_SIZE=$$(du -h logs/worker.log | cut -f1); \
+		LOG_LINES=$$(wc -l < logs/worker.log); \
+		echo "  $(GREEN)✓ Log file exists: logs/worker.log ($$LOG_SIZE, $$LOG_LINES lines)$(NC)"; \
+		echo "  $(BLUE)Last 3 log entries:$(NC)"; \
+		tail -3 logs/worker.log | sed 's/^/    /'; \
+	else \
+		echo "  $(YELLOW)⚠ No log file found$(NC)"; \
 	fi
 
-worker-logs: ## Show worker logs
-	@echo "$(BLUE)Showing unified worker logs...$(NC)"
-	@if [ -f logs/worker_unified.log ]; then \
-		tail -f logs/worker_unified.log; \
+worker-logs: ## Show worker logs (local file)
+	@echo "$(BLUE)Showing worker logs...$(NC)"
+	@if [ -f logs/worker.log ]; then \
+		echo "$(YELLOW)Following logs/worker.log (Press Ctrl+C to stop)$(NC)"; \
+		tail -f logs/worker.log; \
 	else \
-		echo "$(YELLOW)No unified worker log found. Start worker with: make worker-background$(NC)"; \
+		echo "$(RED)✗ No worker log file found$(NC)"; \
+		echo "$(YELLOW)Start worker with: make worker-background$(NC)"; \
+	fi
+
+worker-logs-live: ## Show live worker logs from Grafana/Loki
+	@echo "$(BLUE)Fetching live worker logs from Loki...$(NC)"
+	@if curl -s http://localhost:3100/ready > /dev/null; then \
+		NOW=$$(date +%s); \
+		FIVE_MIN_AGO=$$((NOW - 300)); \
+		curl -s "http://localhost:3100/loki/api/v1/query_range?query={job=\"worker-logs\"}&start=$${FIVE_MIN_AGO}000000000&end=$${NOW}000000000&limit=20" | \
+		jq -r '.data.result[]?.values[]?[1]' 2>/dev/null | tail -10 || \
+		echo "$(YELLOW)No worker logs found in Loki, showing local logs:$(NC)" && make worker-logs; \
+	else \
+		echo "$(YELLOW)Loki not available, showing local logs:$(NC)"; \
+		make worker-logs; \
 	fi
 
 worker-restart: worker-stop worker-background ## Restart unified worker
+
+worker-health: ## Check worker health and integration status
+	@echo "$(BLUE)🏥 Worker Health Check:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)1. Process Status:$(NC)"
+	@make worker-status --no-print-directory
+	@echo ""
+	@echo "$(YELLOW)2. Log Integration Status:$(NC)"
+	@if [ -f logs/worker.log ]; then \
+		echo "  $(GREEN)✓ Local log file exists$(NC)"; \
+	else \
+		echo "  $(RED)✗ Local log file missing$(NC)"; \
+	fi
+	@if docker ps | grep -q rag-promtail; then \
+		echo "  $(GREEN)✓ Promtail container running$(NC)"; \
+	else \
+		echo "  $(RED)✗ Promtail container not running$(NC)"; \
+	fi
+	@if curl -s http://localhost:3100/ready > /dev/null; then \
+		echo "  $(GREEN)✓ Loki service available$(NC)"; \
+	else \
+		echo "  $(RED)✗ Loki service not available$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(YELLOW)3. Monitoring Access:$(NC)"
+	@echo "  $(BLUE)Grafana:$(NC)     http://localhost:3000 (admin/admin123)"
+	@echo "  $(BLUE)Query:$(NC)       {job=\"worker-logs\"} OR {service=\"rag-worker\"}"
+	@echo "  $(BLUE)Local Logs:$(NC)  make worker-logs"
 
 # Legacy worker commands (for backward compatibility)
 worker-file: ## Start file processing worker (legacy)
@@ -672,3 +779,222 @@ worker-rag: ## Start RAG processing worker (legacy)
 worker-document: ## Start document processing worker (legacy)
 	@echo "$(YELLOW)Note: Consider using 'make worker' for unified processing$(NC)"
 	$(UV) run python worker.py --loglevel=info --specialized=document
+
+# Observability and Monitoring
+obs-install: ## One-click observability setup (recommended)
+	@echo "$(BLUE)🚀 Starting one-click observability setup...$(NC)"
+	@if [ -f ./setup_observability.sh ]; then \
+		./setup_observability.sh; \
+	else \
+		echo "$(RED)setup_observability.sh not found$(NC)"; \
+		exit 1; \
+	fi
+
+obs-setup: ## Setup observability stack (Loki, Grafana, Prometheus)
+	@echo "$(BLUE)Setting up observability stack...$(NC)"
+	@echo "$(YELLOW)This will start Loki, Grafana, and Prometheus alongside other middleware$(NC)"
+	$(DOCKER_COMPOSE) up -d loki grafana prometheus promtail
+	@echo "$(GREEN)✓ Observability stack started$(NC)"
+	@echo "$(BLUE)Access points:$(NC)"
+	@echo "  $(GREEN)Grafana:$(NC)     http://localhost:3000 (admin/admin123)"
+	@echo "  $(GREEN)Prometheus:$(NC)  http://localhost:9090"
+	@echo "  $(GREEN)Loki:$(NC)        http://localhost:3100"
+
+obs-status: ## Check observability stack status
+	@echo "$(BLUE)Observability Stack Status:$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Grafana (Dashboards):$(NC)"
+	@$(DOCKER_COMPOSE) ps grafana || echo "$(RED)✗ Grafana not running$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Loki (Log Aggregation):$(NC)"
+	@$(DOCKER_COMPOSE) ps loki || echo "$(RED)✗ Loki not running$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Prometheus (Metrics):$(NC)"
+	@$(DOCKER_COMPOSE) ps prometheus || echo "$(RED)✗ Prometheus not running$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Promtail (Log Collection):$(NC)"
+	@$(DOCKER_COMPOSE) ps promtail || echo "$(RED)✗ Promtail not running$(NC)"
+
+obs-logs: ## View observability stack logs
+	@echo "$(BLUE)Observability Stack Logs:$(NC)"
+	$(DOCKER_COMPOSE) logs -f grafana loki prometheus promtail
+
+obs-restart: ## Restart observability stack
+	@echo "$(BLUE)Restarting observability stack...$(NC)"
+	$(DOCKER_COMPOSE) restart grafana loki prometheus promtail
+	@echo "$(GREEN)✓ Observability stack restarted$(NC)"
+
+obs-clean: ## Clean observability data (WARNING: removes all logs and metrics)
+	@echo "$(RED)⚠️  This will remove all collected logs and metrics data!$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to cancel, or wait 5 seconds to continue...$(NC)"
+	@sleep 5
+	$(DOCKER_COMPOSE) down
+	docker volume rm research-agent-rag_grafana_data || true
+	docker volume rm research-agent-rag_loki_data || true  
+	docker volume rm research-agent-rag_prometheus_data || true
+	@echo "$(GREEN)✓ Observability data cleaned$(NC)"
+
+obs-dashboards: ## Open all observability dashboards
+	@echo "$(BLUE)Opening observability dashboards...$(NC)"
+	@echo "$(GREEN)Grafana:$(NC)     http://localhost:3000"
+	@echo "$(GREEN)Prometheus:$(NC)  http://localhost:9090"
+	@echo "$(GREEN)Loki:$(NC)        http://localhost:3100"
+	@if command -v open >/dev/null 2>&1; then \
+		open http://localhost:3000; \
+		open http://localhost:9090; \
+	elif command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open http://localhost:3000; \
+		xdg-open http://localhost:9090; \
+	else \
+		echo "$(YELLOW)Please manually open the URLs above$(NC)"; \
+	fi
+
+# Quick observability commands
+logs-api: ## View API logs in real-time
+	@echo "$(BLUE)Viewing RAG API logs...$(NC)"
+	$(DOCKER_COMPOSE) exec grafana curl -s -G 'http://loki:3100/loki/api/v1/query_range' \
+		--data-urlencode 'query={service="rag-api"}' \
+		--data-urlencode 'start=1h' | jq -r '.data.result[].values[][1]' | tail -20 || \
+		echo "$(YELLOW)Loki not available, showing file logs:$(NC)" && tail -20 logs/app.log 2>/dev/null || \
+		echo "$(RED)No logs available$(NC)"
+
+logs-worker: ## View worker logs in real-time  
+	@echo "$(BLUE)Viewing RAG worker logs...$(NC)"
+	$(DOCKER_COMPOSE) exec grafana curl -s -G 'http://loki:3100/loki/api/v1/query_range' \
+		--data-urlencode 'query={service="rag-worker"}' \
+		--data-urlencode 'start=1h' | jq -r '.data.result[].values[][1]' | tail -20 || \
+		echo "$(YELLOW)Loki not available, showing file logs:$(NC)" && tail -20 logs/worker_unified.log 2>/dev/null || \
+		echo "$(RED)No worker logs available$(NC)"
+
+logs-errors: ## View error logs across all services
+	@echo "$(BLUE)Viewing error logs across all services...$(NC)"
+	$(DOCKER_COMPOSE) exec grafana curl -s -G 'http://loki:3100/loki/api/v1/query_range' \
+		--data-urlencode 'query={level="error"}' \
+		--data-urlencode 'start=1h' | jq -r '.data.result[].values[][1]' | tail -20 || \
+		echo "$(YELLOW)Loki not available, showing file logs:$(NC)" && tail -20 logs/error.log 2>/dev/null || \
+		echo "$(RED)No error logs available$(NC)"
+
+obs-health: ## Run comprehensive observability health check
+	@echo "$(BLUE)🏥 Running comprehensive health check...$(NC)"
+	@if [ -f ./scripts/obs_health_check.sh ]; then \
+		./scripts/obs_health_check.sh; \
+	else \
+		echo "$(RED)Health check script not found$(NC)"; \
+		exit 1; \
+	fi
+
+obs-troubleshoot: ## Interactive troubleshooting tool
+	@echo "$(BLUE)🔧 Starting interactive troubleshooter...$(NC)"
+	@if [ -f ./scripts/obs_troubleshoot.sh ]; then \
+		./scripts/obs_troubleshoot.sh; \
+	else \
+		echo "$(RED)Troubleshooting script not found$(NC)"; \
+		exit 1; \
+	fi
+
+# =====================
+# Elasticsearch Monitoring Commands
+# =====================
+
+es-health: ## Check Elasticsearch cluster health
+	@echo "$(BLUE)🏥 Checking Elasticsearch health...$(NC)"
+	@python scripts/es_monitor.py health
+
+es-indices: ## Show Elasticsearch chat indices
+	@echo "$(BLUE)📊 Showing chat indices...$(NC)"
+	@python scripts/es_monitor.py indices
+
+es-stats: ## Show chat data statistics (default: 7 days)
+	@echo "$(BLUE)📈 Showing chat statistics...$(NC)"
+	@python scripts/es_monitor.py stats
+
+es-stats-30: ## Show chat data statistics for 30 days
+	@echo "$(BLUE)📈 Showing 30-day chat statistics...$(NC)"
+	@python scripts/es_monitor.py stats --days 30
+
+es-conversations: ## Show recent conversations
+	@echo "$(BLUE)💬 Showing recent conversations...$(NC)"
+	@python scripts/es_monitor.py conversations
+
+es-search: ## Search chat content (usage: make es-search QUERY="your search term")
+	@if [ -z "$(QUERY)" ]; then \
+		echo "$(RED)Usage: make es-search QUERY=\"your search term\"$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Searching for: $(QUERY)$(NC)"
+	@python scripts/es_monitor.py search "$(QUERY)"
+
+es-show: ## Show conversation details (usage: make es-show CONV_ID="conversation-id")
+	@if [ -z "$(CONV_ID)" ]; then \
+		echo "$(RED)Usage: make es-show CONV_ID=\"conversation-id\"$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)💬 Showing conversation: $(CONV_ID)$(NC)"
+	@python scripts/es_monitor.py show "$(CONV_ID)"
+
+es-monitor: ## Open comprehensive Elasticsearch monitoring dashboard
+	@echo "$(BLUE)🖥️  Opening monitoring interfaces...$(NC)"
+	@echo "$(GREEN)Grafana Dashboard: http://localhost:3000$(NC)"
+	@echo "$(GREEN)Elasticsearch API: http://localhost:8000/api/v1/elasticsearch/health$(NC)"
+	@echo "$(CYAN)Available API endpoints:$(NC)"
+	@echo "  - GET  /api/v1/elasticsearch/health"
+	@echo "  - GET  /api/v1/elasticsearch/indices"  
+	@echo "  - GET  /api/v1/elasticsearch/stats"
+	@echo "  - GET  /api/v1/elasticsearch/conversations"
+	@echo "  - POST /api/v1/elasticsearch/search"
+	@open http://localhost:3000 2>/dev/null || true
+	@open http://localhost:8000/docs 2>/dev/null || true
+
+es-install-deps: ## Install required dependencies for Elasticsearch monitoring
+	@echo "$(BLUE)📦 Installing Elasticsearch monitoring dependencies...$(NC)"
+	@uv add click rich
+
+es-all: es-health es-indices es-stats es-conversations ## Run all Elasticsearch monitoring commands
+
+grafana-setup: ## Setup Grafana Elasticsearch integration
+	@echo "$(BLUE)🚀 Setting up Grafana Elasticsearch integration...$(NC)"
+	@python scripts/setup_grafana_es.py
+
+grafana-open: ## Open Grafana dashboard
+	@echo "$(BLUE)🌐 Opening Grafana dashboard...$(NC)"
+	@echo "$(GREEN)Grafana: http://localhost:3000$(NC)"
+	@echo "$(GREEN)Username: admin / Password: admin123$(NC)"
+	@open http://localhost:3000 2>/dev/null || true
+
+grafana-test-data: ## Add test data to Elasticsearch for visualization
+	@echo "$(BLUE)📊 Adding test data to Elasticsearch...$(NC)"
+	@python -c "\
+import asyncio; \
+from modules.services.elasticsearch_service import elasticsearch_chat_service; \
+async def add_data(): \
+    await elasticsearch_chat_service.initialize(); \
+    for i in range(5): \
+        await elasticsearch_chat_service.save_conversation(\
+            f'test-{i:03d}', f'Test question {i+1}?', f'Test answer {i+1}.'); \
+    await elasticsearch_chat_service.close(); \
+    print('✅ Test data added!'); \
+asyncio.run(add_data())" 2>/dev/null
+
+grafana-check: ## Check Grafana and Elasticsearch status  
+	@echo "$(BLUE)🔍 Checking services status...$(NC)"
+	@echo -n "Grafana: "
+	@curl -s http://localhost:3000/api/health > /dev/null && echo "$(GREEN)✅ Running$(NC)" || echo "$(RED)❌ Not available$(NC)"
+	@echo -n "Elasticsearch: "
+	@curl -s http://localhost:9200/_cluster/health > /dev/null && echo "$(GREEN)✅ Running$(NC)" || echo "$(RED)❌ Not available$(NC)"
+	@echo -n "Chat Data: "
+	@curl -s "http://localhost:9200/chat-*/_count" 2>/dev/null | grep -o '"count":[0-9]*' | sed 's/"count"://' | xargs -I {} echo "$(GREEN){} messages$(NC)" || echo "$(YELLOW)⚠️  Checking...$(NC)"
+
+grafana-fix: ## Fix Grafana Elasticsearch datasource issues
+	@echo "$(BLUE)🔧 Fixing Grafana Elasticsearch datasource...$(NC)"
+	@python scripts/fix_grafana_datasource.py
+
+grafana-status: ## Show detailed Grafana datasource status
+	@echo "$(BLUE)📊 Grafana Datasources Status:$(NC)"
+	@curl -s "http://admin:admin123@localhost:3000/api/datasources" 2>/dev/null | \
+		jq -r '.[] | select(.type=="elasticsearch") | "  ✅ \(.name) (ID: \(.id)) - \(.url)"' || \
+		echo "$(RED)❌ Cannot connect to Grafana$(NC)"
+
+grafana-dashboard: ## Open the fixed Chat Messages dashboard
+	@echo "$(BLUE)📊 Opening Chat Messages Dashboard...$(NC)"
+	@echo "$(GREEN)Dashboard: http://localhost:3000/d/eew93rq0kpm2oe/chat-messages-fixed$(NC)"
+	@open "http://localhost:3000/d/eew93rq0kpm2oe/chat-messages-fixed" 2>/dev/null || true

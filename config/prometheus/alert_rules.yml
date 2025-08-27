@@ -1,0 +1,170 @@
+groups:
+  - name: rag-system-alerts
+    rules:
+      # API Performance Alerts
+      - alert: HighAPIResponseTime
+        expr: histogram_quantile(0.95, rate(fastapi_request_duration_seconds_bucket{job="rag-api"}[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API response time detected"
+          description: "95th percentile response time is {{ $value }}s, which exceeds 2s threshold"
+
+      - alert: HighAPIErrorRate
+        expr: rate(fastapi_requests_total{job="rag-api",status=~"4..|5.."}[5m]) / rate(fastapi_requests_total{job="rag-api"}[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }}, which exceeds 5% threshold"
+
+      # Worker Performance Alerts
+      - alert: HighTaskQueueLength
+        expr: celery_task_total{job="rag-workers"} > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "High task queue length detected"
+          description: "Task queue has {{ $value }} pending tasks, which exceeds 100 threshold"
+
+      - alert: WorkerTaskFailures
+        expr: rate(celery_task_failed_total{job="rag-workers"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "High worker task failure rate"
+          description: "Task failure rate is {{ $value }} failures/sec"
+
+      # Database Alerts
+      - alert: DatabaseConnectionFailures
+        expr: rate(database_connections_failed_total[5m]) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection failures detected"
+          description: "Database connection failure rate is {{ $value }} failures/sec"
+
+      # Vector Database Alerts
+      - alert: WeaviateHighQueryLatency
+        expr: weaviate_query_duration_seconds{quantile="0.95"} > 1
+        for: 3m
+        labels:
+          severity: warning
+          component: weaviate
+        annotations:
+          summary: "High Weaviate query latency"
+          description: "95th percentile query latency is {{ $value }}s, which exceeds 1s threshold"
+
+      # Resource Usage Alerts
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 2m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }}, which exceeds 90% threshold"
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_avail_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"} > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "High disk usage detected"
+          description: "Disk usage is {{ $value | humanizePercentage }}, which exceeds 90% threshold"
+
+      # Observability Stack Health
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: "Loki is down"
+          description: "Loki log aggregation service is not responding"
+
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus metrics collection service is not responding"
+
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana dashboard service is not responding"
+
+      # AI/LLM Specific Alerts
+      - alert: HighLLMTokenUsage
+        expr: rate(llm_tokens_total[5m]) > 1000
+        for: 3m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "High LLM token usage detected"
+          description: "LLM token usage rate is {{ $value }} tokens/sec, which may indicate high costs"
+
+      - alert: LLMAPIErrors
+        expr: rate(llm_api_errors_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "LLM API errors detected"
+          description: "LLM API error rate is {{ $value }} errors/sec"
+
+      - alert: RAGSearchLatency
+        expr: histogram_quantile(0.95, rate(rag_search_duration_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: rag
+        annotations:
+          summary: "High RAG search latency"
+          description: "95th percentile RAG search latency is {{ $value }}s, which exceeds 5s threshold"
+
+      # Document Processing Alerts
+      - alert: DocumentProcessingFailures
+        expr: rate(document_processing_failed_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          component: processing
+        annotations:
+          summary: "Document processing failures detected"
+          description: "Document processing failure rate is {{ $value }} failures/sec"
+
+      - alert: DocumentProcessingBacklog
+        expr: document_processing_queue_length > 50
+        for: 10m
+        labels:
+          severity: warning
+          component: processing
+        annotations:
+          summary: "Large document processing backlog"
+          description: "Document processing queue has {{ $value }} pending items"

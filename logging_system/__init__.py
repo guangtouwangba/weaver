@@ -41,6 +41,22 @@ from logging_system.handlers import (
     RotatingFileHandler,
 )
 
+# AI Observability imports (optional)
+try:
+    from logging_system.ai_observability import (
+        LogfireIntegration,
+        get_logfire_integration,
+        setup_logfire_integration,
+        log_llm_call,
+        log_rag_operation,
+        log_document_processing,
+        trace_span,
+    )
+    from logging_system.loki_handler import LokiHandler, AsyncLokiHandler
+    AI_OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    AI_OBSERVABILITY_AVAILABLE = False
+
 
 # 便捷函数
 def get_logger(name: str = None, **config):
@@ -121,4 +137,20 @@ __all__ = [
     "log_errors",
     "log_method_calls",
     "log_operation",
+    # AI Observability (if available)
+    "AI_OBSERVABILITY_AVAILABLE",
 ]
+
+# Add AI observability exports if available
+if AI_OBSERVABILITY_AVAILABLE:
+    __all__.extend([
+        "LogfireIntegration",
+        "get_logfire_integration",
+        "setup_logfire_integration",
+        "log_llm_call",
+        "log_rag_operation",
+        "log_document_processing",
+        "trace_span",
+        "LokiHandler",
+        "AsyncLokiHandler",
+    ])

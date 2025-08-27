@@ -5,9 +5,16 @@ MinIO存储实现
 """
 
 import urllib.parse
+import time
 from datetime import datetime, timedelta
 from io import BytesIO
 from typing import Any, Dict, Optional
+
+try:
+    import urllib3
+    URLLIB3_AVAILABLE = True
+except ImportError:
+    URLLIB3_AVAILABLE = False
 
 from minio import Minio
 from minio.error import S3Error
@@ -28,6 +35,8 @@ class MinIOStorage(IStorage):
         secret_key: str = "minioadmin123",
         bucket_name: str = "rag-uploads",
         secure: bool = False,
+        connection_timeout: int = 30,
+        max_retry_attempts: int = 3,
     ):
         """
         初始化MinIO存储
@@ -38,10 +47,14 @@ class MinIOStorage(IStorage):
             secret_key: 私密密钥
             bucket_name: 存储桶名称
             secure: 是否使用HTTPS
+            connection_timeout: 连接超时时间（秒）
+            max_retry_attempts: 最大重试次数
         """
         self.endpoint = endpoint
         self.bucket_name = bucket_name
         self.secure = secure
+        self.connection_timeout = connection_timeout
+        self.max_retry_attempts = max_retry_attempts
 
         # 初始化MinIO客户端
         self.client = Minio(
@@ -50,21 +63,69 @@ class MinIOStorage(IStorage):
             secret_key=secret_key,
             secure=secure,
         )
+        
+        # 设置更短的超时时间以避免长时间阻塞
+        if URLLIB3_AVAILABLE and hasattr(self.client, '_http'):
+            try:
+                self.client._http.timeout = urllib3.util.Timeout(
+                    connect=5.0,  # 连接超时5秒
+                    read=10.0     # 读取超时10秒
+                )
+            except Exception as e:
+                logger.warning(f"Could not set HTTP timeout: {e}")
 
-        # 确保存储桶存在
-        self._ensure_bucket_exists()
+        # 延迟初始化存储桶 - 使用重试逻辑
+        self._bucket_initialized = False
+        
+        # 不在初始化时连接MinIO，而是在首次使用时连接
+        logger.info(f"MinIO storage initialized for endpoint {endpoint}, bucket will be created on first use")
 
     def _ensure_bucket_exists(self):
-        """确保存储桶存在"""
-        try:
-            if not self.client.bucket_exists(self.bucket_name):
-                self.client.make_bucket(self.bucket_name)
-                logger.info(f"Created bucket: {self.bucket_name}")
-            else:
-                logger.debug(f"Bucket already exists: {self.bucket_name}")
-        except S3Error as e:
-            logger.error(f"Failed to create bucket {self.bucket_name}: {e}")
-            raise StorageError(f"Bucket creation failed: {e}")
+        """确保存储桶存在（带重试逻辑）"""
+        if self._bucket_initialized:
+            return
+            
+        last_exception = None
+        
+        for attempt in range(self.max_retry_attempts):
+            try:
+                # 检查存储桶是否存在
+                if not self.client.bucket_exists(self.bucket_name):
+                    self.client.make_bucket(self.bucket_name)
+                    logger.info(f"Created bucket: {self.bucket_name}")
+                else:
+                    logger.debug(f"Bucket already exists: {self.bucket_name}")
+                
+                # 成功连接，标记为已初始化
+                self._bucket_initialized = True
+                return
+                
+            except (S3Error, Exception) as e:
+                last_exception = e
+                logger.warning(
+                    f"Attempt {attempt + 1}/{self.max_retry_attempts} failed to connect to MinIO: {e}"
+                )
+                
+                if attempt < self.max_retry_attempts - 1:
+                    # 指数退避重试
+                    wait_time = 2 ** attempt
+                    logger.info(f"Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    # 最后一次尝试失败
+                    error_msg = f"Failed to connect to MinIO after {self.max_retry_attempts} attempts: {last_exception}"
+                    logger.error(error_msg)
+                    raise StorageError(error_msg)
+                    
+    def _lazy_ensure_bucket(self):
+        """延迟确保存储桶存在（用于API调用前）"""
+        if not self._bucket_initialized:
+            try:
+                self._ensure_bucket_exists()
+            except StorageError:
+                # 如果初始化失败，记录警告但不抛出异常
+                # 让具体的API调用来处理连接问题
+                logger.warning("MinIO bucket initialization failed, will retry on next API call")
 
     async def generate_presigned_url(
         self, key: str, content_type: str = None, expires_in: int = 3600
@@ -81,6 +142,9 @@ class MinIOStorage(IStorage):
         self, file_key: str, content_type: str, expires_in: int = 3600
     ) -> Dict[str, Any]:
         """生成签名上传URL"""
+        
+        # 确保MinIO连接可用
+        self._lazy_ensure_bucket()
 
         try:
             # URL编码文件键以处理中文文件名
@@ -306,3 +370,35 @@ class MinIOStorage(IStorage):
         except S3Error as e:
             logger.error(f"Failed to get bucket info: {e}")
             return {"error": str(e)}
+            
+    async def health_check(self) -> Dict[str, Any]:
+        """检查MinIO服务健康状态"""
+        try:
+            # 快速健康检查 - 尝试列出buckets
+            start_time = time.time()
+            buckets = self.client.list_buckets()
+            response_time = (time.time() - start_time) * 1000  # ms
+            
+            # 检查我们的bucket是否存在
+            bucket_exists = any(bucket.name == self.bucket_name for bucket in buckets)
+            
+            return {
+                "status": "healthy",
+                "endpoint": self.endpoint,
+                "bucket_name": self.bucket_name,
+                "bucket_exists": bucket_exists,
+                "response_time_ms": response_time,
+                "connected": True,
+                "total_buckets": len(buckets),
+                "initialized": self._bucket_initialized
+            }
+            
+        except Exception as e:
+            return {
+                "status": "unhealthy", 
+                "endpoint": self.endpoint,
+                "bucket_name": self.bucket_name,
+                "error": str(e),
+                "connected": False,
+                "initialized": self._bucket_initialized
+            }
