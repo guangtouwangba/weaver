@@ -5,7 +5,7 @@ Routing Engine Factory
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 try:
     import openai
