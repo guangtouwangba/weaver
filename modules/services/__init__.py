@@ -20,6 +20,7 @@ from modules.services.elasticsearch_service import (
     ElasticsearchChatService,
     elasticsearch_chat_service
 )
+from modules.services.summary_service import SummaryGenerationService
 
 __all__ = [
     "BaseService",
@@ -36,4 +37,5 @@ __all__ = [
     "get_chat_service",
     "ElasticsearchChatService",
     "elasticsearch_chat_service",
+    "SummaryGenerationService",
 ]

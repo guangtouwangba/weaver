@@ -1,0 +1,197 @@
+# Query Routing Keywords Configuration
+# 查询路由关键词配置文件
+
+# 全局设置
+global_settings:
+  case_sensitive: false          # 是否区分大小写
+  enable_fuzzy_matching: true    # 是否启用模糊匹配
+  fuzzy_threshold: 0.8           # 模糊匹配阈值 (0-1)
+  min_confidence: 0.3            # 最小置信度阈值
+  default_handler: "chat_handler" # 默认处理器
+
+# 路由关键词配置
+routing_keywords:
+  
+  # 摘要查询处理器
+  summary_handler:
+    name: "摘要查询"
+    description: "需要高级概念和摘要信息的查询"
+    weight: 1.1
+    patterns:
+      exact_keywords:
+        - "总结"
+        - "概述" 
+        - "摘要"
+        - "概括"
+        - "整体"
+        - "全面"
+        - "主要"
+        - "核心"
+        - "总体"
+        - "大致"
+        - "summary"
+        - "overview"
+        - "main points"
+        - "key insights"
+        - "overall"
+      prefix_keywords:
+        - "总结一下"
+        - "概述一下"
+        - "请概括"
+        - "简单介绍"
+        - "主要内容"
+        - "核心观点"
+        - "整体情况"
+        - "大致内容"
+        - "总体来看"
+        - "从整体上"
+      suffix_keywords:
+        - "的总结"
+        - "的概述"
+        - "的摘要"
+        - "的主要内容"
+        - "的核心观点"
+        - "的整体情况"
+        - "的大致内容"
+        - "主要说了什么"
+        - "核心是什么"
+      regex_patterns:
+        - ".*的总结$"
+        - ".*的概述$"
+        - ".*的摘要$"
+        - "^总体.*"
+        - "^整体.*"
+        - "^从宏观.*"
+        - "^从全局.*"
+  
+  # RAG知识查询处理器
+  rag_handler:
+    name: "RAG知识查询"
+    description: "需要从知识库检索信息的查询"
+    weight: 1.0
+    patterns:
+      exact_keywords:
+        - "什么是"
+        - "介绍一下"  
+        - "解释"
+        - "查找"
+        - "搜索"
+        - "关于"
+        - "请问"
+        - "告诉我"
+        - "帮我查"
+      prefix_keywords:
+        - "如何"
+        - "怎么"
+        - "为什么"
+        - "怎样"
+        - "请解释"
+        - "能否介绍"
+      suffix_keywords:
+        - "是什么"
+        - "怎么样"  
+        - "的定义"
+        - "的概念"
+        - "的意思"
+        - "的原理"
+        - "的方法"
+      regex_patterns:
+        - ".*的定义$"
+        - ".*的概念$" 
+        - ".*的原理$"
+        - ".*是什么意思$"
+        - "^请问.*"
+
+  # 工具调用处理器
+  tool_handler:
+    name: "工具调用"
+    description: "需要调用外部工具或API的请求"
+    weight: 0.9
+    patterns:
+      exact_keywords:
+        - "计算"
+        - "天气"
+        - "提醒"
+        - "翻译"
+        - "打开"
+        - "播放"
+        - "发送"
+        - "保存"
+      prefix_keywords:
+        - "帮我计算"
+        - "查询天气"
+        - "设置提醒"
+        - "翻译一下"
+        - "帮我翻译"
+      command_patterns:
+        - "/calc"
+        - "/weather"
+        - "/remind"
+        - "/translate"
+        - "/open"
+        - "/play"
+
+  # 系统命令处理器  
+  system_handler:
+    name: "系统命令"
+    description: "系统配置和管理命令"
+    weight: 0.8
+    patterns:
+      exact_keywords:
+        - "清除历史"
+        - "重置对话"
+        - "设置"
+        - "配置"
+        - "帮助"
+        - "退出"
+        - "状态"
+        - "统计"
+      prefix_keywords:
+        - "清除"
+        - "重置"
+        - "删除"
+        - "设置为"
+        - "配置为"
+      command_patterns:
+        - "/clear"
+        - "/reset"
+        - "/help"
+        - "/settings"
+        - "/status"
+        - "/stats"
+        - "/exit"
+        - "/quit"
+
+  # 闲聊对话处理器
+  chat_handler:
+    name: "闲聊对话"
+    description: "普通对话和闲聊"
+    weight: 0.7
+    patterns:
+      exact_keywords:
+        - "你好"
+        - "再见"
+        - "谢谢"
+        - "不客气"
+        - "没关系"
+        - "好的"
+        - "知道了"
+      emotional_keywords:
+        - "开心"
+        - "高兴"
+        - "难过"
+        - "伤心"
+        - "生气"
+        - "愤怒"
+        - "无聊"
+        - "累了"
+        - "疲惫"
+        - "兴奋"
+      greeting_patterns:
+        - "早上好"
+        - "下午好"
+        - "晚上好"
+        - "晚安"
+        - "拜拜"
+        - "再会"
+        - "回见"

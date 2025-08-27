@@ -330,7 +330,7 @@ class StorageConfig(BaseModel):
 class OpenAIConfig(BaseModel):
     """OpenAI Configuration"""
 
-    api_key: Optional[str] = Field(default=None, description="OpenAI API Key")
+    api_key: Optional[str] = Field(default_factory=lambda: os.getenv('OPENAI_API_KEY'), description="OpenAI API Key")
     api_base: Optional[str] = Field(default=None, description="OpenAI API Base URL")
     organization: Optional[str] = Field(
         default=None, description="OpenAI Organization ID"
@@ -347,6 +347,11 @@ class OpenAIConfig(BaseModel):
     temperature: float = Field(default=0.7, description="Generation temperature")
     timeout: int = Field(default=60, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum retry attempts")
+    
+    # Proxy configuration (使用标准环境变量)
+    http_proxy: Optional[str] = Field(default_factory=lambda: os.getenv('HTTP_PROXY'), description="HTTP proxy URL (读取HTTP_PROXY环境变量)")
+    https_proxy: Optional[str] = Field(default_factory=lambda: os.getenv('HTTPS_PROXY'), description="HTTPS proxy URL (读取HTTPS_PROXY环境变量)")
+    proxy_auth: Optional[str] = Field(default=None, description="Proxy authentication (user:pass)")
 
 
 class AnthropicConfig(BaseModel):
@@ -671,6 +676,141 @@ class LoggingConfig(BaseModel):
     backup_count: int = Field(default=5, description="日志文件备份数量")
 
 
+class SemanticRouterConfig(BaseModel):
+    """Semantic Router配置"""
+    
+    # 编码器配置
+    encoder_type: str = Field(
+        default="fastembed",
+        description="编码器类型 (cohere, openai, huggingface, fastembed)"
+    )
+    encoder_model: Optional[str] = Field(
+        default=None,
+        description="编码器模型名称"
+    )
+    
+    # OpenAI编码器配置
+    openai_api_key: Optional[str] = Field(
+        default=None,
+        description="OpenAI API密钥"
+    )
+    
+    # Cohere编码器配置
+    cohere_api_key: Optional[str] = Field(
+        default=None,
+        description="Cohere API密钥"
+    )
+    
+    # HuggingFace编码器配置
+    huggingface_model: str = Field(
+        default="sentence-transformers/all-MiniLM-L6-v2",
+        description="HuggingFace模型名称"
+    )
+    
+    # FastEmbed编码器配置
+    fastembed_model: str = Field(
+        default="BAAI/bge-small-en-v1.5",
+        description="FastEmbed模型名称"
+    )
+    
+    # 路由配置
+    threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="路由决策阈值"
+    )
+    top_k: int = Field(
+        default=1,
+        ge=1,
+        le=10,
+        description="返回的最佳匹配数量"
+    )
+    
+    # 路由文件配置
+    routes_config_file: str = Field(
+        default="config/routing/semantic_routes.yaml",
+        description="语义路由配置文件路径"
+    )
+    
+    # 是否启用语义路由
+    enabled: bool = Field(
+        default=False,
+        description="是否启用semantic router策略"
+    )
+    
+    # 缓存配置
+    enable_cache: bool = Field(
+        default=True,
+        description="是否启用编码缓存"
+    )
+    cache_size: int = Field(
+        default=1000,
+        description="缓存大小"
+    )
+    
+    @validator("encoder_type")
+    def validate_encoder_type(cls, v):
+        """验证编码器类型"""
+        allowed_encoders = ["cohere", "openai", "huggingface", "fastembed"]
+        if v not in allowed_encoders:
+            raise ValueError(f"编码器类型必须是: {', '.join(allowed_encoders)}")
+        return v
+
+
+class RouteStrategyConfig(BaseModel):
+    """路由策略配置"""
+    
+    # 默认策略
+    default_strategy: str = Field(
+        default="configurable_keyword",
+        description="默认路由策略 (configurable_keyword, llm_intent, semantic_router)"
+    )
+    
+    # 可用策略列表
+    available_strategies: List[str] = Field(
+        default=["configurable_keyword", "llm_intent", "semantic_router"],
+        description="可用的路由策略列表"
+    )
+    
+    # 策略优先级
+    strategy_priority: Dict[str, int] = Field(
+        default_factory=lambda: {
+            "semantic_router": 100,
+            "llm_intent": 80,
+            "configurable_keyword": 60
+        },
+        description="策略优先级配置"
+    )
+    
+    # 回退处理器
+    fallback_handler: str = Field(
+        default="chat_handler",
+        description="默认回退处理器"
+    )
+    
+    # 是否启用规则系统
+    enable_rules: bool = Field(
+        default=True,
+        description="是否启用路由规则系统"
+    )
+    
+    # 是否启用监控
+    enable_monitoring: bool = Field(
+        default=True,
+        description="是否启用路由监控"
+    )
+    
+    @validator("default_strategy")
+    def validate_default_strategy(cls, v, values):
+        """验证默认策略"""
+        # 获取available_strategies，如果没有则使用默认值
+        available = values.get("available_strategies", ["configurable_keyword", "llm_intent", "semantic_router"])
+        if v not in available:
+            raise ValueError(f"默认策略必须在可用策略列表中: {', '.join(available)}")
+        return v
+
+
 class AppConfig(BaseSettings):
     """应用程序主配置"""
 
@@ -767,6 +907,14 @@ class AppConfig(BaseSettings):
     
     elasticsearch: ElasticsearchConfig = Field(
         default_factory=ElasticsearchConfig, description="Elasticsearch配置"
+    )
+    
+    # 路由配置
+    semantic_router: SemanticRouterConfig = Field(
+        default_factory=SemanticRouterConfig, description="Semantic Router配置"
+    )
+    route_strategy: RouteStrategyConfig = Field(
+        default_factory=RouteStrategyConfig, description="路由策略配置"
     )
     
     # File loader configurations (lazy import to avoid circular dependencies)

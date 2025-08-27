@@ -8,6 +8,6 @@
 """
 
 # 这里将自动导入所有处理器以便自动注册
-from modules.tasks.handlers import file_handlers, rag_handlers
+from modules.tasks.handlers import file_handlers, rag_handlers, summary_handlers
 
-__all__ = ["rag_handlers", "file_handlers"]
+__all__ = ["rag_handlers", "file_handlers", "summary_handlers"]

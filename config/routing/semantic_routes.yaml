@@ -1,0 +1,210 @@
+# Semantic Router Configuration
+# 语义路由配置文件
+
+routes:
+  # RAG 查询路由 - 用于文档搜索和知识检索
+  - name: "rag_query"
+    handler: "rag_handler"
+    utterances:
+      # 中文查询表达
+      - "搜索文档中关于"
+      - "查找相关信息"
+      - "文档里有没有关于"
+      - "根据文档回答"
+      - "在知识库中查询"
+      - "请查找"
+      - "有没有相关资料"
+      - "文档中提到"
+      - "知识库里有"
+      - "搜索关于"
+      - "查询文档"
+      - "从文档中找到"
+      - "文档说明"
+      - "资料显示"
+      
+      # English queries
+      - "find information about"
+      - "search for"
+      - "what does the document say about"
+      - "according to the documents"
+      - "look up information"
+      - "search documents for"
+      - "find in knowledge base"
+      - "document mentions"
+      - "based on the documents"
+      - "retrieve information about"
+      - "what do you know about"
+      - "tell me about"
+      - "explain from documents"
+      
+    description: "处理文档搜索和知识检索相关的查询"
+    confidence_threshold: 0.7
+  
+  # 总结请求路由 - 用于文档摘要和内容总结
+  - name: "summary_request"
+    handler: "summary_handler"
+    utterances:
+      # 中文总结请求
+      - "总结一下"
+      - "给我一个摘要"
+      - "概括要点"
+      - "总结文档"
+      - "主要内容是什么"
+      - "简要说明"
+      - "归纳总结"
+      - "提取重点"
+      - "概述内容"
+      - "整理要点"
+      
+      # English summary requests
+      - "summarize this"
+      - "give me a summary"
+      - "what are the key points"
+      - "main takeaways"
+      - "overview of the document"
+      - "briefly explain"
+      - "key highlights"
+      - "main ideas"
+      - "executive summary"
+      - "condensed version"
+      
+    description: "处理文档摘要和内容总结请求"
+    confidence_threshold: 0.8
+  
+  # 系统命令路由 - 用于系统管理和控制
+  - name: "system_command"
+    handler: "system_handler"
+    utterances:
+      # 中文系统命令
+      - "系统状态"
+      - "健康检查"
+      - "停止服务"
+      - "重启"
+      - "清理缓存"
+      - "系统信息"
+      - "服务状态"
+      - "检查系统"
+      - "系统诊断"
+      - "重新加载"
+      
+      # English system commands
+      - "system status"
+      - "health check"
+      - "stop service"
+      - "restart"
+      - "clear cache"
+      - "system info"
+      - "service status"
+      - "check system"
+      - "system diagnostics"
+      - "reload"
+      
+    description: "处理系统管理和控制命令"
+    confidence_threshold: 0.9
+  
+  # 工具请求路由 - 用于特定工具调用
+  - name: "tool_request"
+    handler: "tool_handler"
+    utterances:
+      # 中文工具请求
+      - "调用工具"
+      - "使用工具"
+      - "执行功能"
+      - "运行工具"
+      - "启动工具"
+      
+      # English tool requests
+      - "use tool"
+      - "call function"
+      - "execute tool"
+      - "run utility"
+      - "invoke function"
+      
+    description: "处理特定工具调用请求"
+    confidence_threshold: 0.8
+  
+  # 普通聊天路由 - 用于日常对话和问候
+  - name: "casual_chat"
+    handler: "chat_handler"
+    utterances:
+      # 中文日常对话
+      - "你好"
+      - "早上好"
+      - "下午好"
+      - "晚上好"
+      - "怎么样"
+      - "聊天"
+      - "随便说说"
+      - "闲聊"
+      - "谢谢"
+      - "再见"
+      - "帮助"
+      - "介绍一下自己"
+      - "你是谁"
+      
+      # English casual conversation
+      - "hello"
+      - "hi there"
+      - "how are you"
+      - "good morning"
+      - "good afternoon"
+      - "good evening"
+      - "let's chat"
+      - "thanks"
+      - "thank you"
+      - "goodbye"
+      - "bye"
+      - "help"
+      - "introduce yourself"
+      - "who are you"
+      
+    description: "处理日常对话和问候"
+    confidence_threshold: 0.6
+
+# 编码器配置选项
+encoders:
+  # FastEmbed 编码器（默认，本地运行）
+  fastembed:
+    model: "BAAI/bge-small-en-v1.5"
+    max_length: 512
+    cache_dir: "./models/fastembed"
+    
+  # OpenAI 编码器
+  openai:
+    model: "text-embedding-3-small"
+    api_key_env: "OPENAI_API_KEY"
+    dimensions: 1536
+    
+  # Cohere 编码器
+  cohere:
+    model: "embed-multilingual-v3.0"
+    api_key_env: "COHERE_API_KEY"
+    
+  # HuggingFace 编码器
+  huggingface:
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+    device: "cpu"
+    cache_dir: "./models/sentence_transformers"
+
+# 全局路由配置
+routing_config:
+  # 默认阈值
+  default_threshold: 0.5
+  
+  # 最大返回结果数
+  top_k: 1
+  
+  # 是否启用模糊匹配
+  fuzzy_matching: true
+  
+  # 缓存设置
+  cache:
+    enabled: true
+    max_size: 1000
+    ttl_seconds: 3600
+  
+  # 日志设置
+  logging:
+    level: "INFO"
+    log_decisions: true
+    log_confidence_scores: true

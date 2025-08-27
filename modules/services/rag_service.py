@@ -17,14 +17,14 @@ from uuid import uuid4
 from modules.file_loader import IFileLoader
 from modules.models import FileLoadRequest
 # RAG interfaces
-from modules.rag.embedding import (
+from modules.embedding import (
     EmbeddingConfig,
     EmbeddingError,
     EmbeddingProvider,
     EmbeddingResult,
     IEmbeddingService,
 )
-from modules.rag.pipeline import (
+from modules.pipeline import (
     DocumentProcessingRequest,
     DocumentProcessingResult,
     IDocumentPipeline,
@@ -34,8 +34,8 @@ from modules.rag.pipeline import (
     ProcessingStage,
     ProcessingStageResult,
 )
-from modules.rag.processors import IDocumentProcessor
-from modules.rag.vector_store import (
+from modules.processors import IDocumentProcessor
+from modules.vector_store import (
     BulkOperationResult,
     IVectorStore,
     SearchFilter,

@@ -36,8 +36,8 @@ except ImportError:
 async def initialize_vector_collections():
     """初始化向量存储集合，在服务启动时创建"""
     try:
-        from modules.rag.vector_store.weaviate_service import WeaviateVectorStore
-        from modules.rag.vector_store.base import VectorStoreConfig, VectorStoreProvider, SimilarityMetric
+        from modules.vector_store.weaviate_service import WeaviateVectorStore
+        from modules.vector_store.base import VectorStoreConfig, VectorStoreProvider, SimilarityMetric
         from config import get_config
         
         config = get_config()

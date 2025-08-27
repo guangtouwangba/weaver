@@ -36,7 +36,7 @@ from modules.schemas.chat import (
     SSECompleteEvent,
     SSEErrorEvent
 )
-from modules.services.chat_service import ChatService, get_chat_service
+from modules.services.enhanced_chat_service import EnhancedChatService, get_enhanced_chat_service
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 logger = get_logger(__name__)
@@ -49,7 +49,6 @@ logger = get_logger(__name__)
 @log_errors()
 async def chat_stream(
     request: ChatRequest,
-    chat_service: ChatService = Depends(get_chat_service),
 ):
     """
     # 🌊 流式聊天接口 (Server-Sent Events)
@@ -135,6 +134,8 @@ async def chat_stream(
     async def generate_chat_stream() -> AsyncGenerator[str, None]:
         """生成SSE流数据"""
         try:
+            # 获取增强版聊天服务
+            chat_service = await get_enhanced_chat_service()
             await chat_service.initialize()
             
             # 生成唯一标识符
@@ -150,23 +151,75 @@ async def chat_stream(
             yield f"event: {SSEEventType.START}\n"
             yield f"data: {start_event.model_dump_json()}\n\n"
             
-            # 2. 🔍 RAG检索阶段
+            # 2. 🔍 智能路由阶段
             progress_event = SSEProgressEvent(
-                stage="retrieving",
-                message="正在检索相关文档...",
-                progress=0.2
+                stage="routing",
+                message="正在分析查询意图...",
+                progress=0.1
             )
             yield f"event: {SSEEventType.PROGRESS}\n"
             yield f"data: {progress_event.model_dump_json()}\n\n"
             
-            # 执行RAG检索
-            retrieved_contexts, search_time_ms = await chat_service._retrieve_contexts(
-                query=request.message,
-                topic_id=request.topic_id,
-                search_type=request.search_type,
-                max_results=request.max_results,
-                score_threshold=request.score_threshold
+            # 等等，让我们使用增强聊天服务的完整功能
+            # 但是流式处理需要特殊处理，让我们创建一个临时的检索方法
+            
+            # 3. 🔍 检索阶段
+            progress_event = SSEProgressEvent(
+                stage="retrieving", 
+                message="正在执行智能检索...",
+                progress=0.3
             )
+            yield f"event: {SSEEventType.PROGRESS}\n"
+            yield f"data: {progress_event.model_dump_json()}\n\n"
+            
+            # 使用增强聊天服务进行路由和检索
+            # 先确保路由引擎已初始化
+            if not chat_service.routing_initialized:
+                await chat_service.initialize_routing()
+            
+            # 构建路由上下文
+            context = chat_service._build_routing_context(request)
+            
+            # 执行路由决策和检索
+            if chat_service.routing_enabled and chat_service.routing_engine:
+                routing_result = await chat_service.routing_engine.route(request.message, context)
+                
+                # 发送路由决策信息
+                routing_progress = SSEProgressEvent(
+                    stage="routed",
+                    message=f"路由到 {routing_result.decision.handler_name} 处理器",
+                    progress=0.4
+                )
+                yield f"event: {SSEEventType.PROGRESS}\n"
+                yield f"data: {routing_progress.model_dump_json()}\n\n"
+                
+                # 根据路由结果获取上下文
+                handler = chat_service.routing_engine.get_handler(routing_result.decision.handler_name)
+                if hasattr(handler, 'retrieve_contexts'):
+                    retrieved_contexts = await handler.retrieve_contexts(
+                        query=request.message,
+                        context=context,
+                        max_results=request.max_results
+                    )
+                    search_time_ms = 500  # 估算值
+                else:
+                    # 回退到传统检索
+                    retrieved_contexts, search_time_ms = await chat_service._retrieve_contexts(
+                        query=request.message,
+                        topic_id=request.topic_id,
+                        search_type=request.search_type,
+                        max_results=request.max_results,
+                        score_threshold=request.score_threshold
+                    )
+            else:
+                # 路由未启用，使用传统检索
+                retrieved_contexts, search_time_ms = await chat_service._retrieve_contexts(
+                    query=request.message,
+                    topic_id=request.topic_id,
+                    search_type=request.search_type,
+                    max_results=request.max_results,
+                    score_threshold=request.score_threshold
+                )
             
             # 发送检索结果
             context_event = SSEContextEvent(
@@ -304,7 +357,6 @@ async def chat_stream(
 @log_errors()
 async def chat_sync(
     request: ChatRequest,
-    chat_service: ChatService = Depends(get_chat_service),
 ):
     """
     # 💬 传统聊天接口 (HTTP)
@@ -332,6 +384,8 @@ async def chat_sync(
     ```
     """
     try:
+        # 获取增强版聊天服务
+        chat_service = await get_enhanced_chat_service()
         response = await chat_service.chat(request)
         return APIResponse(success=True, data=response.model_dump())
     except Exception as e:
@@ -350,7 +404,7 @@ async def get_conversations(
     offset: int = Query(0, ge=0, description="偏移量"),
     order_by: str = Query("last_message_time", description="排序字段"),
     order_direction: str = Query("desc", description="排序方向"),
-    chat_service: ChatService = Depends(get_chat_service),
+
 ):
     """
     获取对话列表，支持分页和排序。
@@ -389,7 +443,7 @@ async def get_conversation_messages(
     limit: int = Query(50, ge=1, le=200, description="消息数量"),
     before: Optional[str] = Query(None, description="在此消息ID之前"),
     include_context: bool = Query(False, description="是否包含检索上下文"),
-    chat_service: ChatService = Depends(get_chat_service),
+
 ):
     """
     获取对话的消息历史。
@@ -426,7 +480,7 @@ async def get_conversation_messages(
 @log_errors()
 async def delete_conversation(
     conversation_id: str,
-    chat_service: ChatService = Depends(get_chat_service),
+
 ):
     """
     删除指定对话及其所有消息。
@@ -457,7 +511,7 @@ async def search_chat_content(
     role: Optional[MessageRole] = Query(None, description="消息角色过滤"),
     limit: int = Query(20, ge=1, le=100, description="结果数量"),
     highlight: bool = Query(True, description="是否高亮关键词"),
-    chat_service: ChatService = Depends(get_chat_service),
+
 ):
     """
     全文搜索聊天记录，支持高亮显示。
@@ -516,7 +570,7 @@ async def search_chat_content(
 @log_errors()
 async def get_chat_statistics(
     topic_id: Optional[int] = Query(None, description="主题ID过滤"),
-    chat_service: ChatService = Depends(get_chat_service),
+
 ):
     """
     获取聊天统计信息。
@@ -556,13 +610,13 @@ async def get_chat_statistics(
 @log_execution_time()
 @log_errors()
 async def chat_health_check(
-    chat_service: ChatService = Depends(get_chat_service),
+
 ):
     """
     检查聊天服务的各个组件状态。
     
     ## 检查项目
-    - ChatService 初始化状态
+    - EnhancedChatService 初始化状态
     - Elasticsearch 连接状态
     - Weaviate 向量数据库状态
     - OpenAI API 可用性
