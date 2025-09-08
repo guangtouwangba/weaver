@@ -1,0 +1,40 @@
+# Production environment configuration
+
+environment: production
+debug: false
+log_level: INFO
+
+database:
+  url: "${DATABASE_URL}"
+  echo: false
+  pool_size: 20
+  max_overflow: 40
+
+ai:
+  provider: "openai"
+  chat_model: "gpt-4"
+  embedding_model: "text-embedding-ada-002"
+  max_tokens: 2000
+  temperature: 0.5
+
+storage:
+  type: "minio"
+  endpoint: "${STORAGE_ENDPOINT}"
+  bucket: "${STORAGE_BUCKET}"
+  access_key: "${STORAGE_ACCESS_KEY}"
+  secret_key: "${STORAGE_SECRET_KEY}"
+
+cache:
+  type: "redis"
+  url: "${CACHE_URL}"
+  ttl: 3600  # 1 hour
+
+vector_store:
+  type: "weaviate"
+  url: "${VECTOR_STORE_URL}"
+  api_key: "${VECTOR_STORE_API_KEY}"
+  collection_name: "documents"
+
+settings:
+  max_file_size: 52428800  # 50MB
+  allowed_file_types: ["pdf", "txt", "docx", "md", "html", "json"]
