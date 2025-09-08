@@ -17,7 +17,7 @@ from modules.pipeline import (
     DocumentProcessingRequest,
     PipelineStatus,
 )
-from modules.processors import ChunkingProcessor
+from modules.processors import EnhancedChunkingProcessor
 from modules.vector_store import VectorStoreProvider
 from modules.repository import DocumentRepository, FileRepository
 from modules.schemas import (
@@ -410,7 +410,7 @@ class DocumentService(BaseService):
             file_loader = FileLoaderFactory.get_loader(content_type)
 
             # Document processor
-            document_processor = ChunkingProcessor(
+            document_processor = EnhancedChunkingProcessor(
                 default_chunk_size=ai_config.embedding.chunk_size,
                 default_overlap=ai_config.embedding.overlap,
                 min_chunk_size=50,

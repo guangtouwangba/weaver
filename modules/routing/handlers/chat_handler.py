@@ -51,14 +51,21 @@ class ChatHandler(BaseQueryHandler):
     ) -> Dict[str, Any]:
         """处理聊天查询"""
         
+        logger.info(f"💬 ChatHandler处理【CHAT】类型查询: '{query}'")
+        
         # 首先尝试模板回复
+        logger.info("🔍 尝试使用预设模板回复...")
         template_response = self._try_template_response(query, route_metadata)
         if template_response:
+            logger.info("✅ 使用预设模板回复成功")
             return template_response
         
         # 如果有聊天服务，使用AI生成回复
         if self.chat_service:
-            return await self._generate_ai_response(query, context, route_metadata)
+            logger.info("🤖 使用AI客户端生成友好聊天回复...")
+            response = await self._generate_ai_response(query, context, route_metadata)
+            logger.info("✅ ChatHandler AI回复生成完成")
+            return response
         
         # 否则使用简单回复
         return self._generate_simple_response(query, context, route_metadata)
@@ -100,24 +107,54 @@ class ChatHandler(BaseQueryHandler):
         context: Dict[str, Any],
         route_metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """使用AI生成回复"""
+        """使用AI生成回复（直接调用AI客户端，避免递归路由）"""
         try:
-            # 构建聊天请求，不包含检索
-            chat_request = self._build_chat_request(query, context, include_context=False)
-            
-            if hasattr(self.chat_service, 'chat'):
-                response = await self.chat_service.chat(chat_request)
+            # 直接使用AI客户端生成回复，避免递归路由问题
+            if hasattr(self.chat_service, 'ai_client') and self.chat_service.ai_client:
+                import uuid
+                from datetime import datetime
+                
+                # 构建简单的提示词
+                prompt = f"""你是一个友好的AI助手，请回答用户的问题。
+
+用户问题：{query}
+
+请简洁友好地回答："""
+                
+                # 直接调用AI客户端
+                ai_response = await self.chat_service.ai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "你是一个友好、有帮助的AI助手。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=500,
+                    temperature=0.7
+                )
+                
+                content = ai_response.choices[0].message.content
+                message_id = str(uuid.uuid4())
+                conversation_id = context.get("conversation_id", str(uuid.uuid4()))
                 
                 return {
-                    "content": response.content,
-                    "message_id": response.message_id,
-                    "conversation_id": response.conversation_id,
-                    "ai_metadata": response.ai_metadata.model_dump() if response.ai_metadata else {},
+                    "content": content,
+                    "message_id": message_id,
+                    "conversation_id": conversation_id,
+                    "ai_metadata": {
+                        "model": "gpt-3.5-turbo",
+                        "tokens_used": ai_response.usage.total_tokens if ai_response.usage else 0,
+                        "generation_time_ms": 1000,  # 估算值
+                        "search_time_ms": 0,  # chat_handler不需要搜索
+                        "temperature": 0.7,
+                        "max_tokens": 500
+                    },
                     "response_type": "ai_generated",
                     "retrieval_used": False
                 }
-            else:
-                return self._generate_simple_response(query, context, route_metadata)
+            
+            # 回退到简单回复
+            logger.warning("AI客户端不可用，使用简单回复")
+            return self._generate_simple_response(query, context, route_metadata)
                 
         except Exception as e:
             logger.error(f"AI回复生成失败: {e}")

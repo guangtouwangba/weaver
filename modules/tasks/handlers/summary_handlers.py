@@ -40,7 +40,7 @@ class DocumentSummaryHandler(ITaskHandler):
         topic_id: Optional[str] = None,
         file_id: Optional[str] = None,
         force_regenerate: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         生成并存储文档摘要
@@ -62,7 +62,9 @@ class DocumentSummaryHandler(ITaskHandler):
                 task_name="summary.generate_document",
                 queue="summary_queue",
             ):
-                logger.info(f"开始文档摘要生成任务: document_id={document_id}, content_length={len(content)}")
+                logger.info(
+                    f"开始文档摘要生成任务: document_id={document_id}, content_length={len(content)}"
+                )
 
                 # 验证输入参数
                 if not document_id or not content:
@@ -85,7 +87,7 @@ class DocumentSummaryHandler(ITaskHandler):
                     document_id=document_id,
                     content=content,
                     topic_id=topic_id,
-                    force_regenerate=force_regenerate
+                    force_regenerate=force_regenerate,
                 )
 
                 if not summary_doc:
@@ -98,7 +100,11 @@ class DocumentSummaryHandler(ITaskHandler):
                 result = {
                     "success": True,
                     "summary_id": summary_doc.id,
-                    "summary_content": summary_doc.summary[:200] + "..." if len(summary_doc.summary) > 200 else summary_doc.summary,
+                    "summary_content": (
+                        summary_doc.summary[:200] + "..."
+                        if len(summary_doc.summary) > 200
+                        else summary_doc.summary
+                    ),
                     "key_topics": summary_doc.key_topics,
                     "document_id": document_id,
                     "topic_id": topic_id,
@@ -135,11 +141,11 @@ class DocumentSummaryHandler(ITaskHandler):
 
             # 创建向量存储服务
             vector_store = WeaviateVectorStore(
-                url=getattr(config, 'weaviate_url', None) or 
-                    config.vector_db.weaviate_url or 
-                    "http://localhost:8080",
-                api_key=getattr(config, 'weaviate_api_key', None),
-                create_collections_on_init=True
+                url=getattr(config, "weaviate_url", None)
+                or config.vector_db.weaviate_url
+                or "http://localhost:8080",
+                api_key=getattr(config, "weaviate_api_key", None),
+                create_collections_on_init=True,
             )
             await vector_store.initialize()
 
@@ -147,7 +153,7 @@ class DocumentSummaryHandler(ITaskHandler):
             # 注意：这里使用None作为session，实际使用时需要传递正确的session
             summary_service = SummaryGenerationService(
                 session=None,  # TODO: 需要传递正确的数据库session
-                vector_store=vector_store
+                vector_store=vector_store,
             )
             await summary_service.initialize()
 
@@ -167,24 +173,24 @@ class DocumentSummaryHandler(ITaskHandler):
 
             # 创建向量存储服务
             vector_store = WeaviateVectorStore(
-                url=getattr(config, 'weaviate_url', None) or 
-                    config.vector_db.weaviate_url or 
-                    "http://localhost:8080",
-                api_key=getattr(config, 'weaviate_api_key', None),
-                create_collections_on_init=True
+                url=getattr(config, "weaviate_url", None)
+                or config.vector_db.weaviate_url
+                or "http://localhost:8080",
+                api_key=getattr(config, "weaviate_api_key", None),
+                create_collections_on_init=True,
             )
             await vector_store.initialize()
 
             # 存储摘要
             result = await vector_store.upsert_summary_documents([summary_doc])
-            
+
             await vector_store.cleanup()
 
             return {
                 "success_count": result.success_count,
                 "failed_count": result.failed_count,
-                "total_time_ms": result.total_time_ms,
-                "status": "success" if result.failed_count == 0 else "partial_success"
+                "total_time_ms": result.processing_time_ms,
+                "status": "success" if result.failed_count == 0 else "partial_success",
             }
 
         except Exception as e:
@@ -194,7 +200,7 @@ class DocumentSummaryHandler(ITaskHandler):
                 "failed_count": 1,
                 "total_time_ms": 0,
                 "status": "failed",
-                "error": str(e)
+                "error": str(e),
             }
 
 
@@ -216,10 +222,7 @@ class SummaryIndexUpdateHandler(ITaskHandler):
     @log_execution_time(threshold_ms=500)
     @log_errors()
     async def handle(
-        self,
-        summary_id: str,
-        update_type: str = "refresh",
-        **kwargs
+        self, summary_id: str, update_type: str = "refresh", **kwargs
     ) -> Dict[str, Any]:
         """
         更新摘要索引
@@ -238,7 +241,9 @@ class SummaryIndexUpdateHandler(ITaskHandler):
                 task_name="summary.update_index",
                 queue="summary_queue",
             ):
-                logger.info(f"开始摘要索引更新任务: summary_id={summary_id}, type={update_type}")
+                logger.info(
+                    f"开始摘要索引更新任务: summary_id={summary_id}, type={update_type}"
+                )
 
                 if update_type == "delete":
                     result = await self._delete_summary_from_index(summary_id)

@@ -218,10 +218,24 @@ class FileUploadCompleteHandler(ITaskHandler):
             # Create storage service instance
             storage = create_storage_service()
 
-            # Use storage service to check if file exists
-            file_exists = await storage.file_exists(file_path)
+            # Use storage service to check if file exists with retry logic
+            import asyncio
+            max_retries = 5
+            retry_delay = 2  # seconds
+            
+            file_exists = False
+            for attempt in range(max_retries):
+                file_exists = await storage.file_exists(file_path)
+                if file_exists:
+                    break
+                
+                if attempt < max_retries - 1:  # Don't wait on the last attempt
+                    logger.info(f"File not found on attempt {attempt + 1}, retrying in {retry_delay}s...")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+            
             if not file_exists:
-                raise FileNotFoundError(f"File does not exist in storage: {file_path}")
+                raise FileNotFoundError(f"File does not exist in storage after {max_retries} attempts: {file_path}")
 
             # Get file information
             file_info = await storage.get_file_info(file_path)

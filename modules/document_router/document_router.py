@@ -18,7 +18,7 @@ from modules.models import (
     SearchResult,
 )
 # TODO: MultiFormatFileLoader will be refactored to use factory pattern
-from modules.processors import ChunkingProcessor, IDocumentProcessor
+from modules.processors import EnhancedChunkingProcessor, IDocumentProcessor
 from modules.document_router.base import IRouter, RouterError
 from modules.schemas import Document
 
@@ -40,7 +40,7 @@ class DocumentRouter(IRouter):
         self.file_loader = (
             file_loader  # or create_factory_based_file_loader(max_file_size_mb=100)
         )
-        self.document_processor = document_processor or ChunkingProcessor(
+        self.document_processor = document_processor or EnhancedChunkingProcessor(
             default_chunk_size=1000,
             default_overlap=200,
             min_chunk_size=50,

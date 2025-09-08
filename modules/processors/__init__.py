@@ -6,7 +6,6 @@
 """
 
 from modules.processors.base import DocumentProcessorError, IDocumentProcessor
-from modules.processors.chunking_processor import ChunkingProcessor
 from modules.processors.enhanced_chunking_processor import EnhancedChunkingProcessor
 from modules.processors.text_processor import TextProcessor
 
@@ -14,6 +13,5 @@ __all__ = [
     "IDocumentProcessor",
     "DocumentProcessorError",
     "TextProcessor",
-    "ChunkingProcessor",
-    "EnhancedChunkingProcessor",
+    "EnhancedChunkingProcessor",  # 统一的分块处理器
 ]

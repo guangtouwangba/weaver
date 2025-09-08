@@ -15,6 +15,11 @@ from modules.services.task_monitoring_service import (
     monitoring_service,
 )
 from modules.services.topic_service import TopicService
+from modules.services.rag_integrated_chat_service import (
+    RAGIntegratedChatService,
+    create_rag_integrated_chat_service,
+)
+# 保留基础聊天服务以备兼容性需要
 from modules.services.chat_service import ChatService, get_chat_service
 from modules.services.elasticsearch_service import (
     ElasticsearchChatService,
@@ -33,6 +38,10 @@ __all__ = [
     "TaskConfigurationService",
     "monitoring_service",
     "configuration_service",
+    # 新的RAG集成聊天服务（推荐使用）
+    "RAGIntegratedChatService",
+    "create_rag_integrated_chat_service",
+    # 基础聊天服务（兼容性保留）
     "ChatService",
     "get_chat_service",
     "ElasticsearchChatService",

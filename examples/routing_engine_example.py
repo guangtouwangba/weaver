@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from modules.routing import QueryRoutingEngine, RoutingEngineFactory
 from modules.routing.factory import create_routing_engine
-from modules.services.enhanced_chat_service import EnhancedChatService
+from modules.services.rag_integrated_chat_service import RAGIntegratedChatService, create_rag_integrated_chat_service
 from modules.schemas.chat import ChatRequest
 
 # 设置日志
@@ -77,12 +77,11 @@ async def demo_enhanced_chat_service():
     print("🤖 增强版聊天服务演示")
     print("=" * 60)
     
-    # 创建增强版聊天服务
-    chat_service = EnhancedChatService()
-    
-    # 初始化服务（不需要真实的AI客户端用于演示）
-    await chat_service.initialize()
-    await chat_service.initialize_routing(mode="keyword_only")
+    # 创建RAG集成聊天服务
+    chat_service = await create_rag_integrated_chat_service(
+        pipeline_type="simple",  # 使用简单模式用于演示
+        enable_routing=True
+    )
     
     # 测试对话
     test_conversations = [
