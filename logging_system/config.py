@@ -41,6 +41,7 @@ class LogOutput(Enum):
     ASYNC_FILE = "async_file"
     LOKI = "loki"
     ASYNC_LOKI = "async_loki"
+    BOTH = "both"  # Console + File
 
 
 @dataclass
@@ -77,14 +78,21 @@ class LoggingConfig:
     # 基本配置
     level: LogLevel = LogLevel.INFO
     format: LogFormat = LogFormat.DETAILED
+    output: LogOutput = LogOutput.CONSOLE
 
     # 应用信息
     app_name: str = "rag-system"
     version: str = "1.0.0"
     environment: str = "development"
 
-    # 日志目录
+    # 日志目录和文件配置
     log_dir: str = "logs"
+    file_path: Optional[str] = None
+    
+    # 文件轮转配置
+    enable_file_rotation: bool = True
+    max_file_size: int = 10  # MB
+    backup_count: int = 5
 
     # 处理器配置
     handlers: List[HandlerConfig] = field(
@@ -124,6 +132,24 @@ class LoggingConfig:
         # 确保日志目录存在
         if self.log_dir:
             Path(self.log_dir).mkdir(parents=True, exist_ok=True)
+
+        # 如果指定了 file_path，且 output 为 BOTH，自动配置handlers
+        if self.output == LogOutput.BOTH and self.file_path:
+            self.handlers = [
+                HandlerConfig(
+                    type=LogOutput.CONSOLE,
+                    level=self.level,
+                    format=LogFormat.COLORED
+                ),
+                HandlerConfig(
+                    type=LogOutput.ROTATING_FILE if self.enable_file_rotation else LogOutput.FILE,
+                    level=self.level,
+                    format=LogFormat.DETAILED,
+                    filename=self.file_path,
+                    max_bytes=self.max_file_size * 1024 * 1024,
+                    backup_count=self.backup_count
+                )
+            ]
 
         # 为每个handler设置默认文件名
         for handler in self.handlers:

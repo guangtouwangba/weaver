@@ -213,14 +213,16 @@ class DocumentProcessingHandler(ITaskHandler):
                 await self._update_progress("处理完成", 100, 100)
                 await self._update_file_status(
                     file_id,
-                    "processed",
+                    "available",  # RAG处理完成后设置为available状态，用户可以开始查询
                     f"RAG处理完成: {result.total_chunks}块, {result.stored_vectors}向量",
                 )
+                logger.info(f"🎉 文件 {file_id} RAG处理完成，状态更新为available，用户可以开始查询")
             else:
                 # 处理失败
                 await self._update_file_status(
                     file_id, "failed", "RAG处理失败", error_message=result.error_message
                 )
+                logger.error(f"❌ 文件 {file_id} RAG处理失败，状态更新为failed")
 
             # 清理资源
             await pipeline.cleanup()
@@ -264,6 +266,7 @@ class DocumentProcessingHandler(ITaskHandler):
             await self._update_file_status(
                 file_id, "failed", "RAG处理失败", error_message=str(e)
             )
+            logger.error(f"❌ 文件 {file_id} RAG处理异常失败，状态更新为failed")
 
             return {
                 "success": False,
@@ -295,22 +298,33 @@ class DocumentProcessingHandler(ITaskHandler):
         processing_status: str,
         error_message: Optional[str] = None,
     ):
-        """更新文件处理状态"""
+        """更新文件处理状态
+        
+        Args:
+            file_id: 文件ID
+            status: 文件状态，应使用FileStatus枚举对应的字符串值
+            processing_status: 处理状态描述
+            error_message: 错误信息（可选）
+        """
         try:
-            from ...database import get_session
+            from ...database import get_db_session
             from ...repository import FileRepository
 
-            async with get_session() as session:
+            session_gen = get_db_session()
+            session = await session_gen.__anext__()
+            try:
                 file_repo = FileRepository(session)
                 await file_repo.update_file_status(
                     file_id=file_id,
-                    status=status,
+                    status=status,  # 接收字符串，由repository层处理枚举映射
                     processing_status=processing_status,
                     error_message=error_message,
                 )
-            logger.info(f"文件状态更新: {file_id} -> {status}: {processing_status}")
+                logger.info(f"📋 文件状态更新: {file_id} -> {status}: {processing_status}")
+            finally:
+                await session.close()
         except Exception as e:
-            logger.warning(f"文件状态更新失败: {file_id}, {e}")
+            logger.warning(f"⚠️ 文件状态更新失败: {file_id}, {e}")
             # 不让状态更新失败影响主流程
 
 
@@ -1096,10 +1110,12 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
     async def _get_file_info(self, file_id: str) -> Dict[str, Any]:
         """从数据库获取文件信息"""
         try:
-            from ...database import get_session
+            from ...database import get_db_session
             from ...repository import FileRepository
             
-            async with get_session() as session:
+            session_gen = get_db_session()
+            session = await session_gen.__anext__()
+            try:
                 file_repo = FileRepository(session)
                 file_record = await file_repo.get_file_by_id(file_id)
                 
@@ -1113,6 +1129,8 @@ class AsyncDocumentProcessingHandler(ITaskHandler):
                 else:
                     logger.warning(f"文件记录未找到: {file_id}")
                     return {}
+            finally:
+                await session.close()
                     
         except Exception as e:
             logger.error(f"获取文件信息失败: {file_id}, {e}")

@@ -54,218 +54,6 @@ logger = logging.getLogger(__name__)
 # =================================
 
 
-class OpenAIEmbeddingService(IEmbeddingService):
-    """OpenAI嵌入Service implementation"""
-
-    def __init__(self, config: EmbeddingConfig):
-        self._config = config
-        self._client = None
-
-    async def initialize(self) -> None:
-        try:
-            import openai
-
-            self._client = openai.AsyncOpenAI(api_key=self._config.api_key)
-            logger.info(f"OpenAI嵌入服务初始化完成: {self._config.model_name}")
-        except ImportError:
-            raise EmbeddingError(
-                "OpenAI library not installed",
-                provider="openai",
-                error_code="LIBRARY_MISSING",
-            )
-        except Exception as e:
-            raise EmbeddingError(
-                f"OpenAI初始化失败: {e}",
-                provider="openai",
-                error_code="INIT_FAILED",
-                original_error=e,
-            )
-
-    async def cleanup(self) -> None:
-        self._client = None
-
-    async def generate_embeddings(self, texts: List[str]) -> EmbeddingResult:
-        start_time = time.time()
-
-        try:
-            response = await self._client.embeddings.create(
-                model=self._config.model_name, input=texts
-            )
-
-            vectors = [embedding.embedding for embedding in response.data]
-            processing_time = (time.time() - start_time) * 1000
-
-            return EmbeddingResult(
-                vectors=vectors,
-                texts=texts,
-                model_name=self._config.model_name,
-                dimension=len(vectors[0]) if vectors else 0,
-                processing_time_ms=processing_time,
-                metadata={
-                    "provider": "openai",
-                    "usage": (
-                        response.usage.dict() if hasattr(response, "usage") else None
-                    ),
-                },
-            )
-
-        except Exception as e:
-            processing_time = (time.time() - start_time) * 1000
-            raise EmbeddingError(
-                f"OpenAI嵌入生成失败: {e}",
-                provider="openai",
-                error_code="GENERATION_FAILED",
-                original_error=e,
-            )
-
-    async def generate_single_embedding(self, text: str) -> List[float]:
-        result = await self.generate_embeddings([text])
-        return result.vectors[0]
-
-    async def get_embedding_dimension(self) -> int:
-        return self._config.dimension
-
-    async def health_check(self) -> Dict[str, Any]:
-        try:
-            await self.generate_single_embedding("test")
-            return {
-                "status": "healthy",
-                "provider": "openai",
-                "model": self._config.model_name,
-            }
-        except Exception as e:
-            return {"status": "unhealthy", "provider": "openai", "error": str(e)}
-
-    @property
-    def service_name(self) -> str:
-        return f"OpenAIEmbeddingService[{self._config.model_name}]"
-
-    @property
-    def config(self) -> EmbeddingConfig:
-        return self._config
-
-    @property
-    def supported_languages(self) -> List[str]:
-        return ["en", "zh", "ja", "ko", "fr", "de", "es", "it", "pt", "ru"]
-
-
-class HuggingFaceEmbeddingService(IEmbeddingService):
-    """HuggingFace嵌入Service implementation"""
-
-    def __init__(self, config: EmbeddingConfig):
-        self._config = config
-        self._model = None
-        self._tokenizer = None
-
-    async def initialize(self) -> None:
-        try:
-            import torch
-            from transformers import AutoModel, AutoTokenizer
-
-            self._tokenizer = AutoTokenizer.from_pretrained(self._config.model_name)
-            self._model = AutoModel.from_pretrained(self._config.model_name)
-
-            if torch.cuda.is_available():
-                self._model = self._model.cuda()
-
-            logger.info(f"HuggingFace嵌入服务初始化完成: {self._config.model_name}")
-
-        except ImportError:
-            raise EmbeddingError(
-                "Transformers library not installed",
-                provider="huggingface",
-                error_code="LIBRARY_MISSING",
-            )
-        except Exception as e:
-            raise EmbeddingError(
-                f"HuggingFace初始化失败: {e}",
-                provider="huggingface",
-                error_code="INIT_FAILED",
-                original_error=e,
-            )
-
-    async def cleanup(self) -> None:
-        self._model = None
-        self._tokenizer = None
-
-    async def generate_embeddings(self, texts: List[str]) -> EmbeddingResult:
-        start_time = time.time()
-
-        try:
-            import torch
-
-            # Tokenize
-            inputs = self._tokenizer(
-                texts,
-                padding=True,
-                truncation=True,
-                return_tensors="pt",
-                max_length=512,
-            )
-
-            if torch.cuda.is_available():
-                inputs = {k: v.cuda() for k, v in inputs.items()}
-
-            # Generate embeddings
-            with torch.no_grad():
-                outputs = self._model(**inputs)
-                embeddings = outputs.last_hidden_state.mean(dim=1)  # Mean pooling
-
-            vectors = embeddings.cpu().numpy().tolist()
-            processing_time = (time.time() - start_time) * 1000
-
-            return EmbeddingResult(
-                vectors=vectors,
-                texts=texts,
-                model_name=self._config.model_name,
-                dimension=len(vectors[0]) if vectors else 0,
-                processing_time_ms=processing_time,
-                metadata={
-                    "provider": "huggingface",
-                    "device": "cuda" if torch.cuda.is_available() else "cpu",
-                },
-            )
-
-        except Exception as e:
-            processing_time = (time.time() - start_time) * 1000
-            raise EmbeddingError(
-                f"HuggingFace嵌入生成失败: {e}",
-                provider="huggingface",
-                error_code="GENERATION_FAILED",
-                original_error=e,
-            )
-
-    async def generate_single_embedding(self, text: str) -> List[float]:
-        result = await self.generate_embeddings([text])
-        return result.vectors[0]
-
-    async def get_embedding_dimension(self) -> int:
-        return self._config.dimension
-
-    async def health_check(self) -> Dict[str, Any]:
-        try:
-            await self.generate_single_embedding("test")
-            return {
-                "status": "healthy",
-                "provider": "huggingface",
-                "model": self._config.model_name,
-            }
-        except Exception as e:
-            return {"status": "unhealthy", "provider": "huggingface", "error": str(e)}
-
-    @property
-    def service_name(self) -> str:
-        return f"HuggingFaceEmbeddingService[{self._config.model_name}]"
-
-    @property
-    def config(self) -> EmbeddingConfig:
-        return self._config
-
-    @property
-    def supported_languages(self) -> List[str]:
-        return ["en", "zh"]  # Depends on specific model
-
-
 # =================================
 # Vector Store Implementations
 # =================================
@@ -953,25 +741,22 @@ def create_embedding_service(
             api_key=api_key,
             **kwargs,
         )
-        return OpenAIEmbeddingService(config)
+        # 使用标准的OpenAIEmbeddingService
+        from modules.embedding.openai_service import OpenAIEmbeddingService as StandardOpenAIEmbeddingService
+        return StandardOpenAIEmbeddingService(
+            api_key=config.api_key,
+            model=config.model_name,
+            max_batch_size=100,
+            max_retries=3,
+            request_timeout=30
+        )
 
     elif provider == EmbeddingProvider.HUGGINGFACE:
-        # Use AI config if provided, otherwise use defaults or kwargs
-        if ai_config:
-            hf_config = ai_config.embedding.huggingface
-            model_name = kwargs.pop("model_name", hf_config.embedding_model)
-            dimension = kwargs.pop("dimension", 384)
-        else:
-            # Fallback to defaults if no AI config
-            model_name = kwargs.pop(
-                "model_name", "sentence-transformers/all-MiniLM-L6-v2"
-            )
-            dimension = kwargs.pop("dimension", 384)
-
-        config = EmbeddingConfig(
-            provider=provider, model_name=model_name, dimension=dimension, **kwargs
+        # TODO: 实现标准的HuggingFace嵌入服务
+        raise NotImplementedError(
+            "HuggingFace嵌入服务需要重新实现。"
+            "请使用OpenAI嵌入服务或实现标准的HuggingFace服务。"
         )
-        return HuggingFaceEmbeddingService(config)
 
     else:
         raise ValueError(f"Unsupported embedding provider: {provider}")

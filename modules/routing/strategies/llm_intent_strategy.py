@@ -27,7 +27,7 @@ class LLMIntentStrategy(IRoutingStrategy):
     def __init__(
         self,
         llm_client: Optional[Any] = None,
-        model: str = "gpt-3.5-turbo",
+        model: str = "gpt-4o-mini",
         temperature: float = 0.1,
         max_tokens: int = 200
     ):
@@ -39,6 +39,7 @@ class LLMIntentStrategy(IRoutingStrategy):
         # 意图到处理器的映射
         self.intent_handler_mapping = {
             "RAG_QUERY": "rag_handler",
+            "SUMMARY_REQUEST": "summary_handler",
             "CASUAL_CHAT": "chat_handler",
             "SYSTEM_COMMAND": "system_handler", 
             "TOOL_REQUEST": "tool_handler",
@@ -48,12 +49,13 @@ class LLMIntentStrategy(IRoutingStrategy):
         
         # 意图描述，用于生成更好的提示词
         self.intent_descriptions = {
-            "RAG_QUERY": "用户想要查询具体知识、信息或需要解释某个概念",
-            "CASUAL_CHAT": "用户进行日常闲聊、情感表达或一般性对话",
-            "SYSTEM_COMMAND": "用户想要执行系统操作，如清除历史、设置配置等",
-            "TOOL_REQUEST": "用户需要使用工具，如计算、翻译、查天气等",
-            "GREETING": "用户的问候语或告别语",
-            "UNCLEAR": "无法明确判断用户意图"
+            "RAG_QUERY": "用户想要查询具体知识、信息或需要解释某个概念，通常包含疑问词或明确的信息查询意图",
+            "SUMMARY_REQUEST": "用户想要获取文档、主题或内容的总结、概述或摘要，通常包含'讲了什么'、'总结'、'概括'、'主要内容'等表达",
+            "CASUAL_CHAT": "用户进行日常闲聊、情感表达或一般性对话，不涉及具体的信息检索或任务执行",
+            "SYSTEM_COMMAND": "用户想要执行系统操作，如清除历史、设置配置、系统管理等",
+            "TOOL_REQUEST": "用户需要使用特定工具功能，如计算、翻译、查天气等外部服务",
+            "GREETING": "用户的问候语、告别语或礼貌性表达",
+            "UNCLEAR": "无法明确判断用户意图或意图模糊不清"
         }
         
         if not OPENAI_AVAILABLE and not llm_client:
@@ -144,6 +146,18 @@ class LLMIntentStrategy(IRoutingStrategy):
 
 可选的意图类型:
 {chr(10).join(intent_options)}
+
+典型示例:
+- SUMMARY_REQUEST: "这个topic讲了什么", "请总结一下这个文档", "主要内容是什么", "能概括一下吗"
+- RAG_QUERY: "什么是机器学习", "请解释深度学习", "文档中提到的算法有哪些"
+- CASUAL_CHAT: "你好", "谢谢", "今天天气不错", "你能做什么"
+- SYSTEM_COMMAND: "清除历史记录", "重启服务", "检查系统状态"
+- TOOL_REQUEST: "帮我计算", "翻译这段文字", "查询天气"
+
+重要识别规则:
+1. 包含"讲了什么"、"总结"、"概括"、"主要内容"等词汇 → SUMMARY_REQUEST
+2. 包含具体问题或疑问词且询问知识 → RAG_QUERY
+3. 日常寒暄、感谢、问候 → CASUAL_CHAT
 
 请严格按照以下JSON格式返回结果:
 {{

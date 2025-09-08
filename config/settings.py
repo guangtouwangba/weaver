@@ -338,8 +338,9 @@ class OpenAIConfig(BaseModel):
 
     # Model configurations
     chat_model: str = Field(default="gpt-3.5-turbo", description="Default chat model")
+    intent_recognition_model: str = Field(default="gpt-4o-mini", description="Model for intent recognition and routing")
     embedding_model: str = Field(
-        default="text-embedding-ada-002", description="Default embedding model"
+        default="text-embedding-3-small", description="Default embedding model"
     )
 
     # Request configurations
@@ -347,6 +348,10 @@ class OpenAIConfig(BaseModel):
     temperature: float = Field(default=0.7, description="Generation temperature")
     timeout: int = Field(default=60, description="Request timeout in seconds")
     max_retries: int = Field(default=3, description="Maximum retry attempts")
+    
+    # Intent recognition specific configurations
+    intent_max_tokens: int = Field(default=200, description="Maximum tokens for intent recognition")
+    intent_temperature: float = Field(default=0.1, description="Temperature for intent recognition (lower for more deterministic)")
     
     # Proxy configuration (使用标准环境变量)
     http_proxy: Optional[str] = Field(default_factory=lambda: os.getenv('HTTP_PROXY'), description="HTTP proxy URL (读取HTTP_PROXY环境变量)")

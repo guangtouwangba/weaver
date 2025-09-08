@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, Response
 from config.docs import SWAGGER_UI_PARAMETERS
 from config.settings import AppConfig
 from modules.api import api_router
+from modules.api.enhanced_rag_api import router as enhanced_rag_router
 from modules.api.error_handlers import (
     general_exception_handler,
     request_validation_error_handler,
@@ -86,12 +87,49 @@ async def initialize_elasticsearch():
         logger.warning(f"Elasticsearch模块不可用: {e}")
         return False
     except Exception as e:
-        logger.error(f"Elasticsearch初始化失败: {e}")
+        # Use basic print to avoid logging recursion issues
+        print(f"⚠️ Elasticsearch初始化失败: {e}")
         return False
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure logging - integrate with our logging system and Loki
+from logging_system import get_logger, setup_logging, LoggingConfig, LogLevel, LogOutput, HandlerConfig
+from logging_system.config import LogFormat
+
+# Setup structured logging with both console, file, and Loki output
+logging_config = LoggingConfig(
+    level=LogLevel.INFO,
+    app_name="rag-api",
+    environment="development",
+    handlers=[
+        # Console output with colors
+        HandlerConfig(
+            type=LogOutput.CONSOLE,
+            level=LogLevel.INFO,
+            format=LogFormat.COLORED
+        ),
+        # File output for Promtail to collect
+        HandlerConfig(
+            type=LogOutput.ROTATING_FILE,
+            level=LogLevel.INFO,
+            format=LogFormat.DETAILED,
+            filename="logs/app.log",
+            max_bytes=10 * 1024 * 1024,  # 10MB
+            backup_count=5
+        ),
+        # Direct Loki output for real-time logs
+        HandlerConfig(
+            type=LogOutput.ASYNC_LOKI,
+            level=LogLevel.INFO,
+            format=LogFormat.JSON,
+            loki_url="http://localhost:3100",
+            loki_labels={"service": "rag-api", "environment": "development"}
+        )
+    ]
+)
+setup_logging(logging_config)
+
+# Get configured logger
+logger = get_logger(__name__)
 
 # Application metadata
 APP_METADATA = {
@@ -139,6 +177,7 @@ app.add_middleware(
 
 # API Routes
 app.include_router(api_router)
+app.include_router(enhanced_rag_router)
 
 
 # Documentation routes

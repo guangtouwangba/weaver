@@ -152,6 +152,14 @@ class LoggerFactory:
                     "index": handler_config.es_index or "logs",
                 }
             )
+        
+        elif handler_config.type in [LogOutput.LOKI, LogOutput.ASYNC_LOKI]:
+            handler_params.update(
+                {
+                    "url": handler_config.loki_url or "http://localhost:3100",
+                    "labels": handler_config.loki_labels or {},
+                }
+            )
 
         # 创建处理器
         handler = create_handler(handler_config.type.value, **handler_params)

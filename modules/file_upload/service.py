@@ -134,11 +134,26 @@ class FileUploadService(IFileUploadService):
                 # 获取存储中的文件信息
                 storage_info = await self.storage.get_file_info(file_info.storage_key)
 
+                # 检查是否需要RAG处理
+                will_process_rag = self.task_service and self._is_rag_supported_file(file_info.content_type)
+                
+                # 根据是否需要RAG处理设置不同的状态
+                if will_process_rag:
+                    # 需要RAG处理，设置为PROCESSING状态
+                    file_status = FileStatus.PROCESSING
+                    status_message = "上传完成，正在处理中"
+                    logger.info(f"文件 {file_id} 上传完成，开始RAG处理流程")
+                else:
+                    # 不需要RAG处理，直接设置为AVAILABLE
+                    file_status = FileStatus.AVAILABLE
+                    status_message = "上传完成"
+                    logger.info(f"文件 {file_id} 上传完成，无需RAG处理")
+
                 # 更新文件状态和信息
                 updated_file = await file_repo.update_file_status(
                     file_id=file_id,
-                    status=FileStatus.AVAILABLE,
-                    processing_status="上传完成",
+                    status=file_status,
+                    processing_status=status_message,
                     file_size=actual_size or storage_info.get("size", 0),
                     file_hash=file_hash or storage_info.get("hash"),
                     storage_url=storage_info.get("access_url"),
@@ -147,10 +162,8 @@ class FileUploadService(IFileUploadService):
                 if not updated_file:
                     return {"success": False, "error": "更新文件状态失败"}
 
-                # 异步触发RAG处理任务（如果文件类型支持RAG处理）
-                if self.task_service and self._is_rag_supported_file(
-                    file_info.content_type
-                ):
+                # 异步触发RAG处理任务（如果需要处理）
+                if will_process_rag:
                     # 使用asyncio.create_task在后台异步提交任务，不阻塞主流程
                     import asyncio
 

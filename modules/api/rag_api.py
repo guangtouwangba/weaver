@@ -18,7 +18,7 @@ from modules.models import (
     SearchRequest,
 )
 from modules.orchestrator import DocumentOrchestrator
-from modules.processors import ChunkingProcessor
+from modules.processors import EnhancedChunkingProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class RagAPI(IModularAPI):
         # 初始化组件
         if orchestrator is None:
             file_loader = MultiFormatFileLoader()
-            document_processor = ChunkingProcessor(
+            document_processor = EnhancedChunkingProcessor(
                 default_chunk_size=default_chunk_size,
                 default_overlap=default_chunk_overlap,
             )

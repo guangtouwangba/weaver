@@ -8,6 +8,7 @@ import json
 import logging
 import threading
 import time
+import traceback
 from datetime import datetime
 from logging import LogRecord
 from typing import Any, Dict, List, Optional
@@ -117,7 +118,7 @@ class LokiHandler(logging.Handler):
             log_data["exception"] = {
                 "type": record.exc_info[0].__name__ if record.exc_info[0] else None,
                 "message": str(record.exc_info[1]) if record.exc_info[1] else None,
-                "traceback": self.formatException(record.exc_info) if record.exc_info else None,
+                "traceback": self.format_exception(record.exc_info) if record.exc_info else None,
             }
         
         # Add extra fields from record
@@ -135,6 +136,12 @@ class LokiHandler(logging.Handler):
             "line": json.dumps(log_data),
             "labels": labels
         }
+    
+    def format_exception(self, exc_info):
+        """Format exception information as a string"""
+        if exc_info:
+            return ''.join(traceback.format_exception(*exc_info))
+        return None
     
     def _flush_buffer(self):
         """Flush the buffer to Loki"""

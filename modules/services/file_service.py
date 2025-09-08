@@ -91,11 +91,30 @@ class FileService(BaseService):
     ) -> ConfirmUploadResponse:
         """确认文件上传完成"""
         try:
+            # 获取文件信息判断是否需要RAG处理
+            file_record = await self.file_repo.get_file_by_id(request.file_id)
+            if not file_record:
+                raise ValueError(f"文件 {request.file_id} 不存在")
+                
+            # 判断是否需要RAG处理
+            needs_rag_processing = self._is_rag_supported_file(file_record.content_type)
+            
+            if needs_rag_processing:
+                # 需要RAG处理，设置为PROCESSING状态
+                status = FileStatus.PROCESSING
+                processing_status = "上传完成，正在处理中"
+                self.logger.info(f"文件 {request.file_id} 上传完成，开始RAG处理流程")
+            else:
+                # 不需要RAG处理，直接设置为AVAILABLE
+                status = FileStatus.AVAILABLE  
+                processing_status = "上传完成"
+                self.logger.info(f"文件 {request.file_id} 上传完成，无需RAG处理")
+
             # 更新文件状态
             file_record = await self.file_repo.update_file_status(
                 file_id=request.file_id,
-                status=FileStatus.AVAILABLE,
-                processing_status="pending",
+                status=status,
+                processing_status=processing_status,
             )
 
             if not file_record:
@@ -112,9 +131,9 @@ class FileService(BaseService):
 
             return ConfirmUploadResponse(
                 file_id=request.file_id,
-                status=FileStatus.AVAILABLE,
-                processing_queued=True,
-                estimated_processing_time=60,  # 预计60秒
+                status=status,  # 使用动态确定的状态
+                processing_queued=needs_rag_processing,  # 只有需要RAG处理时才排队
+                estimated_processing_time=60 if needs_rag_processing else 0,
                 file_path=file_record.storage_key,  # 文件存储路径
             )
 
@@ -320,3 +339,27 @@ class FileService(BaseService):
             topic = await self.topic_repo.get_topic_by_id(request.topic_id)
             if not topic:
                 raise ValueError(f"主题 {request.topic_id} 不存在")
+
+    def _is_rag_supported_file(self, content_type: str) -> bool:
+        """判断文件类型是否支持RAG处理
+        
+        Args:
+            content_type: 文件MIME类型
+            
+        Returns:
+            bool: 是否支持RAG处理
+        """
+        if not content_type:
+            return False
+            
+        # 支持RAG处理的文件类型
+        rag_supported_types = {
+            "application/pdf",
+            "text/plain", 
+            "text/markdown",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/rtf"
+        }
+        
+        return content_type.lower() in rag_supported_types

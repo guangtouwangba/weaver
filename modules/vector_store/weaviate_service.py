@@ -133,6 +133,62 @@ class WeaviateVectorStore(IVectorStore):
                 error_code="INITIALIZATION_FAILED"
             )
     
+    def _build_weaviate_filter(self, filters: SearchFilter) -> Optional[Filter]:
+        """构建Weaviate原生Where过滤条件
+        
+        Args:
+            filters: 搜索过滤条件
+            
+        Returns:
+            Filter: Weaviate过滤对象，如果无过滤条件则返回None
+        """
+        if not filters or not filters.metadata_filters:
+            return None
+        
+        try:
+            filter_conditions = []
+            
+            for key, value in filters.metadata_filters.items():
+                if key == "topic_id" and value is not None:
+                    # topic_id过滤 - Weaviate要求使用字符串类型
+                    filter_conditions.append(Filter.by_property("topic_id").equal(str(value)))
+                    logger.debug(f"🔍 添加topic_id过滤条件: {value} (转换为字符串)")
+                
+                elif key == "document_id" and value is not None:
+                    # document_id过滤 - 字符串类型
+                    filter_conditions.append(Filter.by_property("document_id").equal(str(value)))
+                    logger.debug(f"🔍 添加document_id过滤条件: {value}")
+                
+                elif key == "collection_type" and value is not None:
+                    # collection_type过滤 - 用于区分不同类型的内容
+                    filter_conditions.append(Filter.by_property("collection_type").equal(str(value)))
+                    logger.debug(f"🔍 添加collection_type过滤条件: {value}")
+                    
+                else:
+                    # 通用metadata过滤 - 在metadata JSON字段中查找
+                    # 使用path查询来访问嵌套的metadata字段
+                    filter_conditions.append(Filter.by_property(f"metadata.{key}").equal(value))
+                    logger.debug(f"🔍 添加通用metadata过滤条件: {key}={value}")
+            
+            if not filter_conditions:
+                return None
+            
+            # 如果只有一个条件，直接返回
+            if len(filter_conditions) == 1:
+                return filter_conditions[0]
+            
+            # 多个条件使用AND逻辑连接
+            combined_filter = filter_conditions[0]
+            for condition in filter_conditions[1:]:
+                combined_filter = combined_filter & condition
+                
+            logger.debug(f"🔍 构建了包含{len(filter_conditions)}个条件的复合过滤器")
+            return combined_filter
+            
+        except Exception as e:
+            logger.error(f"构建Weaviate过滤器失败: {e}")
+            return None
+
     async def cleanup(self) -> None:
         """清理向量存储资源"""
         if self._client:
@@ -450,19 +506,34 @@ class WeaviateVectorStore(IVectorStore):
             except Exception as count_error:
                 logger.warning(f"⚠️ 无法获取文档总数: {count_error}")
             
-            # 执行基本的向量搜索（暂时不使用Weaviate内置过滤，在应用层过滤）
-            # 增加搜索数量以补偿后续的应用层过滤
-            search_limit = limit * 3 if filters else limit
+            # 构建Weaviate原生where过滤条件（优先使用数据库层过滤）
+            where_filter = self._build_weaviate_filter(filters) if filters else None
+            
+            # 使用原生过滤时不需要增加搜索数量，应用层过滤时才需要
+            if where_filter:
+                search_limit = limit  # 数据库层已过滤，使用精确限制
+                logger.debug(f"🎯 使用Weaviate原生where过滤，精确限制: {search_limit}")
+            else:
+                search_limit = limit * 3 if filters else limit  # 应用层过滤需要更多候选
+                logger.debug(f"🔄 使用应用层过滤，扩大搜索范围: {search_limit}")
             
             logger.debug(f"🔎 Weaviate搜索参数: collection={collection_name}, "
                         f"向量维度={len(query_vector)}, limit={search_limit}, "
                         f"score_threshold={score_threshold}")
             
-            response = collection.query.near_vector(
-                near_vector=query_vector,
-                limit=search_limit,
-                return_metadata=["score", "distance"]
-            )
+            # 构建查询参数，根据是否有过滤条件选择不同的调用方式
+            query_params = {
+                "near_vector": query_vector,
+                "limit": search_limit,
+                "return_metadata": ["score", "distance"]
+            }
+            
+            # 如果有过滤条件，添加filters参数（v4客户端使用filters而不是where）
+            if where_filter:
+                query_params["filters"] = where_filter
+                logger.debug(f"🎯 添加原生filters过滤条件: {where_filter}")
+            
+            response = collection.query.near_vector(**query_params)
             
             logger.debug(f"📊 Weaviate原始响应: {len(response.objects)} 个对象")
             
@@ -496,11 +567,14 @@ class WeaviateVectorStore(IVectorStore):
                         logger.debug(f"⚠️ 对象 {i+1} metadata JSON解析失败，保持原始字符串")
                         pass
                 
-                # 应用层过滤（如果有过滤条件）
-                if filters and not self._apply_filters_on_result(properties, filters):
+                # 应用层过滤（仅在没有使用原生where过滤时执行）
+                if filters and not where_filter and not self._apply_filters_on_result(properties, filters):
                     filtered_count += 1
                     logger.debug(f"❌ 对象 {i+1} 被应用层过滤器过滤")
                     continue
+                elif where_filter:
+                    # 使用了原生过滤，跳过应用层过滤
+                    logger.debug(f"✅ 对象 {i+1} 已通过Weaviate原生过滤")
                 
                 # 如果已经有足够的结果，停止处理
                 if len(results) >= limit:
@@ -536,6 +610,8 @@ class WeaviateVectorStore(IVectorStore):
                 logger.info(f"🎯 分数阈值过滤移除了 {score_filtered_count} 个结果 (< {score_threshold})")
             if filtered_count > 0:
                 logger.info(f"🎯 应用层过滤移除了 {filtered_count} 个结果")
+            if where_filter:
+                logger.info(f"🚀 使用Weaviate原生where过滤，跳过应用层过滤提升性能")
             
             logger.info(f"📊 Weaviate搜索完成: 原始{len(response.objects)}个 → 最终{len(results)}个结果")
             
