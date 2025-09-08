@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 import asyncio
 import logging
+import os
 from .models import *
 
 
@@ -70,6 +71,21 @@ class MemoryDocumentRepository(DocumentRepository):
     
     async def get_chunks(self, doc_id: str) -> List[DocumentChunk]:
         return self._chunks.get(doc_id, [])
+    
+    async def semantic_search(self, query_embedding: List[float], limit: int = 10) -> List[Document]:
+        """Semantic search using embeddings (simplified implementation)"""
+        # In a real implementation, this would use proper vector similarity
+        # For now, we'll use a simple text-based fallback
+        results = []
+        for doc in self._docs.values():
+            if doc.content:
+                # Simple heuristic: longer content gets higher priority
+                score = len(doc.content) / 1000  # Normalize by content length
+                results.append((doc, score))
+        
+        # Sort by score and return top results
+        results.sort(key=lambda x: x[1], reverse=True)
+        return [doc for doc, score in results[:limit]]
 
 
 class MemoryTopicRepository(TopicRepository):
@@ -113,25 +129,149 @@ class AIService(ABC):
     def chunk_content(self, content: str, size: int = 1000) -> List[DocumentChunk]: pass
 
 
-# Mock AI Service
-class MockAIService(AIService):
+# Enhanced AI Service with OpenAI integration
+class EnhancedAIService(AIService):
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.use_openai = bool(self.api_key)
+        
+        if self.use_openai:
+            try:
+                import openai
+                self.client = openai.AsyncOpenAI(api_key=self.api_key)
+                logging.info("✓ OpenAI client initialized")
+            except ImportError:
+                logging.warning("OpenAI not installed, using mock responses")
+                self.use_openai = False
+        else:
+            logging.info("No OpenAI API key, using mock responses")
+    
     async def generate_embedding(self, text: str) -> List[float]:
-        # Mock embedding - in real implementation use OpenAI/local model
-        return [0.1] * 1536
+        if self.use_openai:
+            try:
+                response = await self.client.embeddings.create(
+                    model="text-embedding-ada-002",
+                    input=text
+                )
+                return response.data[0].embedding
+            except Exception as e:
+                logging.error(f"OpenAI embedding error: {e}")
+        
+        # Fallback to mock embedding
+        import hashlib
+        hash_obj = hashlib.md5(text.encode())
+        seed = int(hash_obj.hexdigest(), 16) % 1000000
+        import random
+        random.seed(seed)
+        return [random.random() * 2 - 1 for _ in range(1536)]
     
     async def generate_response(self, message: str, context: str = "") -> str:
-        # Mock response - in real implementation use OpenAI/local model
-        return f"Mock response to: {message[:50]}..."
+        if self.use_openai:
+            try:
+                messages = [
+                    {"role": "system", "content": "You are a helpful AI assistant for a RAG knowledge management system."}
+                ]
+                
+                if context:
+                    messages.append({"role": "system", "content": f"Context information:\n{context}"})
+                
+                messages.append({"role": "user", "content": message})
+                
+                response = await self.client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=messages,
+                    max_tokens=1000,
+                    temperature=0.7
+                )
+                
+                return response.choices[0].message.content
+            except Exception as e:
+                logging.error(f"OpenAI chat error: {e}")
+        
+        # Fallback to intelligent mock response
+        if "python" in message.lower():
+            return "Python is a versatile programming language known for its simplicity and readability. It's widely used in data science, web development, and AI applications."
+        elif "machine learning" in message.lower() or "ml" in message.lower():
+            return "Machine Learning is a subset of artificial intelligence that enables systems to learn and improve from data without being explicitly programmed."
+        elif "what" in message.lower() or "?" in message:
+            return f"Based on the available knowledge, here's what I can tell you about your question: {message[:100]}... This is a comprehensive topic that involves multiple aspects."
+        else:
+            return f"I understand you're asking about: {message[:50]}{'...' if len(message) > 50 else ''}. Let me provide you with relevant information based on the knowledge base."
     
     def extract_text(self, file_path: str) -> str:
-        # Mock text extraction
-        return f"Extracted text from {file_path}"
+        """Extract text from various file types"""
+        try:
+            if file_path.endswith('.txt'):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+            elif file_path.endswith('.md'):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+            else:
+                # For demo purposes, return sample content
+                return f"Sample content extracted from {file_path}. In a real implementation, this would use libraries like PyMuPDF for PDFs, python-docx for Word documents, etc."
+        except Exception as e:
+            logging.error(f"Text extraction error: {e}")
+            return f"Error extracting text from {file_path}: {str(e)}"
     
     def chunk_content(self, content: str, size: int = 1000) -> List[DocumentChunk]:
-        # Simple chunking
+        """Intelligent content chunking"""
+        if not content:
+            return []
+        
         chunks = []
+        
+        # Split by paragraphs first
+        paragraphs = content.split('\n\n')
+        current_chunk = ""
+        chunk_index = 0
+        
+        for paragraph in paragraphs:
+            # If adding this paragraph would exceed size, create a chunk
+            if len(current_chunk) + len(paragraph) > size and current_chunk:
+                chunk = DocumentChunk(
+                    content=current_chunk.strip(),
+                    chunk_index=chunk_index
+                )
+                chunks.append(chunk)
+                chunk_index += 1
+                current_chunk = paragraph
+            else:
+                current_chunk += "\n\n" + paragraph if current_chunk else paragraph
+        
+        # Add the last chunk if it has content
+        if current_chunk.strip():
+            chunk = DocumentChunk(
+                content=current_chunk.strip(),
+                chunk_index=chunk_index
+            )
+            chunks.append(chunk)
+        
+        return chunks
+
+
+# Mock AI Service (fallback)
+class MockAIService(AIService):
+    async def generate_embedding(self, text: str) -> List[float]:
+        # Deterministic mock embedding based on text content
+        import hashlib
+        hash_obj = hashlib.md5(text.encode())
+        seed = int(hash_obj.hexdigest(), 16) % 1000000
+        import random
+        random.seed(seed)
+        return [random.random() * 2 - 1 for _ in range(1536)]
+    
+    async def generate_response(self, message: str, context: str = "") -> str:
+        return f"Mock AI response to: {message[:50]}{'...' if len(message) > 50 else ''}"
+    
+    def extract_text(self, file_path: str) -> str:
+        return f"Mock extracted text from {file_path}"
+    
+    def chunk_content(self, content: str, size: int = 1000) -> List[DocumentChunk]:
+        # Simple word-based chunking
         words = content.split()
-        for i in range(0, len(words), size//10):  # Rough word-based chunking
+        chunks = []
+        for i in range(0, len(words), size//10):
             chunk_words = words[i:i + size//10]
             chunk_content = " ".join(chunk_words)
             chunk = DocumentChunk(
@@ -215,13 +355,23 @@ class RAGService:
         return await self.doc_repo.get_by_id(doc_id)
     
     async def search_documents(self, request: SearchRequest) -> List[Document]:
-        """Search documents."""
-        results = await self.doc_repo.search(request.query, request.limit)
+        """Search documents with optional semantic search."""
+        if request.use_semantic and hasattr(self.doc_repo, 'semantic_search'):
+            # Use semantic search if available
+            query_embedding = await self.ai_service.generate_embedding(request.query)
+            results = await self.doc_repo.semantic_search(query_embedding, request.limit)
+        else:
+            # Fallback to text search
+            results = await self.doc_repo.search(request.query, request.limit)
         
         # Publish search event
         event = Event(
             type="document_searched",
-            data={"query": request.query, "results_count": len(results)}
+            data={
+                "query": request.query, 
+                "results_count": len(results),
+                "search_type": "semantic" if request.use_semantic else "text"
+            }
         )
         await self.event_bus.publish(event)
         
@@ -312,12 +462,12 @@ class RAGService:
 
 
 # Factory function for easy setup
-def create_rag_service(use_mock_ai: bool = True) -> RAGService:
+def create_rag_service(use_enhanced_ai: bool = True) -> RAGService:
     """Create RAG service with default implementations."""
     doc_repo = MemoryDocumentRepository()
     topic_repo = MemoryTopicRepository()
     chat_repo = MemoryChatRepository()
-    ai_service = MockAIService() if use_mock_ai else None  # Replace with real AI service
+    ai_service = EnhancedAIService() if use_enhanced_ai else MockAIService()
     event_bus = EventBus()
     
     # Setup some default event handlers

@@ -1,5 +1,5 @@
 """
-Main source package.
+Simplified RAG System Architecture
 
-Clean Architecture implementation of a RAG-based knowledge management system.
+A pragmatic approach with minimal files for maximum productivity.
 """
