@@ -30,6 +30,19 @@ from ...adapters.repositories.memory_topic_repository import MemoryTopicReposito
 from ...adapters.repositories.memory_chat_repository import MemoryChatRepository
 from ...adapters.ai.openai_adapter import OpenAIAdapter
 
+# Event system imports
+from ...core.events.event_dispatcher import EventDispatcher
+from ...adapters.event_handlers.document_event_handlers import (
+    DocumentCreatedEventHandler,
+    DocumentProcessedEventHandler,
+    DocumentSearchEventHandler
+)
+from ...adapters.event_handlers.chat_event_handlers import (
+    ChatSessionStartedEventHandler,
+    MessageSentEventHandler
+)
+from ...adapters.event_handlers.analytics_event_handler import AnalyticsEventHandler
+
 
 class Container(containers.DeclarativeContainer):
     """Main dependency injection container."""
@@ -39,6 +52,17 @@ class Container(containers.DeclarativeContainer):
     
     # Infrastructure
     database_session = providers.Dependency(instance_of=AsyncSession)
+    
+    # Event System
+    event_dispatcher = providers.Singleton(EventDispatcher)
+    
+    # Event Handlers
+    document_created_handler = providers.Factory(DocumentCreatedEventHandler)
+    document_processed_handler = providers.Factory(DocumentProcessedEventHandler)
+    document_search_handler = providers.Factory(DocumentSearchEventHandler)
+    chat_session_started_handler = providers.Factory(ChatSessionStartedEventHandler)
+    message_sent_handler = providers.Factory(MessageSentEventHandler)
+    analytics_handler = providers.Factory(AnalyticsEventHandler)
     
     # AI Services
     ai_service = providers.Singleton(
@@ -59,7 +83,8 @@ class Container(containers.DeclarativeContainer):
         CreateDocumentUseCase,
         document_repository=document_repository,
         processing_service=ai_service,
-        vector_search_service=ai_service
+        vector_search_service=ai_service,
+        event_dispatcher=event_dispatcher
     )
     
     get_document_use_case = providers.Factory(
@@ -142,4 +167,25 @@ def create_container(environment: str = "development", config: Optional[Dict[str
     if config:
         container.config.from_dict(config)
     
+    # Initialize event system
+    _initialize_event_system(container)
+    
     return container
+
+
+def _initialize_event_system(container: Container) -> None:
+    """Initialize the event system with handlers."""
+    dispatcher = container.event_dispatcher()
+    
+    # Register event handlers
+    handlers = [
+        container.document_created_handler(),
+        container.document_processed_handler(),
+        container.document_search_handler(),
+        container.chat_session_started_handler(),
+        container.message_sent_handler(),
+        container.analytics_handler(),
+    ]
+    
+    for handler in handlers:
+        dispatcher.register_handler(handler)

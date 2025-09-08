@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from uuid import uuid4
 
+from ..events.base_event import DomainEvent
+
 
 @dataclass
 class Document:
@@ -34,6 +36,9 @@ class Document:
     # Timestamps
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
+    
+    # Domain events
+    _domain_events: List[DomainEvent] = field(default_factory=list, init=False)
     
     def update_content(self, content: str) -> None:
         """Update document content and timestamp."""
@@ -65,3 +70,26 @@ class Document:
     def is_failed(self) -> bool:
         """Check if document processing has failed."""
         return self.status == "failed"
+    
+    def add_domain_event(self, event: DomainEvent) -> None:
+        """Add a domain event."""
+        self._domain_events.append(event)
+    
+    def get_domain_events(self) -> List[DomainEvent]:
+        """Get all domain events."""
+        return self._domain_events.copy()
+    
+    def clear_domain_events(self) -> None:
+        """Clear all domain events."""
+        self._domain_events.clear()
+    
+    def mark_as_created(self) -> None:
+        """Mark document as created and raise event."""
+        from ..events.document_events import DocumentCreatedEvent
+        event = DocumentCreatedEvent.create(
+            document_id=self.id,
+            title=self.title,
+            content_type=self.content_type,
+            file_id=self.file_id
+        )
+        self.add_domain_event(event)
