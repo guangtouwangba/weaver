@@ -1,0 +1,57 @@
+"""Vector store helpers and graph nodes."""
+
+from typing import Any, Dict, List
+
+from langchain.vectorstores.base import VectorStoreRetriever
+from langchain_community.vectorstores import FAISS
+from langchain.docstore.document import Document
+
+from rag_core.chains.embeddings import build_embedding_function
+from shared_config.settings import AppSettings
+from rag_core.graphs.state import DocumentIngestState, QueryState
+
+_VECTOR_INDEX: FAISS | None = None
+
+
+def get_vector_store() -> FAISS | None:
+    """Get existing vector store if initialized."""
+    return _VECTOR_INDEX
+
+
+def build_vector_store(settings: AppSettings) -> FAISS | None:
+    """Return existing vector store or None if not yet initialized."""
+    return _VECTOR_INDEX
+
+
+def retrieve_documents(state: QueryState) -> QueryState:
+    """Retrieve relevant documents for the given question."""
+    global _VECTOR_INDEX
+    if _VECTOR_INDEX is None:
+        # No documents have been ingested yet
+        return state.copy(update={"documents": []})
+    
+    retriever = _VECTOR_INDEX.as_retriever(search_kwargs={"k": state.retriever_top_k})
+    docs = retriever.get_relevant_documents(state.question)
+    formatted = [doc.dict() for doc in docs]
+    return state.copy(update={"documents": formatted})
+
+
+async def persist_embeddings(state: DocumentIngestState) -> DocumentIngestState:
+    """Write vectors to the FAISS store."""
+    global _VECTOR_INDEX
+    
+    if not state.chunks or not state.embeddings:
+        raise ValueError("embed step must run before persistence")
+    
+    settings = AppSettings()  # type: ignore[arg-type]
+    embedding_function = build_embedding_function(settings)
+    docs = [Document(page_content=chunk, metadata=state.metadata) for chunk in state.chunks]
+    
+    if _VECTOR_INDEX is None:
+        # Initialize FAISS index with first batch of documents
+        _VECTOR_INDEX = FAISS.from_documents(docs, embedding=embedding_function)
+    else:
+        # Add to existing index
+        _VECTOR_INDEX.add_documents(docs)
+    
+    return state

@@ -1,280 +1,62 @@
-[project]
-name = "research-agent-rag"
-version = "0.1.0"
-description = "Intelligent Knowledge Management Agent System based on NotebookLM concept"
-authors = [
-    {name = "Research Agent Team", email = "team@research-agent.com"}
-]
-readme = "README.md"
-requires-python = ">=3.9"
-license = {text = "MIT"}
-keywords = ["rag", "knowledge-management", "ai", "agent", "notebooklm"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
 
+[project]
+name = "knowledge-platform-monorepo"
+version = "0.2.0"
+description = "Monorepo for knowledge-centric RAG platform (API, core packages, future web)"
+authors = [{ name = "Your Name" }]
+license = "MIT"
+requires-python = ">=3.10"
 dependencies = [
-    # Core web framework
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "pydantic>=2.5.0",
-    "pydantic-settings>=2.1.0",
-    "gunicorn>=21.2.0",
-    # Database and ORM
-    "sqlalchemy>=2.0.23",
-    "alembic>=1.13.1",
-    "asyncpg>=0.29.0",
-    "psycopg2-binary>=2.9.9",
-    # Object Storage
-    "minio>=7.2.0",
-    "boto3>=1.34.0",
-    "aioboto3>=12.3.0",
-    "google-cloud-storage>=2.10.0",
-    "oss2>=2.18.0",
-    # Cache and messaging
-    "redis>=5.0.1",
-    "aioredis>=2.0.1",
-    # Task queue system
-    "celery[redis]>=5.3.4",
-    "kombu>=5.3.4",
-    # Vector databases
-    "weaviate-client>=3.25.0",
-    "chromadb>=0.4.18",
-    # Search and indexing
-    "elasticsearch[async]==8.11.1",
-    # Document processing
-    "langchain>=0.1.0",
-    "langchain-community>=0.0.10",
-    "unstructured[pdf]>=0.12.0", # Primary PDF parsing library with advanced layout detection
-    "pymupdf>=1.23.0", # Secondary PDF library (fitz)
-    "PyPDF2>=3.0.1", # Fallback PDF library
-    "python-docx>=1.1.0",
-    "python-pptx>=0.6.23",
-    "openpyxl>=3.1.2",
-    "markdown>=3.5.1",
-    "beautifulsoup4>=4.12.2",
-    # AI and machine learning
-    "openai>=1.3.0",
-    "anthropic>=0.7.0",
-    "sentence-transformers>=2.2.2",
-    "transformers>=4.36.0",
-    "torch>=2.1.0",
-    "numpy>=1.24.0",
-    # Semantic routing
-    "semantic-router>=0.0.54",
-    # HTTP and async utilities
-    "httpx>=0.25.0",
-    "aiofiles>=23.2.0",
-    "python-multipart>=0.0.6",
-    # Logging and monitoring
-    "structlog>=23.2.0",
-    "prometheus-client>=0.19.0",
-    "psutil>=5.9.0",
-    # AI-native observability
-    "logfire>=0.35.0",
-    # Configuration and environment
-    "python-dotenv>=1.0.0",
-    "pyyaml>=6.0.1",
-    # CLI and utilities
-    "click>=8.1.7",
-    "rich>=13.7.0",
-    "tqdm>=4.66.1",
-    "typer>=0.9.0",
-    # Security and validation
-    "cryptography>=41.0.0",
-    "passlib[bcrypt]>=1.7.4",
-    "python-jose[cryptography]>=3.3.0",
-    # JSON and serialization
-    "orjson>=3.9.10",
-    "msgpack>=1.0.7",
-    # Core Python utilities
-    "greenlet>=3.0.0",
-    "pytesseract>=0.3.13",
-    "pillow>=11.3.0",
-    "opencv-python>=4.11.0.86",
-    "easyocr>=1.7.2",
-    "paddlepaddle>=3.1.1",
-    "paddleocr>=3.2.0",
-    "scipy>=1.13.1",
+    "fastapi>=0.111.0,<0.112.0",
+    "uvicorn[standard]>=0.30.0,<0.31.0",
+    "langchain>=0.2.4,<0.3.0",
+    "langgraph>=0.0.56,<0.1.0",
+    "langchain-community>=0.2.4,<0.3.0",
+    "faiss-cpu>=1.8.0",
+    "pydantic>=2.7.0,<3.0.0",
+    "pydantic-settings>=2.3.0,<3.0.0",
+    "python-dotenv>=1.0.1,<2.0.0",
+    "pypdf>=4.0.0,<5.0.0",
+    "python-docx>=1.1.0,<2.0.0",
+    "python-multipart>=0.0.9,<0.1.0",
 ]
 
 [project.optional-dependencies]
-# Development dependencies
 dev = [
-    "pytest>=7.4.3",
-    "pytest-asyncio>=0.21.1",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "pytest-timeout>=2.1.0",
-    "pytest-benchmark>=4.0.0",
-    "black>=23.11.0",
-    "isort>=5.12.0",
-    "flake8>=6.1.0",
-    "mypy>=1.7.1",
-    "pre-commit>=3.5.0",
-    "jupyter>=1.0.0",
-    "ipython>=8.18.0",
-    # Additional dev tools
-    "ruff>=0.1.0",  # Fast Python linter
-    "bandit>=1.7.0",  # Security linter
+    "pytest>=8.3.0,<9.0.0",
+    "pytest-asyncio>=0.23.0,<0.24.0",
+    "httpx>=0.27.0,<0.28.0",
+    "ruff>=0.5.0,<0.6.0",
 ]
 
-# Test dependencies
-test = [
-    "pytest>=7.4.3",
-    "pytest-asyncio>=0.21.1",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "pytest-timeout>=2.1.0",
-    "pytest-benchmark>=4.0.0",
-    "factory-boy>=3.3.0",
-    "faker>=20.1.0",
-    "httpx>=0.25.0",
-    # Additional testing utilities
-    "respx>=0.20.0",  # HTTP mocking for tests
+[tool.setuptools.packages.find]
+where = ["apps/api", "packages/rag-core", "packages/shared-config", "packages/domain-models"]
+include = ["*"]
+exclude = [
+    "*.tests",
+    "tests",
+    "tests.*",
+    "*.migrations",
 ]
-
-# Documentation dependencies
-docs = [
-    "mkdocs>=1.5.3",
-    "mkdocs-material>=9.4.8",
-    "mkdocstrings[python]>=0.24.0",
-    "mkdocs-gen-files>=0.5.0",
-    "mkdocs-literate-nav>=0.6.0",
-]
-
-# Production dependencies
-prod = [
-    "gunicorn>=21.2.0",
-    "uvloop>=0.19.0",
-    "orjson>=3.9.10",
-]
-
-[project.scripts]
-rag = "rag.cli:main"
-
-[project.urls]
-Homepage = "https://github.com/your-org/research-agent-rag"
-Documentation = "https://research-agent-rag.readthedocs.io"
-Repository = "https://github.com/your-org/research-agent-rag.git"
-Issues = "https://github.com/your-org/research-agent-rag/issues"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["rag"]
-
-[tool.uv]
-# uv-specific configuration
-dev-dependencies = [
-    "pytest>=7.4.3",
-    "pytest-asyncio>=0.21.1",
-    "pytest-cov>=4.1.0",
-    "black>=23.11.0",
-    "isort>=5.12.0",
-    "flake8>=6.1.0",
-    "mypy>=1.7.1",
-    "pre-commit>=3.5.0",
-]
-
-[tool.black]
-line-length = 88
-target-version = ['py39']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 88
-known_first_party = ["rag"]
-
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
 
 [tool.pytest.ini_options]
-minversion = "7.0"
-addopts = "-ra -q --strict-markers --strict-config"
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
 asyncio_mode = "auto"
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-    "database: marks tests as database integration tests",
-    "api: marks tests as API integration tests",
-    "fullstack: marks tests as full stack integration tests",
-    "file_loader: marks tests as file loader tests",
-    "pdf_loader: marks tests as PDF loader specific tests",
-    "requires_pdf_lib: marks tests requiring PDF libraries (pymupdf/PyPDF2)",
-    "performance: marks tests as performance tests",
-    "error_handling: marks tests as error handling tests",
-    "mock_heavy: marks tests with extensive mocking",
-]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.0,<9.0.0",
+    "pytest-asyncio>=0.23.0,<0.24.0",
+    "httpx>=0.27.0,<0.28.0",
+    "ruff>=0.5.0,<0.6.0",
 ]
 
-[tool.coverage.run]
-source = ["rag"]
-omit = [
-    "*/tests/*",
-    "*/test_*",
-    "*/__pycache__/*",
-    "*/migrations/*",
-]
+[tool.ruff]
+line-length = 120
+target-version = "py310"
 
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
-    "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
-]
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = []

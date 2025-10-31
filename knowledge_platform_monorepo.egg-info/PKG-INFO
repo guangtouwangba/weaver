@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: knowledge-platform-monorepo
+Version: 0.2.0
+Summary: Monorepo for knowledge-centric RAG platform (API, core packages, future web)
+Author: Your Name
+License-Expression: MIT
+Requires-Python: >=3.10
+Requires-Dist: fastapi<0.112.0,>=0.111.0
+Requires-Dist: uvicorn[standard]<0.31.0,>=0.30.0
+Requires-Dist: langchain<0.3.0,>=0.2.4
+Requires-Dist: langgraph<0.1.0,>=0.0.56
+Requires-Dist: langchain-community<0.3.0,>=0.2.4
+Requires-Dist: faiss-cpu>=1.8.0
+Requires-Dist: pydantic<3.0.0,>=2.7.0
+Requires-Dist: pydantic-settings<3.0.0,>=2.3.0
+Requires-Dist: python-dotenv<2.0.0,>=1.0.1
+Requires-Dist: pypdf<5.0.0,>=4.0.0
+Requires-Dist: python-docx<2.0.0,>=1.1.0
+Requires-Dist: python-multipart<0.1.0,>=0.0.9
+Provides-Extra: dev
+Requires-Dist: pytest<9.0.0,>=8.3.0; extra == "dev"
+Requires-Dist: pytest-asyncio<0.24.0,>=0.23.0; extra == "dev"
+Requires-Dist: httpx<0.28.0,>=0.27.0; extra == "dev"
+Requires-Dist: ruff<0.6.0,>=0.5.0; extra == "dev"

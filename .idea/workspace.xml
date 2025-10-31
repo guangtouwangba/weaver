@@ -1,0 +1,530 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="0424dd6f-7080-41b0-9067-3ca4a5e8f935" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.devcontainer/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.devcontainer/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.devcontainer/docker-compose.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.devcontainer/init-scripts/init-db.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.pre-commit-config.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/CLAUDE.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/CLI_README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/LOCAL_RAG_GUIDE.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/Makefile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/WORKER_GUIDE.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/README" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/env.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/script.py.mako" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/001_create_topics_and_related_tables.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/002_create_triggers_and_functions.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/1c8e97d7b144_fix_file_id_datatype_mismatch.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/2025081601_add_file_upload_system.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/2025081701_add_topic_file_relationship.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/2025081702_add_file_hash_to_topic_resources.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/2025081703_add_missing_timestamp_columns.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/2025081801_update_file_status_to_enum.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/2f34d9c08631_add_content_type_to_documents.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/490a8d3f99b8_add_storage_url_column_to_files_table.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/5483b8e32acc_add_filename_column_to_files_table.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/9908bf557982_add_missing_fields_to_topics.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/c1234567890a_add_topic_stats_fields.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/c2d0c24b9d5c_add_missing_columns_to_documents.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/cac027415fb8_create_documents_table.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/alembic/versions/f5e63023deb4_add_missing_document_chunks_columns.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cli.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cli_requirements.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/database.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/docs.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/file_loader_config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/grafana/provisioning/dashboards/dashboards.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/grafana/provisioning/datasources/datasources.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/grafana/provisioning/datasources/elasticsearch.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/loki/local-config.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/nginx/nginx.conf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/prometheus/alert_rules.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/prometheus/prometheus.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/promtail/config.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/rag_config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/redis.conf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/routing/keywords.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/routing/semantic_routes.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/settings.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/storage.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/tasks/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/tasks/monitoring.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/database_schema_optimized.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/design" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.middleware.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.production.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/config_usage_example.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/enhanced_rag_example.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/file_loader_usage_example.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/ocr_enhanced_usage.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/redis_config_example.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/redis_config_standalone.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/routing_engine_example.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/semantic_router_example.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/ai_observability.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/context.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/decorators.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/factory.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/formatters.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/handlers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logging_system/loki_handler.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/chat_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/document_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/elasticsearch_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/enhanced_rag_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/error_handlers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/file_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/rag_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/resource_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/templates.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/api/topic_api.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/integration.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/strategies/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/strategies/adaptive_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/strategies/fixed_size_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/strategies/paragraph_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/strategies/semantic_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/strategies/sentence_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/chunking/strategy_factory.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/core/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/core/chat/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/core/chat/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/core/schema/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/core/schema/schemas.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/database/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/database/connection.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/database/models.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/database/service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/document_router/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/document_router/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/document_router/document_router.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/embedding/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/embedding/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/embedding/openai_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/factory.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/factory.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/pdf_loader.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/strategies/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/strategies/auto_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/strategies/ocr_enhanced_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/strategies/pymupdf_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/strategies/unstructured_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/pdf/unstruct_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/text/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/text/text_loader.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_loader/video/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_upload/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_upload/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/file_upload/service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/models.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/orchestrator/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/orchestrator/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/orchestrator/implementation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pipeline/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pipeline/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/processors/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/processors/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/processors/enhanced_chunking_processor.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/processors/text_processor.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/bm25_retriever.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/factory.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/generators.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/pipeline.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/query_processor.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/rerankers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/rag/retrievers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/repository/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/repository/base_repository.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/repository/document_repository.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/repository/file_repository.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/repository/interfaces.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/repository/topic_repository.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/config/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/config/config_manager.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/config/keyword_config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/engine.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/factory.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/handlers/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/handlers/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/handlers/chat_handler.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/handlers/rag_handler.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/handlers/summary_handler.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/handlers/system_handler.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/handlers/tool_handler.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/strategies/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/strategies/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/strategies/configurable_keyword_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/strategies/llm_intent_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/routing/strategies/semantic_router_strategy.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/chat.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/converters.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/document.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/enums.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/file.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/requests.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/responses.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/schemas/topic.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/search/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/base_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/chat_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/document_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/elasticsearch_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/enhanced_rag_processor.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/file_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/rag_integrated_chat_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/rag_processor.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/rag_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/redis_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/summary_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/task_monitoring_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/task_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/services/topic_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/storage/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/storage/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/storage/local_storage.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/storage/minio_storage.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/storage/mock_storage.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/decorators.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/handlers/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/handlers/document_handlers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/handlers/file_handlers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/handlers/rag_handlers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/tasks/handlers/summary_handlers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/vector_store/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/vector_store/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/vector_store/weaviate_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/monitor_workers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/rag_test.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/roadmap.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/check_dependencies.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/code_quality_check.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/es_monitor.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/fix_grafana_datasource.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/init-db/001_init_tables.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/init-vector-extension.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/setup_grafana_es.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/setup_ocr.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/validate_infrastructure.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/verify_grafana_setup.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/chat-demo.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/chat-test.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/swagger-ui/swagger-ui-bundle.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/swagger-ui/swagger-ui-standalone-preset.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/swagger-ui/swagger-ui.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_documents/段永平01 段永平投资问答录(投资逻辑篇) (段永平) (Z-Library).pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_documents/段永平投资回答录 (芒格书院) (Z-Library).pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test_storage.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/conftest.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/debug_task_system.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/integration/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/run_integration_tests.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_files/用户故事地图 (JEFF PATTON著) (Z-Library).pdf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/file_loader/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/file_loader/conftest.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/file_loader/pytest.ini" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/unit/routing/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/worker.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_test.txt" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
+  <component name="ProjectId" id="30Zc7JeM2VSiscr6aRuiu0QGqr9" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python tests.pytest for test_oss_connection.test_oss_connection.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.integration.test_core_llm.TestOpenAIIntegration.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_pymupdf.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_unstructured.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_loader_name_property.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_custom_settings.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_default_settings.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_success.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_with_unstructured.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_success.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_with_pymupdf.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_unstructured_strategy.TestUnstructuredStrategyContentExtraction.test_extract_content_with_real_pdf.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in intelligent_chat_engine.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python.rag_demo.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/siqiuchen/Documents/opensource/research-agent-rag/test_docs&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
+    ]
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/test_docs" />
+      <recent name="$PROJECT_DIR$/test_documents" />
+      <recent name="$PROJECT_DIR$/tests/test_files" />
+      <recent name="$PROJECT_DIR$/papers" />
+      <recent name="$PROJECT_DIR$" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/modules/file_loader/text" />
+      <recent name="$PROJECT_DIR$/modules/file_loader/pdf" />
+      <recent name="$PROJECT_DIR$/tests" />
+      <recent name="$PROJECT_DIR$/application/event/handlers" />
+      <recent name="$PROJECT_DIR$/application/topic" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.rag_demo">
+    <configuration name="rag_demo" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="research-agent-rag" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/rag_demo.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for tests.integration.test_core_llm.TestOpenAIIntegration" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="research-agent-rag" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.integration.test_core_llm.TestOpenAIIntegration&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_unstructured" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="research-agent-rag" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_unstructured&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for tests.unit.file_loader.test_unstructured_strategy.TestUnstructuredStrategyContentExtraction.test_extract_content_with_real_pdf" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="research-agent-rag" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.unit.file_loader.test_unstructured_strategy.TestUnstructuredStrategyContentExtraction.test_extract_content_with_real_pdf&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest in intelligent_chat_engine.py" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="research-agent-rag" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_parameters" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/modules/core/chat/intelligent_chat_engine.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.rag_demo" />
+        <item itemvalue="Python tests.pytest in intelligent_chat_engine.py" />
+        <item itemvalue="Python tests.pytest for tests.integration.test_core_llm.TestOpenAIIntegration" />
+        <item itemvalue="Python tests.pytest for tests.unit.file_loader.test_unstructured_strategy.TestUnstructuredStrategyContentExtraction.test_extract_content_with_real_pdf" />
+        <item itemvalue="Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_unstructured" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-b598e85cdad2-JavaScript-PY-252.25557.178" />
+        <option value="bundled-python-sdk-ce6832f46686-7b97d883f26b-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.25557.178" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0424dd6f-7080-41b0-9067-3ca4a5e8f935" name="Changes" comment="" />
+      <created>1753838366684</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1753838366684</updated>
+      <workItem from="1753838367576" duration="21721000" />
+      <workItem from="1754180629268" duration="2429000" />
+      <workItem from="1754310376175" duration="50392000" />
+      <workItem from="1754720880916" duration="598000" />
+      <workItem from="1754961446747" duration="1199000" />
+      <workItem from="1755071382758" duration="17181000" />
+      <workItem from="1755308104495" duration="50922000" />
+      <workItem from="1755606476744" duration="69763000" />
+      <workItem from="1755820766935" duration="43047000" />
+      <workItem from="1755920966002" duration="33610000" />
+      <workItem from="1756123051498" duration="110339000" />
+      <workItem from="1756688179502" duration="21566000" />
+      <workItem from="1756811776503" duration="1927000" />
+      <workItem from="1757207154791" duration="118605000" />
+      <workItem from="1758283825673" duration="2269000" />
+      <workItem from="1758458040991" duration="28292000" />
+      <workItem from="1759039042588" duration="28061000" />
+      <workItem from="1760681120113" duration="45667000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/rag_qa/processing/pdf_extractor.py</url>
+          <line>19</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/tests/unit/file_loader/test_unstructured_strategy.py</url>
+          <line>190</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_test_oss_connection_test_oss_connection.coverage" NAME="pytest for test_oss_connection.test_oss_connection Coverage Results" MODIFIED="1754347341825" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderMetadataExtraction_test_extract_metadata_with_unstructured.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_with_unstructured Coverage Results" MODIFIED="1755916897244" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderInitialization_test_loader_name_property.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_loader_name_property Coverage Results" MODIFIED="1755914726092" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderValidation_test_validate_file_with_pymupdf.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_with_pymupdf Coverage Results" MODIFIED="1755914959280" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderContentExtraction_test_extract_content_with_pymupdf.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_pymupdf Coverage Results" MODIFIED="1755915098927" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderValidation_test_validate_file_success.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_success Coverage Results" MODIFIED="1755914817996" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderInitialization_test_pdf_loader_initialization_custom_settings.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_custom_settings Coverage Results" MODIFIED="1755914703469" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderContentExtraction_test_extract_content_with_unstructured.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_unstructured Coverage Results" MODIFIED="1755958765688" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$rag_demo.coverage" NAME="rag_demo Coverage Results" MODIFIED="1757657378800" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_in_intelligent_chat_engine_py.coverage" NAME="pytest in intelligent_chat_engine.py Coverage Results" MODIFIED="1757572869339" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_unstructured_strategy_TestUnstructuredStrategyContentExtraction_test_extract_content_with_real_pdf.coverage" NAME="pytest for tests.unit.file_loader.test_unstructured_strategy.TestUnstructuredStrategyContentExtraction.test_extract_content_with_real_pdf Coverage Results" MODIFIED="1756127800973" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderMetadataExtraction_test_extract_metadata_success.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_success Coverage Results" MODIFIED="1755915495282" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_unit_file_loader_test_pdf_loader_TestPDFLoaderInitialization_test_pdf_loader_initialization_default_settings.coverage" NAME="pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_default_settings Coverage Results" MODIFIED="1755914654434" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/research_agent_rag$pytest_for_tests_integration_test_core_llm_TestOpenAIIntegration.coverage" NAME="pytest for tests.integration.test_core_llm.TestOpenAIIntegration Coverage Results" MODIFIED="1757570973354" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>

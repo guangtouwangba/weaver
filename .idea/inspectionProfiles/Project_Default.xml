@@ -1,0 +1,66 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="Eslint" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="fastapi" />
+          <option value="uvicorn" />
+          <option value="pydantic" />
+          <option value="pydantic-settings" />
+          <option value="gunicorn" />
+          <option value="sqlalchemy" />
+          <option value="alembic" />
+          <option value="asyncpg" />
+          <option value="psycopg2-binary" />
+          <option value="minio" />
+          <option value="boto3" />
+          <option value="aioboto3" />
+          <option value="google-cloud-storage" />
+          <option value="oss2" />
+          <option value="redis" />
+          <option value="aioredis" />
+          <option value="celery" />
+          <option value="kombu" />
+          <option value="weaviate-client" />
+          <option value="chromadb" />
+          <option value="langchain" />
+          <option value="langchain-community" />
+          <option value="pymupdf" />
+          <option value="PyPDF2" />
+          <option value="python-docx" />
+          <option value="python-pptx" />
+          <option value="openpyxl" />
+          <option value="markdown" />
+          <option value="beautifulsoup4" />
+          <option value="openai" />
+          <option value="anthropic" />
+          <option value="sentence-transformers" />
+          <option value="transformers" />
+          <option value="torch" />
+          <option value="numpy" />
+          <option value="httpx" />
+          <option value="aiofiles" />
+          <option value="python-multipart" />
+          <option value="structlog" />
+          <option value="prometheus-client" />
+          <option value="psutil" />
+          <option value="python-dotenv" />
+          <option value="pyyaml" />
+          <option value="click" />
+          <option value="rich" />
+          <option value="tqdm" />
+          <option value="typer" />
+          <option value="cryptography" />
+          <option value="passlib" />
+          <option value="python-jose" />
+          <option value="orjson" />
+          <option value="msgpack" />
+          <option value="greenlet" />
+          <option value="unstructured" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
