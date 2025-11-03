@@ -20,5 +20,6 @@ class QueryState(BaseModel):
 
     question: str
     retriever_top_k: int
+    document_ids: Optional[List[str]] = None  # Filter by specific document IDs
     documents: Optional[List[dict]] = None
     answer: Optional[str] = None

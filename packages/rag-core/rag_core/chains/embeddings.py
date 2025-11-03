@@ -114,10 +114,41 @@ class OpenRouterEmbeddings(BaseModel, Embeddings):
 
         # Call OpenRouter API
         print(f"    └─ 发送请求...")
-        response = self.client.embeddings.create(extra_headers=extra_headers if extra_headers else None, **params)
-        print(f"    ✓ API 响应成功")
+        try:
+            if extra_headers:
+                response = self.client.embeddings.create(extra_headers=extra_headers, **params)
+            else:
+                response = self.client.embeddings.create(**params)
+            print(f"    ✓ API 响应成功")
+        except Exception as e:
+            print(f"    ❌ API 调用失败: {e}")
+            raise
 
         # Extract embeddings from response
+        if response is None:
+            raise ValueError("API 返回了 None 响应")
+        
+        # Check for error field first (OpenRouter specific)
+        if hasattr(response, 'error') and response.error is not None:
+            error_msg = response.error.get('message', 'Unknown error') if isinstance(response.error, dict) else str(response.error)
+            error_code = response.error.get('code', 'N/A') if isinstance(response.error, dict) else 'N/A'
+            print(f"    ❌ OpenRouter API 错误:")
+            print(f"       ├─ 错误码: {error_code}")
+            print(f"       ├─ 错误信息: {error_msg}")
+            print(f"       └─ 可能原因: ")
+            print(f"          • OpenRouter 账户余额不足或未激活")
+            print(f"          • 模型 '{self.model}' 不支持 embeddings")
+            print(f"          • 需要在 https://openrouter.ai/ 查看账户状态")
+            raise ValueError(
+                f"OpenRouter API 返回错误 [{error_code}]: {error_msg}\n"
+                f"请检查: 1) 账户余额和状态 2) 模型是否支持embeddings 3) API key权限"
+            )
+        
+        if not hasattr(response, 'data') or response.data is None:
+            print(f"    ⚠️  响应对象: {response}")
+            print(f"    ⚠️  响应类型: {type(response)}")
+            raise ValueError(f"API 响应缺少 'data' 字段或 data 为 None: {response}")
+        
         embeddings = [item.embedding for item in response.data]
         print(f"    ✓ 解析 {len(embeddings)} 个向量，维度={len(embeddings[0]) if embeddings else 0}")
         

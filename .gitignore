@@ -78,3 +78,8 @@ logs/
 *.swp
 *~
 
+# Vector store data (FAISS indices)
+data/
+*.faiss
+*.pkl
+

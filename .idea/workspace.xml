@@ -5,23 +5,24 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0424dd6f-7080-41b0-9067-3ca4a5e8f935" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/ai_toolkit.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/research-agent-rag.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/Makefile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/api/app/routers/ingest.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/routers/ingest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/api/app/routers/qa.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/routers/qa.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/env.example" beforeDir="false" afterPath="$PROJECT_DIR$/env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/PKG-INFO" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/PKG-INFO" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/SOURCES.txt" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/SOURCES.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/requires.txt" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/requires.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/embeddings.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/embeddings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/qa_chain.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/qa_chain.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/splitters.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/splitters.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/vectorstore.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/vectorstore.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/qa_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/qa_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/ingest_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/ingest_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/state.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/state.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/ingest_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/ingest_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/qa_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/qa_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/retrievers/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/retrievers/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/tests/test_ingest_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/tests/test_ingest_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/tests/test_openrouter_embeddings.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/tests/test_openrouter_embeddings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/packages/rag-core/tests/test_qa_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/tests/test_qa_graph.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
@@ -258,7 +259,7 @@
       <workItem from="1758458040991" duration="28292000" />
       <workItem from="1759039042588" duration="28061000" />
       <workItem from="1760681120113" duration="45667000" />
-      <workItem from="1761289831009" duration="41043000" />
+      <workItem from="1761289831009" duration="45317000" />
     </task>
     <servers />
   </component>

@@ -14,6 +14,7 @@ class SearchRequest(BaseModel):
 
     query: str = Field(..., description="User question or keywords")
     top_k: int = Field(4, description="Number of relevant chunks to return")
+    document_ids: List[str] | None = Field(None, description="Optional: filter by specific document IDs")
 
 
 class SearchHit(BaseModel):
@@ -34,8 +35,12 @@ class SearchResponse(BaseModel):
 class QARequest(BaseModel):
     """Input to QA endpoint."""
 
-    question: str
-    top_k: int = 4
+    question: str = Field(..., description="User question")
+    top_k: int = Field(4, description="Number of relevant chunks to retrieve")
+    document_ids: List[str] | None = Field(
+        None, 
+        description="Optional: only search within these document IDs. If not provided, searches all documents."
+    )
 
 
 class QAResponse(BaseModel):
@@ -52,6 +57,14 @@ async def perform_search(
 ) -> SearchResponse:
     """Execute retrieval and shape the JSON response."""
     docs = retriever.get_relevant_documents(request.query)
+    
+    # Filter by document_ids if provided
+    if request.document_ids:
+        docs = [
+            doc for doc in docs
+            if doc.metadata and doc.metadata.get("document_id") in request.document_ids
+        ]
+    
     hits = [
         SearchHit(
             content=doc.page_content,

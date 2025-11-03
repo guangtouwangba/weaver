@@ -7,8 +7,11 @@ from rag_core.graphs.state import QueryState
 
 
 @pytest.mark.asyncio
-async def test_run_qa_graph_placeholder():
-    """Smoke test the QA graph with minimal inputs."""
+async def test_run_qa_graph_placeholder(monkeypatch):
+    """Smoke test the QA graph with minimal inputs using fake LLM."""
+    # Use fake provider to avoid real API calls
+    monkeypatch.setenv("LLM_PROVIDER", "fake")
+    
     state = QueryState(question="What is RAG?", retriever_top_k=2)
     result = await run_qa_graph(state)
     # LangGraph returns AddableValuesDict, access as dict

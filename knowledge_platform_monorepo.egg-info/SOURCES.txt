@@ -15,10 +15,15 @@ packages/domain-models/domain_models/__init__.py
 packages/rag-core/rag_core/__init__.py
 packages/rag-core/rag_core/chains/__init__.py
 packages/rag-core/rag_core/chains/embeddings.py
+packages/rag-core/rag_core/chains/llm.py
 packages/rag-core/rag_core/chains/loaders.py
 packages/rag-core/rag_core/chains/qa_chain.py
 packages/rag-core/rag_core/chains/splitters.py
 packages/rag-core/rag_core/chains/vectorstore.py
+packages/rag-core/rag_core/core/__init__.py
+packages/rag-core/rag_core/core/exceptions.py
+packages/rag-core/rag_core/core/interfaces.py
+packages/rag-core/rag_core/core/models.py
 packages/rag-core/rag_core/evaluation/__init__.py
 packages/rag-core/rag_core/graphs/__init__.py
 packages/rag-core/rag_core/graphs/callbacks.py
@@ -37,6 +42,8 @@ packages/rag-core/rag_core/processing/__init__.py
 packages/rag-core/rag_core/query_transformation/__init__.py
 packages/rag-core/rag_core/rerankers/__init__.py
 packages/rag-core/rag_core/retrievers/__init__.py
+packages/rag-core/rag_core/retrievers/factory.py
+packages/rag-core/rag_core/retrievers/vector_retriever.py
 packages/rag-core/rag_core/routing/__init__.py
 packages/rag-core/rag_core/storage/__init__.py
 packages/shared-config/shared_config/__init__.py

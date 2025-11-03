@@ -27,15 +27,30 @@ async def build_ingest_payload(file: UploadFile) -> IngestPayload:
     if not file.filename:
         raise ValueError("file must include a filename")
 
+    print(f"💼 构建 Ingest Payload...")
+    print(f"  ├─ 保存临时文件...")
+    
     suffix = Path(file.filename).suffix or ".txt"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
         contents = await file.read()
         temp_file.write(contents)
         temp_path = Path(temp_file.name)
+    
+    print(f"  ✓ 临时文件已保存: {temp_path}")
+    print(f"  ├─ 加载文档内容...")
 
     text = load_document_content(temp_path)
     temp_path.unlink(missing_ok=True)
+    
+    print(f"  ✓ 临时文件已清理")
+    print(f"  ├─ 内容长度: {len(text)} 字符")
 
     document_id = str(uuid.uuid4())
-    metadata = {"filename": file.filename}
+    metadata = {
+        "document_id": document_id,  # 添加document_id到metadata，用于过滤
+        "filename": file.filename
+    }
+    
+    print(f"  ✓ 生成 Document ID: {document_id}")
+    
     return IngestPayload(document_id=document_id, content=text, metadata=metadata)

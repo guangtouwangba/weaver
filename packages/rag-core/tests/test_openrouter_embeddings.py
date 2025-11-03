@@ -13,8 +13,8 @@ load_dotenv()
 
 
 @pytest.mark.skipif(
-    not os.getenv("OPENROUTER_API_KEY"),
-    reason="OPENROUTER_API_KEY not set - set it to run these tests",
+    not os.getenv("RUN_API_TESTS"),
+    reason="RUN_API_TESTS not set - requires working OpenRouter embeddings access",
 )
 class TestOpenRouterEmbeddingsIntegration:
     """Integration tests using real OpenRouter API calls.
@@ -236,13 +236,13 @@ class TestOpenRouterEmbeddingsIntegration:
         print(f"   Error type: {type(exc_info.value).__name__}")
 
 
+@pytest.mark.skipif(
+    not os.getenv("RUN_API_TESTS"),
+    reason="RUN_API_TESTS not set - requires working OpenRouter embeddings access",
+)
 class TestOpenRouterModels:
     """Test different OpenRouter models (if API key is available)."""
 
-    @pytest.mark.skipif(
-        not os.getenv("OPENROUTER_API_KEY"),
-        reason="OPENROUTER_API_KEY not set",
-    )
     def test_google_gemini_embedding(self):
         """Test Google Gemini embedding model."""
         api_key = os.getenv("OPENROUTER_API_KEY")
@@ -256,10 +256,6 @@ class TestOpenRouterModels:
         assert len(result) > 0
         print(f"✅ Google Gemini embedding: {len(result)} dimensions")
 
-    @pytest.mark.skipif(
-        not os.getenv("OPENROUTER_API_KEY"),
-        reason="OPENROUTER_API_KEY not set",
-    )
     def test_openai_embedding_via_openrouter(self):
         """Test OpenAI embedding model via OpenRouter."""
         api_key = os.getenv("OPENROUTER_API_KEY")

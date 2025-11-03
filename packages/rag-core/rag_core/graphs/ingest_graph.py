@@ -31,7 +31,39 @@ def build_ingest_graph(settings: AppSettings) -> StateGraph:
 
 async def run_ingest_graph(state: DocumentIngestState) -> None:
     """Execute the ingest graph end to end."""
+    import time
+    
+    print("\n" + "=" * 80)
+    print(f"🚀 开始执行文档处理流程")
+    print(f"  ├─ Document ID: {state.document_id}")
+    print(f"  ├─ 文件名: {state.metadata.get('filename', 'unknown')}")
+    print(f"  └─ 内容长度: {len(state.content)} 字符")
+    print("=" * 80)
+    
+    start_time = time.time()
+    
     settings = AppSettings()  # type: ignore[arg-type]
     graph = build_ingest_graph(settings)
-    # Pass callbacks in the config parameter of ainvoke
-    await graph.ainvoke(state, config={"callbacks": [LoggingCallbackHandler()]})
+    
+    try:
+        # Pass callbacks in the config parameter of ainvoke
+        await graph.ainvoke(state, config={"callbacks": [LoggingCallbackHandler()]})
+        
+        elapsed_time = time.time() - start_time
+        print("\n" + "=" * 80)
+        print(f"🎉 文档处理完成!")
+        print(f"  ├─ Document ID: {state.document_id}")
+        print(f"  ├─ 总耗时: {elapsed_time:.2f} 秒")
+        print(f"  └─ 状态: 成功")
+        print("=" * 80 + "\n")
+        
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        print("\n" + "=" * 80)
+        print(f"❌ 文档处理失败!")
+        print(f"  ├─ Document ID: {state.document_id}")
+        print(f"  ├─ 耗时: {elapsed_time:.2f} 秒")
+        print(f"  ├─ 错误类型: {type(e).__name__}")
+        print(f"  └─ 错误信息: {str(e)}")
+        print("=" * 80 + "\n")
+        raise
