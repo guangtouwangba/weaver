@@ -25,4 +25,4 @@ def synthesize_answer(state: QueryState) -> QueryState:
     documents: List[dict] = state.documents or []
     context = "\n".join(doc.get("page_content", "") for doc in documents)
     result = chain.invoke({"context": context, "question": state.question})
-    return state.copy(update={"answer": result["text"]})
+    return state.model_copy(update={"answer": result["text"]})

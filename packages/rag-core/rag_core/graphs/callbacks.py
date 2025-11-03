@@ -8,18 +8,37 @@ from langchain.callbacks.base import BaseCallbackHandler
 class LoggingCallbackHandler(BaseCallbackHandler):
     """Print simple lifecycle events to stdout for debugging."""
 
+    def on_chain_start(self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any) -> None:
+        """Log chain start with inputs summary."""
+        # Handle case where serialized might be None
+        chain_name = "unknown"
+        if serialized and isinstance(serialized, dict):
+            chain_name = serialized.get("name", "unknown")
+        
+        print(f"[graph] 🚀 chain started: {chain_name}")
+        
+        # Show input summary
+        if isinstance(inputs, dict):
+            for key, value in inputs.items():
+                if isinstance(value, str) and len(value) > 100:
+                    print(f"  ├─ {key}: {value[:100]}... ({len(value)} chars)")
+                elif isinstance(value, list):
+                    print(f"  ├─ {key}: <{len(value)} items>")
+                else:
+                    print(f"  ├─ {key}: {value}")
+
     def on_chain_end(self, outputs: Any, **kwargs: Any) -> None:
         """Log chain completion with sanitized outputs (hide large embeddings)."""
         try:
             sanitized = self._sanitize_outputs(outputs)
-            print("[graph] chain finished", sanitized)
+            print("[graph] ✅ chain finished", sanitized)
         except Exception as e:
             # Fallback: just print the type if sanitization fails
-            print(f"[graph] chain finished (type: {type(outputs).__name__})")
+            print(f"[graph] ✅ chain finished (type: {type(outputs).__name__})")
 
     def on_chain_error(self, error: Exception, **kwargs: Any) -> None:
         """Log chain errors."""
-        print("[graph] chain error", repr(error))
+        print("[graph] ❌ chain error", repr(error))
     
     @staticmethod
     def _sanitize_outputs(outputs: Any) -> Dict[str, Any]:

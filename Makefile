@@ -37,7 +37,12 @@ run:
 	$(UV) run uvicorn $(APP_MODULE) --reload --host $(HOST) --port $(PORT)
 
 test:
-	$(UV) run pytest
+	@echo "Running tests in .venv environment..."
+	$(UV) run pytest packages/rag-core/tests/ -v
+	
+test-all:
+	@echo "Running all tests..."
+	$(UV) run pytest -v
 
 lint:
 	$(UV) run ruff check .

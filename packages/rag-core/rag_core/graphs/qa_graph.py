@@ -14,11 +14,11 @@ def build_qa_graph(settings: AppSettings) -> StateGraph:
     graph = StateGraph(QueryState)
 
     graph.add_node("retrieve", retrieve_documents)
-    graph.add_node("answer", synthesize_answer)
+    graph.add_node("synthesize", synthesize_answer)
 
     graph.set_entry_point("retrieve")
-    graph.add_edge("retrieve", "answer")
-    graph.add_edge("answer", END)
+    graph.add_edge("retrieve", "synthesize")
+    graph.add_edge("synthesize", END)
 
     return graph.compile()
 

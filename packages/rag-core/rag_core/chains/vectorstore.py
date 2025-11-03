@@ -28,12 +28,12 @@ def retrieve_documents(state: QueryState) -> QueryState:
     global _VECTOR_INDEX
     if _VECTOR_INDEX is None:
         # No documents have been ingested yet
-        return state.copy(update={"documents": []})
+        return state.model_copy(update={"documents": []})
     
     retriever = _VECTOR_INDEX.as_retriever(search_kwargs={"k": state.retriever_top_k})
     docs = retriever.get_relevant_documents(state.question)
     formatted = [doc.dict() for doc in docs]
-    return state.copy(update={"documents": formatted})
+    return state.model_copy(update={"documents": formatted})
 
 
 async def persist_embeddings(state: DocumentIngestState) -> DocumentIngestState:
@@ -43,15 +43,26 @@ async def persist_embeddings(state: DocumentIngestState) -> DocumentIngestState:
     if not state.chunks or not state.embeddings:
         raise ValueError("embed step must run before persistence")
     
+    print(f"💾 开始持久化向量...")
+    print(f"  ├─ Embeddings 数量: {len(state.embeddings)}")
+    print(f"  ├─ Chunks 数量: {len(state.chunks)}")
+    
     settings = AppSettings()  # type: ignore[arg-type]
     embedding_function = build_embedding_function(settings)
     docs = [Document(page_content=chunk, metadata=state.metadata) for chunk in state.chunks]
     
     if _VECTOR_INDEX is None:
         # Initialize FAISS index with first batch of documents
+        print(f"  ├─ 初始化 FAISS 索引...")
         _VECTOR_INDEX = FAISS.from_documents(docs, embedding=embedding_function)
+        print(f"  ✓ FAISS 索引创建成功")
     else:
         # Add to existing index
+        print(f"  ├─ 添加到现有 FAISS 索引...")
         _VECTOR_INDEX.add_documents(docs)
+        print(f"  ✓ 向量添加成功")
+    
+    print(f"✅ 向量持久化完成!")
+    print(f"  └─ 索引中总文档数: {_VECTOR_INDEX.index.ntotal if _VECTOR_INDEX else 0}")
     
     return state

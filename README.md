@@ -29,19 +29,60 @@ uv.lock         # Resolved dependency lock produced by uv
 
 ## Getting Started (Backend)
 
-1. Install [uv](https://github.com/astral-sh/uv) if not already available.
-2. Create a virtual environment and install dependencies:
+1. **Install [uv](https://github.com/astral-sh/uv)** if not already available.
+
+2. **Create a virtual environment and install dependencies**:
    ```bash
    make install-dev
    ```
-3. Launch the FastAPI service locally:
+
+3. **Configure environment variables**:
+   ```bash
+   # Copy the example configuration
+   cp env.example .env
+   
+   # Edit .env and configure your embedding provider
+   # For development, use the default fake provider
+   # For production, configure OpenAI or OpenRouter
+   ```
+   
+   See [ENV_SETUP_GUIDE.md](./ENV_SETUP_GUIDE.md) for detailed configuration options.
+
+4. **Launch the FastAPI service locally**:
    ```bash
    make run
    ```
-4. Available endpoints (subject to change as the refactor progresses):
-   - `POST /documents/` – enqueue document ingest
+
+5. **Available endpoints** (subject to change as the refactor progresses):
+   - `POST /documents/` – enqueue document ingest (multipart/form-data with file upload)
    - `POST /search/` – semantic retrieval API
    - `POST /qa/` – question answering pipeline
+
+### Embedding Providers
+
+This platform supports multiple embedding providers:
+
+- **`fake`** (default): Random embeddings for development/testing (no API key needed)
+- **`openai`**: OpenAI embeddings (requires `OPENAI_API_KEY`)
+- **`openrouter`**: Access multiple models via OpenRouter (Google Gemini, Cohere, etc.)
+
+Configure your provider in `.env`:
+
+```bash
+# Development (default)
+EMBEDDING_PROVIDER=fake
+
+# Production with OpenAI
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+
+# Production with OpenRouter (recommended for multi-model support)
+EMBEDDING_PROVIDER=openrouter
+EMBEDDING_MODEL=google/gemini-embedding-001
+OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+For complete configuration options, see [OPENROUTER_SETUP.md](./OPENROUTER_SETUP.md).
 
 ## Next Steps
 

@@ -30,26 +30,43 @@ def load_document_content(temp_path: Path) -> str:
     """Read file and return text content based on file type."""
     suffix = temp_path.suffix.lower()
     
+    print(f"📄 开始加载文档...")
+    print(f"  ├─ 文件名: {temp_path.name}")
+    print(f"  ├─ 文件类型: {suffix or '(无扩展名)'}")
+    print(f"  └─ 文件大小: {temp_path.stat().st_size / 1024:.2f} KB")
+    
     try:
         if suffix == ".pdf":
             # Load PDF files
+            print(f"  📖 使用 PDF Loader 解析...")
             loader = PyPDFLoader(str(temp_path))
             documents = loader.load()
-            return "\n\n".join(doc.page_content for doc in documents)
+            content = "\n\n".join(doc.page_content for doc in documents)
+            print(f"  ✓ PDF 解析完成，共 {len(documents)} 页")
+            return content
         
         elif suffix == ".docx":
             # Load Word documents
-            return _load_docx(temp_path)
+            print(f"  📝 使用 Word Loader 解析...")
+            content = _load_docx(temp_path)
+            print(f"  ✓ Word 文档解析完成")
+            return content
         
         elif suffix in [".txt", ".md", ".json", ".csv", ".log", ""]:
             # Load text files
+            print(f"  📃 使用 Text Loader 解析...")
             try:
                 loader = TextLoader(str(temp_path), encoding="utf-8")
                 documents = loader.load()
-                return "\n\n".join(doc.page_content for doc in documents)
+                content = "\n\n".join(doc.page_content for doc in documents)
+                print(f"  ✓ 文本文件解析完成 (UTF-8)")
+                return content
             except UnicodeDecodeError:
                 # Fallback to latin-1 for problematic text files
-                return temp_path.read_text(encoding="latin-1")
+                print(f"  ⚠️ UTF-8 解码失败，尝试 Latin-1...")
+                content = temp_path.read_text(encoding="latin-1")
+                print(f"  ✓ 文本文件解析完成 (Latin-1)")
+                return content
         
         else:
             # Unsupported file type
