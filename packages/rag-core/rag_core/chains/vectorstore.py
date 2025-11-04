@@ -146,6 +146,12 @@ def retrieve_documents(state: QueryState) -> QueryState:
     print(f"\n🔍 开始检索文档...")
     print(f"  ├─ 问题: {state.question}")
     print(f"  ├─ Top-K: {state.retriever_top_k}")
+    
+    # Try to load vector store from disk if not already loaded
+    if _VECTOR_INDEX is None:
+        print(f"  ├─ 向量库未加载，尝试从磁盘加载...")
+        get_vector_store()  # This will attempt to load from disk
+    
     print(f"  └─ 向量库状态: {'已初始化' if _VECTOR_INDEX else '未初始化'}")
     
     if _VECTOR_INDEX is None:
@@ -157,12 +163,32 @@ def retrieve_documents(state: QueryState) -> QueryState:
     total_vectors = _VECTOR_INDEX.index.ntotal if _VECTOR_INDEX else 0
     print(f"  ├─ 向量库中总文档数: {total_vectors}")
     
-    # Get retriever instance
-    retriever = get_retriever()
-
-    # Use the interface's retrieve method (synchronous version)
-    rag_documents = retriever.retrieve_sync(state.question, top_k=state.retriever_top_k)
-    print(f"  ├─ 检索到 {len(rag_documents)} 个相关chunks")
+    # Perform synchronous retrieval using FAISS directly
+    try:
+        # Use FAISS similarity search with scores (synchronous)
+        results = _VECTOR_INDEX.similarity_search_with_score(
+            state.question, 
+            k=state.retriever_top_k
+        )
+        
+        # Convert to RAG Document format
+        from rag_core.core.models import Document as RAGDocument
+        rag_documents = []
+        for doc, score in results:
+            # FAISS returns distance, convert to similarity score (0-1)
+            similarity_score = 1.0 / (1.0 + score)
+            rag_documents.append(
+                RAGDocument(
+                    page_content=doc.page_content,
+                    metadata=doc.metadata,
+                    score=similarity_score,
+                )
+            )
+        
+        print(f"  ├─ 检索到 {len(rag_documents)} 个相关chunks")
+    except Exception as e:
+        print(f"  ❌ 检索失败: {e}")
+        rag_documents = []
     
     # 显示检索到的文档信息
     if rag_documents:

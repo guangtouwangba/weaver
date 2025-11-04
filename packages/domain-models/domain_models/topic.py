@@ -59,8 +59,9 @@ class Topic(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    # Relationship
+    # Relationships
     contents = relationship("TopicContent", back_populates="topic", cascade="all, delete-orphan")
+    conversations = relationship("Conversation", back_populates="topic", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         """String representation of Topic."""

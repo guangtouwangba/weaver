@@ -41,6 +41,14 @@ class QARequest(BaseModel):
         None, 
         description="Optional: only search within these document IDs. If not provided, searches all documents."
     )
+    conversation_id: str | None = Field(
+        None,
+        description="Optional: existing conversation ID to continue. If provided, chat history will be loaded."
+    )
+    topic_id: str | None = Field(
+        None,
+        description="Optional: topic ID for creating a new conversation. Required if conversation_id is not provided and you want to save chat history."
+    )
 
 
 class QAResponse(BaseModel):
@@ -49,6 +57,7 @@ class QAResponse(BaseModel):
     question: str
     answer: str
     sources: List[SearchHit]
+    conversation_id: str | None = Field(None, description="Conversation ID (created or existing)")
 
 
 async def perform_search(

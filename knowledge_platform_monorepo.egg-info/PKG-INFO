@@ -26,6 +26,7 @@ Requires-Dist: socksio>=1.0.0
 Requires-Dist: sqlalchemy>=2.0.23
 Requires-Dist: psycopg2-binary>=2.9.9
 Requires-Dist: alembic>=1.12.1
+Requires-Dist: pgvector>=0.2.5
 Provides-Extra: dev
 Requires-Dist: pytest<9.0.0,>=8.3.0; extra == "dev"
 Requires-Dist: pytest-asyncio<0.24.0,>=0.23.0; extra == "dev"

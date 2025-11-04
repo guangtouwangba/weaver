@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # PostgreSQL database for topic management
+  # PostgreSQL database with pgvector for topic management and semantic search
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: knowledge-platform-db
     environment:
       POSTGRES_DB: knowledge_platform

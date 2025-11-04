@@ -39,6 +39,7 @@ import ContentUploadModal from '../components/ContentUploadModal';
 import ContentList from '../components/ContentList';
 import DocumentSelector from '../components/DocumentSelector';
 import ChatPanel from '../components/ChatPanel';
+import ConversationList from '../components/ConversationList';
 import FunctionDrawer, { DrawerType } from '../components/FunctionDrawer';
 import type { Topic, TopicUpdate, GoalType } from '../types/topic';
 import type { TopicContent } from '../types/content';
@@ -61,6 +62,7 @@ const TopicWorkspace: React.FC = () => {
   
   // Chat状态
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(undefined);
   
   // 功能抽屉状态
   const [drawerType, setDrawerType] = useState<DrawerType>(null);
@@ -281,60 +283,80 @@ const TopicWorkspace: React.FC = () => {
               key="chat"
               style={{ height: '100%' }}
             >
-              <div style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 16px 16px' }}>
-                {/* 文档范围选择 - 极简版 */}
-                <div 
-                  style={{ 
-                    flexShrink: 0,
-                    padding: '8px 12px',
-                    background: '#fafafa',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Space size="small">
-                    <Text style={{ fontSize: '13px', color: '#666' }}>🎯 对话范围：</Text>
-                    {contents.filter(c => c.document_id).length === 0 ? (
-                      <Text type="secondary" style={{ fontSize: '13px' }}>
-                        暂无可用文档
-                      </Text>
-                    ) : (
-                      <Text style={{ fontSize: '13px' }}>
-                        {selectedDocIds.length} / {contents.filter(c => c.document_id).length} 个文档
-                      </Text>
-                    )}
-                  </Space>
-                  {contents.filter(c => c.document_id).length > 0 && (
-                    <Button 
-                      type="link" 
-                      size="small"
-                      style={{ fontSize: '12px', padding: '0 8px' }}
-                      onClick={() => {
-                        const allDocIds = contents.filter(c => c.document_id).map(c => c.document_id!);
-                        if (selectedDocIds.length === allDocIds.length) {
-                          setSelectedDocIds([]);
-                        } else {
-                          setSelectedDocIds(allDocIds);
-                        }
-                      }}
-                    >
-                      {selectedDocIds.length === contents.filter(c => c.document_id).length ? '取消全选' : '全选'}
-                    </Button>
-                  )}
-                </div>
-
-                {/* Chat面板 - 占据主要空间 */}
-                <div style={{ flex: 1, minHeight: 0 }}>
-                  <ChatPanel
+              <div style={{ height: 'calc(100vh - 300px)', display: 'flex', gap: '12px', padding: '0 16px 16px' }}>
+                {/* 左侧：对话列表 */}
+                <div style={{ width: '280px', flexShrink: 0 }}>
+                  <ConversationList
                     topicId={id!}
-                    selectedDocIds={selectedDocIds}
-                    onSourceClick={(source) => {
-                      console.log('Source clicked:', source);
-                      // TODO: 跳转到文档详情或高亮显示
+                    selectedConversationId={currentConversationId}
+                    onConversationSelect={(conversationId) => {
+                      console.log('📝 选择对话:', conversationId);
+                      setCurrentConversationId(conversationId);
+                    }}
+                    onNewConversation={() => {
+                      console.log('🆕 开始新对话');
+                      setCurrentConversationId(undefined);
                     }}
                   />
+                </div>
+
+                {/* 右侧：文档选择 + Chat */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }}>
+                  {/* 文档范围选择 - 极简版 */}
+                  <div 
+                    style={{ 
+                      flexShrink: 0,
+                      padding: '8px 12px',
+                      background: '#fafafa',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Space size="small">
+                      <Text style={{ fontSize: '13px', color: '#666' }}>🎯 对话范围：</Text>
+                      {contents.filter(c => c.document_id).length === 0 ? (
+                        <Text type="secondary" style={{ fontSize: '13px' }}>
+                          暂无可用文档
+                        </Text>
+                      ) : (
+                        <Text style={{ fontSize: '13px' }}>
+                          {selectedDocIds.length} / {contents.filter(c => c.document_id).length} 个文档
+                        </Text>
+                      )}
+                    </Space>
+                    {contents.filter(c => c.document_id).length > 0 && (
+                      <Button 
+                        type="link" 
+                        size="small"
+                        style={{ fontSize: '12px', padding: '0 8px' }}
+                        onClick={() => {
+                          const allDocIds = contents.filter(c => c.document_id).map(c => c.document_id!);
+                          if (selectedDocIds.length === allDocIds.length) {
+                            setSelectedDocIds([]);
+                          } else {
+                            setSelectedDocIds(allDocIds);
+                          }
+                        }}
+                      >
+                        {selectedDocIds.length === contents.filter(c => c.document_id).length ? '取消全选' : '全选'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Chat面板 - 占据主要空间 */}
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ChatPanel
+                      topicId={id!}
+                      selectedDocIds={selectedDocIds}
+                      conversationId={currentConversationId}
+                      onConversationChange={(conversationId) => {
+                        console.log('💬 对话ID更新:', conversationId);
+                        setCurrentConversationId(conversationId);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </TabPane>

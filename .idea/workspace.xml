@@ -5,16 +5,28 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0424dd6f-7080-41b0-9067-3ca4a5e8f935" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/data_source_mapping.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/AUTO_INGEST_FEATURE.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/api/app/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/api/app/routers/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/routers/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/web/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/env.example" beforeDir="false" afterPath="$PROJECT_DIR$/env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/api/app/routers/qa.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/routers/qa.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/_metadata.json" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/_metadata.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/antd.js" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/antd.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/App.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/src/api/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/api/chat.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/src/components/ChatPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/components/ChatPanel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/web/src/pages/TopicWorkspace.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/pages/TopicWorkspace.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/PKG-INFO" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/PKG-INFO" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/SOURCES.txt" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/SOURCES.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/requires.txt" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/requires.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/packages/domain-models/domain_models/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/domain-models/domain_models/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/domain-models/domain_models/topic.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/domain-models/domain_models/topic.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/vectorstore.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/vectorstore.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/qa_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/qa_graph.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/state.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/state.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/qa_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/qa_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/uv.lock" beforeDir="false" afterPath="$PROJECT_DIR$/uv.lock" afterDir="false" />
     </list>
@@ -249,7 +261,7 @@
       <workItem from="1758458040991" duration="28292000" />
       <workItem from="1759039042588" duration="28061000" />
       <workItem from="1760681120113" duration="45667000" />
-      <workItem from="1761289831009" duration="46528000" />
+      <workItem from="1761289831009" duration="51833000" />
     </task>
     <servers />
   </component>

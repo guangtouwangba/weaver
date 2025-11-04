@@ -17,11 +17,23 @@ from domain_models.topic_content_schemas import (
     TopicContentListResponse,
     TopicContentStats,
 )
+from domain_models.conversation import Conversation, Message
+from domain_models.conversation_schemas import (
+    ConversationCreate,
+    ConversationUpdate,
+    ConversationResponse,
+    ConversationListResponse,
+    MessageCreate,
+    MessageResponse,
+    MessageListResponse,
+)
 
 __all__ = [
     # ORM Models
     "Topic",
     "TopicContent",
+    "Conversation",
+    "Message",
     # Enums
     "GoalType",
     "TopicStatus",
@@ -41,4 +53,13 @@ __all__ = [
     "TopicContentResponse",
     "TopicContentListResponse",
     "TopicContentStats",
+    # Pydantic Schemas - Conversation
+    "ConversationCreate",
+    "ConversationUpdate",
+    "ConversationResponse",
+    "ConversationListResponse",
+    # Pydantic Schemas - Message
+    "MessageCreate",
+    "MessageResponse",
+    "MessageListResponse",
 ]

@@ -23,3 +23,10 @@ class QueryState(BaseModel):
     document_ids: Optional[List[str]] = None  # Filter by specific document IDs
     documents: Optional[List[dict]] = None
     answer: Optional[str] = None
+    
+    # Conversation memory fields
+    conversation_id: Optional[str] = None  # Existing conversation to load history from
+    topic_id: Optional[str] = None  # Topic for creating new conversation
+    chat_history: Optional[List[dict]] = None  # Short-term memory (recent N messages)
+    long_term_memory: Optional[List[dict]] = None  # Long-term memory (vector similarity)
+    contextualized_question: Optional[str] = None  # Rewritten standalone question

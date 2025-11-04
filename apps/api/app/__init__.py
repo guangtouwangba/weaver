@@ -1,9 +1,15 @@
 """Application entrypoint for the minimal LangChain/LangGraph RAG service."""
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import ingest, qa, search, topics, topic_contents
+from app.routers import ingest, qa, qa_stream, search, topics, topic_contents, conversations, messages
+from app.errors import (
+    AppException,
+    app_exception_handler,
+    http_exception_handler,
+    general_exception_handler,
+)
 
 
 def create_app() -> FastAPI:
@@ -16,6 +22,11 @@ def create_app() -> FastAPI:
             "built on LangChain + LangGraph with PostgreSQL for knowledge management."
         ),
     )
+
+    # Register exception handlers
+    app.add_exception_handler(AppException, app_exception_handler)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(Exception, general_exception_handler)
 
     # Configure CORS middleware
     app.add_middleware(
@@ -38,11 +49,16 @@ def create_app() -> FastAPI:
     
     # Topic content management
     app.include_router(topic_contents.router, prefix="/api/v1")
+    
+    # Conversation and message management
+    app.include_router(conversations.router, prefix="/api/v1")
+    app.include_router(messages.router, prefix="/api/v1")
 
     # Document and RAG operations
     app.include_router(ingest.router, prefix="/api/v1")
     app.include_router(search.router, prefix="/api/v1")
     app.include_router(qa.router, prefix="/api/v1")
+    app.include_router(qa_stream.router, prefix="/api/v1")  # Streaming QA endpoint
 
     return app
 
