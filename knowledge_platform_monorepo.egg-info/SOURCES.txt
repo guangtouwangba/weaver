@@ -6,12 +6,15 @@ apps/api/app/routers/__init__.py
 apps/api/app/routers/ingest.py
 apps/api/app/routers/qa.py
 apps/api/app/routers/search.py
+apps/api/app/routers/topics.py
 knowledge_platform_monorepo.egg-info/PKG-INFO
 knowledge_platform_monorepo.egg-info/SOURCES.txt
 knowledge_platform_monorepo.egg-info/dependency_links.txt
 knowledge_platform_monorepo.egg-info/requires.txt
 knowledge_platform_monorepo.egg-info/top_level.txt
 packages/domain-models/domain_models/__init__.py
+packages/domain-models/domain_models/topic.py
+packages/domain-models/domain_models/topic_schemas.py
 packages/rag-core/rag_core/__init__.py
 packages/rag-core/rag_core/chains/__init__.py
 packages/rag-core/rag_core/chains/embeddings.py
@@ -45,7 +48,10 @@ packages/rag-core/rag_core/retrievers/__init__.py
 packages/rag-core/rag_core/retrievers/factory.py
 packages/rag-core/rag_core/retrievers/vector_retriever.py
 packages/rag-core/rag_core/routing/__init__.py
+packages/rag-core/rag_core/services/__init__.py
+packages/rag-core/rag_core/services/topic_service.py
 packages/rag-core/rag_core/storage/__init__.py
+packages/rag-core/rag_core/storage/database.py
 packages/shared-config/shared_config/__init__.py
 packages/shared-config/shared_config/logging.py
 packages/shared-config/shared_config/settings.py

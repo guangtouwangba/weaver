@@ -48,7 +48,8 @@ async def build_ingest_payload(file: UploadFile) -> IngestPayload:
     document_id = str(uuid.uuid4())
     metadata = {
         "document_id": document_id,  # 添加document_id到metadata，用于过滤
-        "filename": file.filename
+        "filename": file.filename,
+        "source": file.filename,  # 添加source字段用于前端显示来源
     }
     
     print(f"  ✓ 生成 Document ID: {document_id}")

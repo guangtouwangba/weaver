@@ -108,6 +108,22 @@ class RetrieverConfig(BaseSettings):
     )
 
 
+class DatabaseConfig(BaseSettings):
+    """Database configuration."""
+
+    database_url: str = Field("postgresql://localhost:5432/knowledge_platform", alias="DATABASE_URL")
+    pool_size: int = Field(5, alias="DB_POOL_SIZE", ge=1)
+    max_overflow: int = Field(10, alias="DB_MAX_OVERFLOW", ge=0)
+    echo: bool = Field(False, alias="DB_ECHO")  # SQL logging
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 # ========================================
 # 聚合配置类（向后兼容）
 # ========================================
@@ -126,6 +142,7 @@ class AppSettings(BaseSettings):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     retriever: RetrieverConfig = Field(default_factory=RetrieverConfig)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
 
     # ========================================
     # 向后兼容属性（保持旧代码正常工作）
