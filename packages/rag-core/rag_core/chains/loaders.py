@@ -1,10 +1,12 @@
 """Document loading utilities."""
 
 from pathlib import Path
+from typing import Optional
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 
 from rag_core.graphs.state import DocumentIngestState
+from shared_config.settings import AppSettings
 
 
 async def load_document(state: DocumentIngestState) -> DocumentIngestState:
@@ -26,14 +28,12 @@ def _load_docx(file_path: Path) -> str:
     return "\n\n".join(paragraphs)
 
 
-def load_document_content(temp_path: Path) -> str:
-    """Read file and return text content based on file type."""
-    suffix = temp_path.suffix.lower()
+def _load_content_basic(temp_path: Path) -> str:
+    """Load document content using standard loaders (no AI enhancement).
     
-    print(f"📄 开始加载文档...")
-    print(f"  ├─ 文件名: {temp_path.name}")
-    print(f"  ├─ 文件类型: {suffix or '(无扩展名)'}")
-    print(f"  └─ 文件大小: {temp_path.stat().st_size / 1024:.2f} KB")
+    This is the original implementation that uses format-specific loaders.
+    """
+    suffix = temp_path.suffix.lower()
     
     try:
         if suffix == ".pdf":
@@ -77,3 +77,88 @@ def load_document_content(temp_path: Path) -> str:
     
     except Exception as e:
         raise ValueError(f"Failed to load document {temp_path.name}: {str(e)}") from e
+
+
+def _load_content_with_langextract(temp_path: Path, settings: AppSettings) -> str:
+    """Load document content enhanced with LangExtract AI processing.
+    
+    This implementation first uses standard loaders to extract text,
+    then enhances it with LangExtract for better structure and understanding.
+    """
+    try:
+        from rag_core.preprocessing.langextract_parser import create_langextract_parser
+        
+        # First, load with standard loaders
+        base_content = _load_content_basic(temp_path)
+        
+        # Then enhance with LangExtract if enabled
+        if settings.document_parser.enable_enhanced_parsing:
+            print(f"  🤖 启用 LangExtract 智能增强...")
+            
+            # Get API key - try LangExtract specific first, then OpenRouter
+            api_key = None
+            if settings.document_parser.langextract_api_key:
+                api_key = settings.document_parser.langextract_api_key.get_secret_value()
+            elif settings.document_parser.openrouter_api_key:
+                api_key = settings.document_parser.openrouter_api_key.get_secret_value()
+            
+            parser = create_langextract_parser(
+                model_id=settings.document_parser.langextract_model_id,
+                api_key=api_key,
+                provider=settings.document_parser.langextract_provider,
+                base_url=settings.document_parser.langextract_base_url,
+                use_schema_constraints=settings.document_parser.langextract_use_schema,
+                fence_output=settings.document_parser.langextract_fence_output,
+            )
+            
+            enhanced_content = parser.parse_file(temp_path, base_content)
+            print(f"  ✓ LangExtract 增强完成")
+            return enhanced_content
+        else:
+            print(f"  ℹ️  LangExtract 增强已禁用，使用基础解析")
+            return base_content
+            
+    except ImportError as e:
+        print(f"  ⚠️  LangExtract 不可用: {e}")
+        print(f"  └─ 回退到基础解析器")
+        return _load_content_basic(temp_path)
+    except Exception as e:
+        print(f"  ⚠️  LangExtract 处理失败: {e}")
+        print(f"  └─ 回退到基础解析器")
+        return _load_content_basic(temp_path)
+
+
+def load_document_content(temp_path: Path, settings: Optional[AppSettings] = None) -> str:
+    """Read file and return text content based on file type and parser configuration.
+    
+    This function selects the appropriate parser based on configuration:
+    - "default": Uses standard format-specific loaders (PyPDF, TextLoader, etc.)
+    - "langextract": Uses AI-powered LangExtract for enhanced parsing
+    
+    Args:
+        temp_path: Path to the document file
+        settings: Application settings (loads from env if not provided)
+        
+    Returns:
+        Extracted text content
+    """
+    suffix = temp_path.suffix.lower()
+    
+    print(f"📄 开始加载文档...")
+    print(f"  ├─ 文件名: {temp_path.name}")
+    print(f"  ├─ 文件类型: {suffix or '(无扩展名)'}")
+    print(f"  └─ 文件大小: {temp_path.stat().st_size / 1024:.2f} KB")
+    
+    # Load settings if not provided
+    if settings is None:
+        settings = AppSettings()  # type: ignore[arg-type]
+    
+    parser_type = settings.document_parser.parser_type.lower()
+    print(f"  ├─ 解析器类型: {parser_type}")
+    
+    # Select parser based on configuration
+    if parser_type == "langextract":
+        return _load_content_with_langextract(temp_path, settings)
+    else:
+        # Default to basic parsing
+        return _load_content_basic(temp_path)

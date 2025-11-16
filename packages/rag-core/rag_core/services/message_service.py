@@ -183,7 +183,7 @@ class MessageService:
         similarity_threshold: float = 0.7
     ) -> List[Message]:
         """
-        Find similar messages using vector similarity search.
+        Find similar messages using vector similarity search within a conversation.
 
         Args:
             db: Database session
@@ -203,11 +203,8 @@ class MessageService:
 
         # Use cosine similarity: 1 - (embedding <=> query_embedding)
         # Higher values = more similar
-        # Note: We use raw SQL because SQLAlchemy doesn't have native vector operations
-        # Important: We embed the vector string directly to avoid :: casting syntax issues
         from sqlalchemy import text
         
-        # Build SQL with embedded vector literal to avoid :: casting conflicts with :param syntax
         query = text(f"""
             SELECT id, conversation_id, role, content, sources, created_at,
                    1 - (embedding <=> '{embedding_str}'::vector) as similarity
@@ -234,6 +231,84 @@ class MessageService:
         for row in rows:
             message = db.query(Message).filter(Message.id == row[0]).first()
             if message:
+                messages.append(message)
+
+        return messages
+
+    @staticmethod
+    def find_similar_messages_in_topic(
+        db: Session,
+        topic_id: str | UUID,
+        query_embedding: List[float],
+        limit: int = 5,
+        similarity_threshold: float = 0.7,
+        exclude_conversation_id: Optional[str | UUID] = None
+    ) -> List[Message]:
+        """
+        Find similar messages across all conversations in a topic.
+        
+        This enables cross-conversation memory retrieval, useful for:
+        - Finding relevant answers from other conversations
+        - Building topic-level knowledge base
+        - Surfacing related discussions
+
+        Args:
+            db: Database session
+            topic_id: Topic UUID to search within
+            query_embedding: Query embedding vector
+            limit: Maximum number of results
+            similarity_threshold: Minimum cosine similarity (0-1)
+            exclude_conversation_id: Optional conversation ID to exclude (e.g., current conversation)
+
+        Returns:
+            List of similar messages ordered by similarity (most similar first)
+        """
+        if isinstance(topic_id, str):
+            topic_id = UUID(topic_id)
+        if isinstance(exclude_conversation_id, str):
+            exclude_conversation_id = UUID(exclude_conversation_id)
+
+        # Convert embedding to pgvector format
+        embedding_str = '[' + ','.join(map(str, query_embedding)) + ']'
+
+        from sqlalchemy import text
+        
+        # Join with conversations table to filter by topic_id
+        exclude_clause = ""
+        if exclude_conversation_id:
+            exclude_clause = f"AND m.conversation_id != '{str(exclude_conversation_id)}'"
+        
+        query = text(f"""
+            SELECT m.id, m.conversation_id, m.role, m.content, m.sources, m.created_at,
+                   1 - (m.embedding <=> '{embedding_str}'::vector) as similarity
+            FROM messages m
+            INNER JOIN conversations c ON m.conversation_id = c.id
+            WHERE c.topic_id = :topic_id
+              AND m.embedding IS NOT NULL
+              AND 1 - (m.embedding <=> '{embedding_str}'::vector) > :threshold
+              {exclude_clause}
+            ORDER BY similarity DESC
+            LIMIT :limit
+        """)
+
+        result = db.execute(
+            query,
+            {
+                "topic_id": str(topic_id),
+                "threshold": similarity_threshold,
+                "limit": limit
+            }
+        )
+        rows = result.fetchall()
+
+        # Convert rows to Message objects with similarity score
+        from domain_models import Message as MessageModel
+        messages = []
+        for row in rows:
+            message = db.query(MessageModel).filter(MessageModel.id == row[0]).first()
+            if message:
+                # Attach similarity score as a temporary attribute
+                message.similarity = row[6]
                 messages.append(message)
 
         return messages

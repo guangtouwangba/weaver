@@ -80,26 +80,30 @@ def load_memory_node(state: QueryState) -> dict:
 def retrieve_long_term_memory_node(state: QueryState) -> dict:
     """
     Retrieve relevant messages from long-term memory using vector similarity.
-    This supplements short-term memory for long conversations.
+    
+    Strategy:
+    1. Search within current conversation (if exists and enabled)
+    2. Additionally search across topic for relevant context from other conversations (if enabled)
+    3. Combine and deduplicate results
     
     Args:
-        state: Graph state containing conversation_id and question
+        state: Graph state containing conversation_id, topic_id and question
         
     Returns:
         Updated state with long_term_memory
     """
     conversation_id = state.conversation_id
+    topic_id = state.topic_id
     question = state.question
-    
-    if not conversation_id:
-        print("🔍 [Long-term Memory] 无对话ID，跳过")
-        return {"long_term_memory": []}
     
     # Get database session
     db = SessionLocal()
     try:
-        # Generate embedding for current question
+        # Load settings
         settings = AppSettings()  # type: ignore[arg-type]
+        memory_config = settings.memory
+        
+        # Generate embedding for current question
         embedding_fn = build_embedding_function(settings)
         
         print("🔍 [Long-term Memory] 生成查询embedding...")
@@ -109,25 +113,60 @@ def retrieve_long_term_memory_node(state: QueryState) -> dict:
             print(f"⚠️ [Long-term Memory] Embedding生成失败: {e}")
             return {"long_term_memory": []}
         
-        # Find similar messages (top 3, similarity > 0.7)
-        print("🔍 [Long-term Memory] 搜索相似历史...")
-        similar_messages = MessageService.find_similar_messages(
-            db,
-            conversation_id=conversation_id,
-            query_embedding=query_embedding,
-            limit=3,
-            similarity_threshold=0.7
-        )
-        
-        # Format as memory entries
         long_term_memory = []
-        for msg in similar_messages:
-            long_term_memory.append({
-                "role": msg.role,
-                "content": msg.content
-            })
         
-        print(f"🔍 [Long-term Memory] 检索到 {len(long_term_memory)} 条相关历史")
+        # Strategy 1: Search within current conversation (if exists and enabled)
+        if conversation_id and memory_config.enable_conversation_memory:
+            print(f"🔍 [Long-term Memory] 搜索当前对话内的相似历史...")
+            conversation_messages = MessageService.find_similar_messages(
+                db,
+                conversation_id=conversation_id,
+                query_embedding=query_embedding,
+                limit=memory_config.conversation_memory_limit,
+                similarity_threshold=memory_config.conversation_similarity_threshold
+            )
+            
+            for msg in conversation_messages:
+                long_term_memory.append({
+                    "role": msg.role,
+                    "content": msg.content,
+                    "source": "same_conversation"
+                })
+            
+            print(f"   ✓ 当前对话: {len(conversation_messages)} 条")
+        
+        # Strategy 2: Search across topic (cross-conversation, if enabled)
+        if topic_id and memory_config.enable_topic_memory:
+            print(f"🔍 [Long-term Memory] 搜索Topic内其他对话的相似历史...")
+            topic_messages = MessageService.find_similar_messages_in_topic(
+                db,
+                topic_id=topic_id,
+                query_embedding=query_embedding,
+                limit=memory_config.topic_memory_limit,
+                similarity_threshold=memory_config.topic_similarity_threshold,
+                exclude_conversation_id=conversation_id  # Don't duplicate current conversation
+            )
+            
+            for msg in topic_messages:
+                long_term_memory.append({
+                    "role": msg.role,
+                    "content": msg.content,
+                    "source": "other_conversations",
+                    "similarity": getattr(msg, 'similarity', 0.0)  # Attach similarity score
+                })
+            
+            print(f"   ✓ 其他对话: {len(topic_messages)} 条")
+        
+        # Limit total memory to configured maximum
+        if len(long_term_memory) > memory_config.max_total_memories:
+            # Sort by similarity if available, otherwise keep order
+            long_term_memory = sorted(
+                long_term_memory, 
+                key=lambda x: x.get('similarity', 1.0), 
+                reverse=True
+            )[:memory_config.max_total_memories]
+        
+        print(f"🔍 [Long-term Memory] 总共检索到 {len(long_term_memory)} 条相关历史")
         return {"long_term_memory": long_term_memory}
         
     finally:

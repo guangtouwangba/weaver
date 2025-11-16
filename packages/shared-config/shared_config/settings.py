@@ -89,6 +89,32 @@ class EmbeddingConfig(BaseSettings):
     )
 
 
+class MemoryConfig(BaseSettings):
+    """Conversational memory configuration for embedding-based history retrieval."""
+
+    # Conversation-level memory (within same conversation)
+    conversation_memory_limit: int = Field(2, alias="MEMORY_CONVERSATION_LIMIT", ge=0, le=10)
+    conversation_similarity_threshold: float = Field(0.75, alias="MEMORY_CONVERSATION_THRESHOLD", ge=0.0, le=1.0)
+
+    # Topic-level memory (across conversations in same topic)
+    topic_memory_limit: int = Field(3, alias="MEMORY_TOPIC_LIMIT", ge=0, le=10)
+    topic_similarity_threshold: float = Field(0.70, alias="MEMORY_TOPIC_THRESHOLD", ge=0.0, le=1.0)
+
+    # Total memory limit (combined)
+    max_total_memories: int = Field(5, alias="MEMORY_MAX_TOTAL", ge=1, le=20)
+
+    # Enable/disable memory retrieval
+    enable_conversation_memory: bool = Field(True, alias="MEMORY_ENABLE_CONVERSATION")
+    enable_topic_memory: bool = Field(True, alias="MEMORY_ENABLE_TOPIC")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class RetrieverConfig(BaseSettings):
     """Retriever configuration."""
 
@@ -124,6 +150,36 @@ class DatabaseConfig(BaseSettings):
     )
 
 
+class DocumentParserConfig(BaseSettings):
+    """Document parser configuration."""
+
+    # Parser selection: "default" (standard loaders) or "langextract" (AI-powered)
+    parser_type: str = Field("langextract", alias="DOCUMENT_PARSER_TYPE")
+    
+    # LangExtract specific settings
+    langextract_model_id: str = Field("gemini-2.5-flash", alias="LANGEXTRACT_MODEL_ID")
+    langextract_api_key: SecretStr | None = Field(None, alias="LANGEXTRACT_API_KEY")
+    langextract_provider: str = Field("gemini", alias="LANGEXTRACT_PROVIDER")
+    langextract_base_url: str | None = Field(None, alias="LANGEXTRACT_BASE_URL")
+    langextract_use_schema: bool = Field(True, alias="LANGEXTRACT_USE_SCHEMA")
+    langextract_fence_output: bool = Field(False, alias="LANGEXTRACT_FENCE_OUTPUT")
+    
+    # Parser behavior
+    enable_enhanced_parsing: bool = Field(True, alias="PARSER_ENABLE_ENHANCED")
+    
+    # OpenRouter specific (shared with LLM/Embedding configs)
+    openrouter_api_key: SecretStr | None = Field(None, alias="OPENROUTER_API_KEY")
+    openrouter_site_url: str | None = Field(None, alias="OPENROUTER_SITE_URL")
+    openrouter_site_name: str | None = Field(None, alias="OPENROUTER_SITE_NAME")
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 # ========================================
 # 聚合配置类（向后兼容）
 # ========================================
@@ -142,7 +198,9 @@ class AppSettings(BaseSettings):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     retriever: RetrieverConfig = Field(default_factory=RetrieverConfig)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    document_parser: DocumentParserConfig = Field(default_factory=DocumentParserConfig)
 
     # ========================================
     # 向后兼容属性（保持旧代码正常工作）

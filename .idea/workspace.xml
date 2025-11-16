@@ -5,30 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0424dd6f-7080-41b0-9067-3ca4a5e8f935" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/data_source_mapping.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/data_source_mapping.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/AUTO_INGEST_FEATURE.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/api/app/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/api/app/routers/qa.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/routers/qa.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/_metadata.json" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/_metadata.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/antd.js" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/node_modules/.vite/deps/antd.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/web/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/web/src/api/chat.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/api/chat.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/web/src/components/ChatPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/components/ChatPanel.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/web/src/pages/TopicWorkspace.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/web/src/pages/TopicWorkspace.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/PKG-INFO" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/PKG-INFO" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/SOURCES.txt" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/SOURCES.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/requires.txt" beforeDir="false" afterPath="$PROJECT_DIR$/knowledge_platform_monorepo.egg-info/requires.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/domain-models/domain_models/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/domain-models/domain_models/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/domain-models/domain_models/topic.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/domain-models/domain_models/topic.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/vectorstore.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/chains/vectorstore.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/qa_graph.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/qa_graph.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/state.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/state.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/qa_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/pipeline/services/qa_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/uv.lock" beforeDir="false" afterPath="$PROJECT_DIR$/uv.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/api/app/routers/qa_stream.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/routers/qa_stream.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/memory_nodes.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/memory_nodes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/services/message_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/services/message_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,6 +27,12 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/.venv/lib/python3.12/site-packages/langchain_community/embeddings/fake.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/.venv/lib/python3.12/site-packages/langchain_community/embeddings/openai.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/.venv/lib/python3.12/site-packages/langchain_core/embeddings/embeddings.py" root0="SKIP_INSPECTION" />
+    <setting file="file://$PROJECT_DIR$/.venv/lib/python3.12/site-packages/langchain_openai/embeddings/base.py" root0="SKIP_INSPECTION" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 5
 }</component>
@@ -53,47 +41,47 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python tests.Doctest via pytest in embeddings.py.executor": "Run",
-    "Python tests.pytest for test_oss_connection.test_oss_connection.executor": "Run",
-    "Python tests.pytest for tests.integration.test_core_llm.TestOpenAIIntegration.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_pymupdf.executor": "Debug",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_unstructured.executor": "Debug",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_loader_name_property.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_custom_settings.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_default_settings.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_success.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_with_unstructured.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_success.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_with_pymupdf.executor": "Run",
-    "Python tests.pytest for tests.unit.file_loader.test_unstructured_strategy.TestUnstructuredStrategyContentExtraction.test_extract_content_with_real_pdf.executor": "Run",
-    "Python tests.pytest in intelligent_chat_engine.py.executor": "Run",
-    "Python.Run API.executor": "Run",
-    "Python.embeddings.executor": "Run",
-    "Python.rag_demo.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master",
-    "go.import.settings.migrated": "true",
-    "last_opened_file_path": "/Users/siqiuchen/Documents/opensource/research-agent-rag/test_docs",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python tests.Doctest via pytest in embeddings.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for test_oss_connection.test_oss_connection.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.integration.test_core_llm.TestOpenAIIntegration.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_pymupdf.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderContentExtraction.test_extract_content_with_unstructured.executor&quot;: &quot;Debug&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_loader_name_property.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_custom_settings.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderInitialization.test_pdf_loader_initialization_default_settings.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_success.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderMetadataExtraction.test_extract_metadata_with_unstructured.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_success.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_pdf_loader.TestPDFLoaderValidation.test_validate_file_with_pymupdf.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest for tests.unit.file_loader.test_unstructured_strategy.TestUnstructuredStrategyContentExtraction.test_extract_content_with_real_pdf.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.pytest in intelligent_chat_engine.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python.Run API.executor&quot;: &quot;Run&quot;,
+    &quot;Python.embeddings.executor&quot;: &quot;Run&quot;,
+    &quot;Python.rag_demo.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/siqiuchen/Documents/opensource/research-agent-rag/test_docs&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "DatabaseDriversLRU": [
-      "postgresql"
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/test_docs" />
@@ -220,11 +208,11 @@
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python tests.pytest in intelligent_chat_engine.py" />
+        <item itemvalue="Python tests.pytest for tests.integration.test_core_llm.TestOpenAIIntegration" />
         <item itemvalue="Python tests.Doctest via pytest in embeddings.py" />
         <item itemvalue="Python.embeddings" />
         <item itemvalue="Python.Run API" />
-        <item itemvalue="Python tests.pytest in intelligent_chat_engine.py" />
-        <item itemvalue="Python tests.pytest for tests.integration.test_core_llm.TestOpenAIIntegration" />
       </list>
     </recent_temporary>
   </component>
@@ -261,7 +249,8 @@
       <workItem from="1758458040991" duration="28292000" />
       <workItem from="1759039042588" duration="28061000" />
       <workItem from="1760681120113" duration="45667000" />
-      <workItem from="1761289831009" duration="51833000" />
+      <workItem from="1761289831009" duration="66115000" />
+      <workItem from="1762322829158" duration="35813000" />
     </task>
     <servers />
   </component>
