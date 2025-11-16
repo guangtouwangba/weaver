@@ -118,13 +118,21 @@ class MemoryConfig(BaseSettings):
 class RetrieverConfig(BaseSettings):
     """Retriever configuration."""
 
+    # Retriever type: "vector", "hybrid", "multi_query", "ensemble"
+    type: str = Field("vector", alias="RETRIEVER_TYPE")
+
     # Search parameters
     top_k: int = Field(4, alias="VECTOR_TOP_K", ge=1)
     search_type: str = Field("similarity", alias="RETRIEVER_SEARCH_TYPE")  # similarity, mmr
     similarity_threshold: float = Field(0.7, alias="RETRIEVER_SIMILARITY_THRESHOLD", ge=0.0, le=1.0)
 
-    # MMR parameters (for future use)
+    # MMR parameters
     lambda_mult: float = Field(0.5, alias="RETRIEVER_LAMBDA_MULT", ge=0.0, le=1.0)
+
+    # Hybrid retriever parameters
+    vector_weight: float = Field(0.7, alias="RETRIEVER_VECTOR_WEIGHT", ge=0.0, le=1.0)
+    bm25_weight: float = Field(0.3, alias="RETRIEVER_BM25_WEIGHT", ge=0.0, le=1.0)
+    rrf_k: int = Field(60, alias="RETRIEVER_RRF_K", ge=1)  # RRF constant
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -185,6 +193,66 @@ class DocumentParserConfig(BaseSettings):
 # ========================================
 
 
+class CacheConfig(BaseSettings):
+    """Cache configuration."""
+
+    enabled: bool = Field(False, alias="CACHE_ENABLED")
+    redis_url: str = Field("redis://localhost:6379", alias="REDIS_URL")
+    redis_max_connections: int = Field(10, alias="REDIS_MAX_CONNECTIONS")
+    ttl_seconds: int = Field(3600, alias="CACHE_TTL_SECONDS")  # 1 hour default
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
+class ObservabilityConfig(BaseSettings):
+    """Observability and monitoring configuration."""
+
+    # LangSmith
+    langsmith_enabled: bool = Field(False, alias="LANGSMITH_ENABLED")
+    langsmith_api_key: SecretStr | None = Field(None, alias="LANGCHAIN_API_KEY")
+    langsmith_project: str = Field("rag-production", alias="LANGCHAIN_PROJECT")
+
+    # Prometheus
+    prometheus_enabled: bool = Field(False, alias="PROMETHEUS_ENABLED")
+    prometheus_port: int = Field(9090, alias="PROMETHEUS_PORT")
+
+    # Structured logging
+    log_level: str = Field("INFO", alias="LOG_LEVEL")
+    log_format: str = Field("json", alias="LOG_FORMAT")  # json or text
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
+class RerankerConfig(BaseSettings):
+    """Reranker configuration."""
+
+    enabled: bool = Field(False, alias="RERANKER_ENABLED")
+    type: str = Field("cross_encoder", alias="RERANKER_TYPE")  # cross_encoder, llm
+    model: str = Field(
+        "cross-encoder/ms-marco-MiniLM-L-6-v2",
+        alias="RERANKER_MODEL"
+    )
+    top_n: int = Field(3, alias="RERANKER_TOP_N", ge=1)
+    batch_size: int = Field(32, alias="RERANKER_BATCH_SIZE", ge=1)
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class AppSettings(BaseSettings):
     """Application configuration exposed to service components."""
 
@@ -201,6 +269,9 @@ class AppSettings(BaseSettings):
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     document_parser: DocumentParserConfig = Field(default_factory=DocumentParserConfig)
+    cache: CacheConfig = Field(default_factory=CacheConfig)
+    observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+    reranker: RerankerConfig = Field(default_factory=RerankerConfig)
 
     # ========================================
     # 向后兼容属性（保持旧代码正常工作）

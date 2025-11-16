@@ -33,6 +33,8 @@ dependencies = [
     "alembic>=1.12.1",
     "pgvector>=0.2.5",
     "langextract>=1.0.0",
+    "rank-bm25>=0.2.2",
+    "sentence-transformers>=2.2.0",
 ]
 
 [project.optional-dependencies]

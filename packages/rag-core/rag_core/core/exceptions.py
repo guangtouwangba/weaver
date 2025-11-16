@@ -84,3 +84,15 @@ class DocumentProcessingException(RAGException):
 
     pass
 
+
+class RerankerException(RAGException):
+    """Exception raised during document reranking.
+
+    Examples:
+        - Reranker model not loaded
+        - Reranking inference failed
+        - Invalid reranker configuration
+    """
+
+    pass
+

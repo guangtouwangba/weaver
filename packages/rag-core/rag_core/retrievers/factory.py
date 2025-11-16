@@ -1,11 +1,15 @@
 """Factory for creating retriever instances."""
 
 from typing import Any
+import logging
 
 from rag_core.core.exceptions import ConfigurationException
 from rag_core.core.interfaces import RetrieverInterface
 from rag_core.retrievers.vector_retriever import VectorRetriever
+from rag_core.retrievers.hybrid_retriever import HybridRetriever
 from shared_config.settings import AppSettings
+
+logger = logging.getLogger(__name__)
 
 
 class RetrieverFactory:
@@ -13,6 +17,12 @@ class RetrieverFactory:
 
     This factory provides a centralized way to create different types of
     retrievers based on configuration or explicit parameters.
+    
+    Supported retriever types:
+    - "vector": Pure vector similarity search
+    - "hybrid": BM25 + Vector hybrid search (recommended for best results)
+    - "multi_query": Multi-query retrieval (TODO)
+    - "ensemble": Ensemble retrieval (TODO)
     """
 
     @staticmethod
@@ -47,6 +57,7 @@ class RetrieverFactory:
             }
 
         if retriever_type == "vector":
+            logger.info(f"Creating VectorRetriever with config: {config}")
             return VectorRetriever(
                 vector_store=vector_store,
                 top_k=config.get("top_k", 4),
@@ -56,19 +67,30 @@ class RetrieverFactory:
                     "similarity_threshold": config.get("similarity_threshold", 0.7),
                 },
             )
+        
+        elif retriever_type == "hybrid":
+            logger.info(f"Creating HybridRetriever with config: {config}")
+            return HybridRetriever(
+                vector_store=vector_store,
+                vector_weight=config.get("vector_weight", 0.7),
+                bm25_weight=config.get("bm25_weight", 0.3),
+                top_k=config.get("top_k", 5),
+                rrf_k=config.get("rrf_k", 60),
+                search_kwargs=config.get("search_kwargs", {}),
+            )
 
-        # Future retriever types can be added here:
-        # elif retriever_type == "hybrid":
-        #     return HybridRetriever(...)
+        # Future retriever types:
         # elif retriever_type == "multi_query":
         #     return MultiQueryRetriever(...)
+        # elif retriever_type == "ensemble":
+        #     return EnsembleRetriever(...)
 
         else:
             raise ConfigurationException(
                 f"Unknown retriever type: {retriever_type}",
                 details={
                     "requested_type": retriever_type,
-                    "supported_types": ["vector"],  # Add more as implemented
+                    "supported_types": ["vector", "hybrid"],  # Updated
                 },
             )
 

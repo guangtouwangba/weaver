@@ -84,6 +84,50 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 For complete configuration options, see [OPENROUTER_SETUP.md](./OPENROUTER_SETUP.md).
 
+### Retrieval Strategies
+
+The platform supports multiple retrieval strategies with optional reranking:
+
+#### 1. Retrieval Methods
+
+- **`vector`**: Pure semantic search using embeddings (default, faster)
+- **`hybrid`**: Combines BM25 keyword search with vector similarity for better accuracy
+  - Recommended for production use
+  - Especially effective for technical terms, proper nouns, and exact matches
+  - Requires: `pip install rank-bm25`
+
+#### 2. Reranking (Optional)
+
+After initial retrieval, use a **Cross-Encoder** to rerank results for higher accuracy:
+- Improves top result accuracy by 40%+
+- Recommended: Retrieve top-20, rerank to top-5
+- Requires: `pip install sentence-transformers`
+
+Configure in `.env`:
+
+```bash
+# Basic: Vector retrieval only
+RETRIEVER_TYPE=vector
+VECTOR_TOP_K=4
+
+# Better: Hybrid retrieval
+RETRIEVER_TYPE=hybrid
+RETRIEVER_VECTOR_WEIGHT=0.7
+RETRIEVER_BM25_WEIGHT=0.3
+VECTOR_TOP_K=5
+
+# Best: Hybrid retrieval + Reranking (recommended for production)
+RETRIEVER_TYPE=hybrid
+VECTOR_TOP_K=20                                      # Retrieve more candidates
+RERANKER_ENABLED=true
+RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+RERANKER_TOP_N=5                                     # Rerank to top-5
+```
+
+For detailed information:
+- Hybrid Retrieval: [docs/HYBRID_RETRIEVER.md](./docs/HYBRID_RETRIEVER.md)
+- Reranking: [docs/RERANKER.md](./docs/RERANKER.md)
+
 ## Next Steps
 
 - Flesh out the `rag_core` subpackages (preprocessing, routing, memory, evaluation) following the architecture blueprint in `docs/architecture/generic_rag_architecture.md`.

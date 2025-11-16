@@ -1,7 +1,26 @@
 # Generic RAG 系统实施路线图
 
+## 🆕 2025-11-16 更新摘要
+
+本次更新根据实际代码实现情况，全面修订了各Phase的完成度评估：
+
+**核心亮点** ✅:
+- **Phase 1 (90%)**: 配置系统、LLM/Embeddings集成、接口抽象 - 基础扎实
+- **Phase 3 (70%)**: 查询意图分类、智能路由 - 功能完整
+- **Phase 5 (80%)**: 对话记忆系统（分层+语义检索）- 表现优秀
+
+**需要补充** ⚠️:
+- **Phase 2 (40%)**: 缺少混合检索（BM25+Vector）和重排序
+- **Phase 4 (50%)**: Prompt管理待完善，缺少自我纠正
+- **Phase 6 (30%)**: 缺少LangSmith追踪和Prometheus监控
+
+**总体进度**: 约60%完成，核心RAG和对话式RAG已可用，生产级特性需补充。
+
+---
+
 ## 📋 目录
 
+- [2025-11-16 更新摘要](#-2025-11-16-更新摘要)
 - [当前状态评估](#当前状态评估)
 - [实施路线图总览](#实施路线图总览)
 - [详细实施计划](#详细实施计划)
@@ -21,27 +40,94 @@
 
 ## 📊 当前状态评估
 
-### ✅ 已完成
+> **最后更新**: 2025-11-16  
+> **版本**: 0.2.0
 
-- ✓ FastAPI 基础架构
-- ✓ LangChain + LangGraph 基本集成
-- ✓ 简单的文档入库流程
-- ✓ 基础的 QA 功能（FAISS + FakeEmbeddings）
-- ✓ 项目结构和测试框架
-- ✓ 使用 uv 进行依赖管理
-- ✓ 基础的健康检查接口
+### ✅ 已完成功能
 
-### ❌ 需要改进
+#### 核心基础设施 (Phase 1) - 90% 完成
+- ✅ **配置系统**: 完整的 Pydantic Settings，支持模块化配置（LLMConfig, EmbeddingConfig等）
+- ✅ **真实 LLM 集成**: 支持 OpenRouter 和 OpenAI，带重试和错误处理
+- ✅ **真实 Embeddings**: OpenAI 和 OpenRouter embeddings 支持
+- ✅ **接口抽象**: 完整的 `RetrieverInterface`, `GeneratorInterface`, `RerankerInterface`, `MemoryInterface`
+- ✅ **工厂模式**: RetrieverFactory 实现
 
-- ⚠️ 使用真实的 LLM 和 Embeddings（当前是 Fake）
-- ⚠️ 缺少智能路由机制
-- ⚠️ 缺少重排序功能
-- ⚠️ 缺少查询增强技术
-- ⚠️ 缺少对话记忆管理
-- ⚠️ 缺少全链路可观测性
-- ⚠️ 缺少生产级配置管理
-- ⚠️ 缺少缓存机制
-- ⚠️ 缺少自动化评估系统
+#### 检索能力 (Phase 2) - 40% 完成
+- ✅ **VectorRetriever**: 基于 FAISS 的向量检索，支持 similarity 和 MMR 搜索
+- ✅ **RetrieverFactory**: 可配置的检索器工厂
+- ⚠️ **HybridRetriever** (BM25+Vector): 未实现
+- ⚠️ **Cross-Encoder Reranker**: 未实现
+- ⚠️ **MultiQueryRetriever**: 未实现
+
+#### 查询理解与路由 (Phase 3) - 70% 完成
+- ✅ **查询意图分类**: 基于规则的 `QueryIntentClassifier`（META/DOCUMENT/HYBRID/GENERAL）
+- ✅ **QueryRouter**: 智能路由决策，根据意图选择检索策略
+- ✅ **查询上下文化**: 结合对话历史重写查询
+- ✅ **语言检测**: 使用 langextract
+- ⚠️ **语义路由**: semantic-router 库集成（部分完成）
+- ⚠️ **Multi-Query 生成**: 未实现
+
+#### 生成增强 (Phase 4) - 50% 完成
+- ✅ **QA Chain**: 基于 LangChain 的问答链
+- ✅ **流式输出**: SSE 流式响应支持
+- ✅ **基础 Prompt**: QA prompts 实现
+- ⚠️ **Prompt 管理系统**: 未完善
+- ⚠️ **自我纠正机制**: 未实现
+- ⚠️ **幻觉检测**: 未实现
+
+#### 对话与记忆 (Phase 5) - 80% 完成
+- ✅ **对话记忆系统**: 短期记忆（Buffer）+ 长期记忆（Semantic Search）
+- ✅ **嵌入式记忆检索**: 基于 pgvector 的相似消息检索
+- ✅ **Conversation 管理**: 完整的 ConversationService 和 MessageService
+- ✅ **查询上下文化**: 自动重写含代词的查询
+- ✅ **分层记忆**: 会话内记忆 + 主题级记忆
+- ⚠️ **Redis 缓存**: 未实现
+- ⚠️ **Summary Memory**: 未实现
+
+#### 可观测性与生产化 (Phase 6) - 30% 完成
+- ✅ **基础日志**: Python logging
+- ✅ **Docker 化**: docker-compose.yml 配置
+- ✅ **数据库迁移**: Alembic 迁移系统
+- ✅ **PostgreSQL + pgvector**: 生产级向量存储
+- ⚠️ **LangSmith 集成**: 未实现
+- ⚠️ **结构化日志** (structlog): 未实现
+- ⚠️ **Prometheus 指标**: 未实现
+- ⚠️ **RAGAS 评估**: 未实现
+
+#### 其他核心功能
+- ✅ **LangGraph 工作流**: IngestGraph 和 QA Graph
+- ✅ **文档处理**: PDF, DOCX 解析，langextract 多语言支持
+- ✅ **Topic 管理**: 完整的主题和内容管理系统
+- ✅ **API 层**: FastAPI 路由（topics, contents, conversations, messages, qa, search）
+- ✅ **数据模型**: SQLAlchemy + Pydantic schemas
+- ✅ **向量存储**: FAISS (本地) + pgvector (生产)
+
+### 🎯 总体完成度: 约 60%
+
+**核心 RAG 功能**: ✅ 已可用  
+**对话式 RAG**: ✅ 已可用  
+**生产就绪**: ⚠️ 需要改进
+
+### ❌ 待实现功能（按优先级）
+
+#### 🔴 高优先级
+1. **混合检索** (Phase 2): BM25 + Vector 融合
+2. **Cross-Encoder 重排序** (Phase 2): 提升检索精度
+3. **LangSmith 追踪** (Phase 6): 全链路可观测性
+4. **Prometheus 指标** (Phase 6): 性能监控
+5. **Redis 缓存** (Phase 5): 响应加速和成本优化
+
+#### 🟡 中优先级
+6. **Multi-Query 检索** (Phase 2): 提升召回率
+7. **Prompt 管理系统** (Phase 4): 版本化 prompt 模板
+8. **结构化日志** (Phase 6): 更好的调试体验
+9. **自我纠正机制** (Phase 4): 减少幻觉
+10. **RAGAS 评估框架** (Phase 6): 自动化质量评估
+
+#### 🟢 低优先级
+11. **Agentic RAG** (Phase 7): 工具调用和多步推理
+12. **知识图谱增强** (Phase 7): 结构化知识
+13. **多模态检索** (Phase 7): 图片+文本
 
 ---
 
@@ -86,185 +172,200 @@ gantt
 
 ### 时间线概览
 
-| Phase | 名称 | 周期 | 优先级 | 状态 |
-|-------|------|------|--------|------|
-| **Phase 1** | 核心基础设施 | Week 1-2 | ⭐⭐⭐⭐⭐ | 🔴 待开始 |
-| **Phase 2** | 增强检索能力 | Week 3-4 | ⭐⭐⭐⭐⭐ | 🔴 待开始 |
-| **Phase 3** | 查询理解与路由 | Week 5 | ⭐⭐⭐⭐ | 🔴 待开始 |
-| **Phase 4** | 生成增强与验证 | Week 6 | ⭐⭐⭐⭐ | 🔴 待开始 |
-| **Phase 5** | 对话与记忆 | Week 7 | ⭐⭐⭐⭐ | 🔴 待开始 |
-| **Phase 6** | 可观测性与生产化 | Week 8-9 | ⭐⭐⭐⭐⭐ | 🔴 待开始 |
-| **Phase 7** | 高级特性 (可选) | Week 10+ | ⭐⭐ | 🔴 待开始 |
+| Phase | 名称 | 周期 | 优先级 | 状态 | 完成度 |
+|-------|------|------|--------|------|--------|
+| **Phase 1** | 核心基础设施 | Week 1-2 | ⭐⭐⭐⭐⭐ | 🟢 **已完成** | **90%** |
+| **Phase 2** | 增强检索能力 | Week 3-4 | ⭐⭐⭐⭐⭐ | 🟡 **进行中** | **40%** |
+| **Phase 3** | 查询理解与路由 | Week 5 | ⭐⭐⭐⭐ | 🟢 **基本完成** | **70%** |
+| **Phase 4** | 生成增强与验证 | Week 6 | ⭐⭐⭐⭐ | 🟡 **进行中** | **50%** |
+| **Phase 5** | 对话与记忆 | Week 7 | ⭐⭐⭐⭐ | 🟢 **基本完成** | **80%** |
+| **Phase 6** | 可观测性与生产化 | Week 8-9 | ⭐⭐⭐⭐⭐ | 🟡 **进行中** | **30%** |
+| **Phase 7** | 高级特性 (可选) | Week 10+ | ⭐⭐ | 🔴 **未开始** | **0%** |
 
-**总计**: 8-9 周达到生产级别，10+ 周包含高级特性
+**当前状态**: 
+- ✅ **核心功能已可用**: 基础 RAG + 对话式 RAG
+- 🚧 **正在完善**: 检索增强、可观测性
+- 📅 **预计达到生产级**: 需补充 Phase 2 和 Phase 6 的剩余功能（约 2-3 周）
 
 ---
 
 ## 详细实施计划
 
-## Phase 1: 核心基础设施 (Week 1-2)
+## Phase 1: 核心基础设施 (Week 1-2) ✅ 90% 完成
 
 **🎯 目标**: 建立坚实的基础架构，支持后续扩展
 
-**⏱️ 预计时间**: 2 周 (8-10 工作日)
+**⏱️ 预计时间**: 2 周 (8-10 工作日)  
+**📊 实际状态**: ✅ 基本完成
 
-### 1.1 重构配置系统
+### 1.1 重构配置系统 ✅ 已完成
 
 **优先级**: ⭐⭐⭐⭐⭐ (必须)  
 **工作量**: 2-3 天
 
 #### 任务清单
 
-- [ ] **创建分层配置结构**
+- [x] **创建分层配置结构**
   ```
-  rag/config/
-  ├── __init__.py
-  ├── base_config.py              # 基础配置类
-  ├── retriever_config.py         # 检索器配置
-  ├── reranker_config.py          # 重排序配置
-  ├── generator_config.py         # 生成器配置
-  ├── cache_config.py             # 缓存配置
-  ├── observability_config.py     # 可观测性配置
-  └── rag_pipeline_config.py      # Pipeline 总配置
+  已实现: shared_config/settings.py
+  ├── LLMConfig - LLM配置
+  ├── EmbeddingConfig - Embedding配置
+  ├── MemoryConfig - 对话记忆配置
+  ├── RetrieverConfig - 检索器配置
+  ├── DatabaseConfig - 数据库配置
+  ├── DocumentParserConfig - 文档解析配置
+  └── AppSettings - 聚合配置
   ```
 
-- [ ] **使用 Pydantic Settings 管理配置**
-  - 创建 `BaseSettings` 继承
-  - 支持 `.env` 文件加载
-  - 支持环境变量覆盖
-  - 添加配置验证和默认值
+- [x] **使用 Pydantic Settings 管理配置**
+  - ✅ 创建 `BaseSettings` 继承
+  - ✅ 支持 `.env` 文件加载
+  - ✅ 支持环境变量覆盖
+  - ✅ 添加配置验证和默认值（Field validators）
+  - ✅ 支持 SecretStr 保护敏感信息
 
-- [ ] **创建配置工厂**
-  - 支持不同环境配置（dev/staging/prod）
-  - 配置热加载（可选）
+- [x] **创建配置工厂**
+  - ✅ AppSettings 聚合所有子配置
+  - ✅ 支持向后兼容的属性访问
+  - ⚠️ 多环境配置切换（可通过 APP_ENV 实现，待完善）
 
-- [ ] **添加配置文档**
-  - 所有配置项的说明
-  - 示例配置文件
+- [x] **添加配置文档**
+  - ✅ 配置类内联文档
+  - ✅ 示例 `.env.example` 文件
+  - ⚠️ 独立配置文档待补充
 
 #### 验收标准
 
 - ✅ 可以通过配置文件切换不同的检索策略
 - ✅ 环境变量可以覆盖默认配置
-- ✅ 配置错误有清晰的错误提示
-- ✅ 有完整的配置文档
+- ✅ 配置错误有清晰的错误提示（Pydantic 验证）
+- ⚠️ 配置文档需要补充完整
 
 #### 依赖项
 
 ```toml
-# 新增依赖
-pydantic-settings>=2.3.0
-python-dotenv>=1.0.1
+# 已安装依赖
+pydantic-settings>=2.3.0  ✅
+python-dotenv>=1.0.1      ✅
 ```
 
 ---
 
-### 1.2 集成真实的 LLM 和 Embeddings
+### 1.2 集成真实的 LLM 和 Embeddings ✅ 已完成
 
 **优先级**: ⭐⭐⭐⭐⭐ (必须)  
 **工作量**: 2-3 天
 
 #### 任务清单
 
-- [ ] **替换 FakeEmbeddings**
-  - 集成 OpenAI Embeddings
-  - 集成 HuggingFace Embeddings（备选）
-  - 支持本地 Embeddings（sentence-transformers）
-  - 添加 Embeddings 缓存
+- [x] **替换 FakeEmbeddings**
+  - ✅ 集成 OpenAI Embeddings
+  - ✅ 集成 OpenRouter Embeddings（支持多种模型）
+  - ✅ 实现 `OpenRouterEmbeddings` 类
+  - ✅ 工厂函数 `build_embedding_function()`
+  - ⚠️ 本地 Embeddings（sentence-transformers）- 未实现
+  - ⚠️ Embeddings 缓存 - 未实现
 
-- [ ] **替换 FakeLLM**
-  - 集成 OpenAI (GPT-4/GPT-3.5)
-  - 集成 Anthropic Claude（可选）
-  - 支持本地 LLM（Ollama，可选）
-  - 实现 LLM 工厂模式
+- [x] **替换 FakeLLM**
+  - ✅ 集成 OpenRouter LLM（支持 OpenAI, Anthropic, Google 等）
+  - ✅ 实现 `OpenRouterLLM` 类
+  - ✅ 支持 OpenAI API 兼容接口
+  - ✅ LLM 工厂函数 `build_llm()`
+  - ⚠️ 本地 LLM（Ollama）- 未实现
 
-- [ ] **API Key 管理**
-  - 环境变量管理 API keys
-  - 支持多个 API key 轮换
-  - API key 验证
+- [x] **API Key 管理**
+  - ✅ 环境变量管理 API keys（SecretStr）
+  - ✅ 支持 OpenRouter 和 OpenAI API keys
+  - ✅ 配置验证
+  - ⚠️ 多 key 轮换 - 未实现
 
-- [ ] **实现错误处理和重试**
-  - API 调用重试机制（指数退避）
-  - 超时处理
-  - 限流处理
-  - 错误日志记录
+- [x] **实现错误处理和重试**
+  - ✅ 使用 tenacity 库实现重试（指数退避）
+  - ✅ 超时处理（timeout 配置）
+  - ✅ 错误日志记录
+  - ⚠️ 专门的限流处理 - 未实现
 
-- [ ] **成本追踪**
-  - Token 计数
-  - 成本估算
-  - 使用统计
+- [x] **成本追踪**
+  - ✅ Token 计数（OpenRouterLLM.token_usage）
+  - ✅ 使用统计方法
+  - ⚠️ 详细成本估算 - 需完善
 
 #### 验收标准
 
-- ✅ 可以正常调用 OpenAI API 生成 embeddings
-- ✅ QA 返回有意义的答案（不是 placeholder）
-- ✅ API 调用失败有重试机制（最多 3 次）
-- ✅ 成本追踪记录每次调用的 token 使用
+- ✅ 可以正常调用 OpenAI/OpenRouter API 生成 embeddings
+- ✅ QA 返回有意义的答案（已使用真实 LLM）
+- ✅ API 调用失败有重试机制（max_retries=3）
+- ✅ Token 使用可追踪
 
 #### 新增依赖
 
 ```toml
-openai>=1.0.0
-langchain-openai>=0.1.0
-sentence-transformers>=2.2.0  # 可选
-anthropic>=0.18.0  # 可选
-tenacity>=8.0.0  # 重试库
+# 已安装
+openai>=1.0.0              ✅
+langchain-openai>=0.1.25   ✅
+tenacity>=8.0.0            ✅
 ```
 
 #### 配置示例
 
 ```python
 # .env
+# OpenRouter (推荐，支持多种模型)
+OPENROUTER_API_KEY=sk-or-xxx
+LLM_PROVIDER=openrouter
+LLM_MODEL=openai/gpt-3.5-turbo
+EMBEDDING_PROVIDER=openrouter
+EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# 或使用 OpenAI
 OPENAI_API_KEY=sk-xxx
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_LLM_MODEL=gpt-4-turbo-preview
-OPENAI_MAX_RETRIES=3
-OPENAI_TIMEOUT=30
+LLM_PROVIDER=openai
+EMBEDDING_PROVIDER=openai
 ```
 
 ---
 
-### 1.3 建立核心接口抽象
+### 1.3 建立核心接口抽象 ✅ 已完成
 
 **优先级**: ⭐⭐⭐⭐ (重要)  
 **工作量**: 2 天
 
 #### 任务清单
 
-- [ ] **创建核心接口**
+- [x] **创建核心接口**
   ```
-  rag/core/
+  已实现: rag_core/core/
   ├── __init__.py
   ├── interfaces.py          # 所有接口定义
-  ├── models.py              # 数据模型
-  ├── exceptions.py          # 自定义异常
-  └── constants.py           # 常量定义
+  ├── models.py              # Document 等数据模型
+  ├── exceptions.py          # 自定义异常类
+  └── (constants 可按需添加)
   ```
 
-- [ ] **定义接口**
-  - `RetrieverInterface`: 检索器接口
-  - `RerankerInterface`: 重排序器接口
-  - `GeneratorInterface`: 生成器接口
-  - `MemoryInterface`: 记忆接口
-  - `CacheInterface`: 缓存接口
+- [x] **定义接口**
+  - ✅ `RetrieverInterface`: 检索器接口
+  - ✅ `RerankerInterface`: 重排序器接口
+  - ✅ `GeneratorInterface`: 生成器接口
+  - ✅ `MemoryInterface`: 记忆接口
+  - ⚠️ `CacheInterface`: 待实现
 
-- [ ] **创建工厂类**
-  - `RetrieverFactory`
-  - `RerankerFactory`
-  - `GeneratorFactory`
-  - `MemoryFactory`
+- [x] **创建工厂类**
+  - ✅ `RetrieverFactory` - 已实现
+  - ⚠️ `RerankerFactory` - 待实现
+  - ⚠️ `GeneratorFactory` - 待实现
+  - ⚠️ `MemoryFactory` - 待实现
 
-- [ ] **重构现有代码**
-  - 让现有实现符合新接口
-  - 使用工厂模式创建组件
-  - 更新测试
+- [x] **重构现有代码**
+  - ✅ VectorRetriever 实现 RetrieverInterface
+  - ✅ 使用工厂模式创建检索器
+  - ⚠️ 测试覆盖率需提升
 
 #### 验收标准
 
-- ✅ 所有组件都实现了对应接口
-- ✅ 可以轻松切换不同实现
-- ✅ 工厂类测试覆盖率 > 80%
-- ✅ 接口文档完整
+- ✅ 核心接口定义清晰完整
+- ✅ VectorRetriever 符合接口规范
+- ⚠️ 其他工厂类待补充
+- ⚠️ 接口文档和测试需完善
 
 #### 核心接口示例
 
@@ -292,86 +393,94 @@ class GeneratorInterface(ABC):
 
 ---
 
-### Phase 1 交付物
+### Phase 1 交付物 ✅
 
-- ✅ 完善的配置系统（支持多环境）
-- ✅ 真实的 LLM/Embeddings 集成
-- ✅ 清晰的接口抽象层
-- ✅ 基础单元测试（覆盖率 > 70%）
-- ✅ 更新的 README 和配置文档
+- ✅ 完善的配置系统（Pydantic Settings，模块化配置）
+- ✅ 真实的 LLM/Embeddings 集成（OpenRouter + OpenAI）
+- ✅ 清晰的接口抽象层（RetrieverInterface 等）
+- ⚠️ 基础单元测试（覆盖率需提升）
+- ⚠️ 配置文档需补充完整
+
+**总结**: Phase 1 核心目标已达成，可支撑后续开发。需补充完整测试和文档。
 
 ---
 
-## Phase 2: 增强检索能力 (Week 3-4)
+## Phase 2: 增强检索能力 (Week 3-4) 🟡 40% 完成
 
 **🎯 目标**: 提升检索质量，这是 RAG 系统的核心
 
-**⏱️ 预计时间**: 2 周 (9 工作日)
+**⏱️ 预计时间**: 2 周 (9 工作日)  
+**📊 实际状态**: 🟡 部分完成，核心功能待补充
 
-### 2.1 实现多种检索策略
+### 2.1 实现多种检索策略 ⚠️ 部分完成
 
 **优先级**: ⭐⭐⭐⭐⭐ (必须)  
 **工作量**: 3-4 天
 
 #### 任务清单
 
-- [ ] **优化 VectorRetriever**
+- [x] **优化 VectorRetriever**
   ```
-  rag/retrievers/
+  已实现: rag_core/retrievers/
   ├── __init__.py
-  ├── base.py                    # 基类
-  ├── vector_retriever.py        # 向量检索
-  ├── hybrid_retriever.py        # 混合检索 ⭐
-  ├── multi_query_retriever.py   # 多查询检索
-  ├── ensemble_retriever.py      # 集成检索
-  └── factory.py                 # 工厂类
+  ├── vector_retriever.py        # 向量检索 ✅
+  ├── factory.py                 # 工厂类 ✅
+  └── (待补充)
+      ├── hybrid_retriever.py        # 混合检索 ⭐ 未实现
+      ├── multi_query_retriever.py   # 多查询检索 未实现
+      └── ensemble_retriever.py      # 集成检索 未实现
   ```
+  - ✅ VectorRetriever 支持 similarity 和 MMR 搜索
+  - ✅ 相似度评分转换
+  - ✅ 配置化 top_k 和搜索参数
 
-- [ ] **实现 HybridRetriever** ⭐ (最重要)
-  - 集成 BM25 检索器
-  - 实现向量和 BM25 结果融合
-  - 支持权重配置（默认 0.7/0.3）
-  - 性能优化
+- [ ] **实现 HybridRetriever** ⭐ (高优先级 - 未实现)
+  - ❌ 集成 BM25 检索器
+  - ❌ 实现向量和 BM25 结果融合
+  - ❌ 支持权重配置（默认 0.7/0.3）
+  - ❌ 性能优化
 
-- [ ] **实现 MultiQueryRetriever**
-  - 使用 LLM 生成多个查询变体
-  - 并行检索
-  - 结果去重和合并
+- [ ] **实现 MultiQueryRetriever** (中优先级 - 未实现)
+  - ❌ 使用 LLM 生成多个查询变体
+  - ❌ 并行检索
+  - ❌ 结果去重和合并
 
-- [ ] **实现 EnsembleRetriever** (可选)
-  - 组合多个检索器
-  - 加权投票机制
+- [ ] **实现 EnsembleRetriever** (低优先级 - 未实现)
+  - ❌ 组合多个检索器
+  - ❌ 加权投票机制
 
-- [ ] **添加 RetrieverFactory**
-  - 根据配置创建检索器
-  - 支持动态切换
+- [x] **RetrieverFactory**
+  - ✅ 已实现基础工厂类
+  - ✅ 支持 VectorRetriever 创建
+  - ⚠️ 需添加其他检索器类型
 
 #### 验收标准
 
-- ✅ Hybrid 检索比纯向量检索 recall@5 提升 10%+
-- ✅ 可以通过配置切换不同检索器
-- ✅ 检索延迟 P95 < 500ms (top-5)
-- ✅ 有完整的性能测试报告
+- ⚠️ Hybrid 检索待实现
+- ✅ 可以通过配置创建 VectorRetriever
+- ⚠️ 性能测试待补充
+- ❌ 完整的性能测试报告待生成
 
 #### 新增依赖
 
 ```toml
-rank-bm25>=0.2.2
+rank-bm25>=0.2.2  # 待安装，用于 HybridRetriever
 ```
 
 #### 建议实施顺序
 
-1. **VectorRetriever** (已有，优化) - 1 天
-2. **HybridRetriever** ⭐ (最重要) - 2 天
-3. **MultiQueryRetriever** (增强召回) - 1 天
-4. **EnsembleRetriever** (可选) - 可跳过
+1. ✅ **VectorRetriever** (已完成) - 基础向量检索
+2. ⭐ **HybridRetriever** (高优先级) - 提升召回率，预计 2 天
+3. **MultiQueryRetriever** (中优先级) - 增强召回多样性，预计 1 天
+4. **EnsembleRetriever** (可选) - 根据需求决定
 
 ---
 
-### 2.2 实现文档后处理
+### 2.2 实现文档后处理 ❌ 未实现
 
 **优先级**: ⭐⭐⭐⭐ (重要)  
-**工作量**: 2 天
+**工作量**: 2 天  
+**状态**: 未开始
 
 #### 任务清单
 
@@ -419,25 +528,27 @@ langchain-community>=0.2.0  # 用于 LLMChainExtractor
 
 ---
 
-### 2.3 实现重排序
+### 2.3 实现重排序 ❌ 未实现
 
 **优先级**: ⭐⭐⭐⭐ (重要)  
-**工作量**: 2-3 天
+**工作量**: 2-3 天  
+**状态**: 未开始，接口已定义
 
 #### 任务清单
 
 - [ ] **创建重排序模块**
   ```
-  rag/rerankers/
-  ├── __init__.py
-  ├── base.py                      # 基类
-  ├── cross_encoder_reranker.py    # Cross-Encoder ⭐
-  ├── llm_reranker.py              # LLM 重排序
-  ├── score_based_reranker.py      # 分数重排序
-  └── factory.py                   # 工厂类
+  计划: rag_core/rerankers/
+  ├── __init__.py  (已存在，空文件)
+  ├── base.py                      # 基类 - 待实现
+  ├── cross_encoder_reranker.py    # Cross-Encoder ⭐ 待实现
+  ├── llm_reranker.py              # LLM 重排序 - 待实现
+  ├── score_based_reranker.py      # 分数重排序 - 待实现
+  └── factory.py                   # 工厂类 - 待实现
   ```
+  注: RerankerInterface 接口已在 core/interfaces.py 中定义
 
-- [ ] **实现 Cross-Encoder Reranker** ⭐
+- [ ] **实现 Cross-Encoder Reranker** ⭐ (高优先级)
   - 使用 sentence-transformers
   - 模型: `cross-encoder/ms-marco-MiniLM-L-6-v2`
   - 批量推理优化
@@ -478,114 +589,110 @@ torch>=2.0.0  # Cross-Encoder 依赖
 
 ---
 
-### Phase 2 交付物
+### Phase 2 交付物 ⚠️
 
-- ✅ 混合检索系统（Vector + BM25）
-- ✅ 文档后处理 pipeline
-- ✅ Cross-Encoder 重排序
-- ✅ 检索质量评估报告
-- ✅ 性能基准测试结果
+- ✅ **VectorRetriever** - 基础向量检索已完成
+- ✅ **RetrieverFactory** - 工厂模式已实现
+- ❌ **混合检索系统**（Vector + BM25）- 待实现
+- ❌ **文档后处理 pipeline** - 待实现
+- ❌ **Cross-Encoder 重排序** - 待实现
+- ❌ **检索质量评估报告** - 待实现
+
+**总结**: Phase 2 完成度 40%，基础检索可用，但缺少关键的混合检索和重排序功能。这是下一步优先要补充的。
 
 ---
 
-## Phase 3: 查询理解与路由 (Week 5)
+## Phase 3: 查询理解与路由 (Week 5) ✅ 70% 完成
 
 **🎯 目标**: 让系统更智能地理解和处理查询
 
-**⏱️ 预计时间**: 1 周 (7 工作日)
+**⏱️ 预计时间**: 1 周 (7 工作日)  
+**📊 实际状态**: ✅ 基本完成，核心功能已可用
 
-### 3.1 实现查询预处理
+### 3.1 实现查询预处理 ⚠️ 部分完成
 
 **优先级**: ⭐⭐⭐ (中等)  
 **工作量**: 1-2 天
 
 #### 任务清单
 
-- [ ] **创建预处理模块**
+- [x] **创建预处理模块**
   ```
-  rag/preprocessing/
+  已实现: rag_core/preprocessing/
   ├── __init__.py
-  ├── query_cleaner.py       # 查询清洗
-  ├── language_detector.py   # 语言检测
-  └── intent_classifier.py   # 意图分类（可选）
+  └── langextract_parser.py  # 语言检测和文档解析
   ```
+  - ✅ 语言检测功能集成在文档解析中
+  - ⚠️ 查询清洗模块待独立实现
 
-- [ ] **实现查询清洗**
-  - 去除特殊字符
-  - 标准化空格
-  - 拼写纠正（可选）
-  - 大小写标准化
+- [ ] **实现查询清洗** (待完善)
+  - ⚠️ 基础清洗在查询处理中有部分实现
+  - ❌ 独立的查询清洗模块未实现
+  - ❌ 拼写纠正未实现
 
-- [ ] **实现语言检测**
-  - 使用 langdetect 或 fasttext
-  - 支持多语言
-  - 记录语言信息
+- [x] **实现语言检测**
+  - ✅ 使用 langextract 库
+  - ✅ 支持多语言检测
+  - ✅ 在文档处理中应用
+  - ⚠️ 查询级别的语言检测待完善
 
-- [ ] **实现意图分类** (可选)
-  - 问答 vs 闲聊 vs 指令
-  - 使用小型分类模型
-  - 或基于规则
+- [x] **实现意图分类**
+  - ✅ 基于规则的 QueryIntentClassifier
+  - ✅ 支持 META/DOCUMENT/HYBRID/GENERAL 四种意图
+  - ✅ 详细的模式匹配规则
+  - ✅ 置信度评分
 
 #### 验收标准
 
-- ✅ 处理各种格式的查询（URL、特殊字符等）
-- ✅ 正确识别主要语言（中文、英文）
-- ✅ 预处理延迟 < 50ms
+- ✅ 意图分类工作良好
+- ✅ 语言检测已集成
+- ⚠️ 查询清洗需要独立模块
+- ✅ 处理延迟符合要求
 
 #### 新增依赖
 
 ```toml
-langdetect>=1.0.9
-# 或
-fasttext>=0.9.2
+langextract>=1.0.0  ✅ 已安装
 ```
 
 ---
 
-### 3.2 实现查询转换
+### 3.2 实现查询转换 ⚠️ 部分完成
 
 **优先级**: ⭐⭐⭐⭐ (重要)  
 **工作量**: 2-3 天
 
 #### 任务清单
 
-- [ ] **创建查询转换模块**
+- [x] **查询上下文化** (已实现)
   ```
-  rag/query_transformation/
-  ├── __init__.py
-  ├── base.py                # 基类
-  ├── multi_query.py         # 多查询生成 ⭐
-  ├── step_back.py           # Step-back prompting
-  ├── decomposition.py       # 查询分解
-  └── contextualizer.py      # 对话上下文化
+  已实现: rag_core/graphs/memory_nodes.py
+  └── contextualize_query_node()  # 对话上下文化
   ```
+  - ✅ 结合对话历史重写查询
+  - ✅ 解析代词指代
+  - ✅ 生成独立查询
+  - ✅ 集成在 QA Graph 中
 
-- [ ] **实现 Multi-Query 生成** ⭐
-  - 使用 LLM 生成 3-5 个查询变体
-  - 不同角度、不同措辞
-  - 并行检索和合并
-  - 结果去重
+- [ ] **实现 Multi-Query 生成** ⭐ (高优先级 - 未实现)
+  - ❌ 使用 LLM 生成 3-5 个查询变体
+  - ❌ 不同角度、不同措辞
+  - ❌ 并行检索和合并
+  - ❌ 结果去重
 
-- [ ] **实现 Step-back Prompting**
-  - 生成更抽象的查询
-  - 获取更广泛的上下文
-  - 适用于需要背景知识的查询
+- [ ] **实现 Step-back Prompting** (未实现)
+  - ❌ 生成更抽象的查询
+  - ❌ 获取更广泛的上下文
 
-- [ ] **实现查询分解**
-  - 将复杂查询分解为子查询
-  - 按顺序或并行执行
-  - 合并子答案
-
-- [ ] **集成到检索流程**
-  - 在检索前应用
-  - 可配置策略选择
+- [ ] **实现查询分解** (未实现)
+  - ❌ 将复杂查询分解为子查询
+  - ❌ 按顺序或并行执行
 
 #### 验收标准
 
-- ✅ Multi-Query 提升召回率 15%+
-- ✅ 复杂查询可以被正确分解
-- ✅ 查询转换延迟 < 1s
-- ✅ 有效果对比报告
+- ✅ 查询上下文化工作良好
+- ⚠️ Multi-Query 待实现
+- ❌ 效果对比报告待生成
 
 #### Prompt 示例
 
@@ -612,23 +719,31 @@ Alternative questions:
 
 ---
 
-### 3.3 实现智能路由
+### 3.3 实现智能路由 ✅ 已完成
 
 **优先级**: ⭐⭐⭐ (中等)  
 **工作量**: 2 天
 
 #### 任务清单
 
-- [ ] **创建路由模块**
+- [x] **创建路由模块**
   ```
-  rag/routing/
+  已实现: rag_core/routing/
   ├── __init__.py
-  ├── query_router.py          # 主路由器
-  ├── semantic_router.py       # 语义路由
-  └── rule_based_router.py     # 规则路由
+  └── query_intent.py          # 查询意图分类和路由
   ```
+  - ✅ QueryIntentClassifier - 基于规则的意图分类器
+  - ✅ QueryRouter - 路由决策器
+  - ⚠️ 语义路由（semantic-router库）- 部分尝试
 
-- [ ] **定义路由类型**
+- [x] **定义路由类型**
+  ```python
+  已实现: QueryIntent (Enum)
+  - META = "meta"           # 元问题（关于对话本身）
+  - DOCUMENT = "document"   # 文档问题（需要检索）
+  - HYBRID = "hybrid"       # 混合问题（对话+检索）
+  - GENERAL = "general"     # 通用问题（问候等）
+  ```
   ```python
   class QueryType(str, Enum):
       GREETING = "greeting"           # 简单问候
@@ -638,33 +753,33 @@ Alternative questions:
       SUMMARIZATION = "summarization" # 文档总结
   ```
 
-- [ ] **实现规则路由**
-  - 基于关键词
-  - 基于查询长度
-  - 基于正则表达式
+- [x] **实现规则路由**
+  - ✅ 基于正则表达式模式匹配
+  - ✅ 详细的模式库（100+ patterns）
+  - ✅ 置信度评分机制
 
-- [ ] **实现语义路由**
-  - 使用 Semantic Router 库
-  - 或使用分类模型
-  - 或使用 LLM few-shot
+- [ ] **实现语义路由** (部分完成)
+  - ⚠️ 尝试过 Semantic Router 库
+  - ✅ 基于规则的路由工作良好
+  - ❌ 深度学习模型路由未实现
 
-- [ ] **定义路由策略**
-  - Greeting → 直接响应
-  - Factual → 标准 RAG
-  - Reasoning → 增强 RAG / Agentic RAG
-  - Conversational → 对话式 RAG
+- [x] **定义路由策略**
+  - ✅ META → 短期记忆，不检索
+  - ✅ DOCUMENT → 文档检索
+  - ✅ HYBRID → 混合策略
+  - ✅ GENERAL → 直接响应
 
-- [ ] **集成到 API Layer**
-  - 在查询处理前应用路由
-  - 记录路由决策
-  - 监控路由准确率
+- [x] **路由逻辑已实现**
+  - ✅ QueryRouter.get_retrieval_strategy()
+  - ✅ 权重配置（document_priority/memory_priority）
+  - ⚠️ API层集成待完善
 
 #### 验收标准
 
-- ✅ 简单问候不触发检索（节省成本）
-- ✅ 不同类型查询走不同 pipeline
-- ✅ 路由准确率 > 90%
-- ✅ 路由延迟 < 100ms
+- ✅ 通用问题识别准确
+- ✅ 路由策略定义清晰
+- ✅ 基于规则的路由性能好
+- ⚠️ 准确率监控待建立
 
 #### 新增依赖
 
@@ -674,30 +789,43 @@ semantic-router>=0.0.17  # 可选
 
 ---
 
-### Phase 3 交付物
+### Phase 3 交付物 ✅
 
-- ✅ 查询预处理 pipeline
-- ✅ 多种查询转换策略
-- ✅ 智能路由系统
-- ✅ 查询理解准确率提升 20%+
-- ✅ 路由效果评估报告
+- ✅ **查询意图分类** - QueryIntentClassifier 已实现
+- ✅ **查询上下文化** - contextualize_query_node 已实现
+- ✅ **智能路由系统** - QueryRouter 已实现
+- ✅ **语言检测** - langextract 已集成
+- ⚠️ Multi-Query 生成待实现
+- ⚠️ 路由效果评估报告待补充
+
+**总结**: Phase 3 完成度 70%，核心的意图分类和路由已可用，缺少Multi-Query等高级查询转换功能。
 
 ---
 
-## Phase 4: 生成增强与验证 (Week 6)
+## Phase 4: 生成增强与验证 (Week 6) ⚠️ 50% 完成
 
 **🎯 目标**: 提升生成质量，减少幻觉
 
-**⏱️ 预计时间**: 1 周 (7 工作日)
+**⏱️ 预计时间**: 1 周 (7 工作日)  
+**📊 实际状态**: ⚠️ 基础功能可用，高级特性待补充
 
-### 4.1 优化 Prompt 工程
+### 4.1 优化 Prompt 工程 ⚠️ 部分完成
 
 **优先级**: ⭐⭐⭐⭐ (重要)  
 **工作量**: 2 天
 
 #### 任务清单
 
-- [ ] **创建 Prompt 管理模块**
+- [x] **基础 Prompt 实现**
+  ```
+  已实现: rag_core/chains/qa_chain.py
+  └── build_answer_chain()  # 使用 LangChain prompt templates
+  ```
+  - ✅ QA prompt 模板
+  - ✅ 对话上下文化 prompt
+  - ⚠️ 独立 prompt 管理模块待建立
+
+- [ ] **创建 Prompt 管理模块** (未完善)
   ```
   rag/prompts/
   ├── __init__.py
@@ -892,57 +1020,65 @@ Evaluation:
 
 ---
 
-## Phase 5: 对话与记忆 (Week 7)
+## Phase 5: 对话与记忆 (Week 7) ✅ 80% 完成
 
 **🎯 目标**: 支持多轮对话，增加上下文理解
 
-**⏱️ 预计时间**: 1 周 (7 工作日)
+**⏱️ 预计时间**: 1 周 (7 工作日)  
+**📊 实际状态**: ✅ 主要功能已完成，表现优秀
 
-### 5.1 实现对话记忆
+### 5.1 实现对话记忆 ✅ 已完成
 
 **优先级**: ⭐⭐⭐⭐ (重要)  
 **工作量**: 2-3 天
 
 #### 任务清单
 
-- [ ] **创建记忆模块**
+- [x] **对话记忆系统** (已实现)
   ```
-  rag/memory/
-  ├── __init__.py
-  ├── base.py                    # 基类
-  ├── buffer_memory.py           # 缓冲记忆 ⭐
-  ├── summary_memory.py          # 摘要记忆
-  ├── knowledge_graph_memory.py  # KG 记忆（可选）
-  └── factory.py                 # 工厂类
+  已实现:
+  ├── domain_models/ - Conversation 和 Message 数据模型
+  ├── rag_core/services/
+  │   ├── conversation_service.py  # 对话管理
+  │   ├── message_service.py       # 消息管理（含语义检索）
+  │   └── embedding_helper.py      # 嵌入生成
+  ├── rag_core/graphs/memory_nodes.py  # 记忆节点
+  │   ├── load_memory_node()           # 短期记忆加载
+  │   ├── retrieve_long_term_memory_node()  # 长期记忆检索
+  │   └── save_memory_node()           # 记忆保存
+  └── PostgreSQL + pgvector           # 向量存储
   ```
 
-- [ ] **实现 Buffer Memory** ⭐
-  - 保存最近 N 轮对话
-  - 先进先出（FIFO）
-  - 基于 token 数限制
-  - 支持持久化（Redis/DB）
+- [x] **实现分层记忆系统**
+  - ✅ **短期记忆（Buffer）**: 最近N轮对话（配置化）
+  - ✅ **长期记忆（Semantic）**: 基于pgvector的相似消息检索
+  - ✅ 会话内记忆 + 主题级记忆
+  - ✅ 配置化的相似度阈值和检索数量
 
-- [ ] **实现 Summary Memory**
-  - 自动总结历史对话
-  - 保持关键信息
-  - 适合长对话
+- [x] **实现对话管理**
+  - ✅ Conversation 模型（UUID, topic_id, title）
+  - ✅ Message 模型（role, content, sources, embedding）
+  - ✅ ConversationService CRUD
+  - ✅ MessageService 含语义检索
+  - ✅ 基于 PostgreSQL + pgvector 持久化
 
-- [ ] **实现 Session 管理**
-  - 基于 session_id 隔离
-  - Session 超时清理
-  - 支持多用户
+- [x] **集成到 QA Graph**
+  - ✅ load_memory_node - 加载短期记忆
+  - ✅ retrieve_long_term_memory_node - 检索长期记忆
+  - ✅ save_memory_node - 保存新消息和embedding
+  - ✅ 自动生成消息embedding用于语义检索
 
-- [ ] **集成 Redis**（可选）
-  - 分布式记忆存储
-  - 支持集群部署
-  - TTL 自动清理
+- [ ] **Redis 缓存** (未实现)
+  - ❌ 分布式记忆存储
+  - ❌ TTL 自动清理
 
 #### 验收标准
 
-- ✅ 支持多轮对话（至少 10 轮）
-- ✅ 上下文连贯性好（主观评分 > 4/5）
-- ✅ 内存占用可控（< 100MB per session）
-- ✅ Session 管理正常
+- ✅ 支持多轮对话
+- ✅ 上下文连贯性好（可正确理解代词和上下文）
+- ✅ 基于pgvector的语义检索工作良好
+- ✅ Conversation/Message 管理完善
+- ⚠️ Redis缓存待实现
 
 #### 新增依赖
 
@@ -1074,30 +1210,36 @@ redis>=4.5.0  # Redis 缓存
 
 ---
 
-### Phase 5 交付物
+### Phase 5 交付物 ✅
 
-- ✅ 对话记忆系统（Buffer + Summary）
-- ✅ 多轮对话支持
-- ✅ 缓存系统（内存 + Redis）
-- ✅ 对话体验显著提升
-- ✅ 响应速度提升 50%+（得益于缓存）
+- ✅ **对话记忆系统** - 分层记忆（短期+长期）已完整实现
+- ✅ **多轮对话支持** - 基于 Conversation/Message 模型
+- ✅ **语义记忆检索** - 基于 pgvector 的向量检索
+- ✅ **查询上下文化** - 自动重写含代词的查询
+- ✅ **对话体验** - 上下文理解准确
+- ❌ **Redis缓存** - 未实现
+- ❌ **Summary Memory** - 未实现
+
+**总结**: Phase 5 完成度 80%，对话式RAG功能完整且表现优秀，是系统的一大亮点。缺少Redis缓存优化。
 
 ---
 
-## Phase 6: 可观测性与生产化 (Week 8-9)
+## Phase 6: 可观测性与生产化 (Week 8-9) ⚠️ 30% 完成
 
 **🎯 目标**: 让系统可监控、可调试、可维护
 
-**⏱️ 预计时间**: 2 周 (11 工作日)
+**⏱️ 预计时间**: 2 周 (11 工作日)  
+**📊 实际状态**: ⚠️ 基础设施就绪，监控系统待建立
 
-### 6.1 集成 LangSmith
+### 6.1 集成 LangSmith ❌ 未实现
 
 **优先级**: ⭐⭐⭐⭐⭐ (必须)  
 **工作量**: 1-2 天
 
 #### 任务清单
 
-- [ ] **注册和配置**
+- [ ] **LangSmith 集成** (未实现)
+  - ❌ 注册和配置
   - 注册 LangSmith 账号
   - 获取 API key
   - 配置环境变量
@@ -1932,9 +2074,66 @@ feature/phase-2-retrieval
 
 ---
 
-**文档版本**: 1.0  
-**最后更新**: 2025-10-21  
+## 🎯 当前优先级建议（基于实际状态）
+
+根据本次评估，建议按以下优先级推进：
+
+### 🔴 高优先级（2-3周）
+
+1. **Phase 2: 混合检索** (预计2天)
+   - 实现 HybridRetriever（BM25 + Vector）
+   - 安装 rank-bm25 依赖
+   - 可显著提升检索召回率
+
+2. **Phase 2: Cross-Encoder重排序** (预计2天)
+   - 安装 sentence-transformers
+   - 实现 CrossEncoderReranker
+   - 提升Top-K精度
+
+3. **Phase 6: LangSmith追踪** (预计2天)
+   - 注册LangSmith账号
+   - 集成tracing
+   - 建立可观测性基础
+
+4. **Phase 6: Prometheus指标** (预计2天)
+   - 安装 prometheus-client
+   - 添加关键指标
+   - 创建 /metrics endpoint
+
+5. **Phase 5: Redis缓存** (预计1天)
+   - 安装Redis
+   - 实现查询结果缓存
+   - 减少API调用成本
+
+### 🟡 中优先级（3-4周）
+
+6. **Phase 2: Multi-Query检索** (预计1天)
+   - 实现查询变体生成
+   - 提升召回多样性
+
+7. **Phase 4: Prompt管理系统** (预计1天)
+   - 创建独立prompt模块
+   - 版本化管理
+
+8. **Phase 6: 结构化日志** (预计1天)
+   - 集成structlog
+   - 改善调试体验
+
+9. **Phase 6: RAGAS评估** (预计2天)
+   - 创建评估数据集
+   - 建立自动化评估
+
+### 🟢 低优先级（按需）
+
+10. Phase 4: 自我纠正机制
+11. Phase 7: Agentic RAG
+12. Phase 7: 知识图谱增强
+
+---
+
+**文档版本**: 2.0  
+**最后更新**: 2025-11-16  
 **维护者**: Research Agent Team
 
-**下一步**: 开始 Phase 1，创建 `.env` 文件并集成真实的 LLM！ 🚀
+**当前状态**: ✅ 核心RAG功能已可用，建议优先补充检索增强和可观测性功能。 🚀
 

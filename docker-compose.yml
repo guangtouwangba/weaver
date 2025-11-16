@@ -1,6 +1,30 @@
 version: '3.8'
 
 services:
+  # Development container (for DevContainer)
+  dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    container_name: knowledge-platform-dev
+    volumes:
+      - .:/workspace:cached
+      - venv:/workspace/venv
+    working_dir: /workspace
+    command: sleep infinity
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/knowledge_platform
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - knowledge-network
+    # 端口映射
+    ports:
+      - "8000:8000"  # FastAPI
+      - "5173:5173"  # Vite
+
   # PostgreSQL database with pgvector for topic management and semantic search
   postgres:
     image: pgvector/pgvector:pg15
@@ -46,6 +70,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  venv:
     driver: local
 
 networks:

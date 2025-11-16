@@ -3,7 +3,18 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import ingest, qa, qa_stream, search, topics, topic_contents, conversations, messages
+from app.lifecycle import lifespan
+from app.routers import (
+    ingest,
+    qa,
+    qa_stream,
+    search,
+    topics,
+    topic_contents,
+    conversations,
+    messages,
+    health,
+)
 from app.errors import (
     AppException,
     app_exception_handler,
@@ -13,14 +24,25 @@ from app.errors import (
 
 
 def create_app() -> FastAPI:
-    """Configure FastAPI with core routers and shared metadata."""
+    """
+    Configure FastAPI with core routers and shared metadata.
+    
+    Includes:
+    - Lifespan management for component initialization/cleanup
+    - Health check endpoints
+    - Business logic routers
+    - Error handlers
+    - CORS middleware
+    """
     app = FastAPI(
         title="Knowledge Platform RAG Service",
         version="0.3.0",
         description=(
             "API surface for topic management, content management, document ingest, semantic search, and QA "
-            "built on LangChain + LangGraph with PostgreSQL for knowledge management."
+            "built on LangChain + LangGraph with PostgreSQL for knowledge management. "
+            "Includes comprehensive health checks and lifecycle management."
         ),
+        lifespan=lifespan,  # 🔥 Add lifecycle management
     )
 
     # Register exception handlers
@@ -43,6 +65,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],  # Allow all HTTP methods
         allow_headers=["*"],  # Allow all headers
     )
+
+    # Health check endpoints (no prefix for Kubernetes probes)
+    app.include_router(health.router)
 
     # Topic management
     app.include_router(topics.router, prefix="/api/v1")

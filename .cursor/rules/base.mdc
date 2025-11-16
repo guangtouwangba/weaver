@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+
+- do not create markdown document after each task
+- dont creat a lot of test shells after each task
