@@ -1,10 +1,22 @@
 """Application entrypoint for the minimal LangChain/LangGraph RAG service."""
 
+import logging
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.lifecycle import lifespan
-from app.routers import (
+# Configure logging at module level
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+logger.info("="  * 80)
+logger.info("📦 Loading apps.api.app module...")
+logger.info("="  * 80)
+
+from apps.api.app.lifecycle import lifespan
+
+logger.info("✅ Lifespan imported successfully")
+from apps.api.app.routers import (
     ingest,
     qa,
     qa_stream,
@@ -14,8 +26,9 @@ from app.routers import (
     conversations,
     messages,
     health,
+    evaluation,
 )
-from app.errors import (
+from apps.api.app.errors import (
     AppException,
     app_exception_handler,
     http_exception_handler,
@@ -34,6 +47,9 @@ def create_app() -> FastAPI:
     - Error handlers
     - CORS middleware
     """
+    logger.info("🏗️  Creating FastAPI app with lifespan management...")
+    logger.info(f"   Lifespan function: {lifespan}")
+    
     app = FastAPI(
         title="Knowledge Platform RAG Service",
         version="0.3.0",
@@ -44,7 +60,9 @@ def create_app() -> FastAPI:
         ),
         lifespan=lifespan,  # 🔥 Add lifecycle management
     )
-
+    
+    logger.info(f"✅ FastAPI app created with lifespan: {app.router.lifespan_context if hasattr(app.router, 'lifespan_context') else 'NO LIFESPAN CONTEXT'}")
+    
     # Register exception handlers
     app.add_exception_handler(AppException, app_exception_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
@@ -84,8 +102,14 @@ def create_app() -> FastAPI:
     app.include_router(search.router, prefix="/api/v1")
     app.include_router(qa.router, prefix="/api/v1")
     app.include_router(qa_stream.router, prefix="/api/v1")  # Streaming QA endpoint
+    
+    # Runtime evaluation endpoints
+    app.include_router(evaluation.router, prefix="/api/v1")
 
     return app
 
 
+logger.info("🚀 Calling create_app() to initialize application...")
 app = create_app()
+logger.info(f"✅ Application instance created: {app.title}")
+logger.info("="  * 80)

@@ -6,7 +6,7 @@ from typing import Annotated, Any
 from fastapi import Depends, Request, HTTPException
 from langchain.vectorstores.base import VectorStoreRetriever
 
-from app.lifecycle import ApplicationState
+from apps.api.app.lifecycle import ApplicationState
 from rag_core.chains.embeddings import build_embedding_function
 from rag_core.chains.vectorstore import build_vector_store
 from shared_config.settings import AppSettings

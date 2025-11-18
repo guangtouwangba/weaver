@@ -4,7 +4,14 @@ from typing import Any
 
 from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.embeddings import Embeddings
-from langchain_core.pydantic_v1 import BaseModel, Field, SecretStr
+
+# Use langchain's pydantic v1 for compatibility with Embeddings base class
+try:
+    from langchain_core.pydantic_v1 import BaseModel, Field, SecretStr
+except ImportError:
+    # Fallback for older versions
+    from pydantic import BaseModel, Field, SecretStr
+
 from langchain_openai import OpenAIEmbeddings
 from openai import OpenAI
 

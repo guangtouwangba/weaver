@@ -128,6 +128,24 @@ For detailed information:
 - Hybrid Retrieval: [docs/HYBRID_RETRIEVER.md](./docs/HYBRID_RETRIEVER.md)
 - Reranking: [docs/RERANKER.md](./docs/RERANKER.md)
 
+### Evaluation
+
+Monitor and improve your RAG system quality with **RAGAS** (Retrieval Augmented Generation Assessment):
+
+- **Faithfulness**: Detect hallucinations
+- **Answer Relevancy**: Ensure answers address questions
+- **Context Quality**: Evaluate retrieval performance
+
+```bash
+# Install evaluation dependencies
+pip install ragas datasets
+
+# Run evaluation
+python examples/test_ragas_evaluation.py
+```
+
+For complete evaluation guide, see [docs/RAGAS_EVALUATION.md](./docs/RAGAS_EVALUATION.md).
+
 ## Next Steps
 
 - Flesh out the `rag_core` subpackages (preprocessing, routing, memory, evaluation) following the architecture blueprint in `docs/architecture/generic_rag_architecture.md`.

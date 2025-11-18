@@ -33,6 +33,8 @@ class ApplicationState:
         self.embeddings: Any = None
         self.redis_client: Any = None
         self.reranker: Any = None
+        self.ragas_evaluator: Any = None
+        self.runtime_evaluator: Any = None
         self.prometheus_registry: Any = None
         self.is_initialized: bool = False
 
@@ -70,6 +72,11 @@ class ApplicationState:
 
             if self.settings.reranker.enabled:
                 await self._init_reranker()
+            
+            # Initialize RAGAS evaluator (needed for runtime evaluation)
+            if self.settings.runtime_evaluation.enabled:
+                await self._init_ragas_evaluator()
+                await self._init_runtime_evaluator()
 
             if self.settings.observability.langsmith_enabled:
                 self._init_langsmith()
@@ -106,6 +113,8 @@ class ApplicationState:
         cleanup_tasks = [
             ("Prometheus", self._cleanup_prometheus),
             ("LangSmith", self._cleanup_langsmith),
+            ("Runtime Evaluator", self._cleanup_runtime_evaluator),
+            ("RAGAS Evaluator", self._cleanup_ragas_evaluator),
             ("Reranker", self._cleanup_reranker),
             ("Redis", self._cleanup_redis),
             ("Vector Store", self._cleanup_vector_store),
@@ -261,6 +270,64 @@ class ApplicationState:
         except Exception as e:
             logger.error(f"   ❌ Prometheus 初始化失败: {e}")
             self.prometheus_registry = None
+    
+    async def _init_ragas_evaluator(self) -> None:
+        """Initialize RAGAS evaluator."""
+        logger.info("📊 初始化 RAGAS 评估器...")
+        
+        try:
+            from rag_core.evaluation.ragas_evaluator import RAGASEvaluator
+            
+            self.ragas_evaluator = RAGASEvaluator(
+                llm=self.llm,
+                embeddings=self.embeddings,
+                enable_llm_metrics=True,
+                enable_embedding_metrics=True
+            )
+            
+            logger.info("   ✅ RAGAS 评估器已加载")
+            logger.info(f"   ├─ LLM 指标: {'✅ 已启用' if self.llm else '❌ 未启用'}")
+            logger.info(f"   └─ Embedding 指标: {'✅ 已启用' if self.embeddings else '❌ 未启用'}")
+            
+        except ImportError as e:
+            logger.error(f"   ❌ RAGAS 导入失败: {e}")
+            logger.error("   请安装: pip install ragas")
+            self.ragas_evaluator = None
+        except Exception as e:
+            logger.error(f"   ❌ RAGAS 评估器初始化失败: {e}")
+            self.ragas_evaluator = None
+    
+    async def _init_runtime_evaluator(self) -> None:
+        """Initialize runtime evaluator."""
+        logger.info("📊 初始化运行时评估系统...")
+        
+        try:
+            from rag_core.evaluation.runtime_evaluator import create_runtime_evaluator
+            
+            # Parse metrics from comma-separated string
+            metrics = [m.strip() for m in self.settings.runtime_evaluation.metrics.split(',')]
+            
+            # create_runtime_evaluator is not async, so don't use await
+            self.runtime_evaluator = create_runtime_evaluator(
+                llm=self.llm,
+                embeddings=self.embeddings,
+                mode=self.settings.runtime_evaluation.mode,
+                sampling_rate=self.settings.runtime_evaluation.sampling_rate,
+                metrics=metrics,
+            )
+            
+            # Start the runtime evaluator (needed for batch mode background tasks)
+            await self.runtime_evaluator.start()
+            
+            logger.info("   ✅ 运行时评估系统已加载并启动")
+            logger.info(f"   ├─ 模式: {self.settings.runtime_evaluation.mode}")
+            logger.info(f"   ├─ 采样率: {self.settings.runtime_evaluation.sampling_rate * 100}%")
+            logger.info(f"   ├─ 指标: {', '.join(metrics)}")
+            logger.info(f"   └─ 存储路径: {self.settings.runtime_evaluation.storage_dir}")
+            
+        except Exception as e:
+            logger.error(f"   ❌ 运行时评估系统初始化失败: {e}", exc_info=True)
+            self.runtime_evaluator = None
 
     # ========================================
     # Cleanup Methods
@@ -309,6 +376,23 @@ class ApplicationState:
         if self.prometheus_registry:
             logger.info("   📊 清理 Prometheus...")
             self.prometheus_registry = None
+    
+    async def _cleanup_ragas_evaluator(self) -> None:
+        """Cleanup RAGAS evaluator."""
+        if self.ragas_evaluator:
+            logger.info("   📊 清理 RAGAS 评估器...")
+            self.ragas_evaluator = None
+    
+    async def _cleanup_runtime_evaluator(self) -> None:
+        """Cleanup runtime evaluator."""
+        if self.runtime_evaluator:
+            logger.info("   📊 停止运行时评估系统...")
+            try:
+                await self.runtime_evaluator.stop()
+            except Exception as e:
+                logger.error(f"   ❌ 停止运行时评估系统失败: {e}")
+            finally:
+                self.runtime_evaluator = None
 
     # ========================================
     # Utility Methods
@@ -323,6 +407,8 @@ class ApplicationState:
         logger.info(f"   ├─ 向量存储: {'✅ 已加载' if self.vector_store else '⚠️  空'}")
         logger.info(f"   ├─ Redis 缓存: {'✅ 已连接' if self.redis_client else '❌ 未启用'}")
         logger.info(f"   ├─ 重排序器: {'✅ 已加载' if self.reranker else '❌ 未启用'}")
+        logger.info(f"   ├─ RAGAS 评估器: {'✅ 已加载' if self.ragas_evaluator else '❌ 未启用'}")
+        logger.info(f"   ├─ 运行时评估: {'✅ 已启用' if self.runtime_evaluator else '❌ 未启用'}")
         logger.info(f"   ├─ LangSmith: {'✅ 已启用' if self.settings.observability.langsmith_enabled else '❌ 未启用'}")
         logger.info(f"   └─ Prometheus: {'✅ 已启用' if self.settings.observability.prometheus_enabled else '❌ 未启用'}")
         logger.info("")
@@ -347,6 +433,16 @@ class ApplicationState:
                 "reranker": {
                     "status": "loaded" if self.reranker else "not_loaded",
                     "enabled": self.settings.reranker.enabled if self.settings else False,
+                },
+                "ragas_evaluator": {
+                    "status": "loaded" if self.ragas_evaluator else "not_loaded",
+                    "enabled": self.settings.runtime_evaluation.enabled if self.settings else False,
+                },
+                "runtime_evaluator": {
+                    "status": "loaded" if self.runtime_evaluator else "not_loaded",
+                    "enabled": self.settings.runtime_evaluation.enabled if self.settings else False,
+                    "mode": self.settings.runtime_evaluation.mode if self.settings else None,
+                    "sampling_rate": self.settings.runtime_evaluation.sampling_rate if self.settings else None,
                 },
                 "langsmith": {
                     "status": "enabled" if self.settings and self.settings.observability.langsmith_enabled else "disabled",

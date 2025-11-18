@@ -1,6 +1,6 @@
 VENV ?= .venv
 UV ?= uv
-APP_MODULE ?= app:app
+APP_MODULE ?= apps.api.app:app
 HOST ?= 0.0.0.0
 PORT ?= 8000
 
@@ -34,7 +34,22 @@ sync: venv
 	$(UV) pip sync pyproject.toml
 
 run:
-	$(UV) run uvicorn $(APP_MODULE) --reload --host $(HOST) --port $(PORT)
+	@echo "================================================================"
+	@echo "Starting FastAPI with Runtime Evaluation support..."
+	@echo "================================================================"
+	@echo "App module: $(APP_MODULE)"
+	@echo "Host: $(HOST):$(PORT)"
+	@echo "Loading environment from .env file in project root..."
+	@echo ""
+	@if [ ! -f ".env" ]; then \
+		echo "⚠️  WARNING: .env file not found!"; \
+		echo "Copy env.example to .env and configure it."; \
+		exit 1; \
+	fi
+	@echo "✅ Found .env file"
+	@echo "================================================================"
+	@echo ""
+	@export KMP_DUPLICATE_LIB_OK=TRUE && $(UV) run uvicorn $(APP_MODULE) --reload --host $(HOST) --port $(PORT)
 
 test:
 	@echo "Running tests in .venv environment..."

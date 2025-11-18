@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_vector_retriever
+from apps.api.app.dependencies import get_vector_retriever
 from rag_core.pipeline.services.qa_service import SearchRequest, SearchResponse, perform_search
 
 router = APIRouter(prefix="/search", tags=["search"])

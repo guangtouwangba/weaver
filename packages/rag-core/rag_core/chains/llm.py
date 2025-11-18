@@ -1,10 +1,18 @@
 """LLM helpers and factory functions."""
 
-from typing import Any
+from typing import Any, Optional, List
 
 from langchain_community.llms import FakeListLLM
 from langchain_core.language_models.llms import LLM
-from langchain_core.pydantic_v1 import Field, SecretStr
+from langchain_core.callbacks.manager import CallbackManagerForLLMRun
+
+# Use langchain's pydantic v1 for compatibility with LLM base class
+try:
+    from langchain_core.pydantic_v1 import Field, SecretStr
+except ImportError:
+    # Fallback for older versions
+    from pydantic import Field, SecretStr
+
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -124,32 +132,76 @@ class OpenRouterLLM(LLM):
         print(f"    ├─ Model: {self.model}")
         print(f"    ├─ Temperature: {self.temperature}")
         print(f"    ├─ Max Tokens: {self.max_tokens}")
+        print(f"    ├─ Prompt Length: {len(prompt)} chars")
 
-        # Call OpenRouter API
-        print(f"    └─ 发送请求...")
-        response = self.client.chat.completions.create(
-            extra_headers=extra_headers if extra_headers else None, **params
-        )
-        print(f"    ✓ API 响应成功")
+        try:
+            # Call OpenRouter API
+            print(f"    └─ 发送请求...")
+            response = self.client.chat.completions.create(
+                extra_headers=extra_headers if extra_headers else None, **params
+            )
+            print(f"    ✓ API 响应成功")
 
-        # Track token usage
-        if hasattr(response, "usage") and response.usage:
-            self.token_usage["prompt"] += response.usage.prompt_tokens
-            self.token_usage["completion"] += response.usage.completion_tokens
-            self.token_usage["total"] += response.usage.total_tokens
-            print(f"    ✓ Token 使用: Prompt={response.usage.prompt_tokens}, "
-                  f"Completion={response.usage.completion_tokens}, "
-                  f"Total={response.usage.total_tokens}")
+            # Track token usage
+            if hasattr(response, "usage") and response.usage:
+                self.token_usage["prompt"] += response.usage.prompt_tokens
+                self.token_usage["completion"] += response.usage.completion_tokens
+                self.token_usage["total"] += response.usage.total_tokens
+                print(f"    ✓ Token 使用: Prompt={response.usage.prompt_tokens}, "
+                      f"Completion={response.usage.completion_tokens}, "
+                      f"Total={response.usage.total_tokens}")
 
-        # Extract the generated text
-        return response.choices[0].message.content
+            # Extract the generated text
+            content = response.choices[0].message.content
+            
+            # Clean markdown code blocks from JSON responses (for RAGAS compatibility)
+            # RAGAS uses structured output and expects pure JSON, but Claude returns ```json...```
+            if content and isinstance(content, str):
+                import re
+                # Check if response looks like markdown-wrapped JSON
+                if content.strip().startswith('```'):
+                    original = content
+                    # Remove ```json\n...\n``` or ```\n...\n```
+                    content = re.sub(r'^```(?:json)?\s*\n', '', content, flags=re.MULTILINE)
+                    content = re.sub(r'\n```\s*$', '', content, flags=re.MULTILINE)
+                    content = content.strip()
+                    if content != original:
+                        print(f"    🧹 清理了 markdown 代码块 (JSON 解析兼容)")
+            
+            return content
+            
+        except Exception as e:
+            # Log detailed error information
+            print(f"    ✗ API 调用失败!")
+            print(f"    ├─ 错误类型: {type(e).__name__}")
+            print(f"    ├─ 错误信息: {str(e)}")
+            
+            # Try to extract more details from the error
+            if hasattr(e, 'response'):
+                print(f"    ├─ HTTP Status: {getattr(e.response, 'status_code', 'N/A')}")
+                if hasattr(e.response, 'text'):
+                    print(f"    └─ 响应内容: {e.response.text[:200]}")
+            elif hasattr(e, 'message'):
+                print(f"    └─ 详细: {e.message}")
+            else:
+                print(f"    └─ 完整错误: {repr(e)}")
+            
+            # Re-raise to let retry mechanism handle it
+            raise
 
-    def _call(self, prompt: str, stop: list[str] | None = None, **kwargs: Any) -> str:
+    def _call(
+        self,
+        prompt: str,
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any
+    ) -> str:
         """Call the OpenRouter API.
 
         Args:
             prompt: The prompt to send to the model.
             stop: Optional list of stop sequences.
+            run_manager: Optional callback manager (ignored).
             **kwargs: Additional keyword arguments (ignored).
 
         Returns:

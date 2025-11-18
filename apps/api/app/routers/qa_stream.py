@@ -2,8 +2,9 @@
 
 import json
 import asyncio
+import uuid
 from typing import AsyncGenerator
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from rag_core.graphs.state import QueryState
@@ -18,10 +19,13 @@ from shared_config.settings import AppSettings
 router = APIRouter(prefix="/qa", tags=["qa"])
 
 
-async def generate_streaming_response(request: QARequest) -> AsyncGenerator[str, None]:
+async def generate_streaming_response(request: QARequest, app_request: Request = None) -> AsyncGenerator[str, None]:
     """Generate SSE stream for QA response."""
     
     try:
+        # Generate a unique query ID for this request
+        query_id = str(uuid.uuid4())
+        
         # 1. Build initial state
         state = QueryState(
             question=request.question,
@@ -260,7 +264,39 @@ async def generate_streaming_response(request: QARequest) -> AsyncGenerator[str,
             yield f"data: {json.dumps({'type': 'answer_chunk', 'chunk': chunk})}\n\n"
             await asyncio.sleep(0.03)  # Simulate typing effect (30ms per chunk)
         
-        # 5. Save to memory (async in background, don't wait)
+        # 5. Runtime Evaluation (if enabled)
+        if app_request and hasattr(app_request.app.state, 'rag'):
+            runtime_evaluator = app_request.app.state.rag.runtime_evaluator
+            if runtime_evaluator:
+                try:
+                    # Extract contexts from documents
+                    contexts = [doc.get("page_content", "") for doc in documents]
+                    
+                    print(f"📊 [Evaluation] Recording query: {query_id[:8]}... (question_len={len(request.question)}, contexts={len(contexts)})")
+                    
+                    # Record query for evaluation (async, non-blocking)
+                    asyncio.create_task(
+                        runtime_evaluator.record_query(
+                            query_id=query_id,
+                            question=request.question,
+                            answer=full_answer,
+                            contexts=contexts,
+                            metadata={
+                                "conversation_id": request.conversation_id,
+                                "topic_id": request.topic_id,
+                                "num_documents": len(documents),
+                                "has_memory": has_memory,
+                            }
+                        )
+                    )
+                    
+                except Exception as eval_error:
+                    # Don't fail the request if evaluation fails
+                    print(f"⚠️ [Runtime Evaluation] Failed to record query: {eval_error}")
+                    import traceback
+                    traceback.print_exc()
+        
+        # 6. Save to memory (async in background, don't wait)
         # This will be handled by the complete graph later
         
         # Send completion
@@ -272,7 +308,7 @@ async def generate_streaming_response(request: QARequest) -> AsyncGenerator[str,
 
 
 @router.post("/stream", summary="Streaming question answering")
-async def answer_question_stream(request: QARequest):
+async def answer_question_stream(request: QARequest, app_request: Request):
     """
     Stream the QA response using Server-Sent Events (SSE).
     
@@ -284,7 +320,7 @@ async def answer_question_stream(request: QARequest):
     - type: 'error' - Error occurred
     """
     return StreamingResponse(
-        generate_streaming_response(request),
+        generate_streaming_response(request, app_request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

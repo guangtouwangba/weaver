@@ -1,6 +1,5 @@
 ---
 alwaysApply: true
 ---
-
-- do not create markdown document after each task
-- dont creat a lot of test shells after each task
+- 在实现完一个feature之后检查更新roadmap.md文件
+- 在完成一个fix或者action之后禁止创建说明文档（md文件）

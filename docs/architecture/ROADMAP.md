@@ -1,6 +1,6 @@
 # Generic RAG 系统实施路线图
 
-## 🆕 2025-11-16 更新摘要
+## 🆕 2025-11-18 更新摘要
 
 本次更新根据实际代码实现情况，全面修订了各Phase的完成度评估：
 
@@ -8,13 +8,21 @@
 - **Phase 1 (90%)**: 配置系统、LLM/Embeddings集成、接口抽象 - 基础扎实
 - **Phase 3 (70%)**: 查询意图分类、智能路由 - 功能完整
 - **Phase 5 (80%)**: 对话记忆系统（分层+语义检索）- 表现优秀
+- **Phase 6 (55%)**: RAGAS评估系统和运行时评估 - 新增完成 ✨
 
 **需要补充** ⚠️:
 - **Phase 2 (40%)**: 缺少混合检索（BM25+Vector）和重排序
 - **Phase 4 (50%)**: Prompt管理待完善，缺少自我纠正
-- **Phase 6 (30%)**: 缺少LangSmith追踪和Prometheus监控
+- **Phase 6**: 缺少LangSmith追踪和Prometheus监控
 
-**总体进度**: 约60%完成，核心RAG和对话式RAG已可用，生产级特性需补充。
+**总体进度**: 约65%完成，核心RAG、对话式RAG和评估系统已可用，生产级监控特性需补充。
+
+**最新完成** 🎉:
+- ✅ RAGAS 评估框架集成（faithfulness, answer_relevancy, context_precision等）
+- ✅ 运行时评估系统（sampling/async_all/batch三种模式）
+- ✅ 评估数据集管理和结果持久化
+- ✅ LLM响应清理（解决Claude返回markdown格式JSON的兼容性问题）
+- ✅ 评估API接口（统计和结果查询）
 
 ---
 
@@ -84,15 +92,18 @@
 - ⚠️ **Redis 缓存**: 未实现
 - ⚠️ **Summary Memory**: 未实现
 
-#### 可观测性与生产化 (Phase 6) - 30% 完成
+#### 可观测性与生产化 (Phase 6) - 55% 完成
 - ✅ **基础日志**: Python logging
 - ✅ **Docker 化**: docker-compose.yml 配置
 - ✅ **数据库迁移**: Alembic 迁移系统
 - ✅ **PostgreSQL + pgvector**: 生产级向量存储
+- ✅ **RAGAS 评估框架**: RAGASEvaluator 已实现，支持多种指标
+- ✅ **运行时评估系统**: RuntimeEvaluator 已实现（采样/异步/批量三种模式）
+- ✅ **评估数据管理**: EvaluationDataset 和评估结果存储
+- ✅ **LLM 响应清理**: 自动处理 markdown 格式 JSON（Claude 兼容性）
 - ⚠️ **LangSmith 集成**: 未实现
 - ⚠️ **结构化日志** (structlog): 未实现
 - ⚠️ **Prometheus 指标**: 未实现
-- ⚠️ **RAGAS 评估**: 未实现
 
 #### 其他核心功能
 - ✅ **LangGraph 工作流**: IngestGraph 和 QA Graph
@@ -102,10 +113,11 @@
 - ✅ **数据模型**: SQLAlchemy + Pydantic schemas
 - ✅ **向量存储**: FAISS (本地) + pgvector (生产)
 
-### 🎯 总体完成度: 约 60%
+### 🎯 总体完成度: 约 65%
 
 **核心 RAG 功能**: ✅ 已可用  
 **对话式 RAG**: ✅ 已可用  
+**评估系统**: ✅ 已可用  
 **生产就绪**: ⚠️ 需要改进
 
 ### ❌ 待实现功能（按优先级）
@@ -122,7 +134,7 @@
 7. **Prompt 管理系统** (Phase 4): 版本化 prompt 模板
 8. **结构化日志** (Phase 6): 更好的调试体验
 9. **自我纠正机制** (Phase 4): 减少幻觉
-10. **RAGAS 评估框架** (Phase 6): 自动化质量评估
+10. **评估报告生成** (Phase 6): 定期生成质量报告
 
 #### 🟢 低优先级
 11. **Agentic RAG** (Phase 7): 工具调用和多步推理
@@ -1224,12 +1236,12 @@ redis>=4.5.0  # Redis 缓存
 
 ---
 
-## Phase 6: 可观测性与生产化 (Week 8-9) ⚠️ 30% 完成
+## Phase 6: 可观测性与生产化 (Week 8-9) ✅ 55% 完成
 
 **🎯 目标**: 让系统可监控、可调试、可维护
 
 **⏱️ 预计时间**: 2 周 (11 工作日)  
-**📊 实际状态**: ⚠️ 基础设施就绪，监控系统待建立
+**📊 实际状态**: ✅ 评估系统已完成，监控系统待建立
 
 ### 6.1 集成 LangSmith ❌ 未实现
 
@@ -1399,84 +1411,129 @@ prometheus-fastapi-instrumentator>=6.1.0
 
 ---
 
-### 6.4 实现评估系统
+### 6.4 实现评估系统 ✅ 已完成
 
 **优先级**: ⭐⭐⭐⭐ (重要)  
-**工作量**: 2-3 天
+**工作量**: 2-3 天  
+**状态**: ✅ 核心功能已实现
 
 #### 任务清单
 
-- [ ] **创建评估模块**
+- [x] **创建评估模块** ✅
   ```
-  rag/evaluation/
+  已实现: packages/rag-core/rag_core/evaluation/
   ├── __init__.py
-  ├── retrieval_metrics.py    # 检索指标
-  ├── generation_metrics.py   # 生成指标
-  ├── evaluator.py            # 评估器
-  └── datasets/               # 评估数据集
-      └── golden_dataset.json
+  ├── ragas_evaluator.py      # RAGAS 评估器 ✅
+  ├── runtime_evaluator.py    # 运行时评估器 ✅
+  ├── dataset.py              # 评估数据集管理 ✅
+  └── models.py               # 评估数据模型
   ```
 
-- [ ] **实现检索评估**
-  - Recall@K
-  - Precision@K
-  - MRR (Mean Reciprocal Rank)
-  - NDCG (Normalized Discounted Cumulative Gain)
+- [x] **实现 RAGAS 评估** ✅
+  - ✅ RAGASEvaluator 类实现
+  - ✅ 支持 faithfulness（忠实度）
+  - ✅ 支持 answer_relevancy（答案相关性）
+  - ✅ 支持 context_precision（上下文精确度）
+  - ✅ 支持 context_recall（上下文召回率）
+  - ✅ 支持 answer_similarity（答案相似度）
+  - ✅ 支持 answer_correctness（答案正确性）
 
-- [ ] **实现生成评估**
-  - Faithfulness（忠实度）
-  - Answer Relevance（相关性）
-  - Context Relevance（上下文相关性）
-  - 使用 RAGAS 框架
+- [x] **实现运行时评估系统** ✅
+  - ✅ RuntimeEvaluator 类
+  - ✅ 三种评估模式：
+    - **采样模式** (sampling): 按比例采样评估，适合生产环境
+    - **异步模式** (async_all): 异步评估所有查询
+    - **批量模式** (batch): 定期批量评估
+  - ✅ QueryRecord 数据模型
+  - ✅ 评估结果存储 (JSONL 格式)
+  - ✅ 统计信息追踪
 
-- [ ] **创建评估数据集**
-  - 至少 50 个查询
-  - 标注黄金答案
-  - 相关文档标注
+- [x] **创建评估数据集管理** ✅
+  - ✅ EvaluationDataset 类
+  - ✅ 支持 JSON/JSONL 格式
+  - ✅ 数据验证和采样
+  - ✅ 迭代器支持
 
-- [ ] **集成 LangSmith 评估**
-  - 创建评估 runs
-  - 对比不同版本
-  - 自动化评估
+- [x] **集成到 QA 流程** ✅
+  - ✅ 在 qa_stream.py 中集成
+  - ✅ 自动记录查询和答案
+  - ✅ 异步评估，不阻塞用户响应
+  - ✅ 评估结果持久化
 
-- [ ] **生成评估报告**
-  - 定量指标
-  - 案例分析
-  - 改进建议
+- [x] **LLM 兼容性增强** ✅
+  - ✅ JSONCleaningLLMWrapper - 清理 markdown 格式 JSON
+  - ✅ 在 OpenRouterLLM 源头清理响应
+  - ✅ 解决 Claude 返回 ```json...``` 导致 Pydantic 解析失败的问题
+
+- [ ] **API 接口** (部分完成)
+  - ✅ `/api/v1/evaluation/stats` - 评估统计
+  - ✅ `/api/v1/evaluation/results` - 评估结果列表
+  - ⚠️ LangSmith 集成 - 待实现
+
+- [ ] **评估报告生成** (待完善)
+  - ⚠️ 定量指标汇总 - 基础实现
+  - ❌ 案例分析 - 待实现
+  - ❌ 改进建议 - 待实现
 
 #### 验收标准
 
-- ✅ 有标准的评估数据集（50+ 样本）
-- ✅ 可以自动化评估
-- ✅ 有定量的质量指标
-- ✅ 每周生成评估报告
+- ✅ RAGAS 评估框架已集成
+- ✅ 运行时评估系统可工作
+- ✅ 支持多种评估指标
+- ✅ 评估结果可持久化
+- ✅ 不阻塞用户查询响应
+- ⚠️ 评估数据集需要补充（当前通过实际查询自动生成）
+- ⚠️ 定期评估报告待实现
 
-#### 新增依赖
+#### 已安装依赖
 
 ```toml
-ragas>=0.1.0  # RAG 评估框架
-datasets>=2.14.0
+ragas>=0.1.0  ✅ 已安装
+datasets>=2.14.0  ✅ 已安装
+```
+
+#### 配置示例
+
+```bash
+# .env
+RUNTIME_EVALUATION__ENABLED=true
+RUNTIME_EVALUATION__MODE=sampling  # sampling/async_all/batch
+RUNTIME_EVALUATION__SAMPLING_RATE=0.1  # 10%
+RUNTIME_EVALUATION__METRICS=faithfulness,answer_relevancy
+RUNTIME_EVALUATION__STORAGE_DIR=data/evaluation/runtime
+RUNTIME_EVALUATION__BATCH_SIZE=10
+RUNTIME_EVALUATION__BATCH_INTERVAL=300  # 5 minutes
 ```
 
 #### 评估指标示例
 
 ```python
-evaluation_results = {
-    "retrieval": {
-        "recall@5": 0.85,
-        "precision@5": 0.72,
-        "mrr": 0.78,
-        "ndcg@5": 0.81
+# 运行时评估结果
+{
+    "query_id": "uuid",
+    "question": "用户问题",
+    "answer": "生成的答案",
+    "contexts": ["检索到的文档..."],
+    "scores": {
+        "faithfulness": 0.88,      # 忠实度
+        "answer_relevancy": 0.82   # 答案相关性
     },
-    "generation": {
-        "faithfulness": 0.88,
-        "answer_relevance": 0.82,
-        "context_relevance": 0.79,
-        "bleu": 0.45,
-        "rouge_l": 0.52
+    "metadata": {
+        "conversation_id": "conv_id",
+        "topic_id": "topic_id",
+        "timestamp": "2024-11-18T..."
     }
 }
 ```
+
+#### 关键文件
+
+- `packages/rag-core/rag_core/evaluation/ragas_evaluator.py` - RAGAS 评估器
+- `packages/rag-core/rag_core/evaluation/runtime_evaluator.py` - 运行时评估器
+- `packages/rag-core/rag_core/evaluation/dataset.py` - 数据集管理
+- `packages/rag-core/rag_core/chains/llm.py` - LLM 响应清理（第155-171行）
+- `apps/api/app/routers/qa_stream.py` - 评估集成点
+- `apps/api/app/routers/evaluation.py` - 评估 API 接口
 
 ---
 
@@ -1567,15 +1624,21 @@ passlib[bcrypt]>=1.7.4  # 密码哈希
 
 ---
 
-### Phase 6 交付物
+### Phase 6 交付物 ⚠️
 
-- ✅ LangSmith 全链路追踪
-- ✅ 结构化日志系统
-- ✅ Prometheus 指标收集
-- ✅ 自动化评估系统
-- ✅ 生产就绪配置
-- ✅ Docker 部署支持
-- ✅ 完整的部署文档
+- ❌ **LangSmith 全链路追踪** - 待实现
+- ❌ **结构化日志系统** - 待实现
+- ❌ **Prometheus 指标收集** - 待实现
+- ✅ **自动化评估系统** - RAGAS + 运行时评估已完成
+- ✅ **评估数据管理** - EvaluationDataset 已实现
+- ✅ **评估结果存储** - JSONL 格式持久化
+- ✅ **评估 API 接口** - 统计和结果查询
+- ✅ **LLM 兼容性** - Claude markdown JSON 清理
+- ✅ **生产就绪配置** - 基础完成
+- ✅ **Docker 部署支持** - docker-compose.yml
+- ⚠️ **完整的部署文档** - 需要补充
+
+**总结**: Phase 6 评估系统已完成 (55%)，监控和追踪系统待补充。
 
 ---
 
@@ -2105,6 +2168,8 @@ feature/phase-2-retrieval
    - 实现查询结果缓存
    - 减少API调用成本
 
+**注**: ~~Phase 6: RAGAS评估~~ 已完成 ✅ (2025-11-18)
+
 ### 🟡 中优先级（3-4周）
 
 6. **Phase 2: Multi-Query检索** (预计1天)
@@ -2119,9 +2184,10 @@ feature/phase-2-retrieval
    - 集成structlog
    - 改善调试体验
 
-9. **Phase 6: RAGAS评估** (预计2天)
-   - 创建评估数据集
-   - 建立自动化评估
+9. **Phase 6: 评估报告生成** (预计1天)
+   - 基于运行时评估结果生成报告
+   - 质量趋势分析
+   - 改进建议
 
 ### 🟢 低优先级（按需）
 
@@ -2131,9 +2197,14 @@ feature/phase-2-retrieval
 
 ---
 
-**文档版本**: 2.0  
-**最后更新**: 2025-11-16  
+**文档版本**: 2.1  
+**最后更新**: 2025-11-18  
 **维护者**: Research Agent Team
 
-**当前状态**: ✅ 核心RAG功能已可用，建议优先补充检索增强和可观测性功能。 🚀
+**当前状态**: ✅ 核心RAG功能、对话系统和评估系统已可用，建议优先补充检索增强和监控功能。 🚀
+
+**最新进展** 🎉:
+- ✅ 2025-11-18: 完成 RAGAS 评估系统集成和运行时评估功能
+- ✅ 2025-11-18: 解决 Claude LLM markdown JSON 兼容性问题
+- ✅ 2025-11-18: 实现评估结果持久化和 API 接口
 

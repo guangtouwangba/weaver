@@ -15,7 +15,7 @@ from domain_models.topic_content_schemas import (
 )
 from rag_core.services.topic_content_service import TopicContentService
 from rag_core.storage.database import get_db
-from app.background_tasks import process_uploaded_document, get_upload_dir
+from apps.api.app.background_tasks import process_uploaded_document, get_upload_dir
 import os
 import uuid as uuid_lib
 

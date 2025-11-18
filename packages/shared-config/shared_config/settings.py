@@ -253,6 +253,40 @@ class RerankerConfig(BaseSettings):
     )
 
 
+class RuntimeEvaluationConfig(BaseSettings):
+    """Runtime evaluation configuration."""
+
+    # 是否启用运行时评估
+    enabled: bool = Field(False, alias="RUNTIME_EVALUATION_ENABLED")
+    
+    # 评估模式: disabled, sampling, async_all, batch
+    mode: str = Field("sampling", alias="RUNTIME_EVALUATION_MODE")
+    
+    # 采样率 (0.0-1.0)
+    sampling_rate: float = Field(0.1, alias="RUNTIME_EVALUATION_SAMPLING_RATE", ge=0.0, le=1.0)
+    
+    # 评估指标（逗号分隔）
+    metrics: str = Field(
+        "faithfulness,answer_relevancy",
+        alias="RUNTIME_EVALUATION_METRICS"
+    )
+    
+    # 批量评估配置
+    batch_size: int = Field(10, alias="RUNTIME_EVALUATION_BATCH_SIZE", ge=1)
+    batch_interval: int = Field(3600, alias="RUNTIME_EVALUATION_BATCH_INTERVAL", ge=60)
+    
+    # 存储配置
+    storage_dir: str = Field("data/evaluation/runtime", alias="RUNTIME_EVALUATION_STORAGE_DIR")
+    save_results: bool = Field(True, alias="RUNTIME_EVALUATION_SAVE_RESULTS")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class AppSettings(BaseSettings):
     """Application configuration exposed to service components."""
 
@@ -272,6 +306,7 @@ class AppSettings(BaseSettings):
     cache: CacheConfig = Field(default_factory=CacheConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
     reranker: RerankerConfig = Field(default_factory=RerankerConfig)
+    runtime_evaluation: RuntimeEvaluationConfig = Field(default_factory=RuntimeEvaluationConfig)
 
     # ========================================
     # 向后兼容属性（保持旧代码正常工作）
