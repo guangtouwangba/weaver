@@ -8,6 +8,7 @@ import type { Message, SourceDocument } from './MessageItem';
 import { chatApi } from '../api/chat';
 import { messageApi } from '../api/conversation';
 import { v4 as uuidv4 } from 'uuid';
+import { colors, spacing, radius, shadows, typography } from '../theme/tokens';
 
 interface ChatPanelProps {
   topicId: string;
@@ -217,7 +218,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     <>
     <Card
       title="💬 智能助手"
-      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+      style={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        borderRadius: radius.md,
+        boxShadow: shadows.soft,
+        border: `1px solid ${colors.border.subtle}`,
+      }}
+      headStyle={{
+        fontSize: `${typography.subtitle.size}px`,
+        fontWeight: typography.subtitle.weight,
+        color: colors.text.primary,
+      }}
       bodyStyle={{
         flex: 1,
         display: 'flex',

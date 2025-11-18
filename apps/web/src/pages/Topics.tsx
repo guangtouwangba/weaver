@@ -6,6 +6,7 @@ import TopicForm from '../components/TopicForm';
 import TopicProgressChart from '../components/TopicProgressChart';
 import { topicsApi } from '../api/topics';
 import type { Topic, TopicStatistics, TopicCreate, TopicUpdate } from '../types/topic';
+import { colors, spacing, radius, shadows, typography } from '../theme/tokens';
 
 const { Header, Content } = Layout;
 
@@ -96,59 +97,125 @@ const Topics: React.FC = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
-      <Header style={{ background: '#fff', padding: '0 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+    <Layout style={{ minHeight: '100vh', background: colors.surface.page }}>
+      <Header style={{ 
+        background: colors.surface.card, 
+        padding: `0 ${spacing.lg}px`, 
+        boxShadow: shadows.soft,
+        borderBottom: `1px solid ${colors.border.subtle}`,
+      }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ margin: 0, fontSize: '24px' }}>📚 知识主题管理</h1>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: `${typography.displayMd.size}px`,
+            fontWeight: typography.displayMd.weight,
+            color: colors.text.primary,
+          }}>
+            📚 知识主题管理
+          </h1>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleOpenCreate}
             size="large"
+            style={{
+              height: 40,
+              borderRadius: radius.pill,
+              fontWeight: typography.bodyBold.weight,
+            }}
           >
             新建主题
           </Button>
         </div>
       </Header>
 
-      <Content style={{ padding: '24px' }}>
+      <Content style={{ padding: `${spacing.lg}px` }}>
         {/* Statistics Cards */}
-        <Row gutter={16} style={{ marginBottom: '24px' }}>
+        <Row gutter={spacing.md} style={{ marginBottom: `${spacing.lg}px` }}>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ 
+              borderRadius: radius.lg, 
+              boxShadow: shadows.soft,
+              border: `1px solid ${colors.border.subtle}`,
+            }}>
               <Statistic
                 title="总主题数"
                 value={statistics?.total || 0}
                 prefix={<BookOutlined />}
+                valueStyle={{ 
+                  fontSize: `${typography.displayMd.size}px`,
+                  fontWeight: typography.displayMd.weight,
+                  color: colors.text.primary,
+                }}
+                titleStyle={{
+                  fontSize: `${typography.body.size}px`,
+                  color: colors.text.secondary,
+                }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ 
+              borderRadius: radius.lg, 
+              boxShadow: shadows.soft,
+              border: `1px solid ${colors.border.subtle}`,
+            }}>
               <Statistic
                 title="学习中"
                 value={statistics?.learning || 0}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ 
+                  color: colors.primary.strong,
+                  fontSize: `${typography.displayMd.size}px`,
+                  fontWeight: typography.displayMd.weight,
+                }}
+                titleStyle={{
+                  fontSize: `${typography.body.size}px`,
+                  color: colors.text.secondary,
+                }}
                 prefix={<BookOutlined />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ 
+              borderRadius: radius.lg, 
+              boxShadow: shadows.soft,
+              border: `1px solid ${colors.border.subtle}`,
+            }}>
               <Statistic
                 title="已完成"
                 value={statistics?.completed || 0}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ 
+                  color: colors.emerald.strong,
+                  fontSize: `${typography.displayMd.size}px`,
+                  fontWeight: typography.displayMd.weight,
+                }}
+                titleStyle={{
+                  fontSize: `${typography.body.size}px`,
+                  color: colors.text.secondary,
+                }}
                 prefix={<CheckCircleOutlined />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ 
+              borderRadius: radius.lg, 
+              boxShadow: shadows.soft,
+              border: `1px solid ${colors.border.subtle}`,
+            }}>
               <Statistic
                 title="已暂停"
                 value={statistics?.paused || 0}
-                valueStyle={{ color: '#faad14' }}
+                valueStyle={{ 
+                  color: colors.yellow.strong,
+                  fontSize: `${typography.displayMd.size}px`,
+                  fontWeight: typography.displayMd.weight,
+                }}
+                titleStyle={{
+                  fontSize: `${typography.body.size}px`,
+                  color: colors.text.secondary,
+                }}
                 prefix={<PauseCircleOutlined />}
               />
             </Card>
@@ -157,15 +224,19 @@ const Topics: React.FC = () => {
 
         {/* Visualization Charts */}
         {statistics && statistics.total > 0 && (
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: `${spacing.lg}px` }}>
             <TopicProgressChart statistics={statistics} />
           </div>
         )}
 
         {/* Topic List with Tabs */}
-        <Card>
+        <Card style={{
+          borderRadius: radius.lg,
+          boxShadow: shadows.soft,
+          border: `1px solid ${colors.border.subtle}`,
+        }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <div style={{ textAlign: 'center', padding: `${spacing.xxl * 2}px 0` }}>
               <Spin size="large" tip="加载中..." />
             </div>
           ) : (

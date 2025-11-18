@@ -41,7 +41,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         borderTop: '1px solid #f0f0f0',
       }}
     >
-      <Space.Compact style={{ width: '100%' }} direction="vertical" size={8}>
+      <Space.Compact style={{ width: '100%' }} direction="vertical" size={16}>
         <TextArea
           value={message}
           onChange={(e) => setMessage(e.target.value)}

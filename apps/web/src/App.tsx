@@ -4,12 +4,16 @@ import zhCN from 'antd/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
 import TopicsPage from './pages/Topics';
 import TopicWorkspace from './pages/TopicWorkspace';
+import { antdTheme } from './theme/antd';
 import './App.css';
 
 function App() {
   return (
     <ErrorBoundary>
-      <ConfigProvider locale={zhCN}>
+      <ConfigProvider 
+        locale={zhCN}
+        theme={antdTheme}
+      >
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<TopicsPage />} />

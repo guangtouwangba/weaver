@@ -26,6 +26,19 @@
 
 ---
 
+## 🧠 AI KnowledgeOS 功能拆解（来自 PRD_01.md）
+
+| 模块 | 核心目标 | 关键能力 | 当前状态 | 下一步 |
+|------|----------|----------|----------|--------|
+| **Capture Hub**（知识采集） | 低摩擦收集多源知识 | 文档/对话/浏览器/邮件接入、自动解析、质量评估 | 仅基础文档+对话输入 | 1) 接入多源 Connector 2) 内容分类/打标签 3) 采集任务面板 |
+| **Insight Forge**（知识内化） | 把信息转成可消费的知识资产 | 摘要、知识卡片、观点对比、个性化版本 | 暂缺（仅有 QA prompt） | 1) AI 知识卡片 2) 多视角摘要 3) 个人/团队语境定制 |
+| **Action Engine**（知识提取） | 在任务场景高效调用知识 | 场景化 RAG、Playbook、任务模板、引用链路 | 基础 QA/对话可用，RAG 评估完成 | 1) 场景化检索策略 2) 工作流模板 3) 回答引用追踪 |
+| **Graph Studio**（知识链接） | 构建动态知识网络与洞察 | 自动图谱、交互探索、盲点提示、学习路径 | 规划阶段（PRD v1.1） | 1) MVP 动态图谱 2) AI 探索建议 3) 导出/分享能力 |
+
+> 后续迭代需围绕以上四大模块推进，每个模块均包含“自动化 + 人机协作”闭环。
+
+---
+
 ## 📋 目录
 
 - [2025-11-16 更新摘要](#-2025-11-16-更新摘要)
@@ -122,25 +135,24 @@
 
 ### ❌ 待实现功能（按优先级）
 
-#### 🔴 高优先级
-1. **混合检索** (Phase 2): BM25 + Vector 融合
-2. **Cross-Encoder 重排序** (Phase 2): 提升检索精度
-3. **LangSmith 追踪** (Phase 6): 全链路可观测性
-4. **Prometheus 指标** (Phase 6): 性能监控
-5. **Redis 缓存** (Phase 5): 响应加速和成本优化
+#### 🔴 高优先级（Alignment with PRD）
+1. **Capture Hub MVP**: 多源采集（文档/网页/对话/浏览器扩展）、内容分类、质量评分
+2. **Insight Forge 基础能力**: AI 知识卡片、摘要/观点对比、个人化版本
+3. **Action Engine 检索升级**: 混合检索 + Cross-Encoder 重排序 + 多查询策略，输出引用链路
+4. **Observability Backbone**: LangSmith 追踪 + Prometheus 指标 + 结构化日志
+5. **Graph Studio MVP**: 动态知识图谱、交互探索、盲点提示、导出分享
 
 #### 🟡 中优先级
-6. **Multi-Query 检索** (Phase 2): 提升召回率
-7. **Prompt 管理系统** (Phase 4): 版本化 prompt 模板
-8. **结构化日志** (Phase 6): 更好的调试体验
-9. **自我纠正机制** (Phase 4): 减少幻觉
-10. **评估报告生成** (Phase 6): 定期生成质量报告
+6. **Capture Hub 扩展**: 邮件/会议纪要 connector、自动任务面板
+7. **Insight Forge 深度内化**: 学习路径、观点冲突检测、自我纠偏提示
+8. **Action Engine 模板化**: 场景化 Playbook、工作流触发、回答引用可追踪
+9. **Graph Studio Plus**: 跨主题关联、AI 导航、时间轴回放
+10. **评估报告生成**: 基于 runtime evaluation 的周/月报 & 质量趋势
 
 #### 🟢 低优先级
-11. **Agentic RAG** (Phase 7): 工具调用和多步推理
-12. **知识图谱增强** (Phase 7): 结构化知识
-13. **多模态检索** (Phase 7): 图片+文本
-
+11. **Agentic RAG / Toolformer**: 复杂任务规划与工具调用
+12. **知识图谱多模态增强**: 图片/音频节点
+13. **自动化知识运营**: 智能提醒、知识缺口自动任务化
 ---
 
 ## 🎯 实施路线图总览
@@ -181,6 +193,18 @@ gantt
     评估系统              :p6_4, after p6_3, 3d
     生产环境配置           :p6_5, after p6_4, 3d
 ```
+
+### 模块化里程碑（与 PRD_01 对齐）
+
+| 里程碑 | 模块 | 时间盒 | 主要交付物 |
+|--------|------|--------|------------|
+| M1 | Capture Hub MVP | 2 周 | 多源采集 connector、自动解析/打标签、质量面板 |
+| M2 | Insight Forge Alpha | 2 周 | AI 知识卡片、摘要/观点对比、个人化版本 |
+| M3 | Action Engine Upgrade | 2 周 | 混合检索、Cross-Encoder 重排、引用链路输出 |
+| M4 | Graph Studio MVP | 3 周 | 动态图谱、交互探索、盲点/路径提示、导出分享 |
+| M5 | Observability Backbone | 1.5 周 | LangSmith tracing、Prometheus 指标、结构化日志 |
+
+> M1-M3 可并行部分工程，但必须共用统一的数据模型和评估闭环。
 
 ### 时间线概览
 
@@ -2141,59 +2165,42 @@ feature/phase-2-retrieval
 
 根据本次评估，建议按以下优先级推进：
 
-### 🔴 高优先级（2-3周）
+### 🔴 高优先级（2-3周）— 模块化对齐
 
-1. **Phase 2: 混合检索** (预计2天)
-   - 实现 HybridRetriever（BM25 + Vector）
-   - 安装 rank-bm25 依赖
-   - 可显著提升检索召回率
+1. **Capture Hub MVP**  
+   - 落地文件/网页/对话/浏览器 Connector  
+   - 自动解析、分类、质量评分面板
 
-2. **Phase 2: Cross-Encoder重排序** (预计2天)
-   - 安装 sentence-transformers
-   - 实现 CrossEncoderReranker
-   - 提升Top-K精度
+2. **Insight Forge 基础版**  
+   - AI 知识卡片、摘要/观点对比  
+   - 个人/团队语境版本管理
 
-3. **Phase 6: LangSmith追踪** (预计2天)
-   - 注册LangSmith账号
-   - 集成tracing
-   - 建立可观测性基础
+3. **Action Engine 检索升级**  
+   - 混合检索（BM25+Vector）+ Cross-Encoder 重排  
+   - 多查询策略、回答引用链路
 
-4. **Phase 6: Prometheus指标** (预计2天)
-   - 安装 prometheus-client
-   - 添加关键指标
-   - 创建 /metrics endpoint
+4. **Observability Backbone**  
+   - LangSmith tracing、结构化日志、Prometheus 指标  
+   - 与 Runtime Evaluation 数据打通
 
-5. **Phase 5: Redis缓存** (预计1天)
-   - 安装Redis
-   - 实现查询结果缓存
-   - 减少API调用成本
+5. **Graph Studio MVP**  
+   - 动态图谱渲染、节点交互、盲点提示、导出分享
 
-**注**: ~~Phase 6: RAGAS评估~~ 已完成 ✅ (2025-11-18)
+**注**: ~~评估框架建设~~ 已完成 ✅ (2025-11-18)
 
 ### 🟡 中优先级（3-4周）
 
-6. **Phase 2: Multi-Query检索** (预计1天)
-   - 实现查询变体生成
-   - 提升召回多样性
-
-7. **Phase 4: Prompt管理系统** (预计1天)
-   - 创建独立prompt模块
-   - 版本化管理
-
-8. **Phase 6: 结构化日志** (预计1天)
-   - 集成structlog
-   - 改善调试体验
-
-9. **Phase 6: 评估报告生成** (预计1天)
-   - 基于运行时评估结果生成报告
-   - 质量趋势分析
-   - 改进建议
+6. **Capture Hub 扩展**：邮件/会议纪要接入、采集任务队列  
+7. **Insight Forge Plus**：学习路径、知识冲突检测、自我纠偏  
+8. **Action Engine 模板化**：场景化 Playbook、Workflow 触发、结果模板  
+9. **Graph Studio Plus**：跨主题关联、AI 导航、时间轴回放  
+10. **评估报告自动化**：runtime evaluation → 周/月报 & 改进建议
 
 ### 🟢 低优先级（按需）
 
-10. Phase 4: 自我纠正机制
-11. Phase 7: Agentic RAG
-12. Phase 7: 知识图谱增强
+11. Agentic RAG / Toolformer 能力  
+12. 知识图谱多模态（图片/音频）  
+13. 自动化知识运营（缺口提醒、任务派发）
 
 ---
 
@@ -2207,4 +2214,5 @@ feature/phase-2-retrieval
 - ✅ 2025-11-18: 完成 RAGAS 评估系统集成和运行时评估功能
 - ✅ 2025-11-18: 解决 Claude LLM markdown JSON 兼容性问题
 - ✅ 2025-11-18: 实现评估结果持久化和 API 接口
+- ✅ 2025-11-18: 新增统一 UI 设计规范文件 `design/design-system.json`（对齐 docs/ux/design.json 与 design-system-showcase，用于指导后续所有前端特性和 Agent 生成式改动）
 

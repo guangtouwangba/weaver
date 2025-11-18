@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, Radio, Select } from 'antd';
 import { Topic, TopicCreate, TopicUpdate, GoalType, TopicStatus, GOAL_TYPE_LABELS, STATUS_LABELS } from '../types/topic';
+import { colors, spacing, radius, shadows, typography } from '../theme/tokens';
 
 const { TextArea } = Input;
 
@@ -54,6 +55,16 @@ const TopicForm: React.FC<TopicFormProps> = ({ visible, topic, onSubmit, onCance
       width={600}
       okText="确定"
       cancelText="取消"
+      styles={{
+        header: {
+          fontSize: `${typography.title.size}px`,
+          fontWeight: typography.title.weight,
+          color: colors.text.primary,
+        },
+        body: {
+          padding: `${spacing.lg}px`,
+        },
+      }}
     >
       <Form
         form={form}

@@ -44,6 +44,7 @@ import FunctionDrawer, { DrawerType } from '../components/FunctionDrawer';
 import type { Topic, TopicUpdate, GoalType } from '../types/topic';
 import type { TopicContent } from '../types/content';
 import { GOAL_TYPE_LABELS, STATUS_LABELS, STATUS_COLORS } from '../types/topic';
+import { colors, spacing, radius, shadows, typography, chipVariants } from '../theme/tokens';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -141,8 +142,13 @@ const TopicWorkspace: React.FC = () => {
 
   if (loading) {
     return (
-      <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
-        <Content style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <Layout style={{ minHeight: '100vh', background: colors.surface.page }}>
+        <Content style={{ 
+          padding: `${spacing.lg}px`, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center' 
+        }}>
           <Spin size="large" tip="加载中..." />
         </Content>
       </Layout>
@@ -154,44 +160,67 @@ const TopicWorkspace: React.FC = () => {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
-      <Content style={{ padding: '24px' }}>
+    <Layout style={{ minHeight: '100vh', background: colors.surface.page }}>
+      <Content style={{ padding: `${spacing.lg}px` }}>
         {/* 顶部导航栏 */}
         <div
           style={{
-            marginBottom: '24px',
+            marginBottom: `${spacing.lg}px`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>
+          <Button 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => navigate('/')}
+            style={{
+              borderRadius: radius.pill,
+              height: 36,
+            }}
+          >
             返回列表
           </Button>
 
-          <Space size={8}>
+          <Space size={spacing.xs}>
             <Tooltip title="知识图谱">
               <Button
                 icon={<ApartmentOutlined />}
                 onClick={() => setDrawerType('knowledge-graph')}
+                style={{
+                  borderRadius: radius.pill,
+                  height: 36,
+                }}
               />
             </Tooltip>
             <Tooltip title="智能笔记">
               <Button
                 icon={<FileTextOutlined />}
                 onClick={() => setDrawerType('notes')}
+                style={{
+                  borderRadius: radius.pill,
+                  height: 36,
+                }}
               />
             </Tooltip>
             <Tooltip title="引用溯源">
               <Button
                 icon={<LinkOutlined />}
                 onClick={() => setDrawerType('citations')}
+                style={{
+                  borderRadius: radius.pill,
+                  height: 36,
+                }}
               />
             </Tooltip>
             <Tooltip title="学习设置">
               <Button
                 icon={<SettingOutlined />}
                 onClick={() => setDrawerType('settings')}
+                style={{
+                  borderRadius: radius.pill,
+                  height: 36,
+                }}
               />
             </Tooltip>
           </Space>
@@ -200,62 +229,87 @@ const TopicWorkspace: React.FC = () => {
         {/* 精简主题标题栏 */}
         <div 
           style={{ 
-            marginBottom: '16px',
-            padding: '12px 16px',
-            background: '#fff',
-            borderRadius: '8px',
+            marginBottom: `${spacing.md}px`,
+            padding: `${spacing.sm}px ${spacing.md}px`,
+            background: colors.surface.card,
+            borderRadius: `${radius.sm}px`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+            boxShadow: shadows.soft,
+            border: `1px solid ${colors.border.subtle}`,
           }}
         >
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <Title level={4} style={{ margin: 0 }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: `${spacing.md}px` }}>
+            <Title level={4} style={{ 
+              margin: 0,
+              fontSize: `${typography.title.size}px`,
+              fontWeight: typography.title.weight,
+              color: colors.text.primary,
+            }}>
               {topic.name}
             </Title>
             <Space size="small">
               <span
                 style={{
-                  padding: '2px 8px',
-                  background: STATUS_COLORS[topic.status] === 'green' ? '#f6ffed' : '#e6f7ff',
-                  color: STATUS_COLORS[topic.status] === 'green' ? '#52c41a' : '#1890ff',
-                  borderRadius: '4px',
-                  fontSize: '12px',
+                  padding: `2px ${spacing.xs}px`,
+                  background: STATUS_COLORS[topic.status] === 'green' ? chipVariants.success.background : chipVariants.active.background,
+                  color: STATUS_COLORS[topic.status] === 'green' ? chipVariants.success.color : chipVariants.active.color,
+                  borderRadius: `${radius.pill}px`,
+                  fontSize: `${typography.label.size}px`,
+                  fontWeight: typography.label.weight,
                 }}
               >
                 {STATUS_LABELS[topic.status]}
               </span>
               <span
                 style={{
-                  padding: '2px 8px',
-                  background: '#f0f5ff',
-                  color: '#2f54eb',
-                  borderRadius: '4px',
-                  fontSize: '12px',
+                  padding: `2px ${spacing.xs}px`,
+                  background: chipVariants.info.background,
+                  color: chipVariants.info.color,
+                  borderRadius: `${radius.pill}px`,
+                  fontSize: `${typography.label.size}px`,
+                  fontWeight: typography.label.weight,
                 }}
               >
                 {GOAL_TYPE_LABELS[topic.goal_type]}
               </span>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Text type="secondary" style={{ fontSize: `${typography.caption.size}px`, color: colors.text.muted }}>
                 •
               </Text>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Text type="secondary" style={{ fontSize: `${typography.caption.size}px`, color: colors.text.secondary }}>
                 {topic.total_contents}个内容
               </Text>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Text type="secondary" style={{ fontSize: `${typography.caption.size}px`, color: colors.text.muted }}>
                 •
               </Text>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Text type="secondary" style={{ fontSize: `${typography.caption.size}px`, color: colors.text.secondary }}>
                 完成度 {topic.completion_progress.toFixed(0)}%
               </Text>
             </Space>
           </div>
           <Space size="small">
-            <Button size="small" icon={<EditOutlined />} onClick={() => setIsEditModalVisible(true)}>
+            <Button 
+              size="small" 
+              icon={<EditOutlined />} 
+              onClick={() => setIsEditModalVisible(true)}
+              style={{
+                borderRadius: radius.pill,
+                height: 28,
+              }}
+            >
               编辑
             </Button>
-            <Button size="small" danger icon={<DeleteOutlined />} onClick={handleDelete}>
+            <Button 
+              size="small" 
+              danger 
+              icon={<DeleteOutlined />} 
+              onClick={handleDelete}
+              style={{
+                borderRadius: radius.pill,
+                height: 28,
+              }}
+            >
               删除
             </Button>
           </Space>
@@ -263,14 +317,24 @@ const TopicWorkspace: React.FC = () => {
 
         {/* Tab切换布局 */}
         <Card 
-          style={{ height: 'calc(100vh - 220px)', display: 'flex', flexDirection: 'column' }}
+          style={{ 
+            height: 'calc(100vh - 220px)', 
+            display: 'flex', 
+            flexDirection: 'column',
+            borderRadius: radius.lg,
+            boxShadow: shadows.soft,
+            border: `1px solid ${colors.border.subtle}`,
+          }}
           bodyStyle={{ flex: 1, padding: 0, display: 'flex', flexDirection: 'column' }}
         >
           <Tabs
             defaultActiveKey="chat"
             size="large"
             style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-            tabBarStyle={{ margin: '0 16px', paddingTop: '8px' }}
+            tabBarStyle={{ 
+              margin: `0 ${spacing.md}px`, 
+              paddingTop: `${spacing.xs}px`,
+            }}
           >
             {/* Tab 1: 智能对话 */}
             <TabPane
@@ -283,7 +347,12 @@ const TopicWorkspace: React.FC = () => {
               key="chat"
               style={{ height: '100%' }}
             >
-              <div style={{ height: 'calc(100vh - 300px)', display: 'flex', gap: '12px', padding: '0 16px 16px' }}>
+              <div style={{ 
+                height: 'calc(100vh - 300px)', 
+                display: 'flex', 
+                gap: `${spacing.sm}px`, 
+                padding: `0 ${spacing.md}px ${spacing.md}px` 
+              }}>
                 {/* 左侧：对话列表 */}
                 <div style={{ width: '280px', flexShrink: 0 }}>
                   <ConversationList
@@ -301,27 +370,39 @@ const TopicWorkspace: React.FC = () => {
                 </div>
 
                 {/* 右侧：文档选择 + Chat */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: `${spacing.sm}px`, minWidth: 0 }}>
                   {/* 文档范围选择 - 极简版 */}
                   <div 
                     style={{ 
                       flexShrink: 0,
-                      padding: '8px 12px',
-                      background: '#fafafa',
-                      borderRadius: '6px',
+                      padding: `${spacing.xs}px ${spacing.sm}px`,
+                      background: colors.surface.subtle,
+                      borderRadius: `${radius.xs}px`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
+                      border: `1px solid ${colors.border.subtle}`,
                     }}
                   >
                     <Space size="small">
-                      <Text style={{ fontSize: '13px', color: '#666' }}>🎯 对话范围：</Text>
+                      <Text style={{ 
+                        fontSize: `${typography.caption.size + 1}px`, 
+                        color: colors.text.secondary 
+                      }}>
+                        🎯 对话范围：
+                      </Text>
                       {contents.filter(c => c.document_id).length === 0 ? (
-                        <Text type="secondary" style={{ fontSize: '13px' }}>
+                        <Text type="secondary" style={{ 
+                          fontSize: `${typography.caption.size + 1}px`,
+                          color: colors.text.muted,
+                        }}>
                           暂无可用文档
                         </Text>
                       ) : (
-                        <Text style={{ fontSize: '13px' }}>
+                        <Text style={{ 
+                          fontSize: `${typography.caption.size + 1}px`,
+                          color: colors.text.primary,
+                        }}>
                           {selectedDocIds.length} / {contents.filter(c => c.document_id).length} 个文档
                         </Text>
                       )}
@@ -330,7 +411,11 @@ const TopicWorkspace: React.FC = () => {
                       <Button 
                         type="link" 
                         size="small"
-                        style={{ fontSize: '12px', padding: '0 8px' }}
+                        style={{ 
+                          fontSize: `${typography.caption.size}px`, 
+                          padding: `0 ${spacing.xs}px`,
+                          height: 'auto',
+                        }}
                         onClick={() => {
                           const allDocIds = contents.filter(c => c.document_id).map(c => c.document_id!);
                           if (selectedDocIds.length === allDocIds.length) {
@@ -372,7 +457,7 @@ const TopicWorkspace: React.FC = () => {
               key="documents"
               style={{ height: '100%' }}
             >
-              <div style={{ height: 'calc(100vh - 300px)', padding: '0 16px 16px' }}>
+              <div style={{ height: 'calc(100vh - 300px)', padding: `0 ${spacing.md}px ${spacing.md}px` }}>
                 <Card
                   title="📚 关联内容"
                   extra={
@@ -380,11 +465,21 @@ const TopicWorkspace: React.FC = () => {
                       type="primary"
                       icon={<PlusOutlined />}
                       onClick={() => setIsUploadModalVisible(true)}
+                      style={{
+                        borderRadius: radius.pill,
+                        height: 36,
+                        fontWeight: typography.bodyBold.weight,
+                      }}
                     >
                       添加内容
                     </Button>
                   }
-                  style={{ height: '100%' }}
+                  style={{ 
+                    height: '100%',
+                    borderRadius: radius.md,
+                    boxShadow: shadows.soft,
+                    border: `1px solid ${colors.border.subtle}`,
+                  }}
                   bodyStyle={{ height: 'calc(100% - 57px)', overflowY: 'auto' }}
                 >
                   <ContentList topicId={id!} refreshTrigger={refreshTrigger} />

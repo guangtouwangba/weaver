@@ -1,24 +1,75 @@
+/**
+ * Global Styles
+ * Based on design system tokens
+ */
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Design System Colors */
+  --color-surface-page: #F5F6F9;
+  --color-surface-card: #FFFFFF;
+  --color-surface-subtle: #F9FAFB;
+  
+  --color-text-primary: #111827;
+  --color-text-secondary: #4B5563;
+  --color-text-muted: #9CA3AF;
+  --color-text-on-accent: #FFFFFF;
+  
+  --color-border-subtle: #E5E7EB;
+  --color-border-strong: #D1D5DB;
+  --color-border-focus: #2563EB;
+  
+  --color-primary-strong: #3B82F6;
+  --color-primary-soft: #E0ECFF;
+  --color-primary-hover: #2563EB;
+  --color-primary-pressed: #1D4ED8;
+  
+  /* Typography */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  font-size: 14px;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  /* Rendering optimization */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Color scheme */
+  color-scheme: light;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-page);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--color-surface-page);
+  color: var(--color-text-primary);
 }
 
 #root {
   min-height: 100vh;
+  background-color: var(--color-surface-page);
+}
+
+/* Scrollbar styling to match design system */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-subtle);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
 }
 
