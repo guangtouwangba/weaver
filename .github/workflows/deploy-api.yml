@@ -1,0 +1,25 @@
+name: Deploy API
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'Dockerfile.api'
+      - 'pyproject.toml'
+      - 'setup.py'
+
+jobs:
+  deploy:
+    name: Deploy Python API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      # Assumes fly.toml for API is in the root directory
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_API }}
+

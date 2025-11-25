@@ -1,0 +1,20 @@
+name: Deploy Web
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'web/**'
+
+jobs:
+  deploy:
+    name: Deploy Next.js
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      - run: cd web && flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_WEB }}
+
