@@ -15,7 +15,10 @@ import {
   Tooltip,
   Collapse,
   Divider,
-  Badge
+  Badge,
+  ToggleButton,
+  ToggleButtonGroup,
+  Slider
 } from "@mui/material";
 import { 
   FileText, 
@@ -41,7 +44,19 @@ import {
   PanelRightOpen,
   Filter,
   Zap,
-  ArrowRight
+  ArrowRight,
+  LayoutGrid,
+  List as ListIcon,
+  PlayCircle,
+  Globe,
+  Music,
+  Play,
+  Pause,
+  Volume2,
+  SkipBack,
+  SkipForward,
+  ExternalLink,
+  Clock
 } from "lucide-react";
 
 // --- Helper Components ---
@@ -70,6 +85,31 @@ const VerticalResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEve
   />
 );
 
+// --- Mock Data ---
+type ResourceType = 'pdf' | 'video' | 'audio' | 'link';
+
+interface Resource {
+  id: string;
+  type: ResourceType;
+  title: string;
+  date: string;      // Uniform "Added At" timestamp
+  duration?: string; // Optional: for media
+  pages?: number;    // Optional: for PDF
+  content?: string;
+}
+
+const SAMPLE_RESOURCES: Resource[] = [
+  { id: '1', type: 'pdf', title: 'Attention Is All You Need.pdf', date: '10:42 AM', pages: 15 },
+  { id: '2', type: 'pdf', title: 'BERT_Pre-training.pdf', date: '2d ago', pages: 24 },
+  { id: '3', type: 'pdf', title: 'GPT-3_Language_Models.pdf', date: '1w ago', pages: 75 },
+];
+
+const SAMPLE_MEDIA: Resource[] = [
+  { id: '4', type: 'video', title: 'Lecture_01_Transformers.mp4', date: 'Yesterday', duration: '1:20:00' },
+  { id: '5', type: 'audio', title: 'DeepMind_Podcast_#12.mp3', date: '3d ago', duration: '45:12' },
+  { id: '6', type: 'link', title: 'HuggingFace Blog', date: '5d ago' },
+];
+
 export default function StudioPage() {
   // --- Layout State ---
   const [leftVisible, setLeftVisible] = useState(true);
@@ -77,7 +117,7 @@ export default function StudioPage() {
   
   // --- Resizing State ---
   const [leftWidth, setLeftWidth] = useState(380);
-  const [centerWidth, setCenterWidth] = useState(420); // Increased default width
+  const [centerWidth, setCenterWidth] = useState(420); 
   const [resizingCol, setResizingCol] = useState<'left' | 'center' | null>(null);
 
   // --- Feature State ---
@@ -85,7 +125,11 @@ export default function StudioPage() {
   const [splitRatio, setSplitRatio] = useState(0.4); 
   const [activeView, setActiveView] = useState<'canvas' | 'podcast'>('canvas');
   const [quietMode, setQuietMode] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   
+  // --- Selection State ---
+  const [activeResource, setActiveResource] = useState<Resource>(SAMPLE_RESOURCES[0]);
+
   // --- Refs ---
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const leftColumnRef = useRef<HTMLDivElement>(null);
@@ -106,25 +150,20 @@ export default function StudioPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // --- Resize Logic (Horizontal & Vertical) ---
-  
-  // 1. Vertical Resize (Left Column: Library vs Reader)
+  // --- Resize Logic ---
   const handleVerticalMouseDown = useCallback((e: React.MouseEvent) => {
     if (isReaderExpanded) return;
     e.preventDefault();
     setIsVerticalDragging(true);
   }, [isReaderExpanded]);
 
-  // 2. Horizontal Resize (Columns)
   const handleHorizontalMouseDown = (col: 'left' | 'center') => (e: React.MouseEvent) => {
     e.preventDefault();
     setResizingCol(col);
   };
 
-  // Global Mouse Move/Up
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      // Vertical Resize
       if (isVerticalDragging && leftColumnRef.current) {
         const rect = leftColumnRef.current.getBoundingClientRect();
         const relativeY = e.clientY - rect.top;
@@ -132,32 +171,23 @@ export default function StudioPage() {
         setSplitRatio(newRatio);
         return;
       }
-
-      // Horizontal Resize
       if (resizingCol) {
-        // Calculate available width constraints if needed
         const minWidth = 280;
         const maxWidth = 800;
-        
         if (resizingCol === 'left') {
-          // Resizing Left Column
           const newWidth = Math.max(minWidth, Math.min(e.clientX, maxWidth));
           setLeftWidth(newWidth);
         } else if (resizingCol === 'center') {
-          // Resizing Center Column
-          // Center width = MouseX - LeftColumnWidth
-          const currentLeftWidth = leftVisible ? leftWidth : 49; // 48 + 1 border
+          const currentLeftWidth = leftVisible ? leftWidth : 49;
           const newWidth = Math.max(minWidth, Math.min(e.clientX - currentLeftWidth, maxWidth));
           setCenterWidth(newWidth);
         }
       }
     };
-
     const handleMouseUp = () => {
       setIsVerticalDragging(false);
       setResizingCol(null);
     };
-
     if (isVerticalDragging || resizingCol) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
@@ -167,7 +197,6 @@ export default function StudioPage() {
       document.body.style.cursor = 'default';
       document.body.style.userSelect = 'auto';
     }
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -175,6 +204,309 @@ export default function StudioPage() {
       document.body.style.userSelect = 'auto';
     };
   }, [isVerticalDragging, resizingCol, leftWidth, leftVisible]);
+
+  // --- Render Helper: Resource Card/Item ---
+  const renderResource = (res: Resource) => {
+    const isActive = activeResource.id === res.id;
+
+    if (viewMode === 'list') {
+      // Compact List Item
+      return (
+        <Box 
+          key={res.id} 
+          onClick={() => setActiveResource(res)}
+          sx={{ 
+            display: 'flex', gap: 1.5, p: 1.5, mb: 1, borderRadius: 2, 
+            bgcolor: isActive ? '#EFF6FF' : 'transparent', 
+            border: isActive ? '1px solid' : '1px solid', 
+            borderColor: isActive ? '#BFDBFE' : 'transparent',
+            '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover' },
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          {/* Icon */}
+          {res.type === 'pdf' && <FileText size={16} className={isActive ? "text-blue-600 mt-0.5" : "text-gray-400 mt-0.5"} />}
+          {res.type === 'video' && <Video size={16} className="text-gray-400 mt-0.5" />}
+          {res.type === 'audio' && <Music size={16} className="text-gray-400 mt-0.5" />}
+          {res.type === 'link' && <LinkIcon size={16} className="text-gray-400 mt-0.5" />}
+          
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="body2" fontWeight={isActive ? "500" : "400"} color={isActive ? "primary.main" : "text.primary"} noWrap>
+              {res.title}
+            </Typography>
+            {/* Meta Line: Always show Date + Optional Extra Info */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">{res.date}</Typography>
+              {res.duration && (
+                <>
+                  <Typography variant="caption" color="text.disabled">•</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', bgcolor: 'action.hover', px: 0.5, borderRadius: 0.5 }}>{res.duration}</Typography>
+                </>
+              )}
+              {res.pages && (
+                <>
+                  <Typography variant="caption" color="text.disabled">•</Typography>
+                  <Typography variant="caption" color="text.secondary">{res.pages}p</Typography>
+                </>
+              )}
+            </Box>
+          </Box>
+        </Box>
+      );
+    }
+
+    // Grid/Preview Mode
+    return (
+      <Box key={res.id} sx={{ position: 'relative', group: 'card' }} onClick={() => setActiveResource(res)}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 0,
+            overflow: 'hidden',
+            borderRadius: 2,
+            border: isActive ? '2px solid' : '1px solid',
+            borderColor: isActive ? 'primary.main' : 'divider',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            '&:hover': { borderColor: isActive ? 'primary.main' : 'grey.400', transform: 'translateY(-2px)' },
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {/* Thumbnail Area */}
+          <Box sx={{ 
+            height: 100, 
+            bgcolor: '#F3F4F6', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            position: 'relative',
+            borderBottom: '1px solid',
+            borderColor: 'divider'
+          }}>
+            {/* PDF Preview Look */}
+            {res.type === 'pdf' && (
+              <Box sx={{ 
+                width: 50, height: 70, bgcolor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', 
+                display: 'flex', flexDirection: 'column', p: 0.5, gap: 0.5 
+              }}>
+                <Box sx={{ width: '80%', height: 4, bgcolor: '#E5E7EB', borderRadius: 1 }} />
+                <Box sx={{ width: '100%', height: 2, bgcolor: '#F3F4F6' }} />
+                <Box sx={{ width: '100%', height: 2, bgcolor: '#F3F4F6' }} />
+                <Box sx={{ width: '60%', height: 2, bgcolor: '#F3F4F6' }} />
+                <Box sx={{ position: 'absolute', top: 0, right: 0, borderStyle: 'solid', borderWidth: '0 8px 8px 0', borderColor: 'transparent #F3F4F6 transparent transparent' }} />
+              </Box>
+            )}
+            
+            {/* Video Preview Look */}
+            {res.type === 'video' && (
+              <Box sx={{ width: '100%', height: '100%', bgcolor: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PlayCircle size={32} className="text-white opacity-80" />
+                {/* Duration Badge for Grid */}
+                <Box sx={{ position: 'absolute', bottom: 4, right: 4, bgcolor: 'rgba(0,0,0,0.7)', color: '#fff', px: 0.5, borderRadius: 0.5, fontSize: 10, fontWeight: 600 }}>
+                  {res.duration}
+                </Box>
+              </Box>
+            )}
+
+             {/* Audio Preview Look */}
+             {res.type === 'audio' && (
+              <Box sx={{ width: '100%', height: '100%', bgcolor: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Music size={32} className="text-purple-400 opacity-80" />
+                {/* Duration Badge for Grid */}
+                <Box sx={{ position: 'absolute', bottom: 4, right: 4, bgcolor: 'rgba(0,0,0,0.7)', color: '#fff', px: 0.5, borderRadius: 0.5, fontSize: 10, fontWeight: 600 }}>
+                  {res.duration}
+                </Box>
+              </Box>
+            )}
+
+             {/* Link Preview Look */}
+             {res.type === 'link' && (
+              <Box sx={{ width: '100%', height: '100%', bgcolor: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Globe size={32} className="text-blue-300" />
+              </Box>
+            )}
+
+            {/* Active Badge */}
+            {isActive && (
+              <Box sx={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', border: '2px solid white' }} />
+            )}
+          </Box>
+
+          {/* Footer Metadata */}
+          <Box sx={{ p: 1.5 }}>
+            <Typography variant="caption" fontWeight="600" sx={{ display: 'block', lineHeight: 1.2, mb: 0.5 }} noWrap title={res.title}>
+              {res.title}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+               {res.type === 'pdf' && <FileText size={12} className="text-gray-400" />}
+               {res.type === 'video' && <Video size={12} className="text-gray-400" />}
+               {res.type === 'audio' && <Music size={12} className="text-gray-400" />}
+               {res.type === 'link' && <LinkIcon size={12} className="text-gray-400" />}
+               
+               {/* Date is always primary meta */}
+               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{res.date}</Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  };
+
+  // --- Render Content Viewer (Bottom Panel) ---
+  const renderContentViewer = () => {
+    const { type, title, date, duration } = activeResource;
+
+    // 1. HEADER (Common for all)
+    const Header = (
+      <Box 
+        onMouseDown={handleVerticalMouseDown}
+        sx={{ 
+          height: 48, borderTop: isReaderExpanded ? 'none' : '1px solid', borderBottom: '1px solid', borderColor: 'divider', 
+          display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between', bgcolor: 'background.default',
+          cursor: isReaderExpanded ? 'default' : 'row-resize', userSelect: 'none', position: 'relative', flexShrink: 0,
+          '&:hover': { bgcolor: isReaderExpanded ? 'background.default' : 'rgba(0,0,0,0.02)' }
+        }}
+      >
+        {!isReaderExpanded && (
+          <Box sx={{ position: 'absolute', top: -1, left: '50%', transform: 'translateX(-50%)', width: 40, height: 3, bgcolor: 'transparent', cursor: 'row-resize' }} />
+        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+          <Typography variant="caption" sx={{ 
+            color: type === 'pdf' ? 'error.main' : type === 'video' ? 'primary.main' : type === 'audio' ? 'purple.main' : 'blue.main', 
+            fontWeight: 'bold', 
+            bgcolor: type === 'pdf' ? 'error.lighter' : type === 'video' ? 'grey.200' : type === 'audio' ? 'purple.50' : 'blue.50', 
+            px: 0.5, borderRadius: 0.5, textTransform: 'uppercase'
+          }}>
+            {type}
+          </Typography>
+          <Typography variant="subtitle2" fontWeight="600" noWrap>{title}</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+          {type === 'pdf' && <Typography variant="caption" color="text.secondary">Pg 3 / 15</Typography>}
+          {/* Show duration in header for media */}
+          {(type === 'video' || type === 'audio') && duration && <Typography variant="caption" color="text.secondary">{duration}</Typography>}
+          
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); setIsReaderExpanded(!isReaderExpanded); }}>
+            {isReaderExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </IconButton>
+        </Box>
+      </Box>
+    );
+
+    // 2. BODY (Varies by type)
+    let BodyContent;
+
+    switch (type) {
+      case 'pdf':
+        BodyContent = (
+          <Box sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>3.2 Attention</Typography>
+            <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
+              An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors.
+            </Typography>
+            <Box sx={{ bgcolor: '#FFF9C4', p: 1, borderRadius: 1, mx: -1 }}>
+              <Typography variant="body1" sx={{ lineHeight: 1.8 }}>
+                The output is computed as a weighted sum of the values, where the weight assigned to each value is computed by a compatibility function of the query with the corresponding key.
+              </Typography>
+            </Box>
+            <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', mt: 2 }}>
+              We call our particular attention "Scaled Dot-Product Attention".
+            </Typography>
+            <Paper variant="outlined" sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', my: 4, borderStyle: 'dashed' }}>
+              <Box sx={{ textAlign: 'center', color: 'text.disabled' }}>
+                <ImageIcon size={32} className="mx-auto mb-2" />
+                <Typography variant="caption">Figure 1: Scaled Dot-Product Attention</Typography>
+              </Box>
+            </Paper>
+          </Box>
+        );
+        break;
+
+      case 'video':
+        BodyContent = (
+          <Box sx={{ bgcolor: '#000', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative' }}>
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <Typography variant="body2" sx={{ color: 'grey.500' }}>[ Video Placeholder: {title} ]</Typography>
+            </Box>
+            {/* Video Controls Mockup */}
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
+               <Slider size="small" defaultValue={30} sx={{ color: '#fff', mb: 1 }} />
+               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}>
+                 <Box sx={{ display: 'flex', gap: 2 }}>
+                   <Play size={20} fill="currentColor" />
+                   <Volume2 size={20} />
+                 </Box>
+                 <Typography variant="caption">12:30 / {duration}</Typography>
+               </Box>
+            </Box>
+          </Box>
+        );
+        break;
+
+      case 'audio':
+        BodyContent = (
+          <Box sx={{ bgcolor: '#1F2937', flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+            <Box sx={{ width: 120, height: 120, borderRadius: 4, bgcolor: 'primary.main', mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+              <Music size={48} color="#fff" />
+            </Box>
+            <Typography variant="h6" sx={{ color: '#fff', mb: 1 }}>{title}</Typography>
+            <Typography variant="body2" sx={{ color: 'grey.400', mb: 4 }}>Added {date}</Typography>
+            
+            {/* Waveform Mockup */}
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: 40, mb: 4 }}>
+              {[...Array(20)].map((_, i) => (
+                <Box key={i} sx={{ width: 4, height: Math.random() * 40 + 10, bgcolor: i === 10 ? '#fff' : 'grey.600', borderRadius: 2 }} />
+              ))}
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, color: '#fff' }}>
+              <SkipBack size={24} />
+              <Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}>
+                <Play size={24} fill="currentColor" className="ml-1" />
+              </Box>
+              <SkipForward size={24} />
+            </Box>
+          </Box>
+        );
+        break;
+
+      case 'link':
+        BodyContent = (
+          <Box sx={{ flexGrow: 1, bgcolor: '#F9FAFB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+             <Box sx={{ textAlign: 'center', mb: 4 }}>
+               <Globe size={48} className="text-gray-300 mb-2 mx-auto" />
+               <Typography variant="h6" gutterBottom>External Resource</Typography>
+               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                 This content is hosted on an external website.
+               </Typography>
+               <Button variant="outlined" startIcon={<ExternalLink size={16} />} href="https://huggingface.co" target="_blank">
+                 Open in Browser
+               </Button>
+             </Box>
+             {/* Web Preview Card */}
+             <Paper variant="outlined" sx={{ width: '100%', maxWidth: 400, p: 2, display: 'flex', gap: 2 }}>
+               <Box sx={{ width: 80, height: 80, bgcolor: 'grey.100', borderRadius: 1 }} />
+               <Box sx={{ flex: 1 }}>
+                 <Typography variant="subtitle2" fontWeight="bold">Hugging Face - The AI Community</Typography>
+                 <Typography variant="caption" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', mt: 1 }}>
+                   We are on a mission to democratize good machine learning, one commit at a time.
+                 </Typography>
+               </Box>
+             </Paper>
+          </Box>
+        );
+        break;
+    }
+
+    return (
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {Header}
+        {BodyContent}
+      </Box>
+    );
+  };
 
   return (
     <GlobalLayout>
@@ -197,7 +529,6 @@ export default function StudioPage() {
           }}
         >
           {leftVisible ? (
-             // --- EXPANDED LEFT CONTENT ---
              <>
               {/* 1. Resource Library (Top) */}
               <Box sx={{ 
@@ -210,11 +541,26 @@ export default function StudioPage() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box component="span" sx={{ color: 'primary.main' }}><FolderOpen size={18} /></Box>
                     <Typography variant="subtitle2" fontWeight="bold">Research_v1</Typography>
-                    <ChevronDown size={14} className="text-gray-400" />
                   </Box>
-                  <Tooltip title="Collapse Sidebar (Cmd+\)">
-                    <IconButton size="small" onClick={() => setLeftVisible(false)}><PanelLeftClose size={16} /></IconButton>
-                  </Tooltip>
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Box sx={{ bgcolor: '#F3F4F6', borderRadius: 1, p: 0.5, display: 'flex' }}>
+                      <IconButton 
+                        size="small" onClick={() => setViewMode('list')}
+                        sx={{ p: 0.5, bgcolor: viewMode === 'list' ? '#fff' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', borderRadius: 1 }}
+                      >
+                        <ListIcon size={14} />
+                      </IconButton>
+                      <IconButton 
+                        size="small" onClick={() => setViewMode('grid')}
+                        sx={{ p: 0.5, bgcolor: viewMode === 'grid' ? '#fff' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', borderRadius: 1 }}
+                      >
+                        <LayoutGrid size={14} />
+                      </IconButton>
+                    </Box>
+                    <Tooltip title="Collapse Sidebar (Cmd+\)">
+                      <IconButton size="small" onClick={() => setLeftVisible(false)}><PanelLeftClose size={16} /></IconButton>
+                    </Tooltip>
+                  </Box>
                 </Box>
 
                 {/* Add Button */}
@@ -227,78 +573,40 @@ export default function StudioPage() {
                   </Button>
                 </Box>
 
-                {/* File List */}
-                <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2 }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: 'text.secondary' }}>
+                {/* Resource List/Grid */}
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 2 }}>
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, color: 'text.secondary' }}>
                       <ChevronDown size={12} />
-                      <Typography variant="caption" fontWeight="bold">PAPERS (3)</Typography>
+                      <Typography variant="caption" fontWeight="bold">PAPERS ({SAMPLE_RESOURCES.length})</Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 1.5, p: 1.5, mb: 0.5, borderRadius: 2, bgcolor: '#EFF6FF', border: '1px solid', borderColor: '#BFDBFE' }}>
-                      <FileText size={16} className="text-blue-600 mt-0.5" />
-                      <Box>
-                        <Typography variant="body2" fontWeight="500" color="primary.main">Attention Is All You Need.pdf</Typography>
-                        <Typography variant="caption" color="text.secondary">10:42 AM</Typography>
-                      </Box>
+                    <Box sx={{ 
+                      display: viewMode === 'grid' ? 'grid' : 'block',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                      gap: 1.5
+                    }}>
+                      {SAMPLE_RESOURCES.map(renderResource)}
                     </Box>
-                    {['BERT_Pre-training.pdf', 'GPT-3_Language_Models.pdf'].map((file, i) => (
-                      <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
-                        <FileText size={16} className="text-gray-400 mt-0.5" />
-                        <Box>
-                          <Typography variant="body2" color="text.primary">{file}</Typography>
-                          <Typography variant="caption" color="text.secondary">{i === 0 ? '2d ago' : '1w ago'}</Typography>
-                        </Box>
-                      </Box>
-                    ))}
+                  </Box>
+
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, color: 'text.secondary' }}>
+                      <ChevronDown size={12} />
+                      <Typography variant="caption" fontWeight="bold">MEDIA & LINKS ({SAMPLE_MEDIA.length})</Typography>
+                    </Box>
+                    <Box sx={{ 
+                      display: viewMode === 'grid' ? 'grid' : 'block',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                      gap: 1.5
+                    }}>
+                      {SAMPLE_MEDIA.map(renderResource)}
+                    </Box>
                   </Box>
                 </Box>
               </Box>
 
-              {/* 2. Reader (Bottom) */}
-              <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {/* Resize Handle / Reader Header */}
-                <Box 
-                  onMouseDown={handleVerticalMouseDown}
-                  sx={{ 
-                    height: 48, borderTop: isReaderExpanded ? 'none' : '1px solid', borderBottom: '1px solid', borderColor: 'divider', 
-                    display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between', bgcolor: 'background.default',
-                    cursor: isReaderExpanded ? 'default' : 'row-resize', userSelect: 'none', position: 'relative',
-                    '&:hover': { bgcolor: isReaderExpanded ? 'background.default' : 'rgba(0,0,0,0.02)' }
-                  }}
-                >
-                  {!isReaderExpanded && (
-                    <Box sx={{ position: 'absolute', top: -1, left: '50%', transform: 'translateX(-50%)', width: 40, height: 3, bgcolor: 'transparent', cursor: 'row-resize' }} />
-                  )}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 'bold', bgcolor: 'error.lighter', px: 0.5, borderRadius: 0.5 }}>PDF</Typography>
-                    <Typography variant="subtitle2" fontWeight="600" noWrap sx={{ maxWidth: 140 }}>Attention Is All You Need</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); setIsReaderExpanded(!isReaderExpanded); }}>
-                      {isReaderExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                    </IconButton>
-                  </Box>
-                </Box>
-
-                {/* Reader Body */}
-                <Box sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }}>
-                   <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>3.2 Attention</Typography>
-                   <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
-                     An attention function can be described as mapping a query and a set of key-value pairs to an output.
-                   </Typography>
-                   <Box sx={{ bgcolor: '#FFF9C4', p: 1, borderRadius: 1, mx: -1 }}>
-                     <Typography variant="body1" sx={{ lineHeight: 1.8 }}>
-                       The output is computed as a weighted sum of the values.
-                     </Typography>
-                   </Box>
-                   <Paper variant="outlined" sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', my: 4, borderStyle: 'dashed' }}>
-                     <Box sx={{ textAlign: 'center', color: 'text.disabled' }}>
-                       <ImageIcon size={24} className="mx-auto mb-2" />
-                       <Typography variant="caption">Figure 1: Scaled Dot-Product</Typography>
-                     </Box>
-                   </Paper>
-                </Box>
-              </Box>
+              {/* 2. Resource Viewer (Bottom) - Dynamic Content */}
+              {renderContentViewer()}
              </>
           ) : (
              // --- COLLAPSED LEFT STRIP ---
