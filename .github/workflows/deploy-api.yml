@@ -1,14 +1,15 @@
-name: Deploy API
+name: Deploy API (Disabled)
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'Dockerfile.api'
-      - 'pyproject.toml'
-      - 'setup.py'
+  workflow_dispatch:  # Only manual trigger, disabled for automatic push
+  # push:
+  #   branches:
+  #     - master
+  #   paths:
+  #     - 'apps/**'
+  #     - 'packages/**'
+  #     - 'Dockerfile.api'
+  #     - 'pyproject.toml'
+  #     - 'setup.py'
 
 jobs:
   deploy:
