@@ -42,5 +42,6 @@ npm-debug.log
 yarn-error.log
 
 # Fly.io
-fly.toml
+# fly.toml (Should be committed for CI/CD)
+
 
