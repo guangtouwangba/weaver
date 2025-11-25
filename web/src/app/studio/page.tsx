@@ -549,7 +549,34 @@ export default function StudioPage() {
               {renderContentViewer()}
              </>
            ) : (
-             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2, width: '100%' }}><Tooltip title="Expand Source (Cmd+\)" placement="right"><IconButton onClick={() => setLeftVisible(true)} size="small"><PanelLeftOpen size={20} /></IconButton></Tooltip><Divider sx={{ width: 20 }} /><Tooltip title="Attention Is All You Need.pdf" placement="right"><Box sx={{ p: 1, borderRadius: 1, bgcolor: '#EFF6FF', color: 'primary.main', cursor: 'pointer' }} onClick={() => setLeftVisible(true)}><FileText size={18} /></Box></Tooltip></Box>
+             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2, width: '100%' }}>
+               <Tooltip title="Expand Source (Cmd+\)" placement="right">
+                 <IconButton onClick={() => setLeftVisible(true)} size="small">
+                   <PanelLeftOpen size={20} />
+                 </IconButton>
+               </Tooltip>
+               <Divider sx={{ width: 20 }} />
+               <Tooltip title={activeResource.title} placement="right">
+                 <Box 
+                   sx={{ 
+                     p: 1, 
+                     borderRadius: 1, 
+                     bgcolor: activeResource.id === activeResource.id ? '#EFF6FF' : 'transparent', // Keeping consistent style
+                     color: activeResource.type === 'pdf' ? 'primary.main' : 
+                            activeResource.type === 'video' ? 'primary.main' : 
+                            activeResource.type === 'audio' ? 'purple.500' : 'blue.500',
+                     cursor: 'pointer',
+                     '&:hover': { bgcolor: 'action.hover' }
+                   }} 
+                   onClick={() => setLeftVisible(true)}
+                 >
+                   {activeResource.type === 'pdf' && <FileText size={18} />}
+                   {activeResource.type === 'video' && <Video size={18} />}
+                   {activeResource.type === 'audio' && <Music size={18} />}
+                   {activeResource.type === 'link' && <LinkIcon size={18} />}
+                 </Box>
+               </Tooltip>
+             </Box>
            )}
         </Box>
         {leftVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('left')} />}
@@ -567,7 +594,32 @@ export default function StudioPage() {
           <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', minWidth: 300 }}><TextField fullWidth placeholder="Ask or summarize..." variant="standard" InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} sx={{ bgcolor: '#F3F4F6', px: 2, py: 1, borderRadius: 2 }} /></Box>
         </Box>
         {centerVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('center')} />}
-        {!centerVisible && <Box sx={{ width: 40, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, bgcolor: '#F9FAFB' }}><Tooltip title="Expand Processor (Cmd+.)" placement="right"><IconButton onClick={() => setCenterVisible(true)} size="small"><PanelRightOpen size={20} /></IconButton></Tooltip><Divider sx={{ width: 20, my: 2 }} /><Badge color="secondary" variant="dot" invisible={quietMode}><Bot size={18} className="text-gray-400" /></Badge></Box>}
+        {!centerVisible && <Box sx={{ width: 40, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, bgcolor: '#F9FAFB' }}>
+          <Tooltip title="Expand Processor (Cmd+.)" placement="right">
+            <IconButton onClick={() => setCenterVisible(true)} size="small">
+              <PanelRightOpen size={20} />
+            </IconButton>
+          </Tooltip>
+          <Divider sx={{ width: 20, my: 2 }} />
+          <Tooltip title={quietMode ? "AI Assistant (Focus Mode)" : "AI Assistant (Ready)"} placement="right">
+            <Box 
+              onClick={() => setCenterVisible(true)}
+              sx={{ 
+                p: 1, 
+                borderRadius: 1, 
+                cursor: 'pointer',
+                color: quietMode ? 'text.disabled' : 'primary.main',
+                bgcolor: quietMode ? 'transparent' : 'primary.50',
+                transition: 'all 0.2s',
+                '&:hover': { bgcolor: quietMode ? 'action.hover' : 'primary.100' }
+              }}
+            >
+              <Badge color="secondary" variant="dot" invisible={quietMode}>
+                <Bot size={18} />
+              </Badge>
+            </Box>
+          </Tooltip>
+        </Box>}
 
 
         {/* ================= RIGHT COLUMN: Output OS (Tabs + Launcher) ================= */}
