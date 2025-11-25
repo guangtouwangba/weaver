@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import PodcastView from "./PodcastView";
+import WriterView from "./WriterView";
 import { 
   Box, 
   Typography, 
@@ -69,7 +70,8 @@ import {
   Presentation,
   FileQuestion,
   Wand2,
-  Loader2
+  Loader2,
+  PenTool
 } from "lucide-react";
 
 // --- Helper Components ---
@@ -124,7 +126,7 @@ const SAMPLE_MEDIA: Resource[] = [
 ];
 
 // --- Tab System Types ---
-type TabType = 'canvas' | 'podcast' | 'flashcards' | 'ppt';
+type TabType = 'canvas' | 'podcast' | 'flashcards' | 'ppt' | 'writer';
 interface Tab {
   id: string;
   type: TabType;
@@ -191,6 +193,7 @@ export default function StudioPage() {
       case 'podcast': title = 'Podcast'; isGen = true; break;
       case 'flashcards': title = 'Flashcards'; isGen = true; break;
       case 'ppt': title = 'Slides'; isGen = true; break;
+      case 'writer': title = 'Writer'; break;
     }
 
     const newTab: Tab = { 
@@ -250,10 +253,10 @@ export default function StudioPage() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isVerticalDragging && leftColumnRef.current) {
-        const rect = leftColumnRef.current.getBoundingClientRect();
-        const relativeY = e.clientY - rect.top;
+      const rect = leftColumnRef.current.getBoundingClientRect();
+      const relativeY = e.clientY - rect.top;
         const newRatio = Math.min(Math.max(relativeY / rect.height, 0.2), 0.8);
-        setSplitRatio(newRatio);
+      setSplitRatio(newRatio);
         return;
       }
       if (resizingCol) {
@@ -294,7 +297,7 @@ export default function StudioPage() {
   const renderResource = (res: Resource) => {
     const isActive = activeResource.id === res.id;
     if (viewMode === 'list') {
-      return (
+  return (
         <Box 
           key={res.id} onClick={() => setActiveResource(res)}
           sx={{ 
@@ -310,14 +313,14 @@ export default function StudioPage() {
           {res.type === 'link' && <LinkIcon size={16} className="text-gray-400 mt-0.5" />}
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography variant="body2" fontWeight={isActive ? "500" : "400"} color={isActive ? "primary.main" : "text.primary"} noWrap>{res.title}</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="caption" color="text.secondary">{res.date}</Typography>
               {(res.duration || res.pages) && <Typography variant="caption" color="text.disabled">•</Typography>}
               {res.duration && <Typography variant="caption" sx={{ color: 'text.secondary', bgcolor: 'action.hover', px: 0.5, borderRadius: 0.5 }}>{res.duration}</Typography>}
               {res.pages && <Typography variant="caption" color="text.secondary">{res.pages}p</Typography>}
+              </Box>
+              </Box>
             </Box>
-          </Box>
-        </Box>
       );
     }
     // Grid Mode
@@ -325,7 +328,7 @@ export default function StudioPage() {
       <Box key={res.id} sx={{ position: 'relative', group: 'card' }} onClick={() => setActiveResource(res)}>
         <Paper
           elevation={0}
-          sx={{
+                sx={{ 
             p: 0, overflow: 'hidden', borderRadius: 2, border: isActive ? '2px solid' : '1px solid', borderColor: isActive ? 'primary.main' : 'divider',
             cursor: 'pointer', transition: 'all 0.2s', '&:hover': { borderColor: isActive ? 'primary.main' : 'grey.400', transform: 'translateY(-2px)' }, display: 'flex', flexDirection: 'column'
           }}
@@ -351,16 +354,16 @@ export default function StudioPage() {
             )}
              {res.type === 'link' && <Box sx={{ width: '100%', height: '100%', bgcolor: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Globe size={32} className="text-blue-300" /></Box>}
             {isActive && <Box sx={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', border: '2px solid white' }} />}
-          </Box>
+              </Box>
           <Box sx={{ p: 1.5 }}>
             <Typography variant="caption" fontWeight="600" sx={{ display: 'block', lineHeight: 1.2, mb: 0.5 }} noWrap title={res.title}>{res.title}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                {res.type === 'pdf' && <FileText size={12} className="text-gray-400" />}{res.type === 'video' && <Video size={12} className="text-gray-400" />}{res.type === 'audio' && <Music size={12} className="text-gray-400" />}{res.type === 'link' && <LinkIcon size={12} className="text-gray-400" />}
                <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{res.date}</Typography>
             </Box>
-          </Box>
-        </Paper>
-      </Box>
+                </Box>
+              </Paper>
+            </Box>
     );
   };
 
@@ -381,7 +384,7 @@ export default function StudioPage() {
             <IconButton size="small" onClick={(e) => { e.stopPropagation(); setIsReaderExpanded(!isReaderExpanded); }}>{isReaderExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</IconButton>
           </Box>
         </Box>
-        
+
         {type === 'pdf' && (
           <Box sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>3.2 Attention</Typography>
@@ -434,14 +437,15 @@ export default function StudioPage() {
            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>AI is analyzing your resources and synthesizing content.</Typography>
            <Box sx={{ width: 300 }}>
              <LinearProgress variant="determinate" value={activeTab.progress || 0} sx={{ borderRadius: 2, height: 6 }} />
-           </Box>
-        </Box>
+                </Box>
+              </Box>
       );
     }
 
     // Ready State
     switch (activeTab.type) {
       case 'podcast': return <PodcastView />;
+      case 'writer': return <WriterView />;
       case 'canvas': 
       default:
         return (
@@ -482,7 +486,7 @@ export default function StudioPage() {
                  <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 2 }}>
                    <Box sx={{ mb: 3 }}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, color: 'text.secondary' }}><ChevronDown size={12} /><Typography variant="caption" fontWeight="bold">PAPERS ({SAMPLE_RESOURCES.length})</Typography></Box><Box sx={{ display: viewMode === 'grid' ? 'grid' : 'block', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.5 }}>{SAMPLE_RESOURCES.map(renderResource)}</Box></Box>
                    <Box><Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, color: 'text.secondary' }}><ChevronDown size={12} /><Typography variant="caption" fontWeight="bold">MEDIA & LINKS ({SAMPLE_MEDIA.length})</Typography></Box><Box sx={{ display: viewMode === 'grid' ? 'grid' : 'block', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.5 }}>{SAMPLE_MEDIA.map(renderResource)}</Box></Box>
-                 </Box>
+                </Box>
               </Box>
               {renderContentViewer()}
              </>
@@ -542,6 +546,7 @@ export default function StudioPage() {
                    tab.type === 'podcast' ? <Mic size={14} className="text-purple-500" /> :
                    tab.type === 'flashcards' ? <BrainCircuit size={14} className="text-orange-500" /> :
                    tab.type === 'ppt' ? <Presentation size={14} className="text-pink-500" /> :
+                   tab.type === 'writer' ? <PenTool size={14} className="text-green-600" /> :
                    <Layout size={14} className="text-gray-500" />
                   }
                   <Typography variant="caption" fontWeight={activeTabId === tab.id ? 600 : 400} noWrap sx={{ flex: 1 }}>{tab.title}</Typography>
@@ -567,6 +572,10 @@ export default function StudioPage() {
                 <MenuItem onClick={() => handleAddTab('canvas')}>
                   <ListItemIcon><Layout size={16} /></ListItemIcon>
                   <ListItemText primary="Canvas" secondary="Whiteboard" secondaryTypographyProps={{ fontSize: 10 }} />
+                </MenuItem>
+                <MenuItem onClick={() => handleAddTab('writer')}>
+                  <ListItemIcon><PenTool size={16} className="text-green-600" /></ListItemIcon>
+                  <ListItemText primary="Writer" secondary="Drafting & Mixing" secondaryTypographyProps={{ fontSize: 10 }} />
                 </MenuItem>
                 <Divider />
                 <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 600 }}>GENERATE WITH AI</Typography>
@@ -601,7 +610,7 @@ export default function StudioPage() {
           {/* Active Tab Content */}
           {renderTabContent()}
 
-        </Box>
+          </Box>
       </Box>
     </GlobalLayout>
   );
