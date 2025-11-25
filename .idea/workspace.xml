@@ -5,12 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0424dd6f-7080-41b0-9067-3ca4a5e8f935" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/data_source_mapping.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/api/app/routers/qa_stream.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/api/app/routers/qa_stream.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/memory_nodes.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/graphs/memory_nodes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/rag-core/rag_core/services/message_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/rag-core/rag_core/services/message_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/packages/shared-config/shared_config/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/src/app/studio/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/src/app/studio/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -251,6 +246,7 @@
       <workItem from="1760681120113" duration="45667000" />
       <workItem from="1761289831009" duration="66115000" />
       <workItem from="1762322829158" duration="35813000" />
+      <workItem from="1762909065003" duration="77977000" />
     </task>
     <servers />
   </component>

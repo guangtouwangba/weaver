@@ -161,6 +161,10 @@ export default function StudioPage() {
   const [activeTabId, setActiveTabId] = useState<string>('t1');
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
+  // --- Canvas Copilot State ---
+  const [isCanvasAiOpen, setIsCanvasAiOpen] = useState(false);
+  const [canvasAiQuery, setCanvasAiQuery] = useState('');
+
   // --- Refs ---
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const leftColumnRef = useRef<HTMLDivElement>(null);
@@ -463,7 +467,61 @@ export default function StudioPage() {
             <Box sx={{ position: 'absolute', bottom: 40, left: '50%', transform: 'translateX(-50%)', width: 400, height: 60, border: '2px dashed', borderColor: !centerVisible ? 'primary.main' : 'divider', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, bgcolor: !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)', backdropFilter: 'blur(4px)', transition: 'all 0.3s ease' }}>
               <Plus size={16} className={!centerVisible ? "text-primary-600" : "text-gray-400"} /><Typography variant="body2" color={!centerVisible ? "primary.main" : "text.secondary"}>{!centerVisible ? "Drop directly from PDF" : "Drop cards here to create nodes"}</Typography>
             </Box>
-            <IconButton sx={{ position: 'absolute', bottom: 40, right: 40, bgcolor: '#171717', color: '#fff', width: 48, height: 48, '&:hover': { bgcolor: '#000' } }}><Bot size={24} /></IconButton>
+            
+            {/* Canvas Copilot / Magic Tools */}
+            <Box sx={{ position: 'absolute', bottom: 40, right: 40, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, zIndex: 10 }}>
+              {isCanvasAiOpen && (
+                <Paper elevation={4} sx={{ width: 320, p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', animation: 'fadeIn 0.2s ease-out' }}>
+                  <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ mb: 1.5, display: 'block', letterSpacing: 0.5 }}>CANVAS COPILOT</Typography>
+                  
+                  {/* Quick Actions */}
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                    {['Auto Layout', 'Connect', 'Summarize'].map(action => (
+                      <Chip 
+                        key={action} 
+                        label={action} 
+                        size="small" 
+                        onClick={() => { console.log(action); setIsCanvasAiOpen(false); }}
+                        icon={<Sparkles size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
+                      />
+                    ))}
+                  </Box>
+
+                  {/* Input Area */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'white', border: '1px solid', borderColor: 'primary.main', borderRadius: 2, px: 1.5, py: 0.5, boxShadow: '0 2px 4px rgba(59,130,246,0.1)' }}>
+                    <Wand2 size={16} className="text-primary-500" />
+                    <TextField 
+                      fullWidth 
+                      variant="standard" 
+                      placeholder="Ask AI to edit canvas..." 
+                      value={canvasAiQuery}
+                      onChange={(e) => setCanvasAiQuery(e.target.value)}
+                      onKeyDown={(e) => { if(e.key === 'Enter') { setIsCanvasAiOpen(false); setCanvasAiQuery(''); } }}
+                      autoFocus
+                      InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} 
+                    />
+                    <IconButton size="small" onClick={() => { setIsCanvasAiOpen(false); setCanvasAiQuery(''); }} color="primary"><ArrowRight size={16} /></IconButton>
+                  </Box>
+                </Paper>
+              )}
+
+              <IconButton 
+                onClick={() => setIsCanvasAiOpen(!isCanvasAiOpen)}
+                sx={{ 
+                  bgcolor: isCanvasAiOpen ? '#fff' : '#171717', 
+                  color: isCanvasAiOpen ? '#171717' : '#fff', 
+                  width: 48, height: 48, 
+                  border: isCanvasAiOpen ? '1px solid' : 'none',
+                  borderColor: 'divider',
+                  boxShadow: isCanvasAiOpen ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.3)',
+                  '&:hover': { bgcolor: isCanvasAiOpen ? '#f5f5f5' : '#000' },
+                  transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                }}
+              >
+                {isCanvasAiOpen ? <CloseIcon size={20} /> : <Sparkles size={20} />}
+              </IconButton>
+            </Box>
           </Box>
         );
     }
@@ -498,7 +556,7 @@ export default function StudioPage() {
 
         <Box sx={{ width: centerVisible ? centerWidth : 0, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: centerVisible ? '1px solid' : 'none', borderColor: 'divider', transition: resizingCol ? 'none' : 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)', bgcolor: '#F9FAFB', overflow: 'hidden', position: 'relative' }}>
           <Box sx={{ height: 56, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between', minWidth: 300 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10B981' }} /><Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>Processor</Typography></Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10B981' }} /><Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>Assistant</Typography></Box>
             <Box sx={{ display: 'flex', gap: 0.5 }}><Tooltip title={quietMode ? "Show All" : "Quiet Mode"}><IconButton size="small" onClick={() => setQuietMode(!quietMode)} sx={{ bgcolor: quietMode ? 'primary.main' : 'transparent', color: quietMode ? '#fff' : 'text.secondary', '&:hover': { bgcolor: quietMode ? 'primary.dark' : 'action.hover' } }}><Filter size={14} /></IconButton></Tooltip><Tooltip title="Collapse Processor (Cmd+.)"><IconButton size="small" onClick={() => setCenterVisible(false)}><PanelRightClose size={16} /></IconButton></Tooltip></Box>
           </Box>
           <Box sx={{ p: 2, overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 300 }}>
