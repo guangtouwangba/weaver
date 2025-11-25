@@ -7,7 +7,8 @@ import {
   Inbox, 
   Layout, 
   Brain, 
-  Settings
+  Settings,
+  FolderKanban
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -101,6 +102,13 @@ export default function GlobalSidebar() {
         label="Inbox Mode" 
         href="/inbox" 
         isActive={pathname.startsWith('/inbox')}
+      />
+
+      <NavItem 
+        icon={FolderKanban} 
+        label="All Projects" 
+        href="/projects" 
+        isActive={pathname.startsWith('/projects')}
       />
       
       <NavItem 

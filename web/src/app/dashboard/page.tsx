@@ -3,6 +3,7 @@
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { Box, Typography, Button } from "@mui/material";
 import { Plus } from "lucide-react";
+import Link from 'next/link';
 
 export default function DashboardPage() {
   return (
@@ -42,9 +43,20 @@ export default function DashboardPage() {
         </Box>
 
         {/* Active Projects Placeholder */}
-        <Typography variant="h6" fontWeight="600" gutterBottom>
-          Active Projects
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6" fontWeight="600">
+            Active Projects
+          </Typography>
+          <Button 
+            variant="text" 
+            size="small" 
+            component={Link}
+            href="/projects"
+            sx={{ color: 'text.secondary', textTransform: 'none' }}
+          >
+            View All
+          </Button>
+        </Box>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 3 }}>
           {[1, 2, 3].map((i) => (
             <Box 
