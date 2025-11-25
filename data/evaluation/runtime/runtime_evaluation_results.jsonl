@@ -1,0 +1,7 @@
+{"query_id": "474c64de-1f1d-46e4-bca8-e48fd6664994", "timestamp": "2025-11-18T09:00:54.526743", "scores": {"faithfulness": NaN, "answer_relevancy": NaN}, "question": "请总结这些文档的核心观点和主要内容"}
+{"query_id": "62907a4e-d4e2-4d1d-8474-c34b304ff725", "timestamp": "2025-11-18T09:03:23.064158", "scores": {"faithfulness": NaN, "answer_relevancy": NaN}, "question": "请总结这些文档的核心观点和主要内容"}
+{"query_id": "dc546615-17bf-41ba-8750-0950e00afb96", "timestamp": "2025-11-18T17:25:36.660982", "scores": {"faithfulness": NaN, "answer_relevancy": NaN}, "question": "请总结这些文档的核心观点和主要内容"}
+{"query_id": "58f2cee6-f2f0-4619-b835-b6ec00325ef0", "timestamp": "2025-11-18T18:13:03.995141", "scores": {"faithfulness": NaN, "answer_relevancy": NaN}, "question": "请总结这些文档的核心观点和主要内容"}
+{"query_id": "af7dae58-22ae-4735-9c63-567f30d22022", "timestamp": "2025-11-18T18:16:14.036417", "scores": {"faithfulness": NaN, "answer_relevancy": NaN}, "question": "请总结这些文档的核心观点和主要内容"}
+{"query_id": "1a4efc8f-0746-4781-9938-353ebb79cc2f", "timestamp": "2025-11-18T18:18:09.673280", "scores": {"faithfulness": 1.0, "answer_relevancy": 0.49506793089340917}, "question": "请总结这些文档的核心观点和主要内容"}
+{"query_id": "86d59270-22fc-46f4-a488-7031cfb10bef", "timestamp": "2025-11-18T21:01:54.487724", "scores": {"faithfulness": 1.0, "answer_relevancy": 0.4567362840360083}, "question": "请总结这些文档的核心观点和主要内容"}

@@ -1,0 +1,63 @@
+[
+  {
+    "question": "What is machine learning?",
+    "ground_truth": "Machine learning is a method of data analysis that automates analytical model building. It is a branch of artificial intelligence based on the idea that systems can learn from data, identify patterns and make decisions with minimal human intervention.",
+    "topic": "ml_basics",
+    "difficulty": "easy"
+  },
+  {
+    "question": "How do neural networks learn?",
+    "ground_truth": "Neural networks learn through a process called backpropagation, where they adjust their internal weights based on the error between predicted and actual outputs. This iterative process uses gradient descent to minimize the loss function.",
+    "topic": "neural_networks",
+    "difficulty": "medium"
+  },
+  {
+    "question": "What is the difference between supervised and unsupervised learning?",
+    "ground_truth": "Supervised learning uses labeled training data where the correct output is known, training the model to predict outcomes. Unsupervised learning works with unlabeled data, finding hidden patterns and structures without predefined labels.",
+    "topic": "ml_types",
+    "difficulty": "easy"
+  },
+  {
+    "question": "What is overfitting in machine learning?",
+    "ground_truth": "Overfitting is a phenomenon where a machine learning model performs well on training data but poorly on new, unseen data because it has learned the noise and specific details of the training set rather than general patterns.",
+    "topic": "model_evaluation",
+    "difficulty": "medium"
+  },
+  {
+    "question": "Explain the concept of deep learning",
+    "ground_truth": "Deep learning is a subset of machine learning that uses neural networks with multiple layers (deep neural networks) to automatically learn hierarchical representations of data. Unlike traditional ML, it can automatically discover the features needed for classification from raw data.",
+    "topic": "deep_learning",
+    "difficulty": "medium"
+  },
+  {
+    "question": "What is a convolutional neural network?",
+    "ground_truth": "A Convolutional Neural Network (CNN) is a type of deep learning model specifically designed for processing grid-like data such as images. It uses convolutional layers that apply filters to detect features like edges, textures, and patterns.",
+    "topic": "computer_vision",
+    "difficulty": "hard"
+  },
+  {
+    "question": "How does gradient descent work?",
+    "ground_truth": "Gradient descent is an optimization algorithm that iteratively adjusts model parameters to minimize a loss function. It calculates the gradient (slope) of the loss function and moves in the opposite direction to find the minimum.",
+    "topic": "optimization",
+    "difficulty": "medium"
+  },
+  {
+    "question": "What is natural language processing?",
+    "ground_truth": "Natural Language Processing (NLP) is a branch of artificial intelligence that focuses on enabling computers to understand, interpret, and generate human language in a valuable way.",
+    "topic": "nlp",
+    "difficulty": "easy"
+  },
+  {
+    "question": "Explain the transformer architecture",
+    "ground_truth": "The transformer architecture is a deep learning model that uses self-attention mechanisms to process sequential data. Unlike RNNs, it can process all positions in parallel, making it more efficient and effective for tasks like language translation and text generation.",
+    "topic": "nlp",
+    "difficulty": "hard"
+  },
+  {
+    "question": "What is reinforcement learning?",
+    "ground_truth": "Reinforcement learning is a type of machine learning where an agent learns to make decisions by interacting with an environment. The agent receives rewards or penalties for its actions and learns to maximize cumulative rewards over time.",
+    "topic": "rl",
+    "difficulty": "medium"
+  }
+]
+
