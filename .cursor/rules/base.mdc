@@ -3,3 +3,4 @@ alwaysApply: true
 ---
 - 在实现完一个feature之后检查更新roadmap.md文件
 - 在完成一个fix或者action之后禁止创建说明文档（md文件）
+- 在完成一个原型调整后检测更新产品需求文档
