@@ -1,8 +1,8 @@
 #!/bin/bash
 # deploy.sh - 统一部署脚本
 # 使用方法:
-#   ./scripts/deploy.sh web dev     # 部署 Web 前端到开发环境
-#   ./scripts/deploy.sh web prod    # 部署 Web 前端到生产环境
+#   ./scripts/deploy.sh web dev     # 部署 app/frontend 到开发环境
+#   ./scripts/deploy.sh web prod    # 部署 web (prototype) 到生产环境
 #   ./scripts/deploy.sh api dev     # 部署 API 后端到开发环境
 #   ./scripts/deploy.sh api prod    # 部署 API 后端到生产环境
 #   ./scripts/deploy.sh all dev     # 部署所有服务到开发环境
@@ -48,11 +48,12 @@ show_help() {
     echo "  all   - Deploy all services"
     echo ""
     echo "Environments:"
-    echo "  dev   - Development environment"
-    echo "  prod  - Production environment"
+    echo "  dev   - Development environment (uses app/frontend)"
+    echo "  prod  - Production environment (uses web prototype)"
     echo ""
     echo "Examples:"
-    echo "  $0 web dev      # Deploy web to development"
+    echo "  $0 web dev      # Deploy app/frontend to development"
+    echo "  $0 web prod     # Deploy web prototype to production"
     echo "  $0 api prod     # Deploy API to production"
     echo "  $0 all dev      # Deploy everything to development"
 }
@@ -60,11 +61,20 @@ show_help() {
 # 部署 Web 前端
 deploy_web() {
     local env=$1
-    local config_file="fly.${env}.toml"
     
-    print_info "Deploying Web frontend to ${env} environment..."
+    if [ "$env" == "dev" ]; then
+        # 开发环境使用 app/frontend
+        local web_dir="$ROOT_DIR/app/frontend"
+        local config_file="fly.dev.toml"
+        print_info "Deploying app/frontend to development environment..."
+    else
+        # 生产环境使用 web (prototype)
+        local web_dir="$ROOT_DIR/web"
+        local config_file="fly.prod.toml"
+        print_info "Deploying web prototype to production environment..."
+    fi
     
-    cd "$ROOT_DIR/web"
+    cd "$web_dir"
     
     if [ ! -f "$config_file" ]; then
         print_error "Config file not found: $config_file"
@@ -144,4 +154,3 @@ main() {
 }
 
 main "$@"
-

@@ -1,4 +1,4 @@
-name: Deploy Web
+name: Deploy Web Frontend
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - master
       - main
     paths:
-      - 'web/**'
+      - 'app/frontend/**'
       - '.github/workflows/deploy-web.yml'
   
   # 允许手动触发并选择环境
@@ -22,23 +22,32 @@ on:
           - prod
 
 jobs:
-  deploy:
-    name: Deploy Next.js to ${{ github.event.inputs.environment || 'dev' }}
+  deploy-dev:
+    name: Deploy to Development (app/frontend)
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.environment == 'dev'
     
     steps:
       - uses: actions/checkout@v4
       
       - uses: superfly/flyctl-actions/setup-flyctl@master
       
-      - name: Deploy to Development
-        if: github.event_name == 'push' || github.event.inputs.environment == 'dev'
-        run: cd web && flyctl deploy --remote-only --config fly.dev.toml
+      - name: Deploy app/frontend to Development
+        run: cd app/frontend && flyctl deploy --remote-only --config fly.dev.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_WEB_DEV }}
+
+  deploy-prod:
+    name: Deploy to Production (web prototype)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'prod'
+    
+    steps:
+      - uses: actions/checkout@v4
       
-      - name: Deploy to Production
-        if: github.event.inputs.environment == 'prod'
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      - name: Deploy web to Production
         run: cd web && flyctl deploy --remote-only --config fly.prod.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_WEB_PROD }}

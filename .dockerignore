@@ -11,4 +11,5 @@ node_modules/
 .git/
 .DS_Store
 web/
+app/frontend/
 
