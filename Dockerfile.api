@@ -1,28 +1,61 @@
-# 使用官方 Python 运行时作为父镜像
-FROM python:3.11-slim
+# Research Agent RAG API - Production Dockerfile
+# Build: docker build -f Dockerfile.api -t research-rag-api .
+# Run: docker run -p 8000:8000 research-rag-api
 
-# 设置工作目录
+FROM python:3.11-slim AS builder
+
 WORKDIR /app
 
-# 安装系统依赖 (如果需要编译某些 Python 包)
-RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# 复制项目文件
-COPY . .
+# Copy backend package files (pyproject.toml needs README.md)
+COPY app/backend/pyproject.toml app/backend/README.md app/backend/
+COPY app/backend/src app/backend/src/
 
-# 安装项目依赖
-# 假设根目录有 pyproject.toml 或 setup.py，使用 pip install . 安装单体仓库
-RUN pip install --no-cache-dir .
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    cd app/backend && pip install --no-cache-dir .
 
-# 暴露端口 (FastAPI 默认 8000)
+# --- Production Stage ---
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY app/backend/src /app/src
+COPY app/backend/alembic /app/alembic
+COPY app/backend/alembic.ini /app/alembic.ini
+
+# Create uploads directory (will be mounted as Fly Volume)
+RUN mkdir -p /data/uploads && chmod 755 /data/uploads
+
+# Set Python path
+ENV PYTHONPATH=/app/src
+ENV UPLOAD_DIR=/data/uploads
+
+# Expose port
 EXPOSE 8000
 
-# 设置环境变量
-ENV MODULE_NAME="apps.api.app.main"
-ENV VARIABLE_NAME="app"
-ENV PORT="8000"
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# 启动命令 (根据你的应用结构调整)
-# 假设 apps/api/app 包含 main.py 或 __init__.py 中有 app 对象
-CMD ["uvicorn", "apps.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start script: run migrations then start server
+COPY app/backend/scripts/start-prod.sh /app/start-prod.sh
+RUN chmod +x /app/start-prod.sh
 
+CMD ["/app/start-prod.sh"]

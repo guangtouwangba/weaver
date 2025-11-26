@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     @property
     def async_database_url(self) -> str:
-        """Ensure database URL uses asyncpg driver."""
+        """Ensure database URL uses asyncpg driver and compatible SSL params."""
         url = self.database_url
         # Convert postgresql:// to postgresql+asyncpg://
         if url.startswith("postgresql://"):
@@ -46,6 +46,12 @@ class Settings(BaseSettings):
         # Convert postgres:// to postgresql+asyncpg://
         elif url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        
+        # asyncpg doesn't support 'sslmode', convert to 'ssl'
+        # sslmode=require -> ssl=require, sslmode=disable -> ssl=disable
+        if "sslmode=" in url:
+            url = url.replace("sslmode=", "ssl=")
+        
         return url
 
     # OpenRouter API
