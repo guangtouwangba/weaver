@@ -166,19 +166,35 @@ export default function StudioPage() {
     tags?: string[];
     timestamp?: string;
     sourceId?: string;
+    connections?: string[]; // Array of target node IDs
   }
 
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([
-    { id: 'c1', type: 'card', title: 'SOURCE PDF', content: 'Attention Is All You Need', x: 0, y: 0, color: 'white' },
-    { id: 'c2', type: 'card', title: 'Self-Attention', content: 'The core mechanism that allows the model to weigh the importance of different words in a sequence.', x: 400, y: 100, color: 'blue', tags: ['#transformer', '#nlp'] }
+    { id: 'c1', type: 'card', title: 'SOURCE PDF', content: 'Attention Is All You Need', x: 100, y: 200, color: 'white', connections: ['c2'] },
+    { id: 'c2', type: 'card', title: 'Self-Attention', content: 'The core mechanism that allows the model to weigh the importance of different words in a sequence.', x: 500, y: 150, color: 'blue', tags: ['#transformer', '#nlp'] }
   ]);
 
   // --- Infinite Canvas State ---
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [connectingNodeId, setConnectingNodeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null); // Format: "sourceId-targetId"
+  const [tempLineEnd, setTempLineEnd] = useState<{ x: number, y: number } | null>(null);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const mousePos = useRef({ x: 0, y: 0 }); // Current mouse pos in screen space
+  const dragStartPos = useRef<{ x: number, y: number } | null>(null); // For threshold check
+  const viewportRef = useRef(viewport); // Ref to access latest viewport in event handlers
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Keep viewportRef in sync
+  useEffect(() => {
+    viewportRef.current = viewport;
+  }, [viewport]);
 
   // --- Interaction State ---
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
@@ -195,7 +211,7 @@ export default function StudioPage() {
   // --- Canvas Copilot State ---
   const [isCanvasAiOpen, setIsCanvasAiOpen] = useState(false);
   const [canvasAiQuery, setCanvasAiQuery] = useState('');
-  
+
   // --- Refs ---
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const leftColumnRef = useRef<HTMLDivElement>(null);
@@ -261,9 +277,11 @@ export default function StudioPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !e.repeat && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-        // Prevent scrolling when hitting space
         e.preventDefault(); 
         setIsSpacePressed(true);
+      }
+      if (e.key === 'Shift') {
+        setIsShiftPressed(true);
       }
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault();
@@ -280,6 +298,10 @@ export default function StudioPage() {
         setIsSpacePressed(false);
         setIsPanning(false);
       }
+      if (e.key === 'Shift') {
+        setIsShiftPressed(false);
+        setConnectingNodeId(null); // Cancel connection if Shift released? Maybe keep it. Let's keep it for now.
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -289,6 +311,45 @@ export default function StudioPage() {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // --- Canvas Wheel Handler (Non-passive for preventDefault) ---
+  useEffect(() => {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      
+      const currentViewport = viewportRef.current;
+      
+      // Zoom with Ctrl/Cmd + Wheel
+      if (e.metaKey || e.ctrlKey) {
+        const zoomSensitivity = 0.001;
+        const delta = -e.deltaY * zoomSensitivity;
+        const newScale = Math.min(Math.max(0.1, currentViewport.scale * (1 + delta)), 5);
+        
+        const rect = canvasElement.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const canvasX = (mouseX - currentViewport.x) / currentViewport.scale;
+        const canvasY = (mouseY - currentViewport.y) / currentViewport.scale;
+        const newX = mouseX - canvasX * newScale;
+        const newY = mouseY - canvasY * newScale;
+
+        setViewport({ x: newX, y: newY, scale: newScale });
+      } else {
+        // Pan with Wheel
+        setViewport(prev => ({ ...prev, x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+      }
+    };
+
+    // Add non-passive event listener
+    canvasElement.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      canvasElement.removeEventListener('wheel', handleWheel);
+    };
+  }, []); // Empty dependency array - uses ref for latest viewport
 
   // --- Resize Logic ---
   const handleVerticalMouseDown = useCallback((e: React.MouseEvent) => {
@@ -555,8 +616,8 @@ export default function StudioPage() {
           <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', position: 'relative', bgcolor: '#000' }}>
              {/* Player Area */}
             <Box sx={{ height: '45%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', borderBottom: '1px solid #333' }}>
-              <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'grey.500' }}>[ Video Placeholder: {title} ]</Typography></Box>
-              <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}><Slider size="small" defaultValue={30} sx={{ color: '#fff', mb: 1 }} /><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}><Box sx={{ display: 'flex', gap: 2 }}><Play size={20} fill="currentColor" /><Volume2 size={20} /></Box><Typography variant="caption">12:30 / {duration}</Typography></Box></Box>
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'grey.500' }}>[ Video Placeholder: {title} ]</Typography></Box>
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}><Slider size="small" defaultValue={30} sx={{ color: '#fff', mb: 1 }} /><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}><Box sx={{ display: 'flex', gap: 2 }}><Play size={20} fill="currentColor" /><Volume2 size={20} /></Box><Typography variant="caption">12:30 / {duration}</Typography></Box></Box>
             </Box>
 
             {/* Transcript Area */}
@@ -711,61 +772,83 @@ export default function StudioPage() {
               userSelect: 'none'   // Prevent text selection while dragging
             }}
             onMouseDown={(e) => {
-                // Start panning if Space is pressed OR Middle Mouse Button
-                if (isSpacePressed || e.button === 1 || e.button === 0) {
-                   // If left click (button 0), we only pan if space is pressed OR if we clicked directly on the background
-                   // But since we bubble up, we assume if we reached here, the node didn't stop propagation.
-                   // However, for "Click to select text", we might want to be careful.
-                   // Excalidraw logic: Space = Force Pan. 
-                   // No Space + Left Click = Pan ONLY if target is not interactive.
-                   // But here we put StopPropagation on Nodes, so any Left Click reaching here is background.
-                   
+                // Only start panning if:
+                // 1. Space is pressed (force pan mode)
+                // 2. Middle mouse button
+                // 3. Left click on empty background (not on a node - nodes stopPropagation)
+                if (isSpacePressed || e.button === 1) {
+                   setIsPanning(true);
+                   lastMousePos.current = { x: e.clientX, y: e.clientY };
+                } else if (e.button === 0) {
+                   // Left click on background - deselect, but DON'T pan (let user marquee select in future)
+                   setSelectedNodeId(null);
+                   // For now, also allow panning on background drag
                    setIsPanning(true);
                    lastMousePos.current = { x: e.clientX, y: e.clientY };
                 }
             }}
             onMouseMove={(e) => {
-                if (isPanning) {
+                mousePos.current = { x: e.clientX, y: e.clientY };
+                
+                // Update temp line end position when connecting
+                if (connectingNodeId && canvasRef.current) {
+                    const rect = canvasRef.current.getBoundingClientRect();
+                    const canvasX = (e.clientX - rect.left - viewport.x) / viewport.scale;
+                    const canvasY = (e.clientY - rect.top - viewport.y) / viewport.scale;
+                    // Use ref to avoid infinite re-renders, then force single update
+                    mousePos.current = { x: canvasX, y: canvasY };
+                    // Only update state occasionally to avoid performance issues
+                    requestAnimationFrame(() => {
+                        setTempLineEnd({ x: mousePos.current.x, y: mousePos.current.y });
+                    });
+                    return; // Don't process other mouse move logic when connecting
+                }
+                
+                if (draggingNodeId) {
+                    // Calculate total movement since drag start
+                    if (dragStartPos.current) {
+                        const moveX = Math.abs(e.clientX - dragStartPos.current.x);
+                        const moveY = Math.abs(e.clientY - dragStartPos.current.y);
+                        // Threshold check: only move if dragged > 3px
+                        if (moveX < 3 && moveY < 3) return;
+                        
+                        // Clear start pos once threshold met to avoid checking again
+                        dragStartPos.current = null; 
+                    }
+
+                    // Dragging Node logic (Canvas Space)
+                    const dx = (e.clientX - lastMousePos.current.x) / viewport.scale;
+                    const dy = (e.clientY - lastMousePos.current.y) / viewport.scale;
+                    
+                    setCanvasNodes(prev => prev.map(node => 
+                        node.id === draggingNodeId 
+                            ? { ...node, x: node.x + dx, y: node.y + dy }
+                            : node
+                    ));
+                    
+                    lastMousePos.current = { x: e.clientX, y: e.clientY };
+                } else if (isPanning && !draggingNodeId) {
+                    // Panning Viewport logic (Screen Space) - only if not dragging a node
                     const dx = e.clientX - lastMousePos.current.x;
                     const dy = e.clientY - lastMousePos.current.y;
                     setViewport(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
                     lastMousePos.current = { x: e.clientX, y: e.clientY };
                 }
             }}
-            onMouseUp={() => setIsPanning(false)}
-            onMouseLeave={() => setIsPanning(false)}
-            onWheel={(e) => {
-                e.preventDefault();
-                // Zoom with Ctrl/Cmd + Wheel OR Pinch (Ctrl usually implicit in trackpad zoom on some browsers)
-                if (e.metaKey || e.ctrlKey) {
-                    const zoomSensitivity = 0.001;
-                    const delta = -e.deltaY * zoomSensitivity;
-                    const newScale = Math.min(Math.max(0.1, viewport.scale * (1 + delta)), 5);
-                    
-                    // ZOOM TO CURSOR ALGORITHM
-                    // 1. Get cursor position relative to the canvas container (Screen Space)
-                    const rect = canvasRef.current?.getBoundingClientRect();
-                    if (!rect) return;
-                    
-                    const mouseX = e.clientX - rect.left;
-                    const mouseY = e.clientY - rect.top;
-
-                    // 2. Calculate where that point is in the Canvas Space BEFORE zoom
-                    // canvasX = (mouseX - oldTranslateX) / oldScale
-                    const canvasX = (mouseX - viewport.x) / viewport.scale;
-                    const canvasY = (mouseY - viewport.y) / viewport.scale;
-
-                    // 3. Calculate new Translate to keep that Canvas point under the Mouse
-                    // mouseX = canvasX * newScale + newTranslateX
-                    // => newTranslateX = mouseX - canvasX * newScale
-                    const newX = mouseX - canvasX * newScale;
-                    const newY = mouseY - canvasY * newScale;
-
-                    setViewport({ x: newX, y: newY, scale: newScale });
-                } else {
-                    // Pan with Wheel (Standard Scrolling)
-                    setViewport(prev => ({ ...prev, x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
-                }
+            onMouseUp={() => {
+                setIsPanning(false);
+                setDraggingNodeId(null);
+                dragStartPos.current = null;
+                // Cancel connection if mouse released on empty space (not on a card)
+                setConnectingNodeId(null);
+                setTempLineEnd(null);
+            }}
+            onMouseLeave={() => {
+                setIsPanning(false);
+                setDraggingNodeId(null);
+                setConnectingNodeId(null);
+                setTempLineEnd(null);
+                dragStartPos.current = null;
             }}
             onDragOver={(e) => {
               e.preventDefault();
@@ -831,12 +914,105 @@ export default function StudioPage() {
                 // Important: Let mouse events pass through to parent for panning, but children (nodes) capture their own
               }}
             >
+              {/* SVG Connections - Render lines between connected nodes */}
+              <svg style={{ position: 'absolute', top: 0, left: 0, width: 10000, height: 10000, overflow: 'visible', pointerEvents: 'none' }}>
+                {/* Existing Connections */}
+                {canvasNodes.map(node => {
+                    if (!node.connections || node.connections.length === 0) return null;
+                    return node.connections.map(targetId => {
+                        const target = canvasNodes.find(n => n.id === targetId);
+                        if (!target) return null;
+                        
+                        // Start from right edge of source, end at left edge of target
+                        const x1 = node.x + 280; // Right edge (card width)
+                        const y1 = node.y + 60;  // Vertical center approx
+                        const x2 = target.x;     // Left edge
+                        const y2 = target.y + 60;
+                        
+                        const dx = Math.abs(x2 - x1);
+                        const controlX = Math.max(dx * 0.4, 50);
+
+                        return (
+                            <path 
+                                key={`${node.id}-${targetId}`}
+                                d={`M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`}
+                                stroke={selectedNodeId === node.id || selectedNodeId === targetId ? "#3B82F6" : "#94A3B8"} 
+                                strokeWidth="2" 
+                                fill="none" 
+                            />
+                        );
+                    });
+                })}
+
+                {/* Temporary Connection Line (When Dragging) */}
+                {connectingNodeId && tempLineEnd && (
+                    (() => {
+                        const sourceNode = canvasNodes.find(n => n.id === connectingNodeId);
+                        if (!sourceNode) return null;
+
+                        const x1 = sourceNode.x + 280; // Right edge
+                        const y1 = sourceNode.y + 50;
+                        const x2 = tempLineEnd.x;
+                        const y2 = tempLineEnd.y;
+
+                        const dx = Math.abs(x2 - x1);
+                        const controlX = Math.max(dx * 0.5, 50);
+
+                        return (
+                            <path 
+                                d={`M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`}
+                                stroke="#3B82F6" 
+                                strokeWidth="2" 
+                                fill="none" 
+                                strokeDasharray="5,5" 
+                            />
+                        );
+                    })()
+                )}
+              </svg>
+
               {/* Render Canvas Nodes */}
               {canvasNodes.map(node => (
                 <Paper 
                   key={node.id}
-                  elevation={3} 
-                  onMouseDown={(e) => e.stopPropagation()} // Prevent panning when clicking on a node
+                  elevation={selectedNodeId === node.id ? 8 : 3} 
+                  onMouseDown={(e) => {
+                      e.stopPropagation(); // CRITICAL: Prevent parent from starting pan
+                      
+                      // Only start dragging if NOT clicking on the connection handle
+                      if (!(e.target as HTMLElement).closest('.connection-handle')) {
+                          setDraggingNodeId(node.id);
+                          setSelectedNodeId(node.id);
+                          lastMousePos.current = { x: e.clientX, y: e.clientY };
+                          dragStartPos.current = { x: e.clientX, y: e.clientY };
+                      }
+                  }}
+                  onMouseUp={(e) => {
+                      e.stopPropagation();
+                      
+                      // Handle connection completion - drop on this card
+                      if (connectingNodeId && connectingNodeId !== node.id) {
+                          console.log('Completing connection from', connectingNodeId, 'to', node.id);
+                          setCanvasNodes(prev => prev.map(n => {
+                              if (n.id === connectingNodeId) {
+                                  const existingConnections = n.connections || [];
+                                  if (existingConnections.includes(node.id)) {
+                                      return n;
+                                  }
+                                  return { ...n, connections: [...existingConnections, node.id] };
+                              }
+                              return n;
+                          }));
+                      }
+                      
+                      // Clean up all states
+                      setConnectingNodeId(null);
+                      setTempLineEnd(null);
+                      setDraggingNodeId(null);
+                      dragStartPos.current = null;
+                  }}
+                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
                   sx={{ 
                     position: 'absolute', 
                     top: node.y, 
@@ -844,22 +1020,75 @@ export default function StudioPage() {
                     width: 280, 
                     p: node.type === 'card' && node.title === 'SOURCE PDF' ? 2 : 0, 
                     borderRadius: 4, 
-                    border: '1px solid', 
-                    borderColor: node.color === 'blue' ? '#3B82F6' : 'divider',
-                    overflow: 'hidden',
-                    cursor: 'default',
-                    transition: 'box-shadow 0.2s',
+                    border: '2px solid', 
+                    borderColor: connectingNodeId && connectingNodeId !== node.id 
+                        ? '#10B981' // Green highlight when can receive connection
+                        : (selectedNodeId === node.id ? 'primary.main' : (node.color === 'blue' ? '#3B82F6' : 'transparent')),
+                    overflow: 'visible', // Allow handle to overflow
+                    cursor: isSpacePressed ? 'grab' : 'grab',
+                    transition: 'box-shadow 0.2s, border-color 0.2s',
+                    '&:active': { cursor: 'grabbing' },
                     '&:hover': { boxShadow: 6 }
                   }}
                 >
+                  {/* Connection Handle - Right side */}
+                  <Box
+                    className="connection-handle"
+                    onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setConnectingNodeId(node.id);
+                        mousePos.current = { x: e.clientX, y: e.clientY };
+                    }}
+                    sx={{
+                        position: 'absolute',
+                        right: -8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 16,
+                        height: 16,
+                        borderRadius: '50%',
+                        bgcolor: '#3B82F6',
+                        border: '2px solid white',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        cursor: 'crosshair',
+                        opacity: (hoveredNodeId === node.id || connectingNodeId === node.id) ? 1 : 0,
+                        transition: 'opacity 0.2s, transform 0.2s',
+                        '&:hover': {
+                            transform: 'translateY(-50%) scale(1.2)',
+                            bgcolor: '#2563EB'
+                        },
+                        zIndex: 10
+                    }}
+                  />
+                  
+                  {/* Left Connection Handle - for receiving */}
+                  {connectingNodeId && connectingNodeId !== node.id && (
+                    <Box
+                      sx={{
+                          position: 'absolute',
+                          left: -8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          bgcolor: '#10B981',
+                          border: '2px solid white',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                          animation: 'pulse 1s infinite',
+                          zIndex: 10
+                      }}
+                    />
+                  )}
+                  
                   {node.title === 'SOURCE PDF' ? (
-                    <>
-                      <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
+                    <Box sx={{ p: 2 }}>
+              <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">{node.content}</Typography></Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
-                    </>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
+                    </Box>
                   ) : (
-                    <>
+                    <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
                       <Box sx={{ height: 6, bgcolor: node.color === 'blue' ? '#3B82F6' : 'grey.300' }} />
                       <Box sx={{ p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{node.title}</Typography>
@@ -883,15 +1112,13 @@ export default function StudioPage() {
                       <Box sx={{ position: 'absolute', bottom: 12, right: 12 }}>
                         <Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'pink.100', color: 'pink.500' }}>AI</Avatar>
                       </Box>
-                    </>
+                    </Box>
                   )}
-                </Paper>
+            </Paper>
               ))}
 
               {/* SVG Connections - also in transformed space */}
-              <svg style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible', pointerEvents: 'none' }}>
-                <path d="M 280 100 C 340 100, 340 150, 400 150" stroke="#CBD5E1" strokeWidth="2" fill="none" strokeDasharray="5,5" />
-              </svg>
+              {/* Removed static SVG example */}
             </Box>
             
             {/* Context Drop Zone - Only visible when dragging */}
@@ -959,7 +1186,7 @@ export default function StudioPage() {
                     />
                     <IconButton size="small" onClick={() => { setIsCanvasAiOpen(false); setCanvasAiQuery(''); }} color="primary"><ArrowRight size={16} /></IconButton>
                   </Box>
-                </Paper>
+            </Paper>
               )}
 
               <IconButton 
