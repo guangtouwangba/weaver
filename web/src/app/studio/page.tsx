@@ -189,12 +189,22 @@ export default function StudioPage() {
   const mousePos = useRef({ x: 0, y: 0 }); // Current mouse pos in screen space
   const dragStartPos = useRef<{ x: number, y: number } | null>(null); // For threshold check
   const viewportRef = useRef(viewport); // Ref to access latest viewport in event handlers
+  const selectedNodeIdRef = useRef(selectedNodeId); // Ref for keyboard handler
+  const selectedConnectionIdRef = useRef(selectedConnectionId); // Ref for keyboard handler
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Keep viewportRef in sync
+  // Keep refs in sync with state
   useEffect(() => {
     viewportRef.current = viewport;
   }, [viewport]);
+  
+  useEffect(() => {
+    selectedNodeIdRef.current = selectedNodeId;
+  }, [selectedNodeId]);
+  
+  useEffect(() => {
+    selectedConnectionIdRef.current = selectedConnectionId;
+  }, [selectedConnectionId]);
 
   // --- Interaction State ---
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
@@ -290,6 +300,42 @@ export default function StudioPage() {
       if ((e.metaKey || e.ctrlKey) && e.key === '.') {
         e.preventDefault();
         setCenterVisible(prev => !prev);
+      }
+      
+      // Delete selected node or connection
+      if ((e.key === 'Delete' || e.key === 'Backspace') && 
+          (e.target as HTMLElement).tagName !== 'INPUT' && 
+          (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        
+        const currentSelectedConnectionId = selectedConnectionIdRef.current;
+        const currentSelectedNodeId = selectedNodeIdRef.current;
+        
+        if (currentSelectedConnectionId) {
+          // Delete connection - split only on last '-' since node ids can contain '-'
+          const lastDashIndex = currentSelectedConnectionId.lastIndexOf('-');
+          const sourceId = currentSelectedConnectionId.substring(0, lastDashIndex);
+          const targetId = currentSelectedConnectionId.substring(lastDashIndex + 1);
+          setCanvasNodes(prev => prev.map(node => {
+            if (node.id === sourceId && node.connections) {
+              return { ...node, connections: node.connections.filter(id => id !== targetId) };
+            }
+            return node;
+          }));
+          setSelectedConnectionId(null);
+        } else if (currentSelectedNodeId) {
+          // Delete node and all its connections (both incoming and outgoing)
+          setCanvasNodes(prev => {
+            // Remove the node
+            const filtered = prev.filter(node => node.id !== currentSelectedNodeId);
+            // Remove any connections pointing to this node
+            return filtered.map(node => ({
+              ...node,
+              connections: node.connections?.filter(id => id !== currentSelectedNodeId)
+            }));
+          });
+          setSelectedNodeId(null);
+        }
       }
     };
 
@@ -782,6 +828,7 @@ export default function StudioPage() {
                 } else if (e.button === 0) {
                    // Left click on background - deselect, but DON'T pan (let user marquee select in future)
                    setSelectedNodeId(null);
+                   setSelectedConnectionId(null);
                    // For now, also allow panning on background drag
                    setIsPanning(true);
                    lastMousePos.current = { x: e.clientX, y: e.clientY };
@@ -915,7 +962,9 @@ export default function StudioPage() {
               }}
             >
               {/* SVG Connections - Render lines between connected nodes */}
-              <svg style={{ position: 'absolute', top: 0, left: 0, width: 10000, height: 10000, overflow: 'visible', pointerEvents: 'none' }}>
+              <svg style={{ position: 'absolute', top: 0, left: 0, width: 10000, height: 10000, overflow: 'visible', pointerEvents: 'visiblePainted' }}>
+                {/* Background rect to pass through events */}
+                <rect width="10000" height="10000" fill="transparent" style={{ pointerEvents: 'none' }} />
                 {/* Existing Connections */}
                 {canvasNodes.map(node => {
                     if (!node.connections || node.connections.length === 0) return null;
@@ -931,15 +980,76 @@ export default function StudioPage() {
                         
                         const dx = Math.abs(x2 - x1);
                         const controlX = Math.max(dx * 0.4, 50);
+                        const connectionId = `${node.id}-${targetId}`;
+                        const isSelected = selectedConnectionId === connectionId;
 
                         return (
-                            <path 
-                                key={`${node.id}-${targetId}`}
+                            <g key={connectionId}>
+                              {/* Invisible wider path for easier clicking */}
+                              <path 
                                 d={`M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`}
-                                stroke={selectedNodeId === node.id || selectedNodeId === targetId ? "#3B82F6" : "#94A3B8"} 
-                                strokeWidth="2" 
-                                fill="none" 
-                            />
+                                stroke="transparent" 
+                                strokeWidth="12" 
+                                fill="none"
+                                style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedConnectionId(connectionId);
+                                  setSelectedNodeId(null);
+                                }}
+                              />
+                              {/* Visible path */}
+                              <path 
+                                d={`M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`}
+                                stroke={isSelected ? "#EF4444" : selectedNodeId === node.id || selectedNodeId === targetId ? "#3B82F6" : "#94A3B8"} 
+                                strokeWidth={isSelected ? 3 : 2}
+                                fill="none"
+                                style={{ pointerEvents: 'none' }}
+                              />
+                              {/* Delete indicator when selected - clickable */}
+                              {isSelected && (
+                                <g 
+                                  style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                                  onMouseDown={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    // Delete this connection - split only on last '-'
+                                    const lastDashIndex = connectionId.lastIndexOf('-');
+                                    const srcId = connectionId.substring(0, lastDashIndex);
+                                    const tgtId = connectionId.substring(lastDashIndex + 1);
+                                    console.log('Deleting connection from', srcId, 'to', tgtId);
+                                    setCanvasNodes(prev => prev.map(n => {
+                                      if (n.id === srcId && n.connections) {
+                                        return { ...n, connections: n.connections.filter(id => id !== tgtId) };
+                                      }
+                                      return n;
+                                    }));
+                                    setSelectedConnectionId(null);
+                                  }}
+                                >
+                                  <circle 
+                                    cx={(x1 + x2) / 2} 
+                                    cy={(y1 + y2) / 2} 
+                                    r="12" 
+                                    fill="#EF4444"
+                                  />
+                                  <text 
+                                    x={(x1 + x2) / 2} 
+                                    y={(y1 + y2) / 2 + 1} 
+                                    textAnchor="middle" 
+                                    dominantBaseline="middle" 
+                                    fill="white" 
+                                    fontSize="14"
+                                    fontWeight="bold"
+                                  >
+                                    ×
+                                  </text>
+                                </g>
+                              )}
+                            </g>
                         );
                     });
                 })}
@@ -983,6 +1093,7 @@ export default function StudioPage() {
                       if (!(e.target as HTMLElement).closest('.connection-handle')) {
                           setDraggingNodeId(node.id);
                           setSelectedNodeId(node.id);
+                          setSelectedConnectionId(null); // Deselect any connection
                           lastMousePos.current = { x: e.clientX, y: e.clientY };
                           dragStartPos.current = { x: e.clientX, y: e.clientY };
                       }
@@ -1031,6 +1142,46 @@ export default function StudioPage() {
                     '&:hover': { boxShadow: 6 }
                   }}
                 >
+                  {/* Delete Button - Top right corner when selected */}
+                  {selectedNodeId === node.id && (
+                    <Box
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Delete node and all its connections
+                        setCanvasNodes(prev => {
+                          const filtered = prev.filter(n => n.id !== node.id);
+                          return filtered.map(n => ({
+                            ...n,
+                            connections: n.connections?.filter(id => id !== node.id)
+                          }));
+                        });
+                        setSelectedNodeId(null);
+                      }}
+                      sx={{
+                        position: 'absolute',
+                        right: -10,
+                        top: -10,
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        bgcolor: '#EF4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        zIndex: 20,
+                        transition: 'transform 0.2s, background-color 0.2s',
+                        '&:hover': {
+                          bgcolor: '#DC2626',
+                          transform: 'scale(1.1)'
+                        }
+                      }}
+                    >
+                      <Typography sx={{ color: 'white', fontSize: 16, fontWeight: 'bold', lineHeight: 1 }}>×</Typography>
+                    </Box>
+                  )}
+                  
                   {/* Connection Handle - Right side */}
                   <Box
                     className="connection-handle"
