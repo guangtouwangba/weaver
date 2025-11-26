@@ -164,6 +164,8 @@ export default function StudioPage() {
     y: number;
     color?: string;
     tags?: string[];
+    timestamp?: string;
+    sourceId?: string;
   }
 
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([
@@ -174,6 +176,7 @@ export default function StudioPage() {
   // --- Interaction State ---
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
   const [selectedText, setSelectedText] = useState<string | null>(null);
+  const [isDraggingFromPdf, setIsDraggingFromPdf] = useState(false);
 
   // --- Tab System State ---
   const [tabs, setTabs] = useState<Tab[]>([
@@ -334,17 +337,19 @@ export default function StudioPage() {
     setContextMenu(null);
   };
 
-  const handleCreateCard = (text?: string) => {
+  const handleCreateCard = (text?: string, metadata?: { timestamp?: string; sourceId?: string }) => {
     const contentToUse = text || "The output is computed as a weighted sum of the values."; // Fallback for demo
     const newId = `c-${Date.now()}`;
     const newNode: CanvasNode = {
       id: newId,
       type: 'card',
-      title: 'New Concept',
+      title: metadata?.timestamp ? `Timestamp ${metadata.timestamp}` : 'New Concept',
       content: contentToUse,
       x: 400, // Default center-ish position
       y: 300,
-      color: 'white'
+      color: 'white',
+      timestamp: metadata?.timestamp,
+      sourceId: metadata?.sourceId
     };
 
     setCanvasNodes(prev => [...prev, newNode]);
@@ -469,6 +474,10 @@ export default function StudioPage() {
               onDragStart={(e) => {
                 e.dataTransfer.setData("text/plain", "The output is computed as a weighted sum of the values.");
                 e.dataTransfer.effectAllowed = "copy";
+                setIsDraggingFromPdf(true);
+              }}
+              onDragEnd={() => {
+                setIsDraggingFromPdf(false);
               }}
               sx={{ 
                 bgcolor: '#FFF9C4', 
@@ -514,18 +523,110 @@ export default function StudioPage() {
           </Box>
         )}
         {type === 'video' && (
-          <Box sx={{ bgcolor: '#000', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative' }}>
-            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'grey.500' }}>[ Video Placeholder: {title} ]</Typography></Box>
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}><Slider size="small" defaultValue={30} sx={{ color: '#fff', mb: 1 }} /><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}><Box sx={{ display: 'flex', gap: 2 }}><Play size={20} fill="currentColor" /><Volume2 size={20} /></Box><Typography variant="caption">12:30 / {duration}</Typography></Box></Box>
+          <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', position: 'relative', bgcolor: '#000' }}>
+             {/* Player Area */}
+            <Box sx={{ height: '45%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', borderBottom: '1px solid #333' }}>
+              <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'grey.500' }}>[ Video Placeholder: {title} ]</Typography></Box>
+              <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}><Slider size="small" defaultValue={30} sx={{ color: '#fff', mb: 1 }} /><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}><Box sx={{ display: 'flex', gap: 2 }}><Play size={20} fill="currentColor" /><Volume2 size={20} /></Box><Typography variant="caption">12:30 / {duration}</Typography></Box></Box>
+            </Box>
+
+            {/* Transcript Area */}
+            <Box sx={{ flexGrow: 1, bgcolor: '#fff', display: 'flex', flexDirection: 'column', height: '55%' }}>
+                 <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F9FAFB' }}>
+                    <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><ListIcon size={14} /> Transcript</Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Chip label="English" size="small" sx={{ height: 20, fontSize: 10, bgcolor: '#fff', border: '1px solid', borderColor: 'divider' }} />
+                    </Box>
+                </Box>
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+                    {[
+                        { time: '00:15', text: "Welcome to the course. Today we discuss Transformers." },
+                        { time: '02:30', text: "The attention mechanism is the key component of this architecture." },
+                        { time: '12:30', text: "It allows the model to focus on relevant parts of the input sequence.", highlight: true },
+                        { time: '15:45', text: "Let's look at the mathematical formulation of Self-Attention." }
+                    ].map((item, idx) => (
+                         <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2.5, opacity: item.highlight ? 1 : 0.7, '&:hover': { opacity: 1 } }}>
+                            <Typography variant="caption" sx={{ color: 'primary.main', fontFamily: 'monospace', flexShrink: 0, pt: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>{item.time}</Typography>
+                            <Typography 
+                                variant="body2" 
+                                draggable
+                                onDragStart={(e) => {
+                                    e.dataTransfer.setData("text/plain", item.text);
+                                    e.dataTransfer.setData("application/json", JSON.stringify({ type: 'transcript', text: item.text, timestamp: item.time, sourceId: activeResource.id }));
+                                    e.dataTransfer.effectAllowed = "copy";
+                                    setIsDraggingFromPdf(true);
+                                }}
+                                onDragEnd={() => setIsDraggingFromPdf(false)}
+                                sx={{ 
+                                    cursor: 'grab', 
+                                    bgcolor: item.highlight ? '#EFF6FF' : 'transparent',
+                                    p: item.highlight ? 1 : 0,
+                                    borderRadius: 1,
+                                    border: item.highlight ? '1px solid' : '1px solid transparent',
+                                    borderColor: item.highlight ? 'primary.light' : 'transparent',
+                                    lineHeight: 1.6,
+                                    '&:hover': { bgcolor: '#F3F4F6' }
+                                }}
+                            >
+                                {item.text}
+                            </Typography>
+                         </Box>
+                    ))}
+                </Box>
+            </Box>
           </Box>
         )}
         {type === 'audio' && (
-          <Box sx={{ bgcolor: '#1F2937', flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4 }}>
-            <Box sx={{ width: 120, height: 120, borderRadius: 4, bgcolor: 'primary.main', mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}><Music size={48} color="#fff" /></Box>
-            <Typography variant="h6" sx={{ color: '#fff', mb: 1 }}>{title}</Typography>
-            <Typography variant="body2" sx={{ color: 'grey.400', mb: 4 }}>Added {activeResource.date}</Typography>
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: 40, mb: 4 }}>{[...Array(20)].map((_, i) => (<Box key={i} sx={{ width: 4, height: Math.random() * 40 + 10, bgcolor: i === 10 ? '#fff' : 'grey.600', borderRadius: 2 }} />))}</Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, color: '#fff' }}><SkipBack size={24} /><Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}><Play size={24} fill="currentColor" className="ml-1" /></Box><SkipForward size={24} /></Box>
+          <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', position: 'relative', bgcolor: '#1F2937' }}>
+            {/* Player Area */}
+            <Box sx={{ height: '45%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2, borderBottom: '1px solid #374151' }}>
+              <Box sx={{ width: 80, height: 80, borderRadius: 4, bgcolor: 'primary.main', mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}><Music size={32} color="#fff" /></Box>
+              <Typography variant="subtitle1" sx={{ color: '#fff', mb: 0.5, textAlign: 'center' }}>{title}</Typography>
+              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: 24, mb: 2 }}>{[...Array(20)].map((_, i) => (<Box key={i} sx={{ width: 3, height: Math.random() * 24 + 6, bgcolor: i === 10 ? '#fff' : 'grey.600', borderRadius: 2 }} />))}</Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, color: '#fff' }}><SkipBack size={20} /><Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}><Play size={20} fill="currentColor" className="ml-1" /></Box><SkipForward size={20} /></Box>
+            </Box>
+
+             {/* Transcript Area */}
+            <Box sx={{ flexGrow: 1, bgcolor: '#fff', display: 'flex', flexDirection: 'column', height: '55%' }}>
+                 <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F9FAFB' }}>
+                    <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><ListIcon size={14} /> Transcript</Typography>
+                </Box>
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+                   {[
+                        { time: '00:05', text: "In this episode, we explore the depths of DeepMind's latest research." },
+                        { time: '04:12', text: "Reinforcement learning has shown remarkable results in complex environments." },
+                        { time: '15:00', text: "AlphaGo was a turning point for the field of AI.", highlight: true },
+                        { time: '22:30', text: "The future of AGI depends on generalizable learning algorithms." }
+                    ].map((item, idx) => (
+                         <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2.5, opacity: item.highlight ? 1 : 0.7, '&:hover': { opacity: 1 } }}>
+                            <Typography variant="caption" sx={{ color: 'purple.500', fontFamily: 'monospace', flexShrink: 0, pt: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>{item.time}</Typography>
+                            <Typography 
+                                variant="body2" 
+                                draggable
+                                onDragStart={(e) => {
+                                    e.dataTransfer.setData("text/plain", item.text);
+                                    e.dataTransfer.setData("application/json", JSON.stringify({ type: 'transcript', text: item.text, timestamp: item.time, sourceId: activeResource.id }));
+                                    e.dataTransfer.effectAllowed = "copy";
+                                    setIsDraggingFromPdf(true);
+                                }}
+                                onDragEnd={() => setIsDraggingFromPdf(false)}
+                                sx={{ 
+                                    cursor: 'grab', 
+                                    bgcolor: item.highlight ? '#F5F3FF' : 'transparent',
+                                    p: item.highlight ? 1 : 0,
+                                    borderRadius: 1,
+                                    border: item.highlight ? '1px solid' : '1px solid transparent',
+                                    borderColor: item.highlight ? 'purple.200' : 'transparent',
+                                    lineHeight: 1.6,
+                                    '&:hover': { bgcolor: '#FAF5FF' }
+                                }}
+                            >
+                                {item.text}
+                            </Typography>
+                         </Box>
+                    ))}
+                </Box>
+            </Box>
           </Box>
         )}
         {type === 'link' && (
@@ -574,6 +675,20 @@ export default function StudioPage() {
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
+              // Try parsing JSON metadata first
+              const jsonData = e.dataTransfer.getData("application/json");
+              if (jsonData) {
+                try {
+                  const data = JSON.parse(jsonData);
+                  if (data.type === 'transcript') {
+                    handleCreateCard(data.text, { timestamp: data.timestamp, sourceId: data.sourceId });
+                    return;
+                  }
+                } catch (err) {
+                  console.error("Failed to parse drag data", err);
+                }
+              }
+
               const text = e.dataTransfer.getData("text/plain");
               if (text) {
                 handleCreateCard(text);
@@ -611,6 +726,14 @@ export default function StudioPage() {
                     <Box sx={{ p: 2 }}>
                       <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{node.title}</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, mb: 2 }}>{node.content}</Typography>
+                      
+                      {node.timestamp && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, mb: 2, bgcolor: '#F3F4F6', p: 1, borderRadius: 1, width: 'fit-content', cursor: 'pointer', '&:hover': { bgcolor: '#E5E7EB' } }}>
+                             <PlayCircle size={16} className="text-blue-600" />
+                             <Typography variant="caption" fontWeight="bold" color="primary.main">{node.timestamp}</Typography>
+                          </Box>
+                      )}
+
                       {node.tags && (
                         <Box sx={{ display: 'flex', gap: 1, mb: 0 }}>
                           {node.tags.map(tag => (
@@ -629,7 +752,7 @@ export default function StudioPage() {
 
             <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}><path d="M 320 200 C 450 200, 450 320, 550 320" stroke="#CBD5E1" strokeWidth="2" fill="none" strokeDasharray="5,5" /></svg>
             
-            {/* Context Drop Zone */}
+            {/* Context Drop Zone - Only visible when dragging */}
             <Box 
               onDragOver={(e) => {
                 e.preventDefault();
@@ -643,14 +766,53 @@ export default function StudioPage() {
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation(); // Prevent bubbling to parent
-                const text = e.dataTransfer.getData("text/plain");
-                if (text) {
-                  handleCreateCard(text);
+
+                // Try parsing JSON metadata first
+                const jsonData = e.dataTransfer.getData("application/json");
+                let handled = false;
+                if (jsonData) {
+                    try {
+                        const data = JSON.parse(jsonData);
+                        if (data.type === 'transcript') {
+                            handleCreateCard(data.text, { timestamp: data.timestamp, sourceId: data.sourceId });
+                            handled = true;
+                        }
+                    } catch(e) {}
                 }
+
+                if (!handled) {
+                    const text = e.dataTransfer.getData("text/plain");
+                    if (text) {
+                      handleCreateCard(text);
+                    }
+                }
+
+                // Reset styles
                 e.currentTarget.style.borderColor = !centerVisible ? 'primary.main' : 'divider';
                 e.currentTarget.style.backgroundColor = !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)';
+                setIsDraggingFromPdf(false);
               }}
-              sx={{ position: 'absolute', bottom: 40, left: '50%', transform: 'translateX(-50%)', width: 400, height: 60, border: '2px dashed', borderColor: !centerVisible ? 'primary.main' : 'divider', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, bgcolor: !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)', backdropFilter: 'blur(4px)', transition: 'all 0.3s ease' }}
+              sx={{ 
+                position: 'absolute', 
+                bottom: 40, 
+                left: '50%', 
+                transform: isDraggingFromPdf ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(100px)', 
+                opacity: isDraggingFromPdf ? 1 : 0,
+                pointerEvents: isDraggingFromPdf ? 'auto' : 'none',
+                width: 400, 
+                height: 60, 
+                border: '2px dashed', 
+                borderColor: !centerVisible ? 'primary.main' : 'divider', 
+                borderRadius: 4, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: 1, 
+                bgcolor: !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)', 
+                backdropFilter: 'blur(4px)', 
+                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                zIndex: 20 
+              }}
             >
               <Plus size={16} className={!centerVisible ? "text-primary-600" : "text-gray-400"} /><Typography variant="body2" color={!centerVisible ? "primary.main" : "text.secondary"}>{!centerVisible ? "Drop directly from PDF" : "Drop cards here to create nodes"}</Typography>
             </Box>
@@ -900,13 +1062,6 @@ export default function StudioPage() {
 
             {/* Right Header Actions */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, pl: 2 }}>
-              {/* Direct Drag Indicator - Global */}
-              {!centerVisible && activeTabId.startsWith('t') && tabs.find(t => t.id === activeTabId)?.type === 'canvas' && (
-                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.5, borderRadius: 1, bgcolor: 'blue.50', color: 'blue.600', border: '1px dashed', borderColor: 'blue.200' }}>
-                   <ArrowRight size={12} />
-                   <Typography variant="caption" fontWeight="600" sx={{ whiteSpace: 'nowrap' }}>Drag Active</Typography>
-                 </Box>
-              )}
               <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ whiteSpace: 'nowrap' }}>SAVED</Typography>
             </Box>
           </Box>
