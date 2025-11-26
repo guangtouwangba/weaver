@@ -19,15 +19,15 @@ primary_region = 'sjc'
 [http_service]
   internal_port = 8000
   force_https = true
-  # 生产环境：保持运行以确保快速响应
-  auto_stop_machines = 'suspend'
+  # MVP 阶段：自动休眠节省成本，首次请求会有冷启动延迟 (~2-5s)
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ['app']
 
 [[vm]]
-  # 生产环境使用更大配置
-  memory = '1gb'
+  # MVP 阶段使用最小配置，足够处理少量用户
+  memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
 

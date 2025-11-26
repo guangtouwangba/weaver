@@ -25,8 +25,8 @@ primary_region = 'sjc'
   processes = ['app']
 
 [[vm]]
-  # 开发环境使用较小的配置以节省成本
-  memory = '512mb'
+  # 开发环境使用最小配置
+  memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
 
