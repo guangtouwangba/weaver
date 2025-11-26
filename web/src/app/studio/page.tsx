@@ -169,9 +169,16 @@ export default function StudioPage() {
   }
 
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([
-    { id: 'c1', type: 'card', title: 'SOURCE PDF', content: 'Attention Is All You Need', x: 80, y: 150, color: 'white' },
-    { id: 'c2', type: 'card', title: 'Self-Attention', content: 'The core mechanism that allows the model to weigh the importance of different words in a sequence.', x: 550, y: 280, color: 'blue', tags: ['#transformer', '#nlp'] }
+    { id: 'c1', type: 'card', title: 'SOURCE PDF', content: 'Attention Is All You Need', x: 0, y: 0, color: 'white' },
+    { id: 'c2', type: 'card', title: 'Self-Attention', content: 'The core mechanism that allows the model to weigh the importance of different words in a sequence.', x: 400, y: 100, color: 'blue', tags: ['#transformer', '#nlp'] }
   ]);
+
+  // --- Infinite Canvas State ---
+  const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const lastMousePos = useRef({ x: 0, y: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   // --- Interaction State ---
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
@@ -253,6 +260,11 @@ export default function StudioPage() {
   // --- Global Keyboard Shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+        // Prevent scrolling when hitting space
+        e.preventDefault(); 
+        setIsSpacePressed(true);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault();
         setLeftVisible(prev => !prev);
@@ -262,8 +274,20 @@ export default function StudioPage() {
         setCenterVisible(prev => !prev);
       }
     };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+        setIsPanning(false);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, []);
 
   // --- Resize Logic ---
@@ -337,16 +361,21 @@ export default function StudioPage() {
     setContextMenu(null);
   };
 
-  const handleCreateCard = (text?: string, metadata?: { timestamp?: string; sourceId?: string }) => {
+  const handleCreateCard = (text?: string, metadata?: { timestamp?: string; sourceId?: string }, position?: { x: number, y: number }) => {
     const contentToUse = text || "The output is computed as a weighted sum of the values."; // Fallback for demo
     const newId = `c-${Date.now()}`;
+    
+    // Calculate center of viewport if no position provided
+    const centerX = position ? position.x : (-viewport.x + (canvasRef.current?.clientWidth || 800) / 2) / viewport.scale;
+    const centerY = position ? position.y : (-viewport.y + (canvasRef.current?.clientHeight || 600) / 2) / viewport.scale;
+
     const newNode: CanvasNode = {
       id: newId,
       type: 'card',
       title: metadata?.timestamp ? `Timestamp ${metadata.timestamp}` : 'New Concept',
       content: contentToUse,
-      x: 400, // Default center-ish position
-      y: 300,
+      x: centerX - 140, // Center the card (width 280)
+      y: centerY - 100,
       color: 'white',
       timestamp: metadata?.timestamp,
       sourceId: metadata?.sourceId
@@ -671,134 +700,209 @@ export default function StudioPage() {
       default:
         return (
           <Box 
-            sx={{ flexGrow: 1, bgcolor: '#F9FAFB', position: 'relative', overflow: 'hidden' }}
-            onDragOver={(e) => e.preventDefault()}
+            ref={canvasRef}
+            sx={{ 
+              flexGrow: 1, 
+              bgcolor: '#F9FAFB', 
+              position: 'relative', 
+              overflow: 'hidden',
+              cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
+              touchAction: 'none', // Prevent native browser zooming
+              userSelect: 'none'   // Prevent text selection while dragging
+            }}
+            onMouseDown={(e) => {
+                // Start panning if Space is pressed OR Middle Mouse Button
+                if (isSpacePressed || e.button === 1 || e.button === 0) {
+                   // If left click (button 0), we only pan if space is pressed OR if we clicked directly on the background
+                   // But since we bubble up, we assume if we reached here, the node didn't stop propagation.
+                   // However, for "Click to select text", we might want to be careful.
+                   // Excalidraw logic: Space = Force Pan. 
+                   // No Space + Left Click = Pan ONLY if target is not interactive.
+                   // But here we put StopPropagation on Nodes, so any Left Click reaching here is background.
+                   
+                   setIsPanning(true);
+                   lastMousePos.current = { x: e.clientX, y: e.clientY };
+                }
+            }}
+            onMouseMove={(e) => {
+                if (isPanning) {
+                    const dx = e.clientX - lastMousePos.current.x;
+                    const dy = e.clientY - lastMousePos.current.y;
+                    setViewport(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
+                    lastMousePos.current = { x: e.clientX, y: e.clientY };
+                }
+            }}
+            onMouseUp={() => setIsPanning(false)}
+            onMouseLeave={() => setIsPanning(false)}
+            onWheel={(e) => {
+                e.preventDefault();
+                // Zoom with Ctrl/Cmd + Wheel OR Pinch (Ctrl usually implicit in trackpad zoom on some browsers)
+                if (e.metaKey || e.ctrlKey) {
+                    const zoomSensitivity = 0.001;
+                    const delta = -e.deltaY * zoomSensitivity;
+                    const newScale = Math.min(Math.max(0.1, viewport.scale * (1 + delta)), 5);
+                    
+                    // ZOOM TO CURSOR ALGORITHM
+                    // 1. Get cursor position relative to the canvas container (Screen Space)
+                    const rect = canvasRef.current?.getBoundingClientRect();
+                    if (!rect) return;
+                    
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+
+                    // 2. Calculate where that point is in the Canvas Space BEFORE zoom
+                    // canvasX = (mouseX - oldTranslateX) / oldScale
+                    const canvasX = (mouseX - viewport.x) / viewport.scale;
+                    const canvasY = (mouseY - viewport.y) / viewport.scale;
+
+                    // 3. Calculate new Translate to keep that Canvas point under the Mouse
+                    // mouseX = canvasX * newScale + newTranslateX
+                    // => newTranslateX = mouseX - canvasX * newScale
+                    const newX = mouseX - canvasX * newScale;
+                    const newY = mouseY - canvasY * newScale;
+
+                    setViewport({ x: newX, y: newY, scale: newScale });
+                } else {
+                    // Pan with Wheel (Standard Scrolling)
+                    setViewport(prev => ({ ...prev, x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+                }
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "copy";
+            }}
             onDrop={(e) => {
               e.preventDefault();
-              // Try parsing JSON metadata first
-              const jsonData = e.dataTransfer.getData("application/json");
-              if (jsonData) {
-                try {
-                  const data = JSON.parse(jsonData);
-                  if (data.type === 'transcript') {
-                    handleCreateCard(data.text, { timestamp: data.timestamp, sourceId: data.sourceId });
-                    return;
+              e.stopPropagation();
+
+              // Calculate drop position in Canvas Coordinates
+              const rect = canvasRef.current?.getBoundingClientRect();
+              if (rect) {
+                  const screenX = e.clientX - rect.left;
+                  const screenY = e.clientY - rect.top;
+                  const canvasX = (screenX - viewport.x) / viewport.scale;
+                  const canvasY = (screenY - viewport.y) / viewport.scale;
+
+                  // Try parsing JSON metadata first
+                  const jsonData = e.dataTransfer.getData("application/json");
+                  let handled = false;
+                  if (jsonData) {
+                      try {
+                          const data = JSON.parse(jsonData);
+                          if (data.type === 'transcript') {
+                              handleCreateCard(data.text, { timestamp: data.timestamp, sourceId: data.sourceId }, { x: canvasX, y: canvasY });
+                              handled = true;
+                          }
+                      } catch(err) { console.error(err); }
                   }
-                } catch (err) {
-                  console.error("Failed to parse drag data", err);
-                }
+
+                  if (!handled) {
+                      const text = e.dataTransfer.getData("text/plain");
+                      if (text) {
+                        handleCreateCard(text, undefined, { x: canvasX, y: canvasY });
+                      }
+                  }
               }
 
-              const text = e.dataTransfer.getData("text/plain");
-              if (text) {
-                handleCreateCard(text);
-              }
+              setIsDraggingFromPdf(false);
             }}
           >
-            <Box sx={{ position: 'absolute', inset: 0, opacity: 0.4, backgroundImage: 'radial-gradient(#CBD5E1 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }} />
+            {/* Infinite Grid Background - moves with viewport */}
+            <Box 
+              sx={{ 
+                position: 'absolute', 
+                inset: 0, 
+                opacity: 0.4, 
+                backgroundImage: 'radial-gradient(#CBD5E1 1.5px, transparent 1.5px)', 
+                backgroundSize: `${24 * viewport.scale}px ${24 * viewport.scale}px`,
+                backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+                pointerEvents: 'none'
+              }} 
+            />
             
-            {/* Render Canvas Nodes */}
-            {canvasNodes.map(node => (
-              <Paper 
-                key={node.id}
-                elevation={3} 
-                sx={{ 
-                  position: 'absolute', 
-                  top: node.y, 
-                  left: node.x, 
-                  width: 280, 
-                  p: node.type === 'card' && node.title === 'SOURCE PDF' ? 2 : 0, 
-                  borderRadius: 4, 
-                  border: '1px solid', 
-                  borderColor: node.color === 'blue' ? '#3B82F6' : 'divider',
-                  overflow: 'hidden'
-                }}
-              >
-                {node.title === 'SOURCE PDF' ? (
-                  <>
-                    <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">{node.content}</Typography></Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
-                  </>
-                ) : (
-                  <>
-                    <Box sx={{ height: 6, bgcolor: node.color === 'blue' ? '#3B82F6' : 'grey.300' }} />
-                    <Box sx={{ p: 2 }}>
-                      <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{node.title}</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, mb: 2 }}>{node.content}</Typography>
-                      
-                      {node.timestamp && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, mb: 2, bgcolor: '#F3F4F6', p: 1, borderRadius: 1, width: 'fit-content', cursor: 'pointer', '&:hover': { bgcolor: '#E5E7EB' } }}>
-                             <PlayCircle size={16} className="text-blue-600" />
-                             <Typography variant="caption" fontWeight="bold" color="primary.main">{node.timestamp}</Typography>
+            {/* Canvas Content Container - Transformed */}
+            <Box 
+              sx={{ 
+                transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
+                transformOrigin: '0 0',
+                position: 'absolute',
+                top: 0, 
+                left: 0,
+                // Important: Let mouse events pass through to parent for panning, but children (nodes) capture their own
+              }}
+            >
+              {/* Render Canvas Nodes */}
+              {canvasNodes.map(node => (
+                <Paper 
+                  key={node.id}
+                  elevation={3} 
+                  onMouseDown={(e) => e.stopPropagation()} // Prevent panning when clicking on a node
+                  sx={{ 
+                    position: 'absolute', 
+                    top: node.y, 
+                    left: node.x, 
+                    width: 280, 
+                    p: node.type === 'card' && node.title === 'SOURCE PDF' ? 2 : 0, 
+                    borderRadius: 4, 
+                    border: '1px solid', 
+                    borderColor: node.color === 'blue' ? '#3B82F6' : 'divider',
+                    overflow: 'hidden',
+                    cursor: 'default',
+                    transition: 'box-shadow 0.2s',
+                    '&:hover': { boxShadow: 6 }
+                  }}
+                >
+                  {node.title === 'SOURCE PDF' ? (
+                    <>
+                      <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">{node.content}</Typography></Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
+                    </>
+                  ) : (
+                    <>
+                      <Box sx={{ height: 6, bgcolor: node.color === 'blue' ? '#3B82F6' : 'grey.300' }} />
+                      <Box sx={{ p: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{node.title}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, mb: 2 }}>{node.content}</Typography>
+                        
+                        {node.timestamp && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, mb: 2, bgcolor: '#F3F4F6', p: 1, borderRadius: 1, width: 'fit-content', cursor: 'pointer', '&:hover': { bgcolor: '#E5E7EB' } }}>
+                               <PlayCircle size={16} className="text-blue-600" />
+                               <Typography variant="caption" fontWeight="bold" color="primary.main">{node.timestamp}</Typography>
+                            </Box>
+                        )}
+
+                        {node.tags && (
+                          <Box sx={{ display: 'flex', gap: 1, mb: 0 }}>
+                            {node.tags.map(tag => (
+                              <Chip key={tag} label={tag} size="small" sx={{ borderRadius: 1, bgcolor: 'grey.100', fontSize: 11 }} />
+                            ))}
                           </Box>
-                      )}
+                        )}
+                      </Box>
+                      <Box sx={{ position: 'absolute', bottom: 12, right: 12 }}>
+                        <Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'pink.100', color: 'pink.500' }}>AI</Avatar>
+                      </Box>
+                    </>
+                  )}
+                </Paper>
+              ))}
 
-                      {node.tags && (
-                        <Box sx={{ display: 'flex', gap: 1, mb: 0 }}>
-                          {node.tags.map(tag => (
-                            <Chip key={tag} label={tag} size="small" sx={{ borderRadius: 1, bgcolor: 'grey.100', fontSize: 11 }} />
-                          ))}
-                        </Box>
-                      )}
-                    </Box>
-                    <Box sx={{ position: 'absolute', bottom: 12, right: 12 }}>
-                      <Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'pink.100', color: 'pink.500' }}>AI</Avatar>
-                    </Box>
-                  </>
-                )}
-              </Paper>
-            ))}
-
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}><path d="M 320 200 C 450 200, 450 320, 550 320" stroke="#CBD5E1" strokeWidth="2" fill="none" strokeDasharray="5,5" /></svg>
+              {/* SVG Connections - also in transformed space */}
+              <svg style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible', pointerEvents: 'none' }}>
+                <path d="M 280 100 C 340 100, 340 150, 400 150" stroke="#CBD5E1" strokeWidth="2" fill="none" strokeDasharray="5,5" />
+              </svg>
+            </Box>
             
             {/* Context Drop Zone - Only visible when dragging */}
             <Box 
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.style.borderColor = '#3B82F6';
-                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.style.borderColor = !centerVisible ? 'primary.main' : 'divider';
-                e.currentTarget.style.backgroundColor = !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)';
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation(); // Prevent bubbling to parent
-
-                // Try parsing JSON metadata first
-                const jsonData = e.dataTransfer.getData("application/json");
-                let handled = false;
-                if (jsonData) {
-                    try {
-                        const data = JSON.parse(jsonData);
-                        if (data.type === 'transcript') {
-                            handleCreateCard(data.text, { timestamp: data.timestamp, sourceId: data.sourceId });
-                            handled = true;
-                        }
-                    } catch(e) {}
-                }
-
-                if (!handled) {
-                    const text = e.dataTransfer.getData("text/plain");
-                    if (text) {
-                      handleCreateCard(text);
-                    }
-                }
-
-                // Reset styles
-                e.currentTarget.style.borderColor = !centerVisible ? 'primary.main' : 'divider';
-                e.currentTarget.style.backgroundColor = !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)';
-                setIsDraggingFromPdf(false);
-              }}
               sx={{ 
                 position: 'absolute', 
                 bottom: 40, 
                 left: '50%', 
                 transform: isDraggingFromPdf ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(100px)', 
                 opacity: isDraggingFromPdf ? 1 : 0,
-                pointerEvents: isDraggingFromPdf ? 'auto' : 'none',
+                pointerEvents: 'none', // Just visual now, drop handled by container
                 width: 400, 
                 height: 60, 
                 border: '2px dashed', 
