@@ -42,6 +42,6 @@ npm-debug.log
 yarn-error.log
 
 # Fly.io
-# fly.toml (Should be committed for CI/CD)
-
+# 环境配置文件应该提交到仓库用于 CI/CD
+# 敏感信息通过 fly secrets 管理，不要放在配置文件中
 

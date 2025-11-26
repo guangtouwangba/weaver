@@ -1,26 +1,50 @@
 name: Deploy API (Disabled)
+
 on:
-  workflow_dispatch:  # Only manual trigger, disabled for automatic push
+  # 自动部署已禁用，仅支持手动触发
   # push:
   #   branches:
   #     - master
+  #     - main
   #   paths:
   #     - 'apps/**'
   #     - 'packages/**'
   #     - 'Dockerfile.api'
   #     - 'pyproject.toml'
   #     - 'setup.py'
+  #     - 'fly.api.*.toml'
+  #     - '.github/workflows/deploy-api.yml'
+  
+  # 仅手动触发
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
 
 jobs:
   deploy:
-    name: Deploy Python API
+    name: Deploy Python API to ${{ github.event.inputs.environment || 'dev' }}
     runs-on: ubuntu-latest
+    
     steps:
       - uses: actions/checkout@v4
+      
       - uses: superfly/flyctl-actions/setup-flyctl@master
       
-      # Assumes fly.toml for API is in the root directory
-      - run: flyctl deploy --remote-only
+      - name: Deploy to Development
+        if: github.event_name == 'push' || github.event.inputs.environment == 'dev'
+        run: flyctl deploy --remote-only --config fly.api.dev.toml
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_API }}
-
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_API_DEV }}
+      
+      - name: Deploy to Production
+        if: github.event.inputs.environment == 'prod'
+        run: flyctl deploy --remote-only --config fly.api.prod.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_API_PROD }}

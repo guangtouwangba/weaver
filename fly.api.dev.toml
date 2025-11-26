@@ -1,0 +1,33 @@
+# fly.api.dev.toml - API 后端开发环境配置
+# 部署命令: fly deploy --config fly.api.dev.toml --dockerfile Dockerfile.api
+#
+# 首次部署前需要创建应用:
+# fly apps create research-rag-api-dev --org personal
+
+app = 'research-rag-api-dev'
+primary_region = 'sjc'
+
+[build]
+  dockerfile = "Dockerfile.api"
+
+[env]
+  ENVIRONMENT = "development"
+  LOG_LEVEL = "debug"
+  # 开发环境 API 可能需要 CORS 更宽松的配置
+  CORS_ORIGINS = "*"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # 开发环境：自动休眠以节省成本
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  # 开发环境使用较小配置
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+

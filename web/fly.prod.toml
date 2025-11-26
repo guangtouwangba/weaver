@@ -1,0 +1,48 @@
+# fly.prod.toml - Web 前端生产环境配置
+# 部署命令: fly deploy --config fly.prod.toml
+#
+# 首次部署前需要创建应用:
+# fly apps create research-rag-web-prod --org personal
+
+app = 'research-rag-web-prod'
+primary_region = 'sjc'
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  LOG_LEVEL = "info"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # 生产环境：保持至少一台机器运行，确保快速响应
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+# 生产环境可以配置多区域部署
+# [[services.ports]]
+#   handlers = ["http"]
+#   port = 80
+# [[services.ports]]
+#   handlers = ["tls", "http"]
+#   port = 443
+
+[[vm]]
+  # 生产环境使用更大的配置以保证性能
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+# 生产环境健康检查配置
+[checks]
+  [checks.alive]
+    type = "tcp"
+    port = 3000
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "5s"
+
