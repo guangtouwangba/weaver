@@ -4,11 +4,8 @@ import React from 'react';
 import { Box, IconButton, Avatar, Tooltip, Divider } from '@mui/material';
 import { 
   Command, 
-  Inbox, 
   Layout, 
-  Brain, 
-  Settings,
-  FolderKanban
+  Home
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -34,7 +31,7 @@ const NavItem = ({ icon: Icon, label, href, isActive, isLogo }: NavItemProps) =>
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: isLogo ? 2 : '12px', // Rounded rect for Logo, Circle/Rounded for others
+            borderRadius: isLogo ? 2 : '12px',
             backgroundColor: isActive 
               ? 'rgba(0, 0, 0, 0.05)' 
               : isLogo 
@@ -83,46 +80,32 @@ export default function GlobalSidebar() {
         flexDirection: 'column',
         alignItems: 'center',
         py: 3,
-        zIndex: 1200, // Highest z-index
+        zIndex: 1200,
       }}
     >
       {/* Command / Logo Zone */}
       <NavItem 
         icon={Command} 
-        label="Command / Home" 
+        label="Home" 
         href="/dashboard" 
         isLogo 
       />
 
       <Divider sx={{ width: '40px', mb: 3 }} />
 
-      {/* Context Zone */}
+      {/* Main Navigation - MVP: Only Dashboard & Studio */}
       <NavItem 
-        icon={Inbox} 
-        label="Inbox Mode" 
-        href="/inbox" 
-        isActive={pathname.startsWith('/inbox')}
-      />
-
-      <NavItem 
-        icon={FolderKanban} 
-        label="All Projects" 
-        href="/projects" 
-        isActive={pathname.startsWith('/projects')}
+        icon={Home} 
+        label="Dashboard" 
+        href="/dashboard" 
+        isActive={isDashboardActive}
       />
       
       <NavItem 
         icon={Layout} 
-        label="Studio Mode" 
+        label="Studio" 
         href="/studio" 
         isActive={isStudioActive}
-      />
-      
-      <NavItem 
-        icon={Brain} 
-        label="Brain Mode" 
-        href="/brain" 
-        isActive={pathname.startsWith('/brain')}
       />
 
       {/* Spacer */}
@@ -151,4 +134,3 @@ export default function GlobalSidebar() {
     </Box>
   );
 }
-
