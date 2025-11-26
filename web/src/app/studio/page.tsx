@@ -154,6 +154,27 @@ export default function StudioPage() {
   // --- Selection State ---
   const [activeResource, setActiveResource] = useState<Resource>(SAMPLE_RESOURCES[0]);
 
+  // --- Canvas State ---
+  interface CanvasNode {
+    id: string;
+    type: 'card' | 'group';
+    title: string;
+    content?: string;
+    x: number;
+    y: number;
+    color?: string;
+    tags?: string[];
+  }
+
+  const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([
+    { id: 'c1', type: 'card', title: 'SOURCE PDF', content: 'Attention Is All You Need', x: 80, y: 150, color: 'white' },
+    { id: 'c2', type: 'card', title: 'Self-Attention', content: 'The core mechanism that allows the model to weigh the importance of different words in a sequence.', x: 550, y: 280, color: 'blue', tags: ['#transformer', '#nlp'] }
+  ]);
+
+  // --- Interaction State ---
+  const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
+  const [selectedText, setSelectedText] = useState<string | null>(null);
+
   // --- Tab System State ---
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 't1', type: 'canvas', title: 'Main Canvas', status: 'ready' }
@@ -164,7 +185,7 @@ export default function StudioPage() {
   // --- Canvas Copilot State ---
   const [isCanvasAiOpen, setIsCanvasAiOpen] = useState(false);
   const [canvasAiQuery, setCanvasAiQuery] = useState('');
-
+  
   // --- Refs ---
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const leftColumnRef = useRef<HTMLDivElement>(null);
@@ -297,6 +318,52 @@ export default function StudioPage() {
     };
   }, [isVerticalDragging, resizingCol, leftWidth, leftVisible]);
 
+  const handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    setContextMenu(
+      contextMenu === null
+        ? {
+            mouseX: event.clientX + 2,
+            mouseY: event.clientY - 6,
+          }
+        : null,
+    );
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const handleCreateCard = (text?: string) => {
+    const contentToUse = text || "The output is computed as a weighted sum of the values."; // Fallback for demo
+    const newId = `c-${Date.now()}`;
+    const newNode: CanvasNode = {
+      id: newId,
+      type: 'card',
+      title: 'New Concept',
+      content: contentToUse,
+      x: 400, // Default center-ish position
+      y: 300,
+      color: 'white'
+    };
+
+    setCanvasNodes(prev => [...prev, newNode]);
+    
+    // Ensure we are on a canvas tab
+    const currentTab = tabs.find(t => t.id === activeTabId);
+    if (currentTab?.type !== 'canvas') {
+      // Find first canvas tab or create one
+      const canvasTab = tabs.find(t => t.type === 'canvas');
+      if (canvasTab) {
+        setActiveTabId(canvasTab.id);
+      } else {
+        handleAddTab('canvas');
+      }
+    }
+
+    setContextMenu(null);
+  };
+
   // --- Render Helpers ---
   const renderResource = (res: Resource) => {
     const isActive = activeResource.id === res.id;
@@ -390,11 +457,60 @@ export default function StudioPage() {
         </Box>
 
         {type === 'pdf' && (
-          <Box sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }}>
+          <Box sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }} onClick={handleCloseContextMenu}>
             <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>3.2 Attention</Typography>
             <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>An attention function can be described as mapping a query and a set of key-value pairs to an output.</Typography>
-            <Box sx={{ bgcolor: '#FFF9C4', p: 1, borderRadius: 1, mx: -1 }}><Typography variant="body1" sx={{ lineHeight: 1.8 }}>The output is computed as a weighted sum of the values.</Typography></Box>
+            
+            {/* Highlighted Text Area simulating user selection */}
+            <Box 
+              component="span"
+              onContextMenu={handleContextMenu}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", "The output is computed as a weighted sum of the values.");
+                e.dataTransfer.effectAllowed = "copy";
+              }}
+              sx={{ 
+                bgcolor: '#FFF9C4', 
+                p: 0.5, 
+                borderRadius: 1, 
+                mx: -0.5,
+                cursor: 'text',
+                display: 'inline',
+                border: '1px solid transparent',
+                '&:hover': { border: '1px dashed', borderColor: 'orange.300', cursor: 'grab' } 
+              }}
+            >
+              <Typography component="span" variant="body1" sx={{ lineHeight: 1.8, fontWeight: 500 }}>The output is computed as a weighted sum of the values.</Typography>
+            </Box>
+
+            <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', mt: 2 }}>
+              The two most commonly used attention functions are additive attention, and dot-product (multiplicative) attention. 
+            </Typography>
+
             <Paper variant="outlined" sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', my: 4, borderStyle: 'dashed' }}><Box sx={{ textAlign: 'center', color: 'text.disabled' }}><ImageIcon size={32} className="mx-auto mb-2" /><Typography variant="caption">Figure 1: Scaled Dot-Product Attention</Typography></Box></Paper>
+          
+            {/* Context Menu */}
+            <Menu
+              open={contextMenu !== null}
+              onClose={handleCloseContextMenu}
+              anchorReference="anchorPosition"
+              anchorPosition={
+                contextMenu !== null
+                  ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                  : undefined
+              }
+              PaperProps={{ sx: { width: 200, borderRadius: 2 } }}
+            >
+              <MenuItem onClick={() => handleCreateCard()}>
+                <ListItemIcon><Layout size={16} /></ListItemIcon>
+                <ListItemText primary="Create as Card" secondary="Add to Canvas" secondaryTypographyProps={{ fontSize: 10 }} />
+              </MenuItem>
+              <MenuItem onClick={handleCloseContextMenu}>
+                <ListItemIcon><Bot size={16} /></ListItemIcon>
+                <ListItemText primary="Ask AI about this" />
+              </MenuItem>
+            </Menu>
           </Box>
         )}
         {type === 'video' && (
@@ -453,18 +569,89 @@ export default function StudioPage() {
       case 'canvas': 
       default:
         return (
-          <Box sx={{ flexGrow: 1, bgcolor: '#F9FAFB', position: 'relative', overflow: 'hidden' }}>
+          <Box 
+            sx={{ flexGrow: 1, bgcolor: '#F9FAFB', position: 'relative', overflow: 'hidden' }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const text = e.dataTransfer.getData("text/plain");
+              if (text) {
+                handleCreateCard(text);
+              }
+            }}
+          >
             <Box sx={{ position: 'absolute', inset: 0, opacity: 0.4, backgroundImage: 'radial-gradient(#CBD5E1 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }} />
-            <Paper elevation={3} sx={{ position: 'absolute', top: 150, left: 80, width: 240, p: 2, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">Attention Is All You Need</Typography></Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
-            </Paper>
+            
+            {/* Render Canvas Nodes */}
+            {canvasNodes.map(node => (
+              <Paper 
+                key={node.id}
+                elevation={3} 
+                sx={{ 
+                  position: 'absolute', 
+                  top: node.y, 
+                  left: node.x, 
+                  width: 280, 
+                  p: node.type === 'card' && node.title === 'SOURCE PDF' ? 2 : 0, 
+                  borderRadius: 4, 
+                  border: '1px solid', 
+                  borderColor: node.color === 'blue' ? '#3B82F6' : 'divider',
+                  overflow: 'hidden'
+                }}
+              >
+                {node.title === 'SOURCE PDF' ? (
+                  <>
+                    <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">{node.content}</Typography></Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
+                  </>
+                ) : (
+                  <>
+                    <Box sx={{ height: 6, bgcolor: node.color === 'blue' ? '#3B82F6' : 'grey.300' }} />
+                    <Box sx={{ p: 2 }}>
+                      <Typography variant="subtitle1" fontWeight="bold" gutterBottom>{node.title}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, mb: 2 }}>{node.content}</Typography>
+                      {node.tags && (
+                        <Box sx={{ display: 'flex', gap: 1, mb: 0 }}>
+                          {node.tags.map(tag => (
+                            <Chip key={tag} label={tag} size="small" sx={{ borderRadius: 1, bgcolor: 'grey.100', fontSize: 11 }} />
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                    <Box sx={{ position: 'absolute', bottom: 12, right: 12 }}>
+                      <Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'pink.100', color: 'pink.500' }}>AI</Avatar>
+                    </Box>
+                  </>
+                )}
+              </Paper>
+            ))}
+
             <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}><path d="M 320 200 C 450 200, 450 320, 550 320" stroke="#CBD5E1" strokeWidth="2" fill="none" strokeDasharray="5,5" /></svg>
-            <Paper elevation={3} sx={{ position: 'absolute', top: 280, left: 550, width: 280, p: 0, borderRadius: 4, border: '1px solid', borderColor: '#3B82F6', overflow: 'hidden' }}>
-              <Box sx={{ height: 6, bgcolor: '#3B82F6' }} /><Box sx={{ p: 2 }}><Typography variant="subtitle1" fontWeight="bold" gutterBottom>Self-Attention</Typography><Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6, mb: 2 }}>The core mechanism that allows the model to weigh the importance of different words in a sequence.</Typography><Box sx={{ display: 'flex', gap: 1, mb: 0 }}><Chip label="#transformer" size="small" sx={{ borderRadius: 1, bgcolor: 'grey.100', fontSize: 11 }} /><Chip label="#nlp" size="small" sx={{ borderRadius: 1, bgcolor: 'grey.100', fontSize: 11 }} /></Box></Box><Box sx={{ position: 'absolute', bottom: 12, right: 12 }}><Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'pink.100', color: 'pink.500' }}>AI</Avatar></Box>
-            </Paper>
-            <Box sx={{ position: 'absolute', bottom: 40, left: '50%', transform: 'translateX(-50%)', width: 400, height: 60, border: '2px dashed', borderColor: !centerVisible ? 'primary.main' : 'divider', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, bgcolor: !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)', backdropFilter: 'blur(4px)', transition: 'all 0.3s ease' }}>
+            
+            {/* Context Drop Zone */}
+            <Box 
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.style.borderColor = '#3B82F6';
+                e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.style.borderColor = !centerVisible ? 'primary.main' : 'divider';
+                e.currentTarget.style.backgroundColor = !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)';
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Prevent bubbling to parent
+                const text = e.dataTransfer.getData("text/plain");
+                if (text) {
+                  handleCreateCard(text);
+                }
+                e.currentTarget.style.borderColor = !centerVisible ? 'primary.main' : 'divider';
+                e.currentTarget.style.backgroundColor = !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)';
+              }}
+              sx={{ position: 'absolute', bottom: 40, left: '50%', transform: 'translateX(-50%)', width: 400, height: 60, border: '2px dashed', borderColor: !centerVisible ? 'primary.main' : 'divider', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, bgcolor: !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)', backdropFilter: 'blur(4px)', transition: 'all 0.3s ease' }}
+            >
               <Plus size={16} className={!centerVisible ? "text-primary-600" : "text-gray-400"} /><Typography variant="body2" color={!centerVisible ? "primary.main" : "text.secondary"}>{!centerVisible ? "Drop directly from PDF" : "Drop cards here to create nodes"}</Typography>
             </Box>
             
@@ -549,33 +736,37 @@ export default function StudioPage() {
               {renderContentViewer()}
              </>
            ) : (
-             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2, width: '100%' }}>
-               <Tooltip title="Expand Source (Cmd+\)" placement="right">
-                 <IconButton onClick={() => setLeftVisible(true)} size="small">
-                   <PanelLeftOpen size={20} />
-                 </IconButton>
-               </Tooltip>
-               <Divider sx={{ width: 20 }} />
-               <Tooltip title={activeResource.title} placement="right">
-                 <Box 
-                   sx={{ 
-                     p: 1, 
-                     borderRadius: 1, 
-                     bgcolor: activeResource.id === activeResource.id ? '#EFF6FF' : 'transparent', // Keeping consistent style
-                     color: activeResource.type === 'pdf' ? 'primary.main' : 
-                            activeResource.type === 'video' ? 'primary.main' : 
-                            activeResource.type === 'audio' ? 'purple.500' : 'blue.500',
-                     cursor: 'pointer',
-                     '&:hover': { bgcolor: 'action.hover' }
-                   }} 
-                   onClick={() => setLeftVisible(true)}
-                 >
-                   {activeResource.type === 'pdf' && <FileText size={18} />}
-                   {activeResource.type === 'video' && <Video size={18} />}
-                   {activeResource.type === 'audio' && <Music size={18} />}
-                   {activeResource.type === 'link' && <LinkIcon size={18} />}
-                 </Box>
-               </Tooltip>
+             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+               <Box sx={{ height: 56, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+                 <Tooltip title="Expand Source (Cmd+\)" placement="right">
+                   <IconButton onClick={() => setLeftVisible(true)} size="small">
+                     <PanelLeftOpen size={20} />
+                   </IconButton>
+                 </Tooltip>
+               </Box>
+               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2 }}>
+                 {/* Divider removed as we have borderBottom now, or keep if spacing is needed. Let's keep it for visual separation from header if preferred, but usually border is enough. Let's remove explicit Divider and rely on spacing. Actually, let's keep the logic clean. */}
+                 <Tooltip title={activeResource.title} placement="right">
+                   <Box 
+                     sx={{ 
+                       p: 1, 
+                       borderRadius: 1, 
+                       bgcolor: activeResource.id === activeResource.id ? '#EFF6FF' : 'transparent', 
+                       color: activeResource.type === 'pdf' ? 'primary.main' : 
+                              activeResource.type === 'video' ? 'primary.main' : 
+                              activeResource.type === 'audio' ? 'purple.500' : 'blue.500',
+                       cursor: 'pointer',
+                       '&:hover': { bgcolor: 'action.hover' }
+                     }} 
+                     onClick={() => setLeftVisible(true)}
+                   >
+                     {activeResource.type === 'pdf' && <FileText size={18} />}
+                     {activeResource.type === 'video' && <Video size={18} />}
+                     {activeResource.type === 'audio' && <Music size={18} />}
+                     {activeResource.type === 'link' && <LinkIcon size={18} />}
+                   </Box>
+                 </Tooltip>
+               </Box>
              </Box>
            )}
         </Box>
@@ -594,31 +785,34 @@ export default function StudioPage() {
           <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', minWidth: 300 }}><TextField fullWidth placeholder="Ask or summarize..." variant="standard" InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} sx={{ bgcolor: '#F3F4F6', px: 2, py: 1, borderRadius: 2 }} /></Box>
         </Box>
         {centerVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('center')} />}
-        {!centerVisible && <Box sx={{ width: 40, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, bgcolor: '#F9FAFB' }}>
-          <Tooltip title="Expand Processor (Cmd+.)" placement="right">
-            <IconButton onClick={() => setCenterVisible(true)} size="small">
-              <PanelRightOpen size={20} />
-            </IconButton>
-          </Tooltip>
-          <Divider sx={{ width: 20, my: 2 }} />
-          <Tooltip title={quietMode ? "AI Assistant (Focus Mode)" : "AI Assistant (Ready)"} placement="right">
-            <Box 
-              onClick={() => setCenterVisible(true)}
-              sx={{ 
-                p: 1, 
-                borderRadius: 1, 
-                cursor: 'pointer',
-                color: quietMode ? 'text.disabled' : 'primary.main',
-                bgcolor: quietMode ? 'transparent' : 'primary.50',
-                transition: 'all 0.2s',
-                '&:hover': { bgcolor: quietMode ? 'action.hover' : 'primary.100' }
-              }}
-            >
-              <Badge color="secondary" variant="dot" invisible={quietMode}>
-                <Bot size={18} />
-              </Badge>
-            </Box>
-          </Tooltip>
+        {!centerVisible && <Box sx={{ width: 40, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: '#F9FAFB' }}>
+          <Box sx={{ height: 56, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Tooltip title="Expand Processor (Cmd+.)" placement="right">
+              <IconButton onClick={() => setCenterVisible(true)} size="small">
+                <PanelRightOpen size={20} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2 }}>
+            <Tooltip title={quietMode ? "AI Assistant (Focus Mode)" : "AI Assistant (Ready)"} placement="right">
+              <Box 
+                onClick={() => setCenterVisible(true)}
+                sx={{ 
+                  p: 1, 
+                  borderRadius: 1, 
+                  cursor: 'pointer',
+                  color: quietMode ? 'text.disabled' : 'primary.main',
+                  bgcolor: quietMode ? 'transparent' : 'primary.50',
+                  transition: 'all 0.2s',
+                  '&:hover': { bgcolor: quietMode ? 'action.hover' : 'primary.100' }
+                }}
+              >
+                <Badge color="secondary" variant="dot" invisible={quietMode}>
+                  <Bot size={18} />
+                </Badge>
+              </Box>
+            </Tooltip>
+          </Box>
         </Box>}
 
 
