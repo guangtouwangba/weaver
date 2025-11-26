@@ -28,4 +28,36 @@ All notable changes to this project will be documented in this file.
 
 **Documentation**
 - Added `docs/product design/MVP_Scope.md` - MVP feature specification document
+- Added `docs/product design/MVP_Backend_Architecture.md` - Backend architecture design
+
+### Added - Backend MVP Implementation (2025-11-26)
+
+**Complete backend implementation with Clean Architecture**
+
+**Project Structure** (`app/backend/`)
+- FastAPI + SQLAlchemy 2.0 (async) + PostgreSQL + pgvector
+- Clean Architecture: API → Application → Domain → Infrastructure
+- Docker Compose for local development (PostgreSQL + pgvector)
+
+**API Endpoints**
+- `GET/POST/DELETE /api/v1/projects` - Project CRUD
+- `GET/POST/DELETE /api/v1/projects/{id}/documents` - Document management
+- `POST /api/v1/projects/{id}/chat` - RAG chat (sync)
+- `POST /api/v1/projects/{id}/chat/stream` - RAG chat (SSE streaming)
+- `GET/PUT /api/v1/projects/{id}/canvas` - Canvas persistence
+- `GET /health` - Health check
+
+**Core Features**
+- PDF upload with text extraction (PyMuPDF)
+- Text chunking with overlap for RAG
+- Vector embeddings via OpenRouter (text-embedding-3-small)
+- Vector search via pgvector
+- LLM chat via OpenRouter (gpt-4o-mini default)
+- Canvas data persistence (JSONB)
+
+**Infrastructure**
+- OpenRouter integration for LLM/Embedding (400+ models)
+- pgvector for vector similarity search
+- Local file storage for PDF uploads
+- Alembic database migrations
 

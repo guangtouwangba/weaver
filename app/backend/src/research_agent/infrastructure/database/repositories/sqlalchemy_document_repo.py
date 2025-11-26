@@ -1,0 +1,89 @@
+"""SQLAlchemy implementation of DocumentRepository."""
+
+from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from research_agent.domain.entities.document import Document, DocumentStatus
+from research_agent.domain.repositories.document_repo import DocumentRepository
+from research_agent.infrastructure.database.models import DocumentModel
+
+
+class SQLAlchemyDocumentRepository(DocumentRepository):
+    """SQLAlchemy implementation of document repository."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def save(self, document: Document) -> Document:
+        """Save a document."""
+        # Check if exists
+        existing = await self._session.get(DocumentModel, document.id)
+
+        if existing:
+            # Update existing
+            existing.filename = document.filename
+            existing.file_path = document.file_path
+            existing.file_size = document.file_size
+            existing.page_count = document.page_count
+            existing.status = document.status.value
+        else:
+            # Create new
+            model = self._to_model(document)
+            self._session.add(model)
+
+        await self._session.flush()
+        return document
+
+    async def find_by_id(self, document_id: UUID) -> Optional[Document]:
+        """Find document by ID."""
+        model = await self._session.get(DocumentModel, document_id)
+        return self._to_entity(model) if model else None
+
+    async def find_by_project(self, project_id: UUID) -> List[Document]:
+        """Find all documents for a project."""
+        result = await self._session.execute(
+            select(DocumentModel)
+            .where(DocumentModel.project_id == project_id)
+            .order_by(DocumentModel.created_at.desc())
+        )
+        models = result.scalars().all()
+        return [self._to_entity(m) for m in models]
+
+    async def delete(self, document_id: UUID) -> bool:
+        """Delete a document."""
+        model = await self._session.get(DocumentModel, document_id)
+        if model:
+            await self._session.delete(model)
+            await self._session.flush()
+            return True
+        return False
+
+    def _to_model(self, entity: Document) -> DocumentModel:
+        """Convert entity to ORM model."""
+        return DocumentModel(
+            id=entity.id,
+            project_id=entity.project_id,
+            filename=entity.filename,
+            file_path=entity.file_path,
+            file_size=entity.file_size,
+            page_count=entity.page_count,
+            status=entity.status.value,
+            created_at=entity.created_at,
+        )
+
+    def _to_entity(self, model: DocumentModel) -> Document:
+        """Convert ORM model to entity."""
+        return Document(
+            id=model.id,
+            project_id=model.project_id,
+            filename=model.filename,
+            file_path=model.file_path,
+            file_size=model.file_size or 0,
+            page_count=model.page_count or 0,
+            status=DocumentStatus(model.status),
+            created_at=model.created_at,
+        )
+
