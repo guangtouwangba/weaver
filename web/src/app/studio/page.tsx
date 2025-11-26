@@ -814,7 +814,10 @@ export default function StudioPage() {
                 zIndex: 20 
               }}
             >
-              <Plus size={16} className={!centerVisible ? "text-primary-600" : "text-gray-400"} /><Typography variant="body2" color={!centerVisible ? "primary.main" : "text.secondary"}>{!centerVisible ? "Drop directly from PDF" : "Drop cards here to create nodes"}</Typography>
+              <Plus size={16} className={!centerVisible ? "text-primary-600" : "text-gray-400"} />
+              <Typography variant="body2" color={!centerVisible ? "primary.main" : "text.secondary"}>
+                {`Drop ${activeResource.type === 'pdf' ? 'text' : 'transcript'} from ${activeResource.type}`}
+              </Typography>
             </Box>
             
             {/* Canvas Copilot / Magic Tools */}
