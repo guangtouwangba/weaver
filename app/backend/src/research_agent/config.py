@@ -47,10 +47,14 @@ class Settings(BaseSettings):
         elif url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         
-        # Remove sslmode parameter - asyncpg handles SSL differently
-        # We'll configure SSL via connect_args in the engine instead
+        # Remove parameters that asyncpg doesn't understand
+        # - sslmode: asyncpg handles SSL via connect_args
+        # - pgbouncer: Prisma-specific parameter
+        # - connect_timeout: handled differently in asyncpg
         import re
         url = re.sub(r'[?&]sslmode=[^&]*', '', url)
+        url = re.sub(r'[?&]pgbouncer=[^&]*', '', url)
+        url = re.sub(r'[?&]connect_timeout=[^&]*', '', url)
         # Clean up any trailing ? or &&
         url = url.rstrip('?').replace('&&', '&').rstrip('&')
         
