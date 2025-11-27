@@ -12,25 +12,13 @@ function getApiBaseUrl(): string {
     return _cachedApiUrl;
   }
   
-  // 1. Check build-time env var (Next.js replaces this at build time)
-  const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (envUrl && envUrl !== 'undefined') {
-    _cachedApiUrl = envUrl;
-    return envUrl;
-  }
-  
-  // 2. Check runtime window config (can be injected via script tag)
-  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
-    _cachedApiUrl = (window as any).__API_URL__;
-    return _cachedApiUrl;
-  }
-  
-  // 3. Auto-detect based on current hostname for Zeabur deployments
+  // For browser environments, detect based on current page URL first
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    console.log('[API] Detecting API URL for hostname:', hostname);
+    const protocol = window.location.protocol; // 'https:' or 'http:'
+    console.log('[API] Detecting API URL for hostname:', hostname, 'protocol:', protocol);
     
-    // If running on Zeabur, try to guess the API URL
+    // If running on Zeabur public domain, auto-detect the API URL
     if (hostname.includes('zeabur.app')) {
       // Replace 'web' or 'frontend' with 'api' in the hostname
       const apiHostname = hostname
@@ -38,13 +26,36 @@ function getApiBaseUrl(): string {
         .replace('-frontend-', '-api-')
         .replace('research-agent-rag-web', 'research-agent-rag-api')
         .replace('research-agent-rag-frontend', 'research-agent-rag-api');
+      // Always use HTTPS for public Zeabur domains
       _cachedApiUrl = `https://${apiHostname}`;
-      console.log('[API] Auto-detected API URL:', _cachedApiUrl);
+      console.log('[API] Auto-detected Zeabur API URL:', _cachedApiUrl);
       return _cachedApiUrl;
     }
   }
   
-  // 4. Default to localhost for development (only on client-side)
+  // Check build-time env var (Next.js replaces this at build time)
+  // Skip internal URLs that would cause mixed content issues
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && envUrl !== 'undefined' && !envUrl.includes('.internal')) {
+    // If page is HTTPS but env URL is HTTP, try to upgrade
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && envUrl.startsWith('http://')) {
+      console.log('[API] Upgrading HTTP env URL to HTTPS');
+      _cachedApiUrl = envUrl.replace('http://', 'https://');
+    } else {
+      _cachedApiUrl = envUrl;
+    }
+    console.log('[API] Using env URL:', _cachedApiUrl);
+    return _cachedApiUrl;
+  }
+  
+  // Check runtime window config (can be injected via script tag)
+  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
+    _cachedApiUrl = (window as any).__API_URL__;
+    console.log('[API] Using window config URL:', _cachedApiUrl);
+    return _cachedApiUrl;
+  }
+  
+  // Default to localhost for development (only on client-side)
   // On server-side (SSR), return empty string to avoid issues
   if (typeof window === 'undefined') {
     return ''; // SSR - will be replaced on client
