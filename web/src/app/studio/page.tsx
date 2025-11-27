@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import PodcastView from "./PodcastView";
@@ -138,6 +138,20 @@ interface Tab {
 }
 
 export default function StudioPage() {
+  return (
+    <Suspense fallback={
+      <GlobalLayout>
+        <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Box>
+      </GlobalLayout>
+    }>
+      <StudioPageContent />
+    </Suspense>
+  );
+}
+
+function StudioPageContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get('projectId') || 'default';
   const [isInitializing, setIsInitializing] = useState(false);
