@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import PodcastView from "./PodcastView";
 import WriterView from "./WriterView";
+import ProjectInitializer from "@/components/studio/ProjectInitializer";
 import { 
   Box, 
   Typography, 
@@ -136,6 +138,20 @@ interface Tab {
 }
 
 export default function StudioPage() {
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('projectId') || 'default';
+  const [isInitializing, setIsInitializing] = useState(false);
+
+  // Check initialization status on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const needsInit = localStorage.getItem(`project_initializing_${projectId}`);
+      if (needsInit === 'true') {
+        setIsInitializing(true);
+      }
+    }
+  }, [projectId]);
+
   // --- Layout State ---
   const [leftVisible, setLeftVisible] = useState(true);
   const [centerVisible, setCenterVisible] = useState(true);
@@ -806,18 +822,28 @@ export default function StudioPage() {
       case 'canvas': 
       default:
         return (
-          <Box 
-            ref={canvasRef}
-            sx={{ 
-              flexGrow: 1, 
-              bgcolor: '#F9FAFB', 
-              position: 'relative', 
-              overflow: 'hidden',
-              cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
-              touchAction: 'none', // Prevent native browser zooming
-              userSelect: 'none'   // Prevent text selection while dragging
-            }}
-            onMouseDown={(e) => {
+          <Box sx={{ position: 'relative', flexGrow: 1, height: '100%', overflow: 'hidden' }}>
+            {/* Project Initializer Overlay */}
+            {isInitializing && (
+              <ProjectInitializer 
+                projectId={projectId} 
+                onComplete={() => setIsInitializing(false)} 
+              />
+            )}
+            
+            <Box 
+              ref={canvasRef}
+              sx={{ 
+                width: '100%',
+                height: '100%',
+                bgcolor: '#F9FAFB', 
+                position: 'relative', 
+                overflow: 'hidden',
+                cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                touchAction: 'none', // Prevent native browser zooming
+                userSelect: 'none'   // Prevent text selection while dragging
+              }}
+              onMouseDown={(e) => {
                 // Only start panning if:
                 // 1. Space is pressed (force pan mode)
                 // 2. Middle mouse button
@@ -1357,6 +1383,7 @@ export default function StudioPage() {
               </IconButton>
             </Box>
           </Box>
+        </Box>
         );
     }
   };
