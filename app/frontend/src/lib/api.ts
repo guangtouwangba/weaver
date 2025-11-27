@@ -2,21 +2,34 @@
  * API client for Research Agent RAG backend
  */
 
+// Cache the API URL after first detection
+let _cachedApiUrl: string | null = null;
+
 // Get API URL - supports both build-time and runtime configuration
 function getApiBaseUrl(): string {
+  // Return cached value if available
+  if (_cachedApiUrl) {
+    return _cachedApiUrl;
+  }
+  
   // 1. Check build-time env var (Next.js replaces this at build time)
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && envUrl !== 'undefined') {
+    _cachedApiUrl = envUrl;
+    return envUrl;
   }
   
   // 2. Check runtime window config (can be injected via script tag)
   if (typeof window !== 'undefined' && (window as any).__API_URL__) {
-    return (window as any).__API_URL__;
+    _cachedApiUrl = (window as any).__API_URL__;
+    return _cachedApiUrl;
   }
   
   // 3. Auto-detect based on current hostname for Zeabur deployments
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
+    console.log('[API] Detecting API URL for hostname:', hostname);
+    
     // If running on Zeabur, try to guess the API URL
     if (hostname.includes('zeabur.app')) {
       // Replace 'web' or 'frontend' with 'api' in the hostname
@@ -25,20 +38,25 @@ function getApiBaseUrl(): string {
         .replace('-frontend-', '-api-')
         .replace('research-agent-rag-web', 'research-agent-rag-api')
         .replace('research-agent-rag-frontend', 'research-agent-rag-api');
-      return `https://${apiHostname}`;
+      _cachedApiUrl = `https://${apiHostname}`;
+      console.log('[API] Auto-detected API URL:', _cachedApiUrl);
+      return _cachedApiUrl;
     }
   }
   
-  // 4. Default to localhost for development
-  return 'http://localhost:8000';
+  // 4. Default to localhost for development (only on client-side)
+  // On server-side (SSR), return empty string to avoid issues
+  if (typeof window === 'undefined') {
+    return ''; // SSR - will be replaced on client
+  }
+  
+  _cachedApiUrl = 'http://localhost:8000';
+  console.log('[API] Using default localhost URL');
+  return _cachedApiUrl;
 }
 
-const API_BASE_URL = getApiBaseUrl();
-
-// Log the API URL for debugging (only in browser)
-if (typeof window !== 'undefined') {
-  console.log('[API] Using API URL:', API_BASE_URL);
-}
+// Getter function - always call this to get the URL
+const getApiUrl = () => getApiBaseUrl();
 
 // Types
 export interface Project {
@@ -118,7 +136,7 @@ async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${getApiUrl()}${endpoint}`;
   
   const response = await fetch(url, {
     ...options,
@@ -169,14 +187,14 @@ export const documentsApi = {
   
   // Get PDF file URL for viewing
   getFileUrl: (documentId: string) =>
-    `${API_BASE_URL}/api/v1/documents/${documentId}/file`,
+    `${getApiUrl()}/api/v1/documents/${documentId}/file`,
   
   upload: async (projectId: string, file: File): Promise<ProjectDocument> => {
     const formData = new FormData();
     formData.append('file', file);
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/projects/${projectId}/documents`,
+      `${getApiUrl()}/api/v1/projects/${projectId}/documents`,
       {
         method: 'POST',
         body: formData,
@@ -209,7 +227,7 @@ export const chatApi = {
     message: ChatMessage
   ): AsyncGenerator<{ type: string; content?: string; sources?: ChatResponse['sources'] }> {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/projects/${projectId}/chat/stream`,
+      `${getApiUrl()}/api/v1/projects/${projectId}/chat/stream`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
