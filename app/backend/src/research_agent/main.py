@@ -35,9 +35,29 @@ def create_app() -> FastAPI:
         description="AI-powered research assistant with knowledge cards",
         version="0.1.0",
         lifespan=lifespan,
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url=None,  # Disable default docs, we'll add custom ones
+        redoc_url=None,  # Disable default redoc
     )
+    
+    # Custom Swagger UI with reliable CDN
+    from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+    
+    @app.get("/docs", include_in_schema=False)
+    async def custom_swagger_ui_html():
+        return get_swagger_ui_html(
+            openapi_url="/openapi.json",
+            title=app.title + " - Swagger UI",
+            swagger_js_url="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js",
+            swagger_css_url="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css",
+        )
+    
+    @app.get("/redoc", include_in_schema=False)
+    async def custom_redoc_html():
+        return get_redoc_html(
+            openapi_url="/openapi.json",
+            title=app.title + " - ReDoc",
+            redoc_js_url="https://unpkg.com/redoc@next/bundles/redoc.standalone.js",
+        )
 
     # Error handlers (must be set up before middleware)
     setup_error_handlers(app)
