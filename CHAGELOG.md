@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed - Rebrand to Weaver (2025-11-27)
+
+**Project renamed to "Weaver"** (@aqiu)
+
+- **Renamed** project title to "Weaver"
+- **Slogan**: "Weave knowledge into insights"
+- **Added** new logo (`weaver-logo.svg`) with Indigo-Teal gradient nodes
+- **Updated** frontend metadata and backend API info
+
 ### Fixed - TypeScript Build Error (2025-11-27)
 
 **修复前端构建时的 TypeScript 命名冲突** (@aqiu)

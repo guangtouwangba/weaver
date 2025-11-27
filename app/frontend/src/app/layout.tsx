@@ -3,8 +3,11 @@ import ThemeRegistry from "@/components/ThemeRegistry/ThemeRegistry";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Research Agent RAG",
-  description: "Deep Internalization Workspace",
+  title: "Weaver",
+  description: "Weave knowledge into insights. AI-powered research workspace with infinite canvas.",
+  icons: {
+    icon: "/weaver-logo.svg",
+  },
 };
 
 export default function RootLayout({

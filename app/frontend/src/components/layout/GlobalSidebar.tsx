@@ -83,10 +83,10 @@ export default function GlobalSidebar() {
         zIndex: 1200,
       }}
     >
-      {/* Command / Logo Zone */}
+      {/* Weaver Logo Zone */}
       <NavItem 
         icon={Command} 
-        label="Home" 
+        label="Weaver" 
         href="/dashboard" 
         isLogo 
       />

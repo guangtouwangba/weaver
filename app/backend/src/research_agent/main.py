@@ -31,8 +31,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     app = FastAPI(
-        title="Research Agent RAG API",
-        description="AI-powered research assistant with knowledge cards",
+        title="Weaver API",
+        description="Weave knowledge into insights. AI-powered research workspace with infinite canvas.",
         version="0.1.0",
         lifespan=lifespan,
         docs_url=None,  # Disable default docs, we'll add custom ones
@@ -57,7 +57,7 @@ def create_app() -> FastAPI:
             openapi_url="/openapi.json",
             title=app.title + " - ReDoc",
             redoc_js_url="https://unpkg.com/redoc@next/bundles/redoc.standalone.js",
-        )
+    )
 
     # Error handlers (must be set up before middleware)
     setup_error_handlers(app)
@@ -107,7 +107,7 @@ def create_app() -> FastAPI:
     async def root() -> dict:
         """Root endpoint with API info."""
         return {
-            "name": "Research Agent RAG API",
+            "name": "Weaver API",
             "version": "0.1.0",
             "docs": "/docs",
             "health": "/health",
