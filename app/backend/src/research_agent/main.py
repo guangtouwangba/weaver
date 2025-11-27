@@ -47,9 +47,22 @@ def create_app() -> FastAPI:
 
     # CORS middleware (added last, runs first - wraps everything)
     # This ensures CORS headers are added even on error responses
+    cors_origins = settings.cors_origins_list
+    logger.info(f"CORS origins configured: {cors_origins}")
+    logger.info(f"Raw CORS_ORIGINS env: {settings.cors_origins}")
+    
+    # If no specific origins configured or in production, allow the known domains
+    if not cors_origins or cors_origins == ["http://localhost:3000"]:
+        cors_origins = [
+            "http://localhost:3000",
+            "https://research-agent-rag-web-dev.zeabur.app",
+            "https://research-agent-rag-frontend-dev.zeabur.app",
+        ]
+        logger.info(f"Using default CORS origins: {cors_origins}")
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
