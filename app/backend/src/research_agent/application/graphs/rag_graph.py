@@ -1,14 +1,13 @@
 """Agentic RAG workflow using LangGraph (Corrective RAG pattern)."""
 
 from typing import List, TypedDict, Annotated
-from uuid import UUID
 
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.output_parsers import StrOutputParser
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 

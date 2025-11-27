@@ -3,7 +3,7 @@ name = "research-agent-rag"
 version = "0.1.0"
 description = "Research Agent RAG - AI-powered research assistant with knowledge cards"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     # Web Framework
     "fastapi>=0.115.0",
@@ -52,7 +52,7 @@ build-backend = "hatchling.build"
 packages = ["src/research_agent"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py313"
 line-length = 100
 
 [tool.ruff.lint]
@@ -64,7 +64,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 strict = true
 ignore_missing_imports = true
 
