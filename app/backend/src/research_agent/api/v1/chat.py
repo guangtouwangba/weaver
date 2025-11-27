@@ -77,20 +77,17 @@ async def stream_message(
     project_id: UUID,
     request: ChatMessageRequest,
     session: AsyncSession = Depends(get_db),
-    llm_service: OpenRouterLLMService = Depends(get_llm_service),
     embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
 ) -> StreamingResponse:
-    """Send a chat message and get streaming RAG response (SSE)."""
-    # Create services
-    vector_store = PgVectorStore(session)
-    retrieval_service = RetrievalService(
-        embedding_service=embedding_service,
-        vector_store=vector_store,
-    )
-
+    """Send a chat message and get streaming RAG response (SSE) using LangGraph."""
+    from research_agent.config import get_settings
+    settings = get_settings()
+    
     use_case = StreamMessageUseCase(
-        retrieval_service=retrieval_service,
-        llm_service=llm_service,
+        session=session,
+        embedding_service=embedding_service,
+        api_key=settings.openrouter_api_key,
+        model=settings.llm_model,
     )
 
     async def event_generator():

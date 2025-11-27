@@ -1,12 +1,16 @@
-"""Stream message use case (SSE streaming)."""
+"""Stream message use case (SSE streaming) - LangGraph implementation."""
 
 from dataclasses import dataclass
 from typing import AsyncIterator, List, Optional
 from uuid import UUID
 
-from research_agent.domain.services.retrieval_service import RetrievalService
-from research_agent.infrastructure.llm.base import ChatMessage, LLMService
-from research_agent.infrastructure.llm.prompts.rag_prompt import SYSTEM_PROMPT, build_rag_prompt
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from research_agent.application.graphs.rag_graph import stream_rag_response
+from research_agent.infrastructure.llm.langchain_openrouter import create_langchain_llm
+from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
+from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
+from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.shared.utils.logger import logger
 
 
@@ -40,75 +44,66 @@ class StreamEvent:
 
 
 class StreamMessageUseCase:
-    """Use case for streaming chat message with RAG."""
+    """Use case for streaming chat message with RAG using LangGraph."""
 
     def __init__(
         self,
-        retrieval_service: RetrievalService,
-        llm_service: LLMService,
+        session: AsyncSession,
+        embedding_service: EmbeddingService,
+        api_key: str,
+        model: str = "openai/gpt-4o-mini",
     ):
-        self._retrieval_service = retrieval_service
-        self._llm_service = llm_service
+        self._session = session
+        self._embedding_service = embedding_service
+        self._api_key = api_key
+        self._model = model
 
     async def execute(self, input: StreamMessageInput) -> AsyncIterator[StreamEvent]:
-        """Execute the use case with streaming."""
-        # 1. Retrieve relevant chunks
-        logger.info(f"Retrieving chunks for query: {input.message[:50]}...")
-        results = await self._retrieval_service.retrieve(
-            query=input.message,
-            project_id=input.project_id,
-            top_k=input.top_k,
-        )
-
-        # Filter by document if specified
-        if input.document_id:
-            results = [r for r in results if r.document_id == input.document_id]
-
-        if not results:
-            yield StreamEvent(
-                type="token",
-                content="I don't have any relevant information in the documents to answer this question.",
-            )
-            yield StreamEvent(type="done")
-            return
-
-        # 2. Build context
-        context_chunks = [
-            {
-                "content": r.content,
-                "page_number": r.page_number,
-            }
-            for r in results
-        ]
-
-        # 3. Build sources
-        sources = [
-            SourceRef(
-                document_id=r.document_id,
-                page_number=r.page_number,
-                snippet=r.content[:200] + "..." if len(r.content) > 200 else r.content,
-                similarity=r.similarity,
-            )
-            for r in results
-        ]
-
-        # 4. Stream LLM response
-        user_prompt = build_rag_prompt(input.message, context_chunks)
-        messages = [
-            ChatMessage(role="system", content=SYSTEM_PROMPT),
-            ChatMessage(role="user", content=user_prompt),
-        ]
-
-        logger.info("Streaming LLM response...")
+        """Execute the use case with streaming using LangGraph."""
+        logger.info(f"Processing query with LangGraph: {input.message[:50]}...")
+        
         try:
-            async for token in self._llm_service.chat_stream(messages):
-                yield StreamEvent(type="token", content=token)
-
-            # Send sources after completion
-            yield StreamEvent(type="sources", sources=sources)
-            yield StreamEvent(type="done")
-
+            # Create vector store and retriever
+            vector_store = PgVectorStore(self._session)
+            retriever = create_pgvector_retriever(
+                vector_store=vector_store,
+                embedding_service=self._embedding_service,
+                project_id=input.project_id,
+                k=input.top_k,
+            )
+            
+            # Create LangChain LLM
+            llm = create_langchain_llm(
+                api_key=self._api_key,
+                model=self._model,
+                streaming=True,
+            )
+            
+            # Stream response from LangGraph
+            async for event in stream_rag_response(
+                question=input.message,
+                retriever=retriever,
+                llm=llm,
+            ):
+                if event["type"] == "sources":
+                    # Convert LangChain documents to SourceRef
+                    documents = event.get("documents", [])
+                    sources = [
+                        SourceRef(
+                            document_id=UUID(doc.metadata["document_id"]),
+                            page_number=doc.metadata["page_number"],
+                            snippet=doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
+                            similarity=doc.metadata.get("similarity", 0.0),
+                        )
+                        for doc in documents
+                    ]
+                    yield StreamEvent(type="sources", sources=sources)
+                elif event["type"] == "token":
+                    yield StreamEvent(type="token", content=event.get("content", ""))
+                elif event["type"] == "done":
+                    yield StreamEvent(type="done")
+                    
         except Exception as e:
-            logger.error(f"Error streaming response: {e}")
+            logger.error(f"Error in LangGraph RAG: {e}")
             yield StreamEvent(type="error", content=str(e))
 

@@ -21,6 +21,12 @@ dependencies = [
     # LLM & Embedding (OpenRouter via OpenAI SDK)
     "openai>=1.55.0",
     
+    # LangChain & LangGraph
+    "langchain>=0.3.0",
+    "langgraph>=0.2.0",
+    "langchain-openai>=0.2.0",
+    "langchain-community>=0.3.0",
+    
     # PDF Processing
     "pymupdf>=1.24.0",
     

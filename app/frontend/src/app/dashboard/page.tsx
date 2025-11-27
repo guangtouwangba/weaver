@@ -1,25 +1,110 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import GlobalLayout from "@/components/layout/GlobalLayout";
-import { Box, Typography, Button } from "@mui/material";
-import { Plus } from "lucide-react";
-import Link from 'next/link';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Card,
+  CardContent,
+  CardActions,
+  IconButton,
+  CircularProgress,
+  Alert
+} from "@mui/material";
+import { Plus, Trash2, FolderOpen } from "lucide-react";
+import { projectsApi, Project } from "@/lib/api";
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  // Load projects on mount
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await projectsApi.list();
+      setProjects(response.items);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+    
+    try {
+      setCreating(true);
+      const project = await projectsApi.create(newProjectName, newProjectDescription || undefined);
+      setProjects([...projects, project]);
+      setCreateDialogOpen(false);
+      setNewProjectName('');
+      setNewProjectDescription('');
+      // Navigate to studio
+      router.push(`/studio?projectId=${project.id}`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create project');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this project?')) return;
+    
+    try {
+      await projectsApi.delete(projectId);
+      setProjects(projects.filter(p => p.id !== projectId));
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete project');
+    }
+  };
+
+  const handleOpenProject = (projectId: string) => {
+    router.push(`/studio?projectId=${projectId}`);
+  };
+
   return (
     <GlobalLayout>
       <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
         {/* Header */}
         <Box sx={{ mb: 6 }}>
           <Typography variant="h4" fontWeight="600" gutterBottom>
-            Welcome back, Alex
+            Projects
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            You have 12 cards due for review today.
+            Manage your research projects and knowledge bases
           </Typography>
         </Box>
 
-        {/* Smart Ingestion Zone Placeholder */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Create Project Zone */}
         <Box 
           sx={{ 
             border: '2px dashed', 
@@ -31,57 +116,125 @@ export default function DashboardPage() {
             bgcolor: 'background.default'
           }}
         >
+          <FolderOpen size={48} className="mx-auto mb-4 text-gray-400" />
           <Typography variant="h6" gutterBottom>
             Create New Knowledge Project
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Drag folders here to start, or drop files to Inbox
+            Start a new research project to organize your documents and insights
           </Typography>
-          <Button variant="contained" startIcon={<Plus />}>
+          <Button 
+            variant="contained" 
+            startIcon={<Plus />}
+            onClick={() => setCreateDialogOpen(true)}
+          >
             Create Project
           </Button>
         </Box>
 
-        {/* Active Projects Placeholder */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        {/* Projects List */}
+        <Box sx={{ mb: 2 }}>
           <Typography variant="h6" fontWeight="600">
-            Active Projects
+            Your Projects ({projects.length})
           </Typography>
-          <Button 
-            variant="text" 
-            size="small" 
-            component={Link}
-            href="/projects"
-            sx={{ color: 'text.secondary', textTransform: 'none' }}
-          >
-            View All
-          </Button>
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 3 }}>
-          {[1, 2, 3].map((i) => (
-            <Box 
-              key={i}
-              sx={{ 
-                p: 3, 
-                borderRadius: 3, 
-                border: '1px solid', 
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                cursor: 'pointer',
-                '&:hover': { borderColor: 'primary.main' }
-              }}
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : projects.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 8 }}>
+            <Typography variant="body1" color="text.secondary">
+              No projects yet. Create your first project to get started!
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
+            {projects.map((project) => (
+              <Card 
+                key={project.id}
+                sx={{ 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': { 
+                    boxShadow: 4,
+                    borderColor: 'primary.main'
+                  }
+                }}
+                onClick={() => handleOpenProject(project.id)}
+              >
+                <CardContent>
+                  <Typography variant="h6" fontWeight="600" gutterBottom>
+                    {project.name}
+                  </Typography>
+                  {project.description && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {project.description}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="text.disabled">
+                    Updated {new Date(project.updated_at).toLocaleDateString()}
+                  </Typography>
+                </CardContent>
+                <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => handleDeleteProject(project.id, e)}
+                    sx={{ color: 'error.main' }}
+                  >
+                    <Trash2 size={16} />
+                  </IconButton>
+                </CardActions>
+              </Card>
+            ))}
+          </Box>
+        )}
+
+        {/* Create Project Dialog */}
+        <Dialog 
+          open={createDialogOpen} 
+          onClose={() => !creating && setCreateDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Create New Project</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Project Name"
+              fullWidth
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              disabled={creating}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              label="Description (Optional)"
+              fullWidth
+              multiline
+              rows={3}
+              value={newProjectDescription}
+              onChange={(e) => setNewProjectDescription(e.target.value)}
+              disabled={creating}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateDialogOpen(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateProject} 
+              variant="contained"
+              disabled={!newProjectName.trim() || creating}
             >
-              <Typography variant="subtitle1" fontWeight="600">
-                Project Alpha {i}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Last edited 2 mins ago
-              </Typography>
-            </Box>
-          ))}
-        </Box>
+              {creating ? <CircularProgress size={20} /> : 'Create'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </GlobalLayout>
   );
 }
-

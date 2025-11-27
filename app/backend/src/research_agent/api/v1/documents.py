@@ -171,6 +171,38 @@ async def get_document_file(
     )
 
 
+@router.get("/documents/{document_id}/chunks")
+async def get_document_chunks(
+    document_id: UUID,
+    session: AsyncSession = Depends(get_db),
+):
+    """Get parsed text chunks for a document (for text preview/debugging)."""
+    document_repo = SQLAlchemyDocumentRepository(session)
+    chunk_repo = SQLAlchemyChunkRepository(session)
+    
+    # Verify document exists
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+    
+    # Get chunks
+    chunks = await chunk_repo.find_by_document(document_id)
+    
+    return {
+        "document_id": str(document_id),
+        "filename": document.filename,
+        "chunks": [
+            {
+                "chunk_index": chunk.chunk_index,
+                "page_number": chunk.page_number,
+                "content": chunk.content,
+            }
+            for chunk in chunks
+        ],
+        "total": len(chunks),
+    }
+
+
 @router.delete("/documents/{document_id}", status_code=204)
 async def delete_document(
     document_id: UUID,
