@@ -166,6 +166,34 @@ function StudioPageContent() {
     }
   }, [projectId]);
 
+  // --- Chat & RAG State ---
+  interface ChatMessage {
+    id: string;
+    role: 'user' | 'ai';
+    content: string;
+    type: 'text' | 'rag_result';
+    sources?: { title: string; id: string; }[];
+    timestamp: Date;
+  }
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      role: 'ai',
+      content: 'Hello! I\'m your research assistant. Ask me anything about your documents, and I can help you add key insights to your canvas.',
+      type: 'text',
+      timestamp: new Date()
+    }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isTyping]);
+
   // --- Layout State ---
   const [leftVisible, setLeftVisible] = useState(true);
   const [centerVisible, setCenterVisible] = useState(true);
@@ -533,6 +561,90 @@ function StudioPageContent() {
     }
 
     setContextMenu(null);
+  };
+
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: chatInput,
+      type: 'text',
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput('');
+    setIsTyping(true);
+
+    // Simulate RAG Processing
+    setTimeout(() => {
+      const aiMsg: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        role: 'ai',
+        content: `Based on your query "${userMsg.content}", I found relevant information in the "Attention Is All You Need" paper. The Transformer model relies entirely on self-attention to compute representations of its input and output without using sequence-aligned RNNs or convolution.`,
+        type: 'rag_result',
+        sources: [
+          { title: 'Attention Is All You Need.pdf', id: '1' },
+          { title: 'BERT_Pre-training.pdf', id: '2' }
+        ],
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, aiMsg]);
+      setIsTyping(false);
+    }, 1500);
+  };
+
+  const handleAddRagToCanvas = (message: ChatMessage) => {
+    if (!canvasRef.current) return;
+    
+    // Calculate position: Center of current viewport
+    const centerX = (-viewport.x + (canvasRef.current.clientWidth || 800) / 2) / viewport.scale;
+    const centerY = (-viewport.y + (canvasRef.current.clientHeight || 600) / 2) / viewport.scale;
+
+    const newNode: CanvasNode = {
+      id: `rag-${Date.now()}`,
+      type: 'card',
+      title: 'AI Insight',
+      content: message.content,
+      x: centerX - 140, // Center the card
+      y: centerY - 100,
+      color: 'white',
+      tags: ['#ai-generated'],
+      timestamp: new Date().toLocaleTimeString()
+    };
+
+    setCanvasNodes(prev => [...prev, newNode]);
+    
+    // Also add citation nodes if available (optional cluster effect)
+    if (message.sources) {
+        message.sources.forEach((source, index) => {
+            const sourceNodeId = `source-${Date.now()}-${index}`;
+            const sourceNode: CanvasNode = {
+                id: sourceNodeId,
+                type: 'card',
+                title: 'Source',
+                content: source.title,
+                x: centerX - 140 + (index + 1) * 40,
+                y: centerY + 150, // Place below the main insight
+                color: 'blue',
+                connections: [newNode.id] // Connect to the insight
+            };
+            setCanvasNodes(prev => [...prev, sourceNode]);
+        });
+    }
+
+    // Ensure we are on a canvas tab
+    const currentTab = tabs.find(t => t.id === activeTabId);
+    if (currentTab?.type !== 'canvas') {
+      const canvasTab = tabs.find(t => t.type === 'canvas');
+      if (canvasTab) {
+        setActiveTabId(canvasTab.id);
+      } else {
+        handleAddTab('canvas');
+      }
+    }
   };
 
   // --- Render Helpers ---
@@ -1465,12 +1577,98 @@ function StudioPageContent() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10B981' }} /><Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>Assistant</Typography></Box>
             <Box sx={{ display: 'flex', gap: 0.5 }}><Tooltip title={quietMode ? "Show All" : "Quiet Mode"}><IconButton size="small" onClick={() => setQuietMode(!quietMode)} sx={{ bgcolor: quietMode ? 'primary.main' : 'transparent', color: quietMode ? '#fff' : 'text.secondary', '&:hover': { bgcolor: quietMode ? 'primary.dark' : 'action.hover' } }}><Filter size={14} /></IconButton></Tooltip><Tooltip title="Collapse Processor (Cmd+.)"><IconButton size="small" onClick={() => setCenterVisible(false)}><PanelRightClose size={16} /></IconButton></Tooltip></Box>
           </Box>
+          
+          {/* Chat Messages Area */}
           <Box sx={{ p: 2, overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 300 }}>
-            {quietMode && <Box sx={{ p: 1, bgcolor: 'grey.100', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}><Zap size={12} className="text-orange-500" /><Typography variant="caption" color="text.secondary">Focus Mode On</Typography></Box>}
-            <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 3, bgcolor: '#fff' }}><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#3B82F6' }}><Sparkles size={14} /><Typography variant="caption" fontWeight="bold">CONCEPT</Typography></Box><IconButton size="small" sx={{ p: 0.5 }}><Plus size={14} /></IconButton></Box><Typography variant="subtitle2" fontWeight="bold" gutterBottom>Self-Attention Mechanism</Typography><Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.5 }}>Mapping a query and a set of key-value pairs to an output.</Typography></Paper>
-            <Collapse in={!quietMode}><Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'orange.200', borderRadius: 3, bgcolor: '#FFF7ED' }}><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}><Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#F97316' }}><LinkIcon size={14} /><Typography variant="caption" fontWeight="bold">LINK DETECTED</Typography></Box><IconButton size="small" sx={{ p: 0.5 }}><Plus size={14} /></IconButton></Box><Typography variant="subtitle2" fontWeight="bold" gutterBottom>Related to 'LSTM Limitations'</Typography><Button fullWidth variant="contained" size="small" startIcon={<LinkIcon size={14} />} sx={{ mt: 1, bgcolor: '#fff', color: '#F97316', boxShadow: 'none', border: '1px solid', borderColor: '#FDBA74', '&:hover': { bgcolor: '#FFEDD5', boxShadow: 'none' } }}>Merge & Connect</Button></Paper></Collapse>
+            {chatMessages.map((msg) => (
+              <Box key={msg.id} sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+                <Paper 
+                  elevation={0} 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    bgcolor: msg.role === 'user' ? 'primary.main' : 'white', 
+                    color: msg.role === 'user' ? 'white' : 'text.primary',
+                    border: msg.role === 'ai' ? '1px solid' : 'none',
+                    borderColor: 'divider'
+                  }}
+                >
+                  {msg.role === 'ai' && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: 'primary.main' }}>
+                      <Bot size={16} />
+                      <Typography variant="caption" fontWeight="bold">AI Assistant</Typography>
+                    </Box>
+                  )}
+                  
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</Typography>
+                  
+                  {msg.type === 'rag_result' && msg.sources && (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                      <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ mb: 1, display: 'block' }}>SOURCES</Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                        {msg.sources.map((source, idx) => (
+                          <Chip 
+                            key={idx} 
+                            label={source.title} 
+                            size="small" 
+                            icon={<FileText size={12} />} 
+                            sx={{ height: 24, fontSize: 11, maxWidth: 150 }} 
+                          />
+                        ))}
+                      </Box>
+                      <Button 
+                        fullWidth 
+                        size="small" 
+                        variant="outlined" 
+                        startIcon={<Layout size={14} />}
+                        onClick={() => handleAddRagToCanvas(msg)}
+                        sx={{ 
+                          borderColor: 'primary.main', 
+                          color: 'primary.main',
+                          '&:hover': { bgcolor: 'primary.50' }
+                        }}
+                      >
+                        Add to Canvas
+                      </Button>
+                    </Box>
+                  )}
+                </Paper>
+                <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block', textAlign: msg.role === 'user' ? 'right' : 'left', fontSize: 10 }}>
+                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Typography>
+              </Box>
+            ))}
+            {isTyping && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 2, bgcolor: 'white', borderRadius: 2, width: 'fit-content', border: '1px solid', borderColor: 'divider' }}>
+                <CircularProgress size={14} />
+                <Typography variant="caption" color="text.secondary">Thinking...</Typography>
+              </Box>
+            )}
+            <div ref={chatEndRef} />
           </Box>
-          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', minWidth: 300 }}><TextField fullWidth placeholder="Ask or summarize..." variant="standard" InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} sx={{ bgcolor: '#F3F4F6', px: 2, py: 1, borderRadius: 2 }} /></Box>
+
+          {/* Chat Input Area */}
+          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', minWidth: 300 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#F3F4F6', px: 2, py: 1, borderRadius: 2 }}>
+              <TextField 
+                fullWidth 
+                placeholder="Ask about your documents..." 
+                variant="standard" 
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} 
+              />
+              <IconButton size="small" color={chatInput.trim() ? "primary" : "default"} onClick={handleSendMessage} disabled={!chatInput.trim() || isTyping}>
+                <ArrowRight size={18} />
+              </IconButton>
+            </Box>
+          </Box>
         </Box>
         {centerVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('center')} />}
         {!centerVisible && <Box sx={{ width: 40, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: '#F9FAFB' }}>
