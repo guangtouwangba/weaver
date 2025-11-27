@@ -24,7 +24,7 @@ import {
   chatApi,
   canvasApi,
   Project,
-  Document,
+  ProjectDocument,
 } from '@/lib/api';
 
 export default function ApiTestPage() {
@@ -39,9 +39,9 @@ export default function ApiTestPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Documents
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<ProjectDocument | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string>('');
 
   // Chat
@@ -142,7 +142,7 @@ export default function ApiTestPage() {
   };
 
   // View PDF
-  const viewPdf = (doc: Document) => {
+  const viewPdf = (doc: ProjectDocument) => {
     setSelectedDocument(doc);
     setPdfUrl(documentsApi.getFileUrl(doc.id));
   };

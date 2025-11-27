@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed - TypeScript Build Error (2025-11-27)
+
+**修复前端构建时的 TypeScript 命名冲突** (@aqiu)
+
+- **Renamed** `Document` interface to `ProjectDocument` in `app/frontend/src/lib/api.ts`
+  - `Document` is a reserved DOM type in TypeScript, causing build conflicts
+- **Updated** `app/frontend/src/app/api-test/page.tsx` to use `ProjectDocument`
+
 ### Changed - Migrate from Fly.io to Zeabur (2025-11-27)
 
 **Deployment platform migration to Zeabur**
