@@ -19,11 +19,20 @@ def _mask_password(url: str) -> str:
 logger.info("=" * 60)
 logger.info("DATABASE CONFIGURATION DEBUG")
 logger.info("=" * 60)
-logger.info(f"Raw DATABASE_URL env: {_mask_password(os.environ.get('DATABASE_URL', 'NOT SET'))}")
+raw_url = os.environ.get('DATABASE_URL', 'NOT SET')
+logger.info(f"Raw DATABASE_URL env: {_mask_password(raw_url)}")
 logger.info(f"Settings database_url: {_mask_password(settings.database_url)}")
 logger.info(f"Settings async_database_url: {_mask_password(settings.async_database_url)}")
 logger.info(f"Contains 'supabase': {'supabase' in settings.database_url}")
 logger.info(f"Contains 'pooler': {'pooler' in settings.database_url}")
+
+# Check connection mode
+if 'pooler' in settings.database_url:
+    if ':6543/' in settings.database_url:
+        logger.warning("Using Transaction Mode (port 6543) - may have issues with prepared statements!")
+        logger.warning("Consider using Session Mode (port 5432) for better SQLAlchemy compatibility")
+    elif ':5432/' in settings.database_url:
+        logger.info("Using Session Mode (port 5432) - recommended for persistent backends")
 logger.info("=" * 60)
 
 # Configure SSL for Supabase/cloud PostgreSQL
@@ -58,9 +67,17 @@ async_session_maker = async_sessionmaker(
 
 async def init_db() -> None:
     """Initialize database connection."""
-    # Test connection
-    async with engine.begin() as conn:
-        await conn.run_sync(lambda _: None)
+    try:
+        # Test connection
+        logger.info("Attempting to connect to database...")
+        async with engine.begin() as conn:
+            await conn.run_sync(lambda _: None)
+        logger.info("Database connection test successful!")
+    except Exception as e:
+        logger.error(f"Database connection failed: {type(e).__name__}: {e}")
+        logger.error("Please check your DATABASE_URL configuration")
+        logger.error("For Supabase, use Session Mode (port 5432) instead of Transaction Mode (port 6543)")
+        raise
 
 
 async def close_db() -> None:
