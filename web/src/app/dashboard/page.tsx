@@ -1,11 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { Box, Typography, Button } from "@mui/material";
 import { Plus } from "lucide-react";
 import Link from 'next/link';
+import CreateProjectDialog from "@/components/dialogs/CreateProjectDialog";
 
 export default function DashboardPage() {
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
   return (
     <GlobalLayout>
       <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
@@ -37,10 +41,20 @@ export default function DashboardPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Drag folders here to start, or drop files to Inbox
           </Typography>
-          <Button variant="contained" startIcon={<Plus />}>
+          <Button 
+            variant="contained" 
+            startIcon={<Plus />}
+            onClick={() => setCreateDialogOpen(true)}
+          >
             Create Project
           </Button>
         </Box>
+
+        {/* Create Project Dialog */}
+        <CreateProjectDialog
+          open={createDialogOpen}
+          onClose={() => setCreateDialogOpen(false)}
+        />
 
         {/* Active Projects Placeholder */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
