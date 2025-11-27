@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed - Migrate from Fly.io to Zeabur (2025-11-27)
+
+**Deployment platform migration to Zeabur**
+
+- **Migrated** deployment from Fly.io to Zeabur for better Chinese support and simpler workflow
+- **Created** `app/backend/Dockerfile` - Standalone Dockerfile for backend (adapted from root Dockerfile.api)
+- **Removed** Fly.io configuration files:
+  - `Dockerfile.api` (moved to app/backend/Dockerfile)
+  - `fly.api.dev.toml`, `fly.api.prod.toml`
+  - `app/frontend/fly.dev.toml`
+  - `web/fly.prod.toml`
+- **Removed** GitHub Actions workflows (Zeabur auto-deploy replaces them):
+  - `.github/workflows/deploy-api.yml`
+  - `.github/workflows/deploy-web.yml`
+- **Removed** Fly.io scripts:
+  - `scripts/deploy.sh`
+  - `scripts/fly-setup.sh`
+
+**Zeabur deployment structure (2 projects, multiple services):**
+
+| 环境 | 项目 | 服务 |
+|------|------|------|
+| Dev | `research-rag-dev` | api, frontend |
+| Prod | `research-rag-prod` | api, frontend, web |
+
+**Documentation:**
+- Added `docs/deployment/zeabur-deployment.md` - Complete deployment guide
+
 ### Changed - MVP Scope Cleanup (2025-11-26)
 
 **Frontend cleanup to align with MVP scope (PDF-only, Canvas-focused)**
