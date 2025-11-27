@@ -2,7 +2,43 @@
  * API client for Research Agent RAG backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Get API URL - supports both build-time and runtime configuration
+function getApiBaseUrl(): string {
+  // 1. Check build-time env var (Next.js replaces this at build time)
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // 2. Check runtime window config (can be injected via script tag)
+  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
+    return (window as any).__API_URL__;
+  }
+  
+  // 3. Auto-detect based on current hostname for Zeabur deployments
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // If running on Zeabur, try to guess the API URL
+    if (hostname.includes('zeabur.app')) {
+      // Replace 'web' or 'frontend' with 'api' in the hostname
+      const apiHostname = hostname
+        .replace('-web-', '-api-')
+        .replace('-frontend-', '-api-')
+        .replace('research-agent-rag-web', 'research-agent-rag-api')
+        .replace('research-agent-rag-frontend', 'research-agent-rag-api');
+      return `https://${apiHostname}`;
+    }
+  }
+  
+  // 4. Default to localhost for development
+  return 'http://localhost:8000';
+}
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Log the API URL for debugging (only in browser)
+if (typeof window !== 'undefined') {
+  console.log('[API] Using API URL:', API_BASE_URL);
+}
 
 // Types
 export interface Project {
