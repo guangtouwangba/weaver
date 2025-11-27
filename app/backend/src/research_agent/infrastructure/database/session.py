@@ -35,9 +35,23 @@ if 'pooler' in settings.database_url:
         logger.info("Using Session Mode (port 5432) - recommended for persistent backends")
 logger.info("=" * 60)
 
+# Configure connection args for asyncpg
+connect_args = {}
+
+# Check if using a connection pooler (Supavisor/PgBouncer)
+is_using_pooler = "pooler" in settings.database_url
+is_transaction_mode = ":6543/" in settings.database_url
+
+if is_using_pooler:
+    # Disable prepared statements for connection poolers
+    # Transaction mode (port 6543) doesn't support prepared statements
+    # Session mode (port 5432) may also have issues with statement caching
+    logger.info("Detected connection pooler - disabling prepared statement cache")
+    connect_args["statement_cache_size"] = 0
+    connect_args["prepared_statement_cache_size"] = 0
+
 # Configure SSL for Supabase/cloud PostgreSQL
 # asyncpg requires ssl context, not sslmode parameter
-connect_args = {}
 if "supabase" in settings.database_url or "neon" in settings.database_url or "pooler" in settings.database_url:
     # Create SSL context for cloud databases
     logger.info("Configuring SSL for cloud database connection")
