@@ -90,6 +90,11 @@ class Settings(BaseSettings):
 
     # Storage
     upload_dir: str = "./data/uploads"
+    
+    # Supabase Storage
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
+    storage_bucket: str = "documents"
 
     # CORS
     cors_origins: str = "http://localhost:3000"

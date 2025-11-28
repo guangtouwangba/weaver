@@ -201,6 +201,16 @@ export const projectsApi = {
     fetchApi<void>(`/api/v1/projects/${id}`, { method: 'DELETE' }),
 };
 
+// Presigned URL response type
+interface PresignResponse {
+  upload_url: string;
+  file_path: string;
+  expires_at: string;
+}
+
+// Upload progress callback type
+type UploadProgressCallback = (progress: number) => void;
+
 // Documents API
 export const documentsApi = {
   list: (projectId: string) =>
@@ -215,6 +225,83 @@ export const documentsApi = {
   getFileUrl: (documentId: string) =>
     `${getApiUrl()}/api/v1/documents/${documentId}/file`,
   
+  // Get presigned upload URL (for Supabase Storage direct upload)
+  getPresignedUrl: (projectId: string, filename: string, contentType: string = 'application/pdf') =>
+    fetchApi<PresignResponse>(`/api/v1/projects/${projectId}/documents/presign`, {
+      method: 'POST',
+      body: JSON.stringify({ filename, content_type: contentType }),
+    }),
+  
+  // Confirm upload after direct upload to Supabase Storage
+  confirmUpload: (
+    projectId: string,
+    filePath: string,
+    filename: string,
+    fileSize: number,
+    contentType: string = 'application/pdf'
+  ) =>
+    fetchApi<ProjectDocument>(`/api/v1/projects/${projectId}/documents/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({
+        file_path: filePath,
+        filename,
+        file_size: fileSize,
+        content_type: contentType,
+      }),
+    }),
+  
+  // Upload with presigned URL (new method - direct to Supabase Storage)
+  uploadWithPresignedUrl: async (
+    projectId: string,
+    file: File,
+    onProgress?: UploadProgressCallback
+  ): Promise<ProjectDocument> => {
+    // Step 1: Get presigned upload URL
+    const presignResponse = await documentsApi.getPresignedUrl(
+      projectId,
+      file.name,
+      file.type || 'application/pdf'
+    );
+    
+    // Step 2: Upload directly to Supabase Storage
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          onProgress(progress);
+        }
+      });
+      
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      });
+      
+      xhr.addEventListener('error', () => {
+        reject(new Error('Upload failed'));
+      });
+      
+      xhr.open('PUT', presignResponse.upload_url);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/pdf');
+      xhr.send(file);
+    });
+    
+    // Step 3: Confirm upload and process document
+    return documentsApi.confirmUpload(
+      projectId,
+      presignResponse.file_path,
+      file.name,
+      file.size,
+      file.type || 'application/pdf'
+    );
+  },
+  
+  // Legacy upload (direct to backend - fallback)
   upload: async (projectId: string, file: File): Promise<ProjectDocument> => {
     const formData = new FormData();
     formData.append('file', file);

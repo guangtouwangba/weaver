@@ -10,6 +10,8 @@ import {
   Tooltip,
   Collapse,
   Chip,
+  LinearProgress,
+  Alert,
 } from "@mui/material";
 import { 
   FileText, 
@@ -24,6 +26,9 @@ import {
   LayoutGrid,
   List as ListIcon,
   Upload,
+  CloudUpload,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument } from '@/lib/api';
@@ -42,6 +47,9 @@ interface SourcePanelProps {
   onToggle: () => void;
 }
 
+// Upload state type
+type UploadState = 'idle' | 'uploading' | 'processing' | 'success' | 'error';
+
 export default function SourcePanel({ visible, width, onToggle }: SourcePanelProps) {
   const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId } = useStudio();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
@@ -50,6 +58,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [filesExpanded, setFilesExpanded] = useState(true);
+  
+  // Upload state
+  const [uploadState, setUploadState] = useState<UploadState>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   
   // Vertical Resize State
   const [splitRatio, setSplitRatio] = useState(0.4);
@@ -126,14 +140,72 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (!e.target.files || !e.target.files[0]) return;
+    
+    const file = e.target.files[0];
+    setUploadFileName(file.name);
+    setUploadState('uploading');
+    setUploadProgress(0);
+    setUploadError(null);
+    
+    try {
+      // Try presigned URL upload first (Supabase Storage)
+      const newDoc = await documentsApi.uploadWithPresignedUrl(
+        projectId, 
+        file,
+        (progress) => {
+          setUploadProgress(progress);
+          // When upload is complete, switch to processing state
+          if (progress === 100) {
+            setUploadState('processing');
+          }
+        }
+      );
+      
+      setUploadState('success');
+      setDocuments([...documents, newDoc]);
+      
+      // Reset after a short delay
+      setTimeout(() => {
+        setUploadState('idle');
+        setUploadProgress(0);
+        setUploadFileName(null);
+      }, 2000);
+      
+    } catch (presignError: any) {
+      console.warn("Presigned URL upload failed, falling back to direct upload:", presignError.message);
+      
+      // Fallback to direct upload if presigned URL is not available
       try {
-        const newDoc = await documentsApi.upload(projectId, e.target.files[0]);
+        setUploadState('uploading');
+        setUploadProgress(50); // Indeterminate progress for fallback
+        
+        const newDoc = await documentsApi.upload(projectId, file);
+        
+        setUploadState('success');
         setDocuments([...documents, newDoc]);
-      } catch (error) {
-        console.error("Upload failed:", error);
+        
+        setTimeout(() => {
+          setUploadState('idle');
+          setUploadProgress(0);
+          setUploadFileName(null);
+        }, 2000);
+        
+      } catch (fallbackError: any) {
+        console.error("Upload failed:", fallbackError);
+        setUploadState('error');
+        setUploadError(fallbackError.message || 'Upload failed');
+        
+        setTimeout(() => {
+          setUploadState('idle');
+          setUploadError(null);
+          setUploadFileName(null);
+        }, 5000);
       }
     }
+    
+    // Reset file input
+    e.target.value = '';
   };
 
   // PDF Pagination
@@ -333,10 +405,71 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         </Box>
         
         <Box sx={{ px: 2, mb: 2 }}>
-          <Button component="label" fullWidth variant="contained" size="small" startIcon={<Upload size={14} />} sx={{ bgcolor: '#171717', textTransform: 'none', borderRadius: 1.5, '&:hover': { bgcolor: '#000' } }}>
-            Upload PDF
-            <input type="file" hidden accept=".pdf" onChange={handleUpload} />
-          </Button>
+          {/* Upload Button / Progress */}
+          {uploadState === 'idle' ? (
+            <Button 
+              component="label" 
+              fullWidth 
+              variant="contained" 
+              size="small" 
+              startIcon={<CloudUpload size={14} />} 
+              sx={{ 
+                bgcolor: '#171717', 
+                textTransform: 'none', 
+                borderRadius: 1.5, 
+                '&:hover': { bgcolor: '#000' } 
+              }}
+            >
+              Upload PDF
+              <input type="file" hidden accept=".pdf" onChange={handleUpload} />
+            </Button>
+          ) : (
+            <Paper 
+              elevation={0} 
+              sx={{ 
+                p: 1.5, 
+                borderRadius: 1.5, 
+                border: '1px solid', 
+                borderColor: uploadState === 'error' ? 'error.main' : uploadState === 'success' ? 'success.main' : 'divider',
+                bgcolor: uploadState === 'error' ? 'error.50' : uploadState === 'success' ? 'success.50' : 'background.default'
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: uploadState === 'uploading' || uploadState === 'processing' ? 1 : 0 }}>
+                {uploadState === 'uploading' && <CloudUpload size={14} className="text-blue-500" />}
+                {uploadState === 'processing' && <CloudUpload size={14} className="text-orange-500 animate-pulse" />}
+                {uploadState === 'success' && <CheckCircle size={14} className="text-green-600" />}
+                {uploadState === 'error' && <AlertCircle size={14} className="text-red-600" />}
+                
+                <Typography variant="caption" fontWeight="500" noWrap sx={{ flex: 1 }}>
+                  {uploadState === 'uploading' && `Uploading ${uploadFileName}...`}
+                  {uploadState === 'processing' && 'Processing document...'}
+                  {uploadState === 'success' && 'Upload complete!'}
+                  {uploadState === 'error' && (uploadError || 'Upload failed')}
+                </Typography>
+                
+                {(uploadState === 'uploading' || uploadState === 'processing') && (
+                  <Typography variant="caption" color="text.secondary">
+                    {uploadState === 'uploading' ? `${uploadProgress}%` : ''}
+                  </Typography>
+                )}
+              </Box>
+              
+              {(uploadState === 'uploading' || uploadState === 'processing') && (
+                <LinearProgress 
+                  variant={uploadState === 'processing' ? 'indeterminate' : 'determinate'}
+                  value={uploadProgress}
+                  sx={{ 
+                    height: 4, 
+                    borderRadius: 2,
+                    bgcolor: 'grey.200',
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor: uploadState === 'processing' ? 'warning.main' : 'primary.main'
+                    }
+                  }}
+                />
+              )}
+            </Paper>
+          )}
         </Box>
 
         <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 2 }}>

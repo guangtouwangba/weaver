@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Supabase Storage Integration (2025-11-28)
+
+**Migrate file uploads from local storage to Supabase Storage** (@aqiu)
+
+**Backend Changes:**
+- **Created** `supabase_storage.py` - Supabase Storage service with presigned URL support
+- **Added** `POST /documents/presign` endpoint - Generate presigned upload URLs
+- **Added** `POST /documents/confirm` endpoint - Confirm upload and process document
+- **Updated** `GET /documents/{id}/file` endpoint - Support redirect to signed download URLs
+- **Added** Supabase config options: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STORAGE_BUCKET`
+
+**Frontend Changes:**
+- **Added** `uploadWithPresignedUrl()` method - Direct upload to Supabase Storage
+- **Added** upload progress indicator with percentage display
+- **Added** processing state indicator after upload completes
+- **Implemented** fallback to direct backend upload if presigned URL not available
+
+**Supabase Storage Configuration:**
+- Created `documents` bucket (private, 50MB limit)
+- Configured RLS policies for service role and authenticated users
+- Supported MIME types: PDF, text, markdown, DOCX
+
+**Architecture:**
+```
+Frontend → Backend (presign) → Supabase Storage
+Frontend → Supabase Storage (direct upload)
+Frontend → Backend (confirm) → Process & Store metadata
+```
+
 ### Changed - Rebrand to Weaver (2025-11-27)
 
 **Project renamed to "Weaver"** (@aqiu)

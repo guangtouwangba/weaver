@@ -1,10 +1,14 @@
 """Documents API endpoints."""
 
+import logging
+from io import BytesIO
 from pathlib import Path
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db, get_embedding_service
@@ -36,11 +40,173 @@ from research_agent.infrastructure.database.repositories.sqlalchemy_document_rep
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
+from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
 from research_agent.shared.exceptions import NotFoundError, PDFProcessingError
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 settings = get_settings()
 
+
+# ============== Request/Response Models ==============
+
+class PresignRequest(BaseModel):
+    """Request for generating a presigned upload URL."""
+    filename: str
+    content_type: Optional[str] = "application/pdf"
+
+
+class PresignResponse(BaseModel):
+    """Response containing presigned upload URL."""
+    upload_url: str
+    file_path: str
+    expires_at: str
+
+
+class ConfirmUploadRequest(BaseModel):
+    """Request to confirm a successful upload."""
+    file_path: str
+    filename: str
+    file_size: int
+    content_type: Optional[str] = "application/pdf"
+
+
+# ============== Helper Functions ==============
+
+def get_supabase_storage() -> Optional[SupabaseStorageService]:
+    """Get Supabase storage service if configured."""
+    if settings.supabase_url and settings.supabase_service_role_key:
+        return SupabaseStorageService(
+            supabase_url=settings.supabase_url,
+            service_role_key=settings.supabase_service_role_key,
+            bucket_name=settings.storage_bucket,
+        )
+    return None
+
+
+# ============== Presigned URL Endpoints ==============
+
+@router.post("/projects/{project_id}/documents/presign", response_model=PresignResponse)
+async def get_presigned_upload_url(
+    project_id: UUID,
+    request: PresignRequest,
+) -> PresignResponse:
+    """
+    Generate a presigned URL for direct file upload to Supabase Storage.
+    
+    The client should:
+    1. Call this endpoint to get a presigned URL
+    2. Upload the file directly to the presigned URL (PUT request)
+    3. Call /confirm endpoint to register the document
+    """
+    storage = get_supabase_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=501,
+            detail="Supabase Storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+        )
+    
+    try:
+        result = await storage.create_signed_upload_url(
+            project_id=str(project_id),
+            filename=request.filename,
+        )
+        
+        return PresignResponse(
+            upload_url=result.upload_url,
+            file_path=result.file_path,
+            expires_at=result.expires_at.isoformat(),
+        )
+    except Exception as e:
+        logger.error(f"Failed to create presigned URL: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create presigned URL: {str(e)}")
+
+
+@router.post("/projects/{project_id}/documents/confirm", response_model=DocumentUploadResponse, status_code=201)
+async def confirm_upload(
+    project_id: UUID,
+    request: ConfirmUploadRequest,
+    session: AsyncSession = Depends(get_db),
+    embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
+) -> DocumentUploadResponse:
+    """
+    Confirm a successful file upload and process the document.
+    
+    This endpoint should be called after the file has been uploaded to Supabase Storage.
+    It will:
+    1. Verify the file exists in storage
+    2. Download the file for processing
+    3. Parse the PDF and create embeddings
+    4. Store document metadata in the database
+    """
+    storage = get_supabase_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=501,
+            detail="Supabase Storage not configured."
+        )
+    
+    # Verify file exists in storage
+    exists = await storage.file_exists(request.file_path)
+    if not exists:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File not found in storage: {request.file_path}"
+        )
+    
+    # Download file for processing
+    try:
+        file_content = await storage.download_file(request.file_path)
+    except Exception as e:
+        logger.error(f"Failed to download file from storage: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+    
+    # Create dependencies
+    document_repo = SQLAlchemyDocumentRepository(session)
+    chunk_repo = SQLAlchemyChunkRepository(session)
+    # Use a dummy local storage since file is already in Supabase
+    local_storage = LocalStorageService(settings.upload_dir)
+    pdf_parser = PyMuPDFParser()
+    chunking_service = ChunkingService()
+    
+    use_case = UploadDocumentUseCase(
+        document_repo=document_repo,
+        chunk_repo=chunk_repo,
+        storage=local_storage,  # Still used for temp processing
+        pdf_parser=pdf_parser,
+        embedding_service=embedding_service,
+        chunking_service=chunking_service,
+    )
+    
+    try:
+        # Create a file-like object from bytes
+        file_io = BytesIO(file_content)
+        
+        result = await use_case.execute(
+            UploadDocumentInput(
+                project_id=project_id,
+                filename=request.filename,
+                file_content=file_io,
+                file_size=request.file_size,
+                storage_path=request.file_path,  # Store the Supabase path
+            )
+        )
+        
+        return DocumentUploadResponse(
+            id=result.id,
+            filename=result.filename,
+            page_count=result.page_count,
+            status=result.status,
+            message="Document uploaded and processed successfully",
+        )
+    except PDFProcessingError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to process document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
+
+
+# ============== Standard Document Endpoints ==============
 
 @router.get("/projects/{project_id}/documents", response_model=DocumentListResponse)
 async def list_documents(
@@ -152,17 +318,42 @@ async def get_document(
 async def get_document_file(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
-) -> FileResponse:
-    """Get the PDF file for a document."""
+):
+    """
+    Get the PDF file for a document.
+    
+    If the file is stored in Supabase Storage, returns a redirect to a signed URL.
+    Otherwise, returns the file directly from local storage.
+    """
     document_repo = SQLAlchemyDocumentRepository(session)
     document = await document_repo.find_by_id(document_id)
 
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
 
+    # Check if file is stored in Supabase Storage (path starts with "projects/")
+    if document.file_path.startswith("projects/") and not Path(document.file_path).is_absolute():
+        storage = get_supabase_storage()
+        if storage:
+            try:
+                # Generate a signed download URL
+                result = await storage.create_signed_download_url(
+                    file_path=document.file_path,
+                    expires_in_seconds=3600,  # 1 hour
+                )
+                # Redirect to the signed URL
+                return RedirectResponse(url=result.signed_url, status_code=302)
+            except Exception as e:
+                logger.error(f"Failed to create signed download URL: {e}")
+                # Fall through to try local storage
+    
+    # Try local storage
     file_path = Path(document.file_path)
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="PDF file not found on server")
+        # Also try with upload_dir prefix
+        file_path = Path(settings.upload_dir) / document.file_path
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="PDF file not found on server")
 
     return FileResponse(
         path=str(file_path),

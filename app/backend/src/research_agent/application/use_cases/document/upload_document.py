@@ -1,7 +1,7 @@
 """Upload document use case."""
 
-from dataclasses import dataclass
-from typing import BinaryIO
+from dataclasses import dataclass, field
+from typing import BinaryIO, Optional
 from uuid import UUID
 
 from research_agent.domain.entities.chunk import DocumentChunk
@@ -24,6 +24,7 @@ class UploadDocumentInput:
     filename: str
     file_content: BinaryIO
     file_size: int
+    storage_path: Optional[str] = field(default=None)  # Supabase Storage path if using cloud storage
 
 
 @dataclass
@@ -67,10 +68,18 @@ class UploadDocumentUseCase:
         )
         document.mark_processing()
 
-        # 2. Save file to storage
-        file_path = f"projects/{input.project_id}/{document.id}.pdf"
-        full_path = await self._storage.save(file_path, input.file_content)
-        document.file_path = full_path
+        # 2. Handle file storage
+        if input.storage_path:
+            # File already uploaded to Supabase Storage
+            document.file_path = input.storage_path
+            # Save file content locally for PDF processing (temp)
+            temp_path = f"projects/{input.project_id}/{document.id}.pdf"
+            full_path = await self._storage.save(temp_path, input.file_content)
+        else:
+            # Traditional local storage
+            file_path = f"projects/{input.project_id}/{document.id}.pdf"
+            full_path = await self._storage.save(file_path, input.file_content)
+            document.file_path = full_path
 
         # Save document (processing status)
         await self._document_repo.save(document)
