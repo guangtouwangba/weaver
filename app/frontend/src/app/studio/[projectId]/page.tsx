@@ -90,12 +90,12 @@ export default function StudioPage() {
       
       if (!isInput) {
         if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-            e.preventDefault();
-            setLeftVisible(prev => !prev);
+          e.preventDefault();
+          setLeftVisible(prev => !prev);
         }
         if ((e.metaKey || e.ctrlKey) && e.key === '.') {
-            e.preventDefault();
-            setCenterVisible(prev => !prev);
+          e.preventDefault();
+          setCenterVisible(prev => !prev);
         }
       }
     };
@@ -108,13 +108,11 @@ export default function StudioPage() {
     <StudioProvider projectId={projectId}>
       <GlobalLayout>
         <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: 'background.paper' }}>
-          
           {/* LEFT: Source Panel */}
           <SourcePanel 
             visible={leftVisible} 
             width={leftWidth} 
             onToggle={() => setLeftVisible(!leftVisible)}
-            onResizeStart={() => {}} // Handled by separate handle
           />
           {leftVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('left')} />}
 
@@ -123,13 +121,11 @@ export default function StudioPage() {
             visible={centerVisible}
             width={centerWidth}
             onToggle={() => setCenterVisible(!centerVisible)}
-            onResizeStart={() => {}} // Handled by separate handle
           />
           {centerVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('center')} />}
-
+          
           {/* RIGHT: Canvas */}
           <CanvasPanel />
-          
         </Box>
       </GlobalLayout>
     </StudioProvider>
