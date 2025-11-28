@@ -41,6 +41,14 @@ interface StudioContextType {
   // Actions
   addNodeToCanvas: (node: Omit<CanvasNode, 'id'>) => void;
   saveCanvas: () => Promise<void>;
+  
+  // Navigation
+  navigateToSource: (documentId: string, pageNumber: number, searchText?: string) => void;
+  sourceNavigation: {
+    documentId: string;
+    pageNumber: number;
+    searchText?: string;
+  } | null;
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
@@ -65,6 +73,13 @@ export function StudioProvider({
       timestamp: new Date(),
     }
   ]);
+  
+  // Navigation state for source jumping
+  const [sourceNavigation, setSourceNavigation] = useState<{
+    documentId: string;
+    pageNumber: number;
+    searchText?: string;
+  } | null>(null);
 
   const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
     const newNode: CanvasNode = {
@@ -77,6 +92,11 @@ export function StudioProvider({
   const saveCanvas = useCallback(async () => {
     // This will be implemented in CanvasPanel
     console.log('Saving canvas...');
+  }, []);
+
+  const navigateToSource = useCallback((documentId: string, pageNumber: number, searchText?: string) => {
+    setActiveDocumentId(documentId);
+    setSourceNavigation({ documentId, pageNumber, searchText });
   }, []);
 
   // Load data on mount
@@ -138,6 +158,8 @@ export function StudioProvider({
     setChatMessages,
     addNodeToCanvas,
     saveCanvas,
+    navigateToSource,
+    sourceNavigation,
   };
 
   return (

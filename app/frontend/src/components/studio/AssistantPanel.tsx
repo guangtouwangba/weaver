@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { 
   Box, 
   Typography, 
@@ -10,6 +11,8 @@ import {
   Tooltip,
   CircularProgress,
   Button,
+  Collapse,
+  Chip,
 } from "@mui/material";
 import { 
   Bot,
@@ -17,7 +20,9 @@ import {
   PanelRightOpen,
   Send,
   Link as LinkIcon,
-  Plus
+  Plus,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { chatApi } from '@/lib/api';
@@ -29,13 +34,26 @@ interface AssistantPanelProps {
 }
 
 export default function AssistantPanel({ visible, width, onToggle }: AssistantPanelProps) {
-  const { projectId, chatMessages, setChatMessages, activeDocumentId, addNodeToCanvas } = useStudio();
+  const { projectId, chatMessages, setChatMessages, activeDocumentId, addNodeToCanvas, navigateToSource } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToBottom, [chatMessages]);
+
+  const toggleSources = (msgId: string) => {
+    setExpandedSources(prev => {
+      const next = new Set(prev);
+      if (next.has(msgId)) {
+        next.delete(msgId);
+      } else {
+        next.add(msgId);
+      }
+      return next;
+    });
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -47,44 +65,73 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         timestamp: new Date()
     };
     
-    setChatMessages(prev => [...prev, userMsg]);
+    const userInput = input;
     setInput('');
     setIsLoading(true);
 
+    // Add user message
+    flushSync(() => {
+      setChatMessages(prev => [...prev, userMsg]);
+    });
+
     try {
-        // Prepare AI message placeholder
+        // Prepare AI message placeholder with loading indicator
         const aiMsgId = (Date.now() + 1).toString();
-        setChatMessages(prev => [...prev, {
-            id: aiMsgId,
-            role: 'ai',
-            content: '',
-            timestamp: new Date()
-        }]);
+        flushSync(() => {
+          setChatMessages(prev => [...prev, {
+              id: aiMsgId,
+              role: 'ai',
+              content: '',
+              timestamp: new Date()
+          }]);
+        });
 
         // Stream response
-        // Note: chatApi.stream is an async generator
-        for await (const chunk of chatApi.stream(projectId, { message: userMsg.content, document_id: activeDocumentId || undefined })) {
-            if (chunk.type === 'token') {
-                setChatMessages(prev => prev.map(m => 
-                    m.id === aiMsgId ? { ...m, content: m.content + (chunk.content || '') } : m
-                ));
+        for await (const chunk of chatApi.stream(projectId, { message: userInput, document_id: activeDocumentId || undefined })) {
+            if (chunk.type === 'token' && chunk.content) {
+                // Use flushSync to force immediate DOM update for real-time rendering
+                flushSync(() => {
+                  setChatMessages(prev => prev.map(m => 
+                      m.id === aiMsgId 
+                        ? { ...m, content: (m.content || '') + chunk.content } 
+                        : m
+                  ));
+                });
+                // Scroll to bottom after each token
+                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 0);
             } else if (chunk.type === 'sources') {
-                setChatMessages(prev => prev.map(m => 
-                    m.id === aiMsgId ? { ...m, sources: chunk.sources } : m
-                ));
+                flushSync(() => {
+                  setChatMessages(prev => prev.map(m => 
+                      m.id === aiMsgId ? { ...m, sources: chunk.sources } : m
+                  ));
+                });
+            } else if (chunk.type === 'done') {
+                // Final scroll when done
+                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 0);
+            } else if (chunk.type === 'error') {
+                flushSync(() => {
+                  setChatMessages(prev => prev.map(m => 
+                      m.id === aiMsgId 
+                        ? { ...m, content: (m.content || '') + `\n\n[Error: ${chunk.content || 'Unknown error'}]` } 
+                        : m
+                  ));
+                });
             }
         }
     } catch (err) {
         console.error("Chat error:", err);
-        // Add error message
-        setChatMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            role: 'ai',
-            content: 'Sorry, I encountered an error processing your request.',
-            timestamp: new Date()
-        }]);
+        // Update error message
+        flushSync(() => {
+          setChatMessages(prev => prev.map(m => 
+              m.id === aiMsgId 
+                ? { ...m, content: (m.content || '') + `\n\nSorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}` }
+                : m
+          ));
+        });
     } finally {
         setIsLoading(false);
+        // Final scroll
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 0);
     }
   };
 
@@ -160,20 +207,114 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                     color: msg.role === 'user' ? '#1E40AF' : 'text.primary'
                 }}
             >
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</Typography>
+              {msg.role === 'ai' && !msg.content && isLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={12} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                    Thinking...
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '1.5em' }}>
+                  {msg.content || (msg.role === 'ai' ? '...' : '')}
+                </Typography>
+              )}
               
-              {/* Sources */}
+              {/* Sources - Collapsible */}
               {msg.sources && msg.sources.length > 0 && (
-                <Box sx={{ mt: 2, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ mb: 1, display: 'block' }}>Sources:</Typography>
-                    {msg.sources.map((source, idx) => (
-                        <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, p: 1, bgcolor: '#F9FAFB', borderRadius: 1, fontSize: 11 }}>
-                            <LinkIcon size={12} className="text-gray-400 flex-shrink-0 mt-0.5" />
-                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
-                                "...{source.snippet.slice(0, 100)}..." (Page {source.page_number})
+                <Box sx={{ mt: 1.5 }}>
+                  <Button
+                    size="small"
+                    onClick={() => toggleSources(msg.id)}
+                    startIcon={<LinkIcon size={12} />}
+                    endIcon={expandedSources.has(msg.id) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    sx={{
+                      textTransform: 'none',
+                      fontSize: '0.7rem',
+                      color: 'text.secondary',
+                      minWidth: 'auto',
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: 1,
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                    }}
+                  >
+                    {msg.sources.length} {msg.sources.length === 1 ? 'source' : 'sources'}
+                  </Button>
+                  
+                  <Collapse in={expandedSources.has(msg.id)}>
+                    <Box sx={{ mt: 1, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                      {msg.sources.map((source, idx) => (
+                        <Box
+                          key={idx}
+                          onClick={() => navigateToSource(source.document_id, source.page_number, source.snippet)}
+                          sx={{
+                            display: 'flex',
+                            gap: 1.5,
+                            mb: 1.5,
+                            p: 1.5,
+                            bgcolor: '#F9FAFB',
+                            borderRadius: 1.5,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            transition: 'all 0.2s',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              bgcolor: '#F3F4F6',
+                              borderColor: 'primary.light',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                            },
+                            '&:last-child': {
+                              mb: 0,
+                            },
+                          }}
+                        >
+                          <LinkIcon size={14} className="text-gray-400 flex-shrink-0 mt-0.5" />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                lineHeight: 1.6,
+                                display: 'block',
+                                wordBreak: 'break-word',
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              {source.snippet}
                             </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
+                              <Chip
+                                label={`Page ${source.page_number}`}
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  fontSize: '0.65rem',
+                                  bgcolor: 'primary.50',
+                                  color: 'primary.main',
+                                  fontWeight: 500,
+                                }}
+                              />
+                              {source.similarity !== undefined && (
+                                <Chip
+                                  label={`${(source.similarity * 100).toFixed(0)}% match`}
+                                  size="small"
+                                  sx={{
+                                    height: 20,
+                                    fontSize: '0.65rem',
+                                    bgcolor: 'grey.100',
+                                    color: 'text.secondary',
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          </Box>
                         </Box>
-                    ))}
+                      ))}
+                    </Box>
+                  </Collapse>
                 </Box>
               )}
 

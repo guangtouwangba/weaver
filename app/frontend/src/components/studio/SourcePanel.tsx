@@ -64,7 +64,7 @@ interface SourcePanelProps {
 type UploadState = 'idle' | 'uploading' | 'processing' | 'success' | 'error';
 
 export default function SourcePanel({ visible, width, onToggle }: SourcePanelProps) {
-  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId } = useStudio();
+  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, sourceNavigation } = useStudio();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
   const [numPages, setNumPages] = useState<number>(0);
@@ -89,6 +89,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [splitRatio, setSplitRatio] = useState(0.4);
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const activeDocument = documents.find(d => d.id === activeDocumentId);
 
@@ -100,6 +101,103 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       setFileUrl(null);
     }
   }, [activeDocumentId]);
+
+  // Handle source navigation (jump to page when source is clicked)
+  useEffect(() => {
+    if (sourceNavigation && sourceNavigation.documentId === activeDocumentId) {
+      setPageNumber(sourceNavigation.pageNumber);
+    }
+  }, [sourceNavigation, activeDocumentId]);
+
+  // Highlight text in PDF when searchText is provided
+  useEffect(() => {
+    if (!sourceNavigation?.searchText || !pageRef.current || pageNumber !== sourceNavigation.pageNumber) return;
+    
+    // Wait for PDF text layer to render
+    const highlightText = () => {
+      const textLayer = pageRef.current?.querySelector('.react-pdf__Page__textContent');
+      if (!textLayer) {
+        // Retry after a short delay if text layer not ready
+        setTimeout(highlightText, 100);
+        return;
+      }
+
+      // Remove previous highlights
+      const previousHighlights = textLayer.querySelectorAll('span[data-highlighted="true"]');
+      previousHighlights.forEach(el => {
+        el.removeAttribute('data-highlighted');
+        el.style.backgroundColor = '';
+        el.style.borderRadius = '';
+        el.style.padding = '';
+      });
+
+      // Extract search text (remove quotes, ellipsis, etc.)
+      let searchText = sourceNavigation.searchText || '';
+      searchText = searchText.replace(/^["'"]+|["'"]+$/g, '').replace(/\.\.\./g, '').trim();
+      if (!searchText || searchText.length < 3) return;
+
+      // Get all text spans and build full text
+      const textSpans = Array.from(textLayer.querySelectorAll('span'));
+      const fullText = textSpans.map(span => span.textContent || '').join('');
+      const searchLower = searchText.toLowerCase();
+      const fullTextLower = fullText.toLowerCase();
+      
+      // Find position of search text in full text
+      const searchIndex = fullTextLower.indexOf(searchLower);
+      if (searchIndex === -1) {
+        // Try to find partial match (first 20 chars)
+        const partialSearch = searchText.substring(0, 20).toLowerCase();
+        const partialIndex = fullTextLower.indexOf(partialSearch);
+        if (partialIndex === -1) return;
+        
+        // Highlight spans around partial match
+        let charCount = 0;
+        textSpans.forEach(span => {
+          const spanText = span.textContent || '';
+          const spanStart = charCount;
+          const spanEnd = charCount + spanText.length;
+          
+          if (spanStart <= partialIndex + partialSearch.length && spanEnd >= partialIndex) {
+            span.setAttribute('data-highlighted', 'true');
+            span.style.backgroundColor = '#FFEB3B';
+            span.style.borderRadius = '2px';
+            span.style.padding = '1px 2px';
+          }
+          
+          charCount = spanEnd;
+        });
+      } else {
+        // Highlight spans containing the search text
+        let charCount = 0;
+        textSpans.forEach(span => {
+          const spanText = span.textContent || '';
+          const spanStart = charCount;
+          const spanEnd = charCount + spanText.length;
+          
+          if (spanStart <= searchIndex + searchText.length && spanEnd >= searchIndex) {
+            span.setAttribute('data-highlighted', 'true');
+            span.style.backgroundColor = '#FFEB3B';
+            span.style.borderRadius = '2px';
+            span.style.padding = '1px 2px';
+          }
+          
+          charCount = spanEnd;
+        });
+      }
+
+      // Scroll to first highlight if found
+      const firstHighlight = textLayer.querySelector('span[data-highlighted="true"]');
+      if (firstHighlight) {
+        setTimeout(() => {
+          firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }, 100);
+      }
+    };
+
+    // Delay to ensure PDF is rendered
+    const timeoutId = setTimeout(highlightText, 500);
+    return () => clearTimeout(timeoutId);
+  }, [sourceNavigation, pageNumber, activeDocumentId]);
 
   // Poll for document status updates (for pending/processing documents)
   useEffect(() => {
@@ -828,7 +926,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             </Box>
           </Box>
           
-          <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#f5f5f5', display: 'flex', justifyContent: 'center', p: 2 }}>
+          <Box 
+            ref={pageRef}
+            sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#f5f5f5', display: 'flex', justifyContent: 'center', p: 2 }}
+          >
             <Document
               file={fileUrl}
               onLoadSuccess={onDocumentLoadSuccess}
@@ -840,7 +941,6 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
                 width={width - 40}
-                onLoadSuccess={() => console.log('Page loaded')}
               />
             </Document>
           </Box>

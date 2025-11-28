@@ -360,7 +360,8 @@ export const chatApi = {
     );
 
     if (!response.ok) {
-      throw new ApiError(response.status, 'Stream request failed');
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new ApiError(response.status, `Stream request failed: ${errorText}`);
     }
 
     const reader = response.body?.getReader();
@@ -369,20 +370,37 @@ export const chatApi = {
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = JSON.parse(line.slice(6));
-          yield data;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          // Skip empty lines and comments
+          if (!trimmed || trimmed.startsWith(':')) continue;
+          
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const jsonStr = trimmed.slice(6); // Remove 'data: ' prefix
+              if (jsonStr) {
+                const data = JSON.parse(jsonStr);
+                yield data;
+              }
+            } catch (e) {
+              console.warn('Failed to parse SSE data:', trimmed, e);
+              // Continue processing other lines
+            }
+          }
         }
       }
+    } catch (error) {
+      console.error('Stream reading error:', error);
+      throw error;
     }
   },
 };
