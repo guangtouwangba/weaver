@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 **Fix multiple import and configuration issues** (@siqiuchen)
 
 **Backend Fixes:**
+- **Fixed** Canvas sync not finding entities - added explicit commit before canvas sync to ensure entities are visible
 - **Fixed** SQLAlchemy reserved `metadata` attribute name conflict in `EntityModel` and `RelationModel`
   - Renamed Python attributes to `entity_metadata`/`relation_metadata` while keeping DB column as `metadata`
 - **Fixed** `settings` import error - use `get_settings()` function instead of direct import
