@@ -91,7 +91,7 @@ async def stream_message(
     """Send a chat message and get streaming RAG response (SSE) using LangGraph."""
     from research_agent.config import get_settings
     settings = get_settings()
-    
+
     use_case = StreamMessageUseCase(
         session=session,
         embedding_service=embedding_service,

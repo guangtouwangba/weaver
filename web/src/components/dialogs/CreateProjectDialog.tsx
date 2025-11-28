@@ -141,7 +141,7 @@ export default function CreateProjectDialog({ open, onClose }: CreateProjectDial
       setError(err.message || 'Failed to create project');
       setIsLoading(false);
       setIsProcessing(false);
-    } 
+    }
   }, [projectName, description, router, handleClose]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -410,527 +410,527 @@ export default function CreateProjectDialog({ open, onClose }: CreateProjectDial
       >
         {!isProcessing && (
           <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  bgcolor: 'primary.main',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                }}
-              >
-                <FolderPlus size={20} />
-              </Box>
-              <Typography variant="h6" fontWeight="600">
-                Create New Project
-              </Typography>
-            </Box>
-            <IconButton
-              onClick={handleClose}
-              disabled={isLoading}
-              size="small"
-              sx={{
-                color: 'text.secondary',
-                '&:hover': { 
-                  bgcolor: 'action.hover',
-                  color: 'text.primary',
-                },
-                transition: 'all 0.2s',
-              }}
-            >
-              <X size={18} />
-            </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+              bgcolor: 'primary.main',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+            }}
+          >
+            <FolderPlus size={20} />
+          </Box>
+          <Typography variant="h6" fontWeight="600">
+            Create New Project
+          </Typography>
+        </Box>
+        <IconButton
+          onClick={handleClose}
+          disabled={isLoading}
+          size="small"
+          sx={{
+            color: 'text.secondary',
+            '&:hover': { 
+              bgcolor: 'action.hover',
+              color: 'text.primary',
+            },
+            transition: 'all 0.2s',
+          }}
+        >
+          <X size={18} />
+        </IconButton>
           </>
         )}
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3, px: 3, pb: 2 }}>
           <>
-            {error && (
-              <Slide direction="down" in={!!error} timeout={200}>
-                <Alert 
-                  severity="error" 
-                  sx={{ mb: 3, borderRadius: 2 }} 
-                  onClose={() => setError(null)}
-                >
-                  {error}
-                </Alert>
-              </Slide>
-            )}
+        {error && (
+          <Slide direction="down" in={!!error} timeout={200}>
+            <Alert 
+              severity="error" 
+              sx={{ mb: 3, borderRadius: 2 }} 
+              onClose={() => setError(null)}
+            >
+              {error}
+            </Alert>
+          </Slide>
+        )}
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {/* Project Name */}
-              <Box sx={{ mt: 1 }}>
-                <TextField
-                  label="Project Name"
-                  value={projectName}
-                  onChange={(e) => {
-                    setProjectName(e.target.value);
-                    setError(null);
-                  }}
-                  placeholder="e.g., Research_v1 (NLP)"
-                  required
-                  fullWidth
-                  disabled={isLoading}
-                  autoFocus
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'primary.main',
-                        },
-                      },
-                      '&.Mui-focused': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderWidth: 2,
-                        },
-                      },
-                    },
-                  }}
-                />
-              </Box>
-
-              {/* Description */}
-              <Box>
-                <TextField
-                  label="Description (Optional)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brief description of your project"
-                  multiline
-                  rows={3}
-                  fullWidth
-                  disabled={isLoading}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'primary.main',
-                        },
-                      },
-                      '&.Mui-focused': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderWidth: 2,
-                        },
-                      },
-                    },
-                  }}
-                />
-              </Box>
-
-              {/* URL Input */}
-              <Box>
-                <TextField
-                  label="Add URL (Optional)"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  onKeyPress={handleUrlKeyPress}
-                  placeholder="Paste a link to add it to your project"
-                  fullWidth
-                  disabled={isLoading}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LinkIcon size={18} color="#6B7280" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: urlInput.trim() && (
-                      <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          onClick={handleAddUrl}
-                          disabled={isLoading}
-                          sx={{
-                            color: 'primary.main',
-                            '&:hover': { bgcolor: 'primary.50' },
-                          }}
-                        >
-                          <Plus size={16} />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'primary.main',
-                        },
-                      },
-                      '&.Mui-focused': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderWidth: 2,
-                        },
-                      },
-                    },
-                  }}
-                />
-              </Box>
-
-              {/* Drag & Drop Zone */}
-              <Box>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.txt,.md"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
-                <Box
-                  onDragOver={handleDragOver}
-                  onDragEnter={handleDragEnter}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={handleDropZoneClick}
-                  sx={{
-                    border: '2px dashed',
-                    borderColor: isDragging ? 'primary.main' : 'divider',
-                    borderRadius: 3,
-                    p: 5,
-                    textAlign: 'center',
-                    bgcolor: isDragging 
-                      ? 'rgba(23, 23, 23, 0.04)' 
-                      : 'background.default',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: '-100%',
-                      width: '100%',
-                      height: '100%',
-                      background: 'linear-gradient(90deg, transparent, rgba(23,23,23,0.05), transparent)',
-                      transition: 'left 0.5s',
-                    },
-                    '&:hover': {
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Project Name */}
+          <Box sx={{ mt: 1 }}>
+            <TextField
+              label="Project Name"
+              value={projectName}
+              onChange={(e) => {
+                setProjectName(e.target.value);
+                setError(null);
+              }}
+              placeholder="e.g., Research_v1 (NLP)"
+              required
+              fullWidth
+              disabled={isLoading}
+              autoFocus
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    '& .MuiOutlinedInput-notchedOutline': {
                       borderColor: 'primary.main',
-                      bgcolor: 'rgba(23, 23, 23, 0.02)',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                      '&::before': {
-                        left: '100%',
-                      },
                     },
-                    ...(isDragging && {
-                      transform: 'scale(1.02)',
-                      boxShadow: '0 8px 24px rgba(23,23,23,0.12)',
-                    }),
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 2,
-                      position: 'relative',
-                      zIndex: 1,
-                    }}
-                  >
-                    <Box
+                  },
+                  '&.Mui-focused': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderWidth: 2,
+                    },
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          {/* Description */}
+          <Box>
+            <TextField
+              label="Description (Optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description of your project"
+              multiline
+              rows={3}
+              fullWidth
+              disabled={isLoading}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderWidth: 2,
+                    },
+                  },
+                },
+              }}
+            />
+          </Box>
+
+          {/* URL Input */}
+          <Box>
+            <TextField
+              label="Add URL (Optional)"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyPress={handleUrlKeyPress}
+              placeholder="Paste a link to add it to your project"
+              fullWidth
+              disabled={isLoading}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LinkIcon size={18} color="#6B7280" />
+                  </InputAdornment>
+                ),
+                endAdornment: urlInput.trim() && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={handleAddUrl}
+                      disabled={isLoading}
                       sx={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: '50%',
-                        bgcolor: isDragging ? 'primary.main' : 'action.hover',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.3s',
-                        transform: isDragging ? 'scale(1.1) rotate(5deg)' : 'scale(1)',
+                        color: 'primary.main',
+                        '&:hover': { bgcolor: 'primary.50' },
                       }}
                     >
-                      <Upload
-                        size={28}
-                        style={{
-                          color: isDragging ? 'white' : '#6B7280',
-                          transition: 'color 0.3s',
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Typography 
-                        variant="body1" 
-                        fontWeight="500"
-                        color={isDragging ? 'primary.main' : 'text.primary'}
-                        gutterBottom
-                      >
-                        {isDragging ? 'Drop files here' : 'Drag files here to upload'}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        or click to browse • Supports multiple files
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label="PDF, TXT, MD files"
-                      size="small"
-                      sx={{
-                        bgcolor: 'background.paper',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        fontSize: '0.75rem',
-                      }}
-                    />
-                  </Box>
-                </Box>
-              </Box>
+                      <Plus size={16} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                    },
+                  },
+                  '&.Mui-focused': {
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderWidth: 2,
+                    },
+                  },
+                },
+              }}
+            />
+          </Box>
 
-              {/* Items Grid (Files & URLs) */}
-              {items.length > 0 && (
-                <Fade in={items.length > 0} timeout={300}>
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="caption" fontWeight="600" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <FileText size={14} />
-                        {items.length} {items.length === 1 ? 'item' : 'items'} added
-                      </Typography>
-                      <Chip
-                        label="Ready"
-                        size="small"
-                        icon={<CheckCircle2 size={12} />}
+          {/* Drag & Drop Zone */}
+          <Box>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.txt,.md"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
+            <Box
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={handleDropZoneClick}
+              sx={{
+                border: '2px dashed',
+                borderColor: isDragging ? 'primary.main' : 'divider',
+                borderRadius: 3,
+                p: 5,
+                textAlign: 'center',
+                bgcolor: isDragging 
+                  ? 'rgba(23, 23, 23, 0.04)' 
+                  : 'background.default',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                cursor: 'pointer',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(23,23,23,0.05), transparent)',
+                  transition: 'left 0.5s',
+                },
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: 'rgba(23, 23, 23, 0.02)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  '&::before': {
+                    left: '100%',
+                  },
+                },
+                ...(isDragging && {
+                  transform: 'scale(1.02)',
+                  boxShadow: '0 8px 24px rgba(23,23,23,0.12)',
+                }),
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2,
+                  position: 'relative',
+                  zIndex: 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    bgcolor: isDragging ? 'primary.main' : 'action.hover',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.3s',
+                    transform: isDragging ? 'scale(1.1) rotate(5deg)' : 'scale(1)',
+                  }}
+                >
+                  <Upload
+                    size={28}
+                    style={{
+                      color: isDragging ? 'white' : '#6B7280',
+                      transition: 'color 0.3s',
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography 
+                    variant="body1" 
+                    fontWeight="500"
+                    color={isDragging ? 'primary.main' : 'text.primary'}
+                    gutterBottom
+                  >
+                    {isDragging ? 'Drop files here' : 'Drag files here to upload'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    or click to browse • Supports multiple files
+                  </Typography>
+                </Box>
+                <Chip
+                  label="PDF, TXT, MD files"
+                  size="small"
+                  sx={{
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    fontSize: '0.75rem',
+                  }}
+                />
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Items Grid (Files & URLs) */}
+          {items.length > 0 && (
+            <Fade in={items.length > 0} timeout={300}>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="caption" fontWeight="600" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <FileText size={14} />
+                    {items.length} {items.length === 1 ? 'item' : 'items'} added
+                  </Typography>
+                  <Chip
+                    label="Ready"
+                    size="small"
+                    icon={<CheckCircle2 size={12} />}
+                    sx={{
+                      bgcolor: 'success.50',
+                      color: 'success.main',
+                      fontSize: '0.7rem',
+                      height: 20,
+                    }}
+                  />
+                </Box>
+                <Grid container spacing={2}>
+                  {items.map((item, index) => (
+                    <Grid item xs={6} sm={4} key={index}>
+                      <Paper
+                        elevation={0}
                         sx={{
-                          bgcolor: 'success.50',
-                          color: 'success.main',
-                          fontSize: '0.7rem',
-                          height: 20,
+                          p: 2,
+                          borderRadius: 2.5,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'background.paper',
+                          position: 'relative',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                            transform: 'translateY(-2px)',
+                            '& .remove-btn': {
+                              opacity: 1,
+                            },
+                          },
                         }}
-                      />
-                    </Box>
-                    <Grid container spacing={2}>
-                      {items.map((item, index) => (
-                        <Grid item xs={6} sm={4} key={index}>
-                          <Paper
-                            elevation={0}
-                            sx={{
-                              p: 2,
-                              borderRadius: 2.5,
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              bgcolor: 'background.paper',
-                              position: 'relative',
-                              transition: 'all 0.2s',
-                              '&:hover': {
-                                borderColor: 'primary.main',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                                transform: 'translateY(-2px)',
-                                '& .remove-btn': {
-                                  opacity: 1,
-                                },
-                              },
-                            }}
-                          >
-                            {/* Preview Area */}
+                      >
+                        {/* Preview Area */}
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: 120,
+                            borderRadius: 1.5,
+                            bgcolor: 'action.hover',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            mb: 1.5,
+                            position: 'relative',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {item.type === 'url' ? (
                             <Box
                               sx={{
-                                width: '100%',
-                                height: 120,
+                                width: 48,
+                                height: 48,
                                 borderRadius: 1.5,
-                                bgcolor: 'action.hover',
+                                bgcolor: getFileColor(item),
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                mb: 1.5,
-                                position: 'relative',
-                                overflow: 'hidden',
+                                color: 'white',
                               }}
                             >
-                              {item.type === 'url' ? (
-                                <Box
-                                  sx={{
-                                    width: 48,
-                                    height: 48,
-                                    borderRadius: 1.5,
-                                    bgcolor: getFileColor(item),
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'white',
-                                  }}
-                                >
-                                  {getFileIcon(item)}
-                                </Box>
-                              ) : (
-                                <Box
-                                  sx={{
-                                    width: 48,
-                                    height: 48,
-                                    borderRadius: 1.5,
-                                    bgcolor: getFileColor(item),
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'white',
-                                  }}
-                                >
-                                  {getFileIcon(item)}
-                                </Box>
-                              )}
+                              {getFileIcon(item)}
                             </Box>
-
-                            {/* File Info */}
-                            <Box sx={{ minHeight: 40 }}>
-                              {item.type === 'url' ? (
-                                <>
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight="600"
-                                    sx={{
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                      mb: 0.5,
-                                    }}
-                                    title={item.url}
-                                  >
-                                    {getUrlDomain(item.url)}
-                                  </Typography>
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                      display: 'block',
-                                    }}
-                                    title={item.url}
-                                  >
-                                    {formatUrlDisplay(item.url)}
-                                  </Typography>
-                                </>
-                              ) : (
-                                <>
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight="500"
-                                    sx={{
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      mb: 0.5,
-                                    }}
-                                  >
-                                    {item.file.name}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {formatFileSize(item.file.size)}
-                                  </Typography>
-                                </>
-                              )}
-                            </Box>
-
-                            {/* Remove Button */}
-                            <IconButton
-                              className="remove-btn"
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveItem(index);
-                              }}
-                              disabled={isLoading}
+                          ) : (
+                            <Box
                               sx={{
-                                position: 'absolute',
-                                top: 8,
-                                right: 8,
-                                bgcolor: 'background.paper',
-                                color: 'error.main',
-                                opacity: 0,
-                                transition: 'opacity 0.2s',
-                                '&:hover': {
-                                  bgcolor: 'error.50',
-                                },
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                width: 48,
+                                height: 48,
+                                borderRadius: 1.5,
+                                bgcolor: getFileColor(item),
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
                               }}
                             >
-                              <Trash2 size={14} />
-                            </IconButton>
-                          </Paper>
-                        </Grid>
-                      ))}
+                              {getFileIcon(item)}
+                            </Box>
+                          )}
+                        </Box>
+
+                        {/* File Info */}
+                        <Box sx={{ minHeight: 40 }}>
+                          {item.type === 'url' ? (
+                            <>
+                              <Typography
+                                variant="body2"
+                                fontWeight="600"
+                                sx={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  mb: 0.5,
+                                }}
+                                title={item.url}
+                              >
+                                {getUrlDomain(item.url)}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  display: 'block',
+                                }}
+                                title={item.url}
+                              >
+                                {formatUrlDisplay(item.url)}
+                              </Typography>
+                            </>
+                          ) : (
+                            <>
+                              <Typography
+                                variant="body2"
+                                fontWeight="500"
+                                sx={{
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  mb: 0.5,
+                                }}
+                              >
+                                {item.file.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatFileSize(item.file.size)}
+                              </Typography>
+                            </>
+                          )}
+                        </Box>
+
+                        {/* Remove Button */}
+                        <IconButton
+                          className="remove-btn"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveItem(index);
+                          }}
+                          disabled={isLoading}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            bgcolor: 'background.paper',
+                            color: 'error.main',
+                            opacity: 0,
+                            transition: 'opacity 0.2s',
+                            '&:hover': {
+                              bgcolor: 'error.50',
+                            },
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </IconButton>
+                      </Paper>
                     </Grid>
-                  </Box>
-                </Fade>
-              )}
-            </Box>
+                  ))}
+                </Grid>
+              </Box>
+            </Fade>
+          )}
+        </Box>
           </>
       </DialogContent>
 
       {!isProcessing && (
-        <DialogActions
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          gap: 1.5,
+          bgcolor: 'background.default',
+        }}
+      >
+        <Button
+          onClick={handleClose}
+          disabled={isLoading}
           sx={{
-            px: 3,
-            py: 2.5,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            gap: 1.5,
-            bgcolor: 'background.default',
+            textTransform: 'none',
+            color: 'text.secondary',
+            px: 2.5,
+            '&:hover': {
+              bgcolor: 'action.hover',
+            },
           }}
         >
-          <Button
-            onClick={handleClose}
-            disabled={isLoading}
-            sx={{
-              textTransform: 'none',
-              color: 'text.secondary',
-              px: 2.5,
-              '&:hover': {
-                bgcolor: 'action.hover',
-              },
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={isLoading || !projectName.trim()}
-            variant="contained"
-            startIcon={isLoading ? undefined : <Sparkles size={16} />}
-            sx={{
-              textTransform: 'none',
-              bgcolor: 'primary.main',
-              px: 3,
-              py: 1,
-              borderRadius: 2,
-              fontWeight: 500,
-              boxShadow: '0 2px 8px rgba(23,23,23,0.2)',
-              '&:hover': {
-                bgcolor: 'primary.dark',
-                boxShadow: '0 4px 12px rgba(23,23,23,0.3)',
-                transform: 'translateY(-1px)',
-              },
-              '&:disabled': {
-                bgcolor: 'action.disabledBackground',
-                color: 'action.disabled',
-              },
-              transition: 'all 0.2s',
-            }}
-          >
-            {isLoading ? (
-              <>
-                <CircularProgress size={16} sx={{ mr: 1 }} />
-                Creating...
-              </>
-            ) : (
-              'Create Project'
-            )}
-          </Button>
-        </DialogActions>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleCreate}
+          disabled={isLoading || !projectName.trim()}
+          variant="contained"
+          startIcon={isLoading ? undefined : <Sparkles size={16} />}
+          sx={{
+            textTransform: 'none',
+            bgcolor: 'primary.main',
+            px: 3,
+            py: 1,
+            borderRadius: 2,
+            fontWeight: 500,
+            boxShadow: '0 2px 8px rgba(23,23,23,0.2)',
+            '&:hover': {
+              bgcolor: 'primary.dark',
+              boxShadow: '0 4px 12px rgba(23,23,23,0.3)',
+              transform: 'translateY(-1px)',
+            },
+            '&:disabled': {
+              bgcolor: 'action.disabledBackground',
+              color: 'action.disabled',
+            },
+            transition: 'all 0.2s',
+          }}
+        >
+          {isLoading ? (
+            <>
+              <CircularProgress size={16} sx={{ mr: 1 }} />
+              Creating...
+            </>
+          ) : (
+            'Create Project'
+          )}
+        </Button>
+      </DialogActions>
       )}
     </Dialog>
   );

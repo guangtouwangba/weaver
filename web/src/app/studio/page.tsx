@@ -957,19 +957,19 @@ function StudioPageContent() {
               />
             )}
             
-            <Box 
-              ref={canvasRef}
-              sx={{ 
+          <Box 
+            ref={canvasRef}
+            sx={{ 
                 width: '100%',
                 height: '100%',
-                bgcolor: '#F9FAFB', 
-                position: 'relative', 
-                overflow: 'hidden',
-                cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
-                touchAction: 'none', // Prevent native browser zooming
-                userSelect: 'none'   // Prevent text selection while dragging
-              }}
-              onMouseDown={(e) => {
+              bgcolor: '#F9FAFB', 
+              position: 'relative', 
+              overflow: 'hidden',
+              cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
+              touchAction: 'none', // Prevent native browser zooming
+              userSelect: 'none'   // Prevent text selection while dragging
+            }}
+            onMouseDown={(e) => {
                 // Only start panning if:
                 // 1. Space is pressed (force pan mode)
                 // 2. Middle mouse button
@@ -1508,8 +1508,8 @@ function StudioPageContent() {
                 {isCanvasAiOpen ? <CloseIcon size={20} /> : <Sparkles size={20} />}
               </IconButton>
             </Box>
+            </Box>
           </Box>
-        </Box>
         );
     }
   };
@@ -1597,7 +1597,7 @@ function StudioPageContent() {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: 'primary.main' }}>
                       <Bot size={16} />
                       <Typography variant="caption" fontWeight="bold">AI Assistant</Typography>
-                    </Box>
+          </Box>
                   )}
                   
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</Typography>
