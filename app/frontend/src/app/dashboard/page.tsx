@@ -61,7 +61,7 @@ export default function DashboardPage() {
       setNewProjectName('');
       setNewProjectDescription('');
       // Navigate to studio
-      router.push(`/studio?projectId=${project.id}`);
+      router.push(`/studio/${project.id}`);
     } catch (err: any) {
       setError(err.message || 'Failed to create project');
     } finally {
@@ -82,7 +82,7 @@ export default function DashboardPage() {
   };
 
   const handleOpenProject = (projectId: string) => {
-    router.push(`/studio?projectId=${projectId}`);
+    router.push(`/studio/${projectId}`);
   };
 
   return (

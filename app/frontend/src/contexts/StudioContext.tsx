@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge } from '@/lib/api';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { ProjectDocument, CanvasNode, CanvasEdge, documentsApi, canvasApi, chatApi } from '@/lib/api';
 
 interface ChatMessage {
   id: string;
@@ -78,6 +78,49 @@ export function StudioProvider({
     // This will be implemented in CanvasPanel
     console.log('Saving canvas...');
   }, []);
+
+  // Load data on mount
+  useEffect(() => {
+    if (!projectId) return;
+
+    const loadData = async () => {
+      try {
+        const [docsRes, canvasRes, historyRes] = await Promise.all([
+          documentsApi.list(projectId),
+          canvasApi.get(projectId).catch(() => null), // Handle 404 for new canvas
+          chatApi.getHistory(projectId).catch(() => null),
+        ]);
+
+        if (docsRes) {
+          setDocuments(docsRes.items);
+        }
+
+        if (canvasRes) {
+          setCanvasNodes(canvasRes.nodes || []);
+          setCanvasEdges(canvasRes.edges || []);
+          if (canvasRes.viewport) {
+            setCanvasViewport(canvasRes.viewport);
+          }
+        }
+
+        if (historyRes && historyRes.messages.length > 0) {
+          setChatMessages(
+            historyRes.messages.map((m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              sources: m.sources,
+              timestamp: new Date(m.created_at),
+            }))
+          );
+        }
+      } catch (error) {
+        console.error('Failed to load project data:', error);
+      }
+    };
+
+    loadData();
+  }, [projectId]);
 
   const value: StudioContextType = {
     projectId,

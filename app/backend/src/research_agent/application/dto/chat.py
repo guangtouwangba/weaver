@@ -1,6 +1,6 @@
 """Chat DTOs for API requests/responses."""
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -36,3 +36,18 @@ class StreamChunk(BaseModel):
     content: Optional[str] = None
     sources: Optional[List[SourceReference]] = None
 
+
+class HistoryMessage(BaseModel):
+    """Chat history message DTO."""
+
+    id: UUID
+    role: str
+    content: str
+    sources: Optional[List[Dict[str, Any]]] = None
+    created_at: str
+
+
+class ChatHistoryResponse(BaseModel):
+    """Response DTO for chat history."""
+
+    messages: List[HistoryMessage]

@@ -103,6 +103,21 @@ export interface ChatResponse {
   }>;
 }
 
+export interface ChatHistoryResponse {
+  messages: Array<{
+    id: string;
+    role: 'user' | 'ai';
+    content: string;
+    sources?: Array<{
+      document_id: string;
+      page_number: number;
+      snippet: string;
+      similarity: number;
+    }>;
+    created_at: string;
+  }>;
+}
+
 export interface CanvasNode {
   id: string;
   type: string;
@@ -226,6 +241,9 @@ export const documentsApi = {
 
 // Chat API
 export const chatApi = {
+  getHistory: (projectId: string) =>
+    fetchApi<ChatHistoryResponse>(`/api/v1/projects/${projectId}/chat/history`),
+
   send: (projectId: string, message: ChatMessage) =>
     fetchApi<ChatResponse>(`/api/v1/projects/${projectId}/chat`, {
       method: 'POST',

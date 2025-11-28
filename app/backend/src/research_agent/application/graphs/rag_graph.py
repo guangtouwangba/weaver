@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
+from research_agent.shared.utils.logger import logger
 
 
 # --- State Schema ---
@@ -37,12 +38,14 @@ class GradeDocuments(BaseModel):
 def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphState:
     """Retrieve documents from vector store."""
     question = state["question"]
+    logger.info(f"Retrieving documents for query: {question}")
     
     # Synchronous call wrapper for async retriever
     import asyncio
     loop = asyncio.get_event_loop()
     documents = loop.run_until_complete(retriever._aget_relevant_documents(question))
     
+    logger.info(f"Retrieved {len(documents)} documents")
     return {"documents": documents, "question": question}
 
 
@@ -50,6 +53,7 @@ def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Grade retrieved documents for relevance."""
     question = state["question"]
     documents = state["documents"]
+    logger.info(f"Grading {len(documents)} documents for relevance")
     
     # LLM with structured output for grading
     llm_with_tool = llm.with_structured_output(GradeDocuments)
@@ -73,6 +77,7 @@ def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
         if score.binary_score == "yes":
             filtered_docs.append(doc)
     
+    logger.info(f"Grading complete. {len(filtered_docs)} relevant documents found")
     return {"filtered_documents": filtered_docs, "question": question}
 
 
@@ -81,8 +86,11 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
     question = state["question"]
     documents = state.get("filtered_documents", state.get("documents", []))
     
+    logger.info("Generating answer using retrieved context")
+    
     # Check if we have documents
     if not documents:
+        logger.warning("No relevant documents found for generation")
         return {
             "generation": "I don't have enough relevant information in the documents to answer this question.",
             "question": question,

@@ -23,11 +23,14 @@ class Document:
     id: UUID = field(default_factory=uuid4)
     project_id: Optional[UUID] = None
     filename: str = ""
+    original_filename: str = ""
     file_path: str = ""
     file_size: int = 0
+    mime_type: str = "application/pdf"
     page_count: int = 0
     status: DocumentStatus = DocumentStatus.PENDING
     created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
 
     def mark_processing(self) -> None:
         """Mark document as processing."""

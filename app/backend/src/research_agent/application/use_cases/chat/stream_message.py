@@ -7,6 +7,10 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.application.graphs.rag_graph import stream_rag_response
+from research_agent.domain.entities.chat import ChatMessage
+from research_agent.infrastructure.database.repositories.sqlalchemy_chat_repo import (
+    SQLAlchemyChatRepository,
+)
 from research_agent.infrastructure.llm.langchain_openrouter import create_langchain_llm
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
 from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
@@ -61,7 +65,17 @@ class StreamMessageUseCase:
     async def execute(self, input: StreamMessageInput) -> AsyncIterator[StreamEvent]:
         """Execute the use case with streaming using LangGraph."""
         logger.info(f"Processing query with LangGraph: {input.message[:50]}...")
-        
+
+        repo = SQLAlchemyChatRepository(self._session)
+
+        # Save User Message
+        await repo.save(
+            ChatMessage(project_id=input.project_id, role="user", content=input.message)
+        )
+
+        full_response = ""
+        response_sources = []
+
         try:
             # Create vector store and retriever
             vector_store = PgVectorStore(self._session)
@@ -97,11 +111,36 @@ class StreamMessageUseCase:
                         )
                         for doc in documents
                     ]
+                    
+                    # Store for saving to DB
+                    response_sources = [
+                        {
+                            "document_id": str(s.document_id),
+                            "page_number": s.page_number,
+                            "snippet": s.snippet,
+                            "similarity": s.similarity,
+                        }
+                        for s in sources
+                    ]
+                    
                     yield StreamEvent(type="sources", sources=sources)
                 elif event["type"] == "token":
-                    yield StreamEvent(type="token", content=event.get("content", ""))
+                    content = event.get("content", "")
+                    full_response += content
+                    yield StreamEvent(type="token", content=content)
                 elif event["type"] == "done":
                     yield StreamEvent(type="done")
+            
+            # Save AI Message
+            if full_response:
+                await repo.save(
+                    ChatMessage(
+                        project_id=input.project_id,
+                        role="ai",
+                        content=full_response,
+                        sources=response_sources,
+                    )
+                )
                     
         except Exception as e:
             logger.error(f"Error in LangGraph RAG: {e}")

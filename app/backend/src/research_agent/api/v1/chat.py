@@ -9,9 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db, get_embedding_service, get_llm_service
 from research_agent.application.dto.chat import (
+    ChatHistoryResponse,
     ChatMessageRequest,
     ChatMessageResponse,
+    HistoryMessage,
     SourceReference,
+)
+from research_agent.application.use_cases.chat.get_history import (
+    GetHistoryInput,
+    GetHistoryUseCase,
 )
 from research_agent.application.use_cases.chat.send_message import (
     SendMessageInput,
@@ -22,6 +28,9 @@ from research_agent.application.use_cases.chat.stream_message import (
     StreamMessageUseCase,
 )
 from research_agent.domain.services.retrieval_service import RetrievalService
+from research_agent.infrastructure.database.repositories.sqlalchemy_chat_repo import (
+    SQLAlchemyChatRepository,
+)
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
 from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
@@ -128,4 +137,30 @@ async def stream_message(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
         },
+    )
+
+
+@router.get("/projects/{project_id}/chat/history", response_model=ChatHistoryResponse)
+async def get_chat_history(
+    project_id: UUID,
+    limit: int = 50,
+    session: AsyncSession = Depends(get_db),
+) -> ChatHistoryResponse:
+    """Get chat history for a project."""
+    chat_repo = SQLAlchemyChatRepository(session)
+    use_case = GetHistoryUseCase(chat_repo)
+
+    result = await use_case.execute(GetHistoryInput(project_id=project_id, limit=limit))
+
+    return ChatHistoryResponse(
+        messages=[
+            HistoryMessage(
+                id=m.id,
+                role=m.role,
+                content=m.content,
+                sources=m.sources,
+                created_at=m.created_at,
+            )
+            for m in result.messages
+        ]
     )

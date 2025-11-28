@@ -61,7 +61,9 @@ class UploadDocumentUseCase:
         document = Document(
             project_id=input.project_id,
             filename=input.filename,
+            original_filename=input.filename,  # Store original filename
             file_size=input.file_size,
+            mime_type="application/pdf",
         )
         document.mark_processing()
 

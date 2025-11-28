@@ -38,6 +38,9 @@ class ProjectModel(Base):
     canvas: Mapped[Optional["CanvasModel"]] = relationship(
         "CanvasModel", back_populates="project", uselist=False, cascade="all, delete-orphan"
     )
+    chat_messages: Mapped[List["ChatMessageModel"]] = relationship(
+        "ChatMessageModel", back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class DocumentModel(Base):
@@ -50,12 +53,17 @@ class DocumentModel(Base):
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
-    file_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False, default="application/pdf")
     page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="pending")
+    status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
     # Relationships
@@ -109,4 +117,24 @@ class CanvasModel(Base):
 
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="canvas")
+
+
+class ChatMessageModel(Base):
+    """Chat message ORM model for storing conversation history."""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # 'user' or 'ai'
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    sources: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_messages")
 

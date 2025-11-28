@@ -1,0 +1,62 @@
+"""Get chat history use case."""
+
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
+from research_agent.infrastructure.database.repositories.sqlalchemy_chat_repo import (
+    SQLAlchemyChatRepository,
+)
+
+
+@dataclass
+class ChatMessageDTO:
+    """Chat message DTO."""
+
+    id: UUID
+    role: str
+    content: str
+    sources: Optional[List[Dict[str, Any]]]
+    created_at: str
+
+
+@dataclass
+class GetHistoryInput:
+    """Input for get history use case."""
+
+    project_id: UUID
+    limit: int = 50
+
+
+@dataclass
+class GetHistoryOutput:
+    """Output for get history use case."""
+
+    messages: List[ChatMessageDTO]
+
+
+class GetHistoryUseCase:
+    """Use case for getting chat history."""
+
+    def __init__(self, chat_repo: SQLAlchemyChatRepository):
+        self._chat_repo = chat_repo
+
+    async def execute(self, input: GetHistoryInput) -> GetHistoryOutput:
+        """Execute the use case."""
+        messages = await self._chat_repo.get_history(
+            project_id=input.project_id, limit=input.limit
+        )
+
+        return GetHistoryOutput(
+            messages=[
+                ChatMessageDTO(
+                    id=m.id,
+                    role=m.role,
+                    content=m.content,
+                    sources=m.sources,
+                    created_at=m.created_at.isoformat(),
+                )
+                for m in messages
+            ]
+        )
+

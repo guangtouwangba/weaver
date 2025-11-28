@@ -33,7 +33,11 @@ def get_llm_service() -> OpenRouterLLMService:
 
 
 def get_embedding_service() -> OpenRouterEmbeddingService:
-    """Get embedding service instance."""
+    """Get embedding service instance.
+    
+    Uses OpenRouter for embeddings (supports openai/text-embedding-3-small).
+    See: https://openrouter.ai/openai/text-embedding-3-small/api
+    """
     return OpenRouterEmbeddingService(
         api_key=settings.openrouter_api_key,
         model=settings.embedding_model,

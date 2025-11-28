@@ -25,8 +25,10 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
         if existing:
             # Update existing
             existing.filename = document.filename
+            existing.original_filename = document.original_filename
             existing.file_path = document.file_path
             existing.file_size = document.file_size
+            existing.mime_type = document.mime_type
             existing.page_count = document.page_count
             existing.status = document.status.value
         else:
@@ -67,8 +69,10 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
             id=entity.id,
             project_id=entity.project_id,
             filename=entity.filename,
+            original_filename=entity.original_filename,
             file_path=entity.file_path,
             file_size=entity.file_size,
+            mime_type=entity.mime_type,
             page_count=entity.page_count,
             status=entity.status.value,
             created_at=entity.created_at,
@@ -80,10 +84,13 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
             id=model.id,
             project_id=model.project_id,
             filename=model.filename,
+            original_filename=model.original_filename,
             file_path=model.file_path,
             file_size=model.file_size or 0,
+            mime_type=model.mime_type,
             page_count=model.page_count or 0,
             status=DocumentStatus(model.status),
             created_at=model.created_at,
+            updated_at=model.updated_at,
         )
 

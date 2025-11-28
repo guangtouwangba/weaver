@@ -9,25 +9,44 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Find .env file - check multiple locations
 def find_env_file() -> str:
     """Find .env file in current dir or parent dirs."""
-    # Check current directory
-    if Path(".env").exists():
-        return ".env"
-    # Check app/backend directory
-    backend_env = Path(__file__).parent.parent.parent.parent / ".env"
-    if backend_env.exists():
-        return str(backend_env)
-    # Check project root
-    root_env = Path(__file__).parent.parent.parent.parent.parent.parent / ".env"
-    if root_env.exists():
-        return str(root_env)
-    return ".env"
+    import os
+    
+    candidates = []
+    
+    # Current working directory
+    cwd = Path.cwd()
+    candidates.append(cwd / ".env")
+    
+    # Project root (2 levels up from app/backend when running from there)
+    candidates.append((cwd / ".." / ".." / ".env").resolve())
+    
+    # Based on this file's location
+    # __file__ is in app/backend/src/research_agent/config.py
+    this_file = Path(__file__).resolve()
+    # Go up: config.py -> research_agent -> src -> backend -> app -> project_root
+    project_root = this_file.parent.parent.parent.parent.parent
+    candidates.append(project_root / ".env")
+    candidates.append(project_root / "app" / "backend" / ".env")
+    
+    # Check each candidate
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+    
+    # Fallback - return first candidate path for error message
+    return str(candidates[0])
+
+
+_env_file_path = find_env_file()
+print(f"[Config] Loading .env from: {_env_file_path}")
+print(f"[Config] File exists: {Path(_env_file_path).exists()}")
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=find_env_file(),
+        env_file=_env_file_path,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",  # Ignore extra fields in .env
@@ -60,10 +79,14 @@ class Settings(BaseSettings):
         
         return url
 
-    # OpenRouter API
+    # OpenRouter API (for both LLM and Embeddings)
+    # See: https://openrouter.ai/openai/text-embedding-3-small/api
     openrouter_api_key: str = ""
     llm_model: str = "openai/gpt-4o-mini"
     embedding_model: str = "openai/text-embedding-3-small"
+    
+    # Optional: OpenAI API key (fallback, not required if using OpenRouter)
+    openai_api_key: str = ""
 
     # Storage
     upload_dir: str = "./data/uploads"

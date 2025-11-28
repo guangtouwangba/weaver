@@ -21,6 +21,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
     # Startup
     logger.info("Starting Research Agent RAG API...")
+    
+    # Debug: Check API key configuration
+    openrouter_key = settings.openrouter_api_key
+    
+    if openrouter_key:
+        masked = openrouter_key[:10] + "..." + openrouter_key[-4:] if len(openrouter_key) > 14 else "***"
+        logger.info(f"OpenRouter API Key: {masked}")
+        logger.info(f"LLM Model: {settings.llm_model}")
+        logger.info(f"Embedding Model: {settings.embedding_model}")
+    else:
+        logger.warning("⚠️  OPENROUTER_API_KEY not set!")
+        logger.warning("   Get one at: https://openrouter.ai/keys")
+    
     await init_db()
     logger.info("Database connection established")
     yield
