@@ -41,6 +41,9 @@ from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddi
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
+from research_agent.infrastructure.database.models import DocumentModel
+from research_agent.domain.entities.task import TaskType
+from research_agent.worker.service import TaskQueueService
 from research_agent.shared.exceptions import NotFoundError, PDFProcessingError
 
 logger = logging.getLogger(__name__)
@@ -124,22 +127,22 @@ async def get_presigned_upload_url(
         raise HTTPException(status_code=500, detail=f"Failed to create presigned URL: {str(e)}")
 
 
-@router.post("/projects/{project_id}/documents/confirm", response_model=DocumentUploadResponse, status_code=201)
+@router.post("/projects/{project_id}/documents/confirm", response_model=DocumentUploadResponse, status_code=202)
 async def confirm_upload(
     project_id: UUID,
     request: ConfirmUploadRequest,
     session: AsyncSession = Depends(get_db),
-    embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
 ) -> DocumentUploadResponse:
     """
-    Confirm a successful file upload and process the document.
+    Confirm a successful file upload and schedule async processing.
     
     This endpoint should be called after the file has been uploaded to Supabase Storage.
     It will:
     1. Verify the file exists in storage
-    2. Download the file for processing
-    3. Parse the PDF and create embeddings
-    4. Store document metadata in the database
+    2. Create a document record with 'pending' status
+    3. Schedule a background task for processing
+    
+    Returns 202 Accepted - processing happens asynchronously.
     """
     storage = get_supabase_storage()
     if not storage:
@@ -156,56 +159,52 @@ async def confirm_upload(
             detail=f"File not found in storage: {request.file_path}"
         )
     
-    # Download file for processing
     try:
-        file_content = await storage.download_file(request.file_path)
-    except Exception as e:
-        logger.error(f"Failed to download file from storage: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
-    
-    # Create dependencies
-    document_repo = SQLAlchemyDocumentRepository(session)
-    chunk_repo = SQLAlchemyChunkRepository(session)
-    # Use a dummy local storage since file is already in Supabase
-    local_storage = LocalStorageService(settings.upload_dir)
-    pdf_parser = PyMuPDFParser()
-    chunking_service = ChunkingService()
-    
-    use_case = UploadDocumentUseCase(
-        document_repo=document_repo,
-        chunk_repo=chunk_repo,
-        storage=local_storage,  # Still used for temp processing
-        pdf_parser=pdf_parser,
-        embedding_service=embedding_service,
-        chunking_service=chunking_service,
-    )
-    
-    try:
-        # Create a file-like object from bytes
-        file_io = BytesIO(file_content)
+        # Create document record with pending status
+        from uuid import uuid4
+        document_id = uuid4()
         
-        result = await use_case.execute(
-            UploadDocumentInput(
-                project_id=project_id,
-                filename=request.filename,
-                file_content=file_io,
-                file_size=request.file_size,
-                storage_path=request.file_path,  # Store the Supabase path
-            )
+        document = DocumentModel(
+            id=document_id,
+            project_id=project_id,
+            filename=request.filename,
+            original_filename=request.filename,
+            file_path=request.file_path,
+            file_size=request.file_size,
+            mime_type="application/pdf",
+            status="pending",
         )
+        session.add(document)
+        await session.flush()
+        
+        # Schedule background processing task
+        task_service = TaskQueueService(session)
+        await task_service.push(
+            task_type=TaskType.PROCESS_DOCUMENT,
+            payload={
+                "document_id": str(document_id),
+                "project_id": str(project_id),
+                "file_path": request.file_path,
+            },
+            priority=0,
+        )
+        
+        await session.commit()
+        
+        logger.info(f"Document {document_id} scheduled for processing")
         
         return DocumentUploadResponse(
-            id=result.id,
-            filename=result.filename,
-            page_count=result.page_count,
-            status=result.status,
-            message="Document uploaded and processed successfully",
+            id=document_id,
+            filename=request.filename,
+            page_count=0,
+            status="pending",
+            message="Document uploaded successfully. Processing scheduled.",
         )
-    except PDFProcessingError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        
     except Exception as e:
-        logger.error(f"Failed to process document: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
+        logger.error(f"Failed to schedule document processing: {e}")
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to schedule processing: {str(e)}")
 
 
 # ============== Standard Document Endpoints ==============

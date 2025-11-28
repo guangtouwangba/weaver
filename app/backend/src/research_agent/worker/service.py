@@ -1,0 +1,197 @@
+"""Task queue service for managing background jobs."""
+
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from uuid import UUID
+
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from research_agent.domain.entities.task import Task, TaskStatus, TaskType
+from research_agent.infrastructure.database.models import TaskQueueModel
+from research_agent.shared.utils.logger import logger
+
+
+class TaskQueueService:
+    """Service for managing the task queue."""
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
+
+    async def push(
+        self,
+        task_type: TaskType,
+        payload: Dict[str, Any],
+        priority: int = 0,
+        max_attempts: int = 3,
+    ) -> Task:
+        """
+        Push a new task to the queue.
+        
+        Args:
+            task_type: Type of task to execute
+            payload: Task-specific data
+            priority: Higher priority tasks are processed first
+            max_attempts: Maximum number of retry attempts
+            
+        Returns:
+            Created task entity
+        """
+        task = Task(
+            task_type=task_type,
+            payload=payload,
+            priority=priority,
+            max_attempts=max_attempts,
+        )
+        
+        model = TaskQueueModel(
+            id=task.id,
+            task_type=task.task_type.value,
+            payload=task.payload,
+            status=task.status.value,
+            priority=task.priority,
+            attempts=task.attempts,
+            max_attempts=task.max_attempts,
+            scheduled_at=task.scheduled_at,
+        )
+        
+        self._session.add(model)
+        await self._session.flush()
+        
+        logger.info(f"Pushed task {task.id} of type {task_type.value}")
+        return task
+
+    async def pop(self) -> Optional[Task]:
+        """
+        Pop the next pending task from the queue.
+        
+        Uses SELECT FOR UPDATE SKIP LOCKED to ensure atomic task acquisition
+        in a multi-worker environment.
+        
+        Returns:
+            Next pending task or None if queue is empty
+        """
+        # Find the next pending task with highest priority
+        stmt = (
+            select(TaskQueueModel)
+            .where(TaskQueueModel.status == TaskStatus.PENDING.value)
+            .where(TaskQueueModel.scheduled_at <= datetime.utcnow())
+            .order_by(TaskQueueModel.priority.desc(), TaskQueueModel.scheduled_at.asc())
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        
+        if not model:
+            return None
+        
+        # Mark as processing
+        model.status = TaskStatus.PROCESSING.value
+        model.started_at = datetime.utcnow()
+        model.attempts += 1
+        model.updated_at = datetime.utcnow()
+        
+        await self._session.flush()
+        
+        return self._to_entity(model)
+
+    async def complete(self, task_id: UUID) -> None:
+        """Mark a task as completed."""
+        stmt = (
+            update(TaskQueueModel)
+            .where(TaskQueueModel.id == task_id)
+            .values(
+                status=TaskStatus.COMPLETED.value,
+                completed_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+        )
+        await self._session.execute(stmt)
+        logger.info(f"Task {task_id} completed")
+
+    async def fail(self, task_id: UUID, error_message: str) -> None:
+        """
+        Mark a task as failed.
+        
+        If attempts < max_attempts, the task will be reset to pending for retry.
+        """
+        # First get the current task state
+        stmt = select(TaskQueueModel).where(TaskQueueModel.id == task_id)
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        
+        if not model:
+            logger.warning(f"Task {task_id} not found for failure marking")
+            return
+        
+        if model.attempts >= model.max_attempts:
+            new_status = TaskStatus.FAILED.value
+            logger.error(f"Task {task_id} failed permanently after {model.attempts} attempts: {error_message}")
+        else:
+            new_status = TaskStatus.PENDING.value
+            logger.warning(f"Task {task_id} failed (attempt {model.attempts}/{model.max_attempts}), will retry: {error_message}")
+        
+        model.status = new_status
+        model.error_message = error_message
+        model.updated_at = datetime.utcnow()
+        
+        await self._session.flush()
+
+    async def get_by_id(self, task_id: UUID) -> Optional[Task]:
+        """Get a task by ID."""
+        stmt = select(TaskQueueModel).where(TaskQueueModel.id == task_id)
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        
+        if not model:
+            return None
+        
+        return self._to_entity(model)
+
+    async def get_pending_count(self) -> int:
+        """Get the number of pending tasks."""
+        from sqlalchemy import func
+        
+        stmt = select(func.count()).select_from(TaskQueueModel).where(
+            TaskQueueModel.status == TaskStatus.PENDING.value
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    async def get_tasks_by_status(
+        self,
+        status: TaskStatus,
+        limit: int = 100,
+    ) -> List[Task]:
+        """Get tasks by status."""
+        stmt = (
+            select(TaskQueueModel)
+            .where(TaskQueueModel.status == status.value)
+            .order_by(TaskQueueModel.created_at.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        models = result.scalars().all()
+        
+        return [self._to_entity(m) for m in models]
+
+    def _to_entity(self, model: TaskQueueModel) -> Task:
+        """Convert ORM model to domain entity."""
+        return Task(
+            id=model.id,
+            task_type=TaskType(model.task_type),
+            payload=model.payload,
+            status=TaskStatus(model.status),
+            priority=model.priority,
+            attempts=model.attempts,
+            max_attempts=model.max_attempts,
+            error_message=model.error_message,
+            scheduled_at=model.scheduled_at,
+            started_at=model.started_at,
+            completed_at=model.completed_at,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+        )
+

@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Async Document Processing & Knowledge Graph (2025-11-28)
+
+**Implement async task queue and knowledge graph extraction** (@aqiu)
+
+**Architecture:**
+- Database-backed task queue for reliable background processing
+- Knowledge Graph storage using Postgres tables (`entities`, `relations`)
+- Automatic Canvas sync with extracted graph data
+
+**Backend Changes:**
+- **Created** `worker/` module - Modular background task processing system
+  - `TaskQueueService` - Push/pop tasks from database queue
+  - `TaskDispatcher` - Route tasks to handlers
+  - `BackgroundWorker` - Poll loop with graceful shutdown
+- **Created** `DocumentProcessorTask` - Orchestrates full document pipeline
+- **Created** `GraphExtractorTask` - LLM-based entity/relation extraction via OpenRouter
+- **Created** `CanvasSyncerTask` - Auto-layout and sync graph to canvas
+- **Added** Alembic migration for `task_queue`, `entities`, `relations` tables
+- **Added** SQLAlchemy models: `TaskQueueModel`, `EntityModel`, `RelationModel`
+- **Added** Domain entities: `Task`, `Entity`, `Relation`, `KnowledgeGraph`
+- **Refactored** `POST /documents/confirm` - Now returns `202 Accepted` and schedules async processing
+
+**Processing Pipeline:**
+```
+Upload → Confirm → Task Queue → Worker picks up
+  → Text Extraction → Chunking → Embedding
+  → Graph Extraction (LLM) → Canvas Sync
+  → Status: ready
+```
+
+**Frontend Changes:**
+- **Added** Document status polling (3s interval for pending/processing docs)
+- **Added** Status badges: Queued (yellow), Processing (blue), Ready (green), Error (red)
+- **Added** Processing indicator (progress bar) on file cards
+- **Updated** File cards to be non-clickable while processing
+
 ### Added - Supabase Storage Integration (2025-11-28)
 
 **Migrate file uploads from local storage to Supabase Storage** (@aqiu)

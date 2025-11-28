@@ -1,7 +1,8 @@
 """FastAPI application entry point."""
 
+import asyncio
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,15 +11,36 @@ from research_agent.api.errors import setup_error_handlers
 from research_agent.api.middleware import setup_middleware
 from research_agent.api.v1.router import api_router
 from research_agent.config import get_settings
-from research_agent.infrastructure.database.session import init_db
+from research_agent.domain.entities.task import TaskType
+from research_agent.infrastructure.database.session import init_db, get_async_session_factory
 from research_agent.shared.utils.logger import logger
+from research_agent.worker.dispatcher import TaskDispatcher
+from research_agent.worker.tasks import DocumentProcessorTask, GraphExtractorTask, CanvasSyncerTask
+from research_agent.worker.worker import BackgroundWorker
 
 settings = get_settings()
+
+# Global worker instance
+_background_worker: Optional[BackgroundWorker] = None
+
+
+def create_task_dispatcher() -> TaskDispatcher:
+    """Create and configure the task dispatcher."""
+    dispatcher = TaskDispatcher()
+    
+    # Register task handlers
+    dispatcher.register(TaskType.PROCESS_DOCUMENT, DocumentProcessorTask)
+    dispatcher.register(TaskType.EXTRACT_GRAPH, GraphExtractorTask)
+    dispatcher.register(TaskType.SYNC_CANVAS, CanvasSyncerTask)
+    
+    return dispatcher
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
+    global _background_worker
+    
     # Startup
     logger.info("Starting Research Agent RAG API...")
     
@@ -36,9 +58,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     await init_db()
     logger.info("Database connection established")
+    
+    # Start background worker
+    try:
+        session_factory = get_async_session_factory()
+        dispatcher = create_task_dispatcher()
+        
+        _background_worker = BackgroundWorker(
+            dispatcher=dispatcher,
+            session_factory=session_factory,
+            poll_interval=2.0,
+            max_concurrent_tasks=3,
+        )
+        
+        # Start worker in background
+        asyncio.create_task(_background_worker.start())
+        logger.info("Background worker started")
+    except Exception as e:
+        logger.error(f"Failed to start background worker: {e}")
+    
     yield
+    
     # Shutdown
     logger.info("Shutting down Research Agent RAG API...")
+    
+    # Stop background worker
+    if _background_worker:
+        await _background_worker.stop()
+        logger.info("Background worker stopped")
 
 
 def create_app() -> FastAPI:

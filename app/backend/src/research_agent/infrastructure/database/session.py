@@ -113,3 +113,23 @@ async def init_db() -> None:
 async def close_db() -> None:
     """Close database connection."""
     await engine.dispose()
+
+
+def get_async_session_factory():
+    """
+    Get async session factory as a context manager.
+    
+    Used by background workers to create sessions.
+    """
+    from contextlib import asynccontextmanager
+    
+    @asynccontextmanager
+    async def session_factory():
+        async with async_session_maker() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+    
+    return session_factory

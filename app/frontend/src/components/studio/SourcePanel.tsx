@@ -99,6 +99,34 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     }
   }, [activeDocumentId]);
 
+  // Poll for document status updates (for pending/processing documents)
+  useEffect(() => {
+    const pendingDocs = documents.filter(d => d.status === 'pending' || d.status === 'processing');
+    
+    if (pendingDocs.length === 0) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        // Refresh document list to get updated statuses
+        const updatedDocs = await documentsApi.list(projectId);
+        
+        // Check if any status changed
+        const hasChanges = updatedDocs.some(updatedDoc => {
+          const existingDoc = documents.find(d => d.id === updatedDoc.id);
+          return existingDoc && existingDoc.status !== updatedDoc.status;
+        });
+        
+        if (hasChanges) {
+          setDocuments(updatedDocs);
+        }
+      } catch (error) {
+        console.error('Failed to poll document status:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+    
+    return () => clearInterval(pollInterval);
+  }, [documents, projectId, setDocuments]);
+
   // Handle Drag Start for PDF Text Selection
   useEffect(() => {
     const handleDragStart = (e: DragEvent) => {
@@ -299,15 +327,33 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     return date.toLocaleDateString();
   };
 
+  // Get status display info
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return { label: 'Queued', color: '#F59E0B', bgcolor: '#FEF3C7' };
+      case 'processing':
+        return { label: 'Processing', color: '#3B82F6', bgcolor: '#DBEAFE' };
+      case 'ready':
+        return { label: 'Ready', color: '#10B981', bgcolor: '#D1FAE5' };
+      case 'error':
+        return { label: 'Error', color: '#EF4444', bgcolor: '#FEE2E2' };
+      default:
+        return { label: status, color: '#6B7280', bgcolor: '#F3F4F6' };
+    }
+  };
+
   // Render file card based on view mode
   const renderFileCard = (doc: ProjectDocument) => {
     const isActive = activeDocumentId === doc.id;
+    const isProcessing = doc.status === 'pending' || doc.status === 'processing';
+    const statusInfo = getStatusInfo(doc.status);
     
     if (viewMode === 'list') {
       return (
         <Box 
           key={doc.id} 
-          onClick={() => setActiveDocumentId(doc.id)}
+          onClick={() => !isProcessing && setActiveDocumentId(doc.id)}
           sx={{ 
             display: 'flex', 
             gap: 1.5, 
@@ -318,16 +364,32 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             border: '1px solid', 
             borderColor: isActive ? '#BFDBFE' : 'transparent',
             '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover', '& .delete-btn': { opacity: 1 } }, 
-            cursor: 'pointer', 
+            cursor: isProcessing ? 'default' : 'pointer', 
             transition: 'all 0.2s',
             position: 'relative',
+            opacity: isProcessing ? 0.7 : 1,
           }}
         >
           <FileText size={16} className={isActive ? "text-blue-600 mt-0.5" : "text-gray-400 mt-0.5"} />
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography variant="body2" fontWeight={isActive ? "500" : "400"} color={isActive ? "primary.main" : "text.primary"} noWrap>
-              {doc.filename}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" fontWeight={isActive ? "500" : "400"} color={isActive ? "primary.main" : "text.primary"} noWrap sx={{ flex: 1 }}>
+                {doc.filename}
+              </Typography>
+              {doc.status !== 'ready' && (
+                <Chip 
+                  label={statusInfo.label} 
+                  size="small" 
+                  sx={{ 
+                    height: 18, 
+                    fontSize: '0.65rem',
+                    bgcolor: statusInfo.bgcolor,
+                    color: statusInfo.color,
+                    fontWeight: 500,
+                  }} 
+                />
+              )}
+            </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="caption" color="text.secondary">{formatDate(doc.created_at)}</Typography>
               {doc.page_count && doc.page_count > 0 && (
@@ -337,6 +399,17 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 </>
               )}
             </Box>
+            {isProcessing && (
+              <LinearProgress 
+                sx={{ 
+                  mt: 0.5, 
+                  height: 2, 
+                  borderRadius: 1,
+                  bgcolor: 'grey.200',
+                  '& .MuiLinearProgress-bar': { bgcolor: statusInfo.color }
+                }} 
+              />
+            )}
           </Box>
           <Tooltip title="Delete">
             <IconButton
@@ -362,7 +435,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
     // Grid Mode
     return (
-      <Box key={doc.id} sx={{ position: 'relative' }} onClick={() => setActiveDocumentId(doc.id)}>
+      <Box key={doc.id} sx={{ position: 'relative' }} onClick={() => !isProcessing && setActiveDocumentId(doc.id)}>
         <Paper
           elevation={0}
           sx={{ 
@@ -371,11 +444,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             borderRadius: 2, 
             border: isActive ? '2px solid' : '1px solid', 
             borderColor: isActive ? 'primary.main' : 'divider',
-            cursor: 'pointer', 
+            cursor: isProcessing ? 'default' : 'pointer', 
             transition: 'all 0.2s', 
+            opacity: isProcessing ? 0.7 : 1,
             '&:hover': { 
               borderColor: isActive ? 'primary.main' : 'grey.400', 
-              transform: 'translateY(-2px)',
+              transform: isProcessing ? 'none' : 'translateY(-2px)',
               '& .delete-btn-grid': { opacity: 1 }
             }, 
             display: 'flex', 
@@ -411,6 +485,24 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               <Box sx={{ width: '60%', height: 2, bgcolor: '#F3F4F6' }} />
             </Box>
             
+            {/* Status Badge for Grid View */}
+            {doc.status !== 'ready' && (
+              <Chip 
+                label={statusInfo.label} 
+                size="small" 
+                sx={{ 
+                  position: 'absolute',
+                  top: 4,
+                  left: 4,
+                  height: 18, 
+                  fontSize: '0.6rem',
+                  bgcolor: statusInfo.bgcolor,
+                  color: statusInfo.color,
+                  fontWeight: 500,
+                }} 
+              />
+            )}
+            
             {/* Delete Button */}
             <IconButton
               className="delete-btn-grid"
@@ -434,6 +526,21 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             >
               <Trash2 size={12} />
             </IconButton>
+            
+            {/* Processing indicator for grid view */}
+            {isProcessing && (
+              <LinearProgress 
+                sx={{ 
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 3,
+                  bgcolor: 'grey.200',
+                  '& .MuiLinearProgress-bar': { bgcolor: statusInfo.color }
+                }} 
+              />
+            )}
             
             {/* Active Indicator */}
             {isActive && (
