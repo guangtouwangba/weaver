@@ -74,7 +74,7 @@ class StreamMessageUseCase:
         )
 
         full_response = ""
-        response_sources = []
+        response_sources: list = []
 
         try:
             # Create vector store and retriever
@@ -111,7 +111,7 @@ class StreamMessageUseCase:
                         )
                         for doc in documents
                     ]
-                    
+
                     # Store for saving to DB
                     response_sources = [
                         {
@@ -141,7 +141,7 @@ class StreamMessageUseCase:
                         sources=response_sources,
                     )
                 )
-                    
+
         except Exception as e:
             logger.error(f"Error in LangGraph RAG: {e}")
             yield StreamEvent(type="error", content=str(e))
