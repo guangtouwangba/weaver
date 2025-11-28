@@ -6,13 +6,15 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.config import settings
+from research_agent.config import get_settings
+
+settings = get_settings()
 from research_agent.domain.entities.chunk import DocumentChunk
 from research_agent.domain.entities.document import DocumentStatus
 from research_agent.domain.services.chunking_service import ChunkingService
 from research_agent.infrastructure.database.models import DocumentChunkModel, DocumentModel
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
-from research_agent.infrastructure.pdf.pypdf import PyPDFParser
+from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
 from research_agent.shared.utils.logger import logger
@@ -64,7 +66,7 @@ class DocumentProcessorTask(BaseTask):
             
             # Step 2: Extract text from PDF
             logger.info(f"Extracting text from PDF: {file_path}")
-            pdf_parser = PyPDFParser()
+            pdf_parser = PyMuPDFParser()
             pages = await pdf_parser.extract_text(local_path)
             page_count = len(pages)
             logger.info(f"Extracted {page_count} pages")

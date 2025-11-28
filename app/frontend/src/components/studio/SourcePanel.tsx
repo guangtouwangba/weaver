@@ -108,7 +108,8 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     const pollInterval = setInterval(async () => {
       try {
         // Refresh document list to get updated statuses
-        const updatedDocs = await documentsApi.list(projectId);
+        const response = await documentsApi.list(projectId);
+        const updatedDocs = response.items;
         
         // Check if any status changed
         const hasChanges = updatedDocs.some(updatedDoc => {

@@ -180,7 +180,9 @@ class EntityModel(Base):
     name: Mapped[str] = mapped_column(String(500), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True, default=dict)
+    entity_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        "metadata", JSONB, nullable=True, default=dict
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -217,7 +219,9 @@ class RelationModel(Base):
     relation_type: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     weight: Mapped[Optional[float]] = mapped_column(nullable=True, default=1.0)
-    metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True, default=dict)
+    relation_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        "metadata", JSONB, nullable=True, default=dict
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
