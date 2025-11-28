@@ -72,35 +72,43 @@ def create_app() -> FastAPI:
             redoc_js_url="https://unpkg.com/redoc@next/bundles/redoc.standalone.js",
     )
 
-    # Error handlers (must be set up before middleware)
-    setup_error_handlers(app)
-
-    # Custom middleware (added first, runs last)
-    setup_middleware(app)
-
-    # CORS middleware (added last, runs first - wraps everything)
-    # This ensures CORS headers are added even on error responses
+    # CORS middleware - MUST be added FIRST so it wraps everything
+    # and can handle preflight requests before other middleware runs
     cors_origins = settings.cors_origins_list
-    logger.info(f"CORS origins configured: {cors_origins}")
+    logger.info(f"CORS origins from settings: {cors_origins}")
     logger.info(f"Raw CORS_ORIGINS env: {settings.cors_origins}")
     
-    # If no specific origins configured or in production, allow the known domains
-    if not cors_origins or cors_origins == ["http://localhost:3000"]:
-        cors_origins = [
-            "http://localhost:3000",
-            "https://research-agent-rag-web-dev.zeabur.app",
-            "https://research-agent-rag-frontend-dev.zeabur.app",
-        ]
-        logger.info(f"Using default CORS origins: {cors_origins}")
+    # Build comprehensive list of allowed origins
+    allowed_origins = set(cors_origins) if cors_origins else set()
+    
+    # Always add known Zeabur domains for this project
+    zeabur_origins = [
+        "https://research-agent-rag-web-dev.zeabur.app",
+        "https://research-agent-rag-frontend-dev.zeabur.app",
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ]
+    allowed_origins.update(zeabur_origins)
+    
+    # Convert to list and log
+    cors_origins_final = list(allowed_origins)
+    logger.info(f"Final CORS allowed origins: {cors_origins_final}")
     
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cors_origins,
+        allow_origins=cors_origins_final,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
         allow_headers=["*"],
         expose_headers=["*"],
+        max_age=86400,  # Cache preflight for 24 hours
     )
+
+    # Error handlers (must be set up before other middleware)
+    setup_error_handlers(app)
+
+    # Custom middleware (logging, etc.)
+    setup_middleware(app)
 
     # Include API router
     app.include_router(api_router, prefix="/api/v1")
