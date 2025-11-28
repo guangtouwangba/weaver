@@ -67,6 +67,27 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     }
   }, [activeDocumentId]);
 
+  // Handle Drag Start for PDF Text Selection
+  useEffect(() => {
+    const handleDragStart = (e: DragEvent) => {
+      const selection = window.getSelection();
+      // Only inject metadata if there is a selection and an active document
+      if (selection && selection.toString() && activeDocument) {
+        const metadata = {
+            sourceId: activeDocument.id,
+            sourceType: 'pdf',
+            sourceTitle: activeDocument.filename,
+            pageNumber: pageNumber,
+            content: selection.toString()
+        };
+        e.dataTransfer?.setData('application/json', JSON.stringify(metadata));
+      }
+    };
+
+    document.addEventListener('dragstart', handleDragStart);
+    return () => document.removeEventListener('dragstart', handleDragStart);
+  }, [activeDocument, pageNumber]);
+
   // Vertical Resize Logic
   const handleVerticalMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();

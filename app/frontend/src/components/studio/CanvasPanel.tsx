@@ -128,7 +128,33 @@ export default function CanvasPanel() {
       const x = (e.clientX - rect.left - viewport.x) / viewport.scale;
       const y = (e.clientY - rect.top - viewport.y) / viewport.scale;
       
-      // Try to get custom data first, then fallback to text
+      // Try to get custom JSON data first
+      const jsonData = e.dataTransfer.getData("application/json");
+      if (jsonData) {
+        try {
+            const data = JSON.parse(jsonData);
+            if (data.sourceType === 'pdf' && data.content) {
+                addNodeToCanvas({
+                    type: 'card',
+                    title: data.sourceTitle || 'PDF Note',
+                    content: data.content,
+                    x: x - 140,
+                    y: y - 100,
+                    width: 280,
+                    height: 200,
+                    color: 'white',
+                    tags: ['#pdf'],
+                    sourceId: data.sourceId,
+                    sourcePage: data.pageNumber
+                });
+                return;
+            }
+        } catch (e) {
+            console.error("Failed to parse drop data", e);
+        }
+      }
+
+      // Fallback to plain text
       const text = e.dataTransfer.getData("text/plain");
       
       if (text) {

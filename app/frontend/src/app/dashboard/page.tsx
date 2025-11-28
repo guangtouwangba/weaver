@@ -7,11 +7,6 @@ import {
   Box, 
   Typography, 
   Button, 
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Card,
   CardContent,
   CardActions,
@@ -21,6 +16,7 @@ import {
 } from "@mui/material";
 import { Plus, Trash2, FolderOpen } from "lucide-react";
 import { projectsApi, Project } from "@/lib/api";
+import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -28,9 +24,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectDescription, setNewProjectDescription] = useState('');
-  const [creating, setCreating] = useState(false);
 
   // Load projects on mount
   useEffect(() => {
@@ -50,25 +43,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim()) return;
-    
-    try {
-      setCreating(true);
-      const project = await projectsApi.create(newProjectName, newProjectDescription || undefined);
-      setProjects([...projects, project]);
-      setCreateDialogOpen(false);
-      setNewProjectName('');
-      setNewProjectDescription('');
-      // Navigate to studio
-      router.push(`/studio/${project.id}`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create project');
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Are you sure you want to delete this project?')) return;
@@ -83,6 +57,14 @@ export default function DashboardPage() {
 
   const handleOpenProject = (projectId: string) => {
     router.push(`/studio/${projectId}`);
+  };
+
+  const handleProjectCreated = (project: Project) => {
+    setProjects([...projects, project]);
+    // Option: navigate to studio directly, or just update list
+    // router.push(`/studio/${project.id}`); 
+    // For dashboard, maybe just update list is better, but user expects to work on it
+    router.push(`/studio/${project.id}`);
   };
 
   return (
@@ -191,49 +173,11 @@ export default function DashboardPage() {
           </Box>
         )}
 
-        {/* Create Project Dialog */}
-        <Dialog 
+        <CreateProjectDialog 
           open={createDialogOpen} 
-          onClose={() => !creating && setCreateDialogOpen(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Create New Project</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Project Name"
-              fullWidth
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              disabled={creating}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              margin="dense"
-              label="Description (Optional)"
-              fullWidth
-              multiline
-              rows={3}
-              value={newProjectDescription}
-              onChange={(e) => setNewProjectDescription(e.target.value)}
-              disabled={creating}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCreateDialogOpen(false)} disabled={creating}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateProject} 
-              variant="contained"
-              disabled={!newProjectName.trim() || creating}
-            >
-              {creating ? <CircularProgress size={20} /> : 'Create'}
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onClose={() => setCreateDialogOpen(false)}
+          onProjectCreated={handleProjectCreated}
+        />
       </Box>
     </GlobalLayout>
   );
