@@ -111,6 +111,9 @@ class DocumentProcessorTask(BaseTask):
                 session,
             )
             
+            # Commit entities before canvas sync to ensure they're visible
+            await session.commit()
+            
             # Step 6: Sync to canvas
             logger.info("Syncing to canvas")
             canvas_syncer = CanvasSyncerTask()
