@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed - Knowledge Graph Extraction Bugs (2025-11-28)
+
+**Fix multiple import and configuration issues** (@siqiuchen)
+
+**Backend Fixes:**
+- **Fixed** SQLAlchemy reserved `metadata` attribute name conflict in `EntityModel` and `RelationModel`
+  - Renamed Python attributes to `entity_metadata`/`relation_metadata` while keeping DB column as `metadata`
+- **Fixed** `settings` import error - use `get_settings()` function instead of direct import
+- **Fixed** PDF parser import - corrected from `PyPDFParser` to `PyMuPDFParser`
+- **Fixed** `EXTRACTION_PROMPT` format string - escaped JSON curly braces with `{{` and `}}`
+- **Added** OpenRouter API key validation before graph extraction with clear warning log
+- **Improved** Error logging with `exc_info=True` for better debugging
+
+**Frontend Fixes:**
+- **Fixed** `SourcePanel` document polling - correctly access `response.items` array from API response
+
 ### Added - Async Document Processing & Knowledge Graph (2025-11-28)
 
 **Implement async task queue and knowledge graph extraction** (@aqiu)
