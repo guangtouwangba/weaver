@@ -10,11 +10,13 @@ from research_agent.shared.utils.logger import logger
 
 settings = get_settings()
 
+
 # Debug: Log database configuration
 def _mask_password(url: str) -> str:
     """Mask password in database URL for logging."""
     import re
     return re.sub(r':([^:@]+)@', ':****@', url)
+
 
 logger.info("=" * 60)
 logger.info("DATABASE CONFIGURATION DEBUG")
@@ -75,6 +77,7 @@ engine_kwargs: dict = {
 if is_using_pooler and is_transaction_mode:
     logger.info("Transaction mode detected - using NullPool to avoid connection reuse issues")
     from sqlalchemy.pool import NullPool
+
     engine_kwargs["poolclass"] = NullPool
 else:
     engine_kwargs["pool_pre_ping"] = True
@@ -99,7 +102,7 @@ async def init_db() -> None:
         logger.info("Attempting to connect to database...")
         async with engine.begin() as conn:
             await conn.run_sync(lambda _: None)
-        logger.info("Database connection test successful!")
+            logger.info("Database connection test successful!")
     except Exception as e:
         logger.error(f"Database connection failed: {type(e).__name__}: {e}")
         logger.error("Please check your DATABASE_URL configuration")
