@@ -85,6 +85,7 @@ export interface ProjectDocument {
   file_size: number;
   page_count: number;
   status: 'pending' | 'processing' | 'ready' | 'error';
+  graph_status?: 'pending' | 'processing' | 'ready' | 'error';
   created_at: string;
 }
 

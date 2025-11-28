@@ -59,6 +59,7 @@ class DocumentModel(Base):
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False, default="application/pdf")
     page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
+    graph_status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

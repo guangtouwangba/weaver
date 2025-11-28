@@ -40,6 +40,8 @@ import {
   AlertCircle,
   Trash2,
   MoreVertical,
+  Network,
+  Share2,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument } from '@/lib/api';
@@ -101,7 +103,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   // Poll for document status updates (for pending/processing documents)
   useEffect(() => {
-    const pendingDocs = documents.filter(d => d.status === 'pending' || d.status === 'processing');
+    const pendingDocs = documents.filter(d => 
+      d.status === 'pending' || 
+      d.status === 'processing' || 
+      (d.graph_status === 'pending' || d.graph_status === 'processing')
+    );
     
     if (pendingDocs.length === 0) return;
     
@@ -114,7 +120,8 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         // Check if any status changed
         const hasChanges = updatedDocs.some(updatedDoc => {
           const existingDoc = documents.find(d => d.id === updatedDoc.id);
-          return existingDoc && existingDoc.status !== updatedDoc.status;
+          if (!existingDoc) return true;
+          return existingDoc.status !== updatedDoc.status || existingDoc.graph_status !== updatedDoc.graph_status;
         });
         
         if (hasChanges) {
@@ -348,6 +355,8 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const renderFileCard = (doc: ProjectDocument) => {
     const isActive = activeDocumentId === doc.id;
     const isProcessing = doc.status === 'pending' || doc.status === 'processing';
+    const isGraphProcessing = doc.graph_status === 'pending' || doc.graph_status === 'processing';
+    const isGraphReady = doc.graph_status === 'ready';
     const statusInfo = getStatusInfo(doc.status);
     
     if (viewMode === 'list') {
@@ -389,6 +398,18 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                     fontWeight: 500,
                   }} 
                 />
+              )}
+              
+              {/* Graph Status Icon */}
+              {isGraphProcessing && (
+                <Tooltip title="Building knowledge graph...">
+                  <Network size={14} className="text-blue-500 animate-spin-slow" style={{ animation: 'spin 3s linear infinite' }} />
+                </Tooltip>
+              )}
+              {isGraphReady && isActive && (
+                <Tooltip title="Graph ready">
+                  <Share2 size={14} className="text-green-500" />
+                </Tooltip>
               )}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -502,6 +523,25 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                   fontWeight: 500,
                 }} 
               />
+            )}
+            
+            {/* Graph Status Icon for Grid View */}
+            {isGraphProcessing && (
+              <Tooltip title="Building knowledge graph...">
+                <Box sx={{ 
+                  position: 'absolute', 
+                  top: 4, 
+                  left: doc.status !== 'ready' ? 'auto' : 4, 
+                  right: doc.status !== 'ready' ? 32 : 'auto', // Avoid delete button overlap
+                  bgcolor: 'rgba(255,255,255,0.8)', 
+                  borderRadius: '50%', 
+                  p: 0.5,
+                  display: 'flex',
+                  boxShadow: 1
+                }}>
+                  <Network size={12} className="text-blue-500" style={{ animation: 'spin 3s linear infinite' }} />
+                </Box>
+              </Tooltip>
             )}
             
             {/* Delete Button */}

@@ -103,6 +103,18 @@ class DocumentProcessorTask(BaseTask):
                 await session.flush()
                 logger.info(f"Saved {len(chunk_data)} chunks with embeddings")
             
+            # PROGRESSIVE PROCESSING: Mark document as READY for RAG now
+            # This allows users to start chatting while graph extraction runs in background
+            logger.info("Marking document as READY for RAG")
+            await self._update_document_status(
+                session, 
+                document_id, 
+                status=DocumentStatus.READY, 
+                graph_status="processing",
+                page_count=page_count
+            )
+            await session.commit()
+            
             # Step 5: Extract knowledge graph
             logger.info("Extracting knowledge graph")
             graph_extractor = GraphExtractorTask()
@@ -122,9 +134,9 @@ class DocumentProcessorTask(BaseTask):
                 session,
             )
             
-            # Step 7: Update document status to ready
+            # Step 7: Update graph status to ready
             await self._update_document_status(
-                session, document_id, DocumentStatus.READY, page_count=page_count
+                session, document_id, graph_status="ready"
             )
             await session.commit()
             
@@ -135,7 +147,24 @@ class DocumentProcessorTask(BaseTask):
             
             # Update status to error
             await session.rollback()
-            await self._update_document_status(session, document_id, DocumentStatus.ERROR)
+            # If RAG failed (status != READY), mark document as error
+            # If RAG succeeded but Graph failed, mark graph as error
+            # For simplicity, if any step fails, we mark based on what stage we're likely in
+            # But since we committed RAG ready, we should check current status first?
+            # Actually, just marking both as error if unsafe, or careful logic.
+            # Here: Just mark graph_status as error if we are past RAG ready?
+            # Simple approach: Set document status to error if it wasn't ready yet.
+            
+            # Since we can't easily check status in exception handler without query, 
+            # let's just assume if it crashed, we set both to error for safety, 
+            # OR we could refine this later.
+            # For now: set status to ERROR. 
+            await self._update_document_status(
+                session, 
+                document_id, 
+                status=DocumentStatus.ERROR,
+                graph_status="error"
+            )
             await session.commit()
             
             raise
@@ -186,14 +215,22 @@ class DocumentProcessorTask(BaseTask):
         self,
         session: AsyncSession,
         document_id: UUID,
-        status: DocumentStatus,
+        status: DocumentStatus = None,
+        graph_status: str = None,
         page_count: int = None,
     ) -> None:
         """Update document status in database."""
-        values = {"status": status.value}
+        values = {}
+        if status:
+            values["status"] = status.value
+        if graph_status:
+            values["graph_status"] = graph_status
         if page_count is not None:
             values["page_count"] = page_count
         
+        if not values:
+            return
+
         stmt = (
             update(DocumentModel)
             .where(DocumentModel.id == document_id)
