@@ -60,6 +60,7 @@ class PresignResponse(BaseModel):
     """Response containing presigned upload URL."""
     upload_url: str
     file_path: str
+    token: str
     expires_at: str
 
 
@@ -115,6 +116,7 @@ async def get_presigned_upload_url(
         return PresignResponse(
             upload_url=result.upload_url,
             file_path=result.file_path,
+            token=result.token,
             expires_at=result.expires_at.isoformat(),
         )
     except Exception as e:
@@ -399,15 +401,42 @@ async def delete_document(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a document."""
+    """Delete a document and its file from storage."""
     document_repo = SQLAlchemyDocumentRepository(session)
     chunk_repo = SQLAlchemyChunkRepository(session)
-    storage = LocalStorageService(settings.upload_dir)
+    local_storage = LocalStorageService(settings.upload_dir)
+
+    # Get document first to check file path
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Delete from Supabase Storage if file is stored there
+    # file_path could be:
+    # - "projects/{project_id}/{uuid}.pdf" (Supabase Storage)
+    # - "data/uploads/projects/{project_id}/{uuid}.pdf" (Local storage)
+    supabase_storage = get_supabase_storage()
+    if supabase_storage and document.file_path:
+        # Extract the Supabase path if it's a local path
+        storage_path = document.file_path
+        if "projects/" in storage_path and not storage_path.startswith("projects/"):
+            # Convert local path to Supabase path
+            # e.g., "data/uploads/projects/..." -> "projects/..."
+            idx = storage_path.find("projects/")
+            storage_path = storage_path[idx:]
+        
+        if storage_path.startswith("projects/"):
+            try:
+                logger.info(f"Attempting to delete from Supabase Storage: {storage_path}")
+                await supabase_storage.delete_file(storage_path)
+                logger.info(f"Deleted file from Supabase Storage: {storage_path}")
+            except Exception as e:
+                logger.warning(f"Failed to delete from Supabase Storage: {e}")
 
     use_case = DeleteDocumentUseCase(
         document_repo=document_repo,
         chunk_repo=chunk_repo,
-        storage=storage,
+        storage=local_storage,
     )
 
     try:

@@ -12,6 +12,15 @@ import {
   Chip,
   LinearProgress,
   Alert,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { 
   FileText, 
@@ -29,6 +38,8 @@ import {
   CloudUpload,
   CheckCircle,
   AlertCircle,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument } from '@/lib/api';
@@ -64,6 +75,13 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
+  
+  // Delete state
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuDocId, setMenuDocId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<ProjectDocument | null>(null);
+  const [deleting, setDeleting] = useState(false);
   
   // Vertical Resize State
   const [splitRatio, setSplitRatio] = useState(0.4);
@@ -217,6 +235,54 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     setPageNumber(prev => Math.min(prev + 1, numPages));
   };
 
+  // Menu handlers
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, docId: string) => {
+    event.stopPropagation();
+    setMenuAnchorEl(event.currentTarget);
+    setMenuDocId(docId);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setMenuDocId(null);
+  };
+
+  // Delete handlers
+  const handleDeleteClick = (doc: ProjectDocument) => {
+    setDocToDelete(doc);
+    setDeleteDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!docToDelete) return;
+    
+    setDeleting(true);
+    try {
+      await documentsApi.delete(docToDelete.id);
+      
+      // Remove from local state
+      setDocuments(documents.filter(d => d.id !== docToDelete.id));
+      
+      // Clear active document if it was deleted
+      if (activeDocumentId === docToDelete.id) {
+        setActiveDocumentId(null);
+      }
+      
+      setDeleteDialogOpen(false);
+      setDocToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setDocToDelete(null);
+  };
+
   // Format date for display
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Recently';
@@ -251,9 +317,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             bgcolor: isActive ? '#EFF6FF' : 'transparent', 
             border: '1px solid', 
             borderColor: isActive ? '#BFDBFE' : 'transparent',
-            '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover' }, 
+            '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover', '& .delete-btn': { opacity: 1 } }, 
             cursor: 'pointer', 
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            position: 'relative',
           }}
         >
           <FileText size={16} className={isActive ? "text-blue-600 mt-0.5" : "text-gray-400 mt-0.5"} />
@@ -271,6 +338,24 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               )}
             </Box>
           </Box>
+          <Tooltip title="Delete">
+            <IconButton
+              className="delete-btn"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(doc);
+              }}
+              sx={{ 
+                opacity: 0, 
+                transition: 'opacity 0.2s',
+                color: 'text.secondary',
+                '&:hover': { color: 'error.main', bgcolor: 'error.50' }
+              }}
+            >
+              <Trash2 size={14} />
+            </IconButton>
+          </Tooltip>
         </Box>
       );
     }
@@ -288,7 +373,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             borderColor: isActive ? 'primary.main' : 'divider',
             cursor: 'pointer', 
             transition: 'all 0.2s', 
-            '&:hover': { borderColor: isActive ? 'primary.main' : 'grey.400', transform: 'translateY(-2px)' }, 
+            '&:hover': { 
+              borderColor: isActive ? 'primary.main' : 'grey.400', 
+              transform: 'translateY(-2px)',
+              '& .delete-btn-grid': { opacity: 1 }
+            }, 
             display: 'flex', 
             flexDirection: 'column'
           }}
@@ -321,6 +410,30 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               <Box sx={{ width: '100%', height: 2, bgcolor: '#F3F4F6' }} />
               <Box sx={{ width: '60%', height: 2, bgcolor: '#F3F4F6' }} />
             </Box>
+            
+            {/* Delete Button */}
+            <IconButton
+              className="delete-btn-grid"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(doc);
+              }}
+              sx={{ 
+                position: 'absolute',
+                top: 4,
+                right: 4,
+                opacity: 0, 
+                transition: 'opacity 0.2s',
+                bgcolor: 'white',
+                boxShadow: 1,
+                width: 24,
+                height: 24,
+                '&:hover': { bgcolor: 'error.50', color: 'error.main' }
+              }}
+            >
+              <Trash2 size={12} />
+            </IconButton>
             
             {/* Active Indicator */}
             {isActive && (
@@ -585,6 +698,42 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           </Box>
         </Box>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          Delete Document
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete <strong>{docToDelete?.filename}</strong>? 
+            This will also remove all associated text chunks and embeddings. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={handleDeleteCancel} 
+            disabled={deleting}
+            sx={{ textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained"
+            disabled={deleting}
+            sx={{ textTransform: 'none' }}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -75,23 +75,39 @@ class SupabaseStorageService:
         Returns:
             PresignedUrlResponse with upload URL, file path, and expiration
         """
-        # Generate unique file path: projects/{project_id}/{uuid}_{filename}
+        # Generate unique file path: projects/{project_id}/{uuid}.{extension}
         file_id = str(uuid.uuid4())
-        # Sanitize filename (remove special chars)
-        safe_filename = "".join(c for c in filename if c.isalnum() or c in "._-")
-        file_path = f"projects/{project_id}/{file_id}_{safe_filename}"
+        
+        # Extract file extension from original filename
+        ext = ""
+        if "." in filename:
+            ext = filename.rsplit(".", 1)[-1].lower()
+            # Only keep safe extensions
+            if ext not in ["pdf", "txt", "md", "docx", "doc"]:
+                ext = "pdf"  # Default to pdf
+        else:
+            ext = "pdf"
+        
+        # Use only UUID and extension for the storage path (no Chinese chars)
+        # This avoids "Invalid key" errors from Supabase
+        file_path = f"projects/{project_id}/{file_id}.{ext}"
         
         client = await self._get_client()
         
         # Call Supabase Storage API to create signed upload URL
+        # See: https://supabase.com/docs/reference/python/storage-from-createsigneduploadurl
         url = f"{self.storage_url}/object/upload/sign/{self.bucket_name}/{file_path}"
         
         logger.info(f"Creating signed upload URL for: {file_path}")
+        logger.info(f"Request URL: {url}")
         
         response = await client.post(
             url,
             headers=self.headers,
         )
+        
+        logger.info(f"Response status: {response.status_code}")
+        logger.info(f"Response body: {response.text}")
         
         if response.status_code != 200:
             logger.error(f"Failed to create signed upload URL: {response.status_code} - {response.text}")
@@ -99,11 +115,17 @@ class SupabaseStorageService:
         
         data = response.json()
         
-        # The response contains a token that must be used for upload
+        # The response contains a token that we use to authorize the upload
         token = data.get("token", "")
         
-        # Construct the full upload URL
-        upload_url = f"{self.storage_url}/object/upload/{self.bucket_name}/{file_path}?token={token}"
+        # For uploadToSignedUrl, we need to PUT to /object/{bucket}/{path}
+        # with the token as a query parameter or Authorization header
+        # See: https://supabase.com/docs/reference/javascript/storage-from-uploadtosignedurl
+        upload_url = f"{self.supabase_url}/storage/v1/object/{self.bucket_name}/{file_path}"
+        
+        logger.info(f"Supabase response: {data}")
+        logger.info(f"Generated upload URL: {upload_url}")
+        logger.info(f"Token (first 20 chars): {token[:20]}...")
         
         # Signed URLs are valid for 2 hours by default
         expires_at = datetime.now(timezone.utc) + timedelta(hours=2)
@@ -227,15 +249,21 @@ class SupabaseStorageService:
         """
         client = await self._get_client()
         
-        url = f"{self.storage_url}/object/{self.bucket_name}"
+        # Supabase Storage delete API uses DELETE with path in URL
+        # See: https://supabase.com/docs/reference/javascript/storage-from-remove
+        url = f"{self.storage_url}/object/{self.bucket_name}/{file_path}"
         
-        response = await client.delete(
-            url,
-            headers=self.headers,
-            json={"prefixes": [file_path]},
-        )
+        logger.info(f"Deleting file from Supabase Storage: {url}")
         
-        return response.status_code == 200
+        response = await client.delete(url, headers=self.headers)
+        
+        logger.info(f"Delete response status: {response.status_code}, body: {response.text}")
+        
+        if response.status_code not in [200, 204]:
+            logger.warning(f"Failed to delete file: {response.status_code} - {response.text}")
+            return False
+        
+        return True
 
     async def close(self) -> None:
         """Close the HTTP client."""

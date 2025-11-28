@@ -205,6 +205,7 @@ export const projectsApi = {
 interface PresignResponse {
   upload_url: string;
   file_path: string;
+  token: string;
   expires_at: string;
 }
 
@@ -264,6 +265,7 @@ export const documentsApi = {
     );
     
     // Step 2: Upload directly to Supabase Storage
+    // Supabase signed upload URL expects POST with the file as body
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       
@@ -278,7 +280,8 @@ export const documentsApi = {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
+          console.error('Supabase upload failed:', xhr.status, xhr.responseText);
+          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
         }
       });
       
@@ -286,7 +289,11 @@ export const documentsApi = {
         reject(new Error('Upload failed'));
       });
       
+      // Supabase Storage uploadToSignedUrl uses PUT with binary body
+      // and the token as Authorization header
+      // See: https://supabase.com/docs/reference/javascript/storage-from-uploadtosignedurl
       xhr.open('PUT', presignResponse.upload_url);
+      xhr.setRequestHeader('Authorization', `Bearer ${presignResponse.token}`);
       xhr.setRequestHeader('Content-Type', file.type || 'application/pdf');
       xhr.send(file);
     });
