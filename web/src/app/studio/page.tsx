@@ -81,7 +81,6 @@ import {
   AlertCircle,
   Trash2
 } from "lucide-react";
-import { canvasApi } from "@/lib/api";
 
 // --- Helper Components ---
 
@@ -428,7 +427,10 @@ function StudioPageContent() {
   });
 
   // Unified RAF update handler - applies all pending updates in a single frame
-  const applyRafUpdates = useCallback(() => {
+  // Using useRef to store the function to avoid stale closure issues with useCallback
+  const applyRafUpdatesRef = useRef<() => void>();
+  
+  applyRafUpdatesRef.current = () => {
     const manager = rafManager.current;
     
     if (manager.pendingPan) {
@@ -451,7 +453,7 @@ function StudioPageContent() {
     }
     
     manager.rafId = null;
-  }, []);
+  };
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -2531,8 +2533,8 @@ function StudioPageContent() {
                 }
                 
                 // Schedule RAF update if not already scheduled
-                if (manager.rafId === null) {
-                    manager.rafId = requestAnimationFrame(applyRafUpdates);
+                if (manager.rafId === null && applyRafUpdatesRef.current) {
+                    manager.rafId = requestAnimationFrame(applyRafUpdatesRef.current);
                 }
             }}
             onMouseUp={() => {
