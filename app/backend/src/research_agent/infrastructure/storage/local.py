@@ -55,3 +55,14 @@ class LocalStorageService(StorageService):
         """Get full file system path."""
         return str(self._base_dir / path)
 
+    async def delete_directory(self, path: str) -> bool:
+        """Delete directory and all its contents."""
+        try:
+            full_path = self._base_dir / path
+            if full_path.exists() and full_path.is_dir():
+                await asyncio.to_thread(shutil.rmtree, full_path)
+                return True
+            return False
+        except Exception as e:
+            raise StorageError(f"Failed to delete directory: {e}")
+

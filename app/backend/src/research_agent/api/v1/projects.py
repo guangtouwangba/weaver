@@ -24,12 +24,16 @@ from research_agent.application.use_cases.project.get_project import (
     GetProjectUseCase,
 )
 from research_agent.application.use_cases.project.list_projects import ListProjectsUseCase
+from research_agent.config import get_settings
 from research_agent.infrastructure.database.repositories.sqlalchemy_project_repo import (
     SQLAlchemyProjectRepository,
 )
+from research_agent.infrastructure.storage.local import LocalStorageService
+from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
 from research_agent.shared.exceptions import NotFoundError
 
 router = APIRouter()
+settings = get_settings()
 
 
 def get_project_repo(session: AsyncSession = Depends(get_db)) -> SQLAlchemyProjectRepository:
@@ -114,10 +118,29 @@ async def delete_project(
     project_id: UUID,
     repo: SQLAlchemyProjectRepository = Depends(get_project_repo),
 ) -> None:
-    """Delete a project."""
-    use_case = DeleteProjectUseCase(repo)
+    """Delete a project and all associated files."""
+    # Create storage services
+    local_storage = LocalStorageService(settings.upload_dir)
+    
+    supabase_storage = None
+    if settings.supabase_url and settings.supabase_service_role_key:
+        supabase_storage = SupabaseStorageService(
+            supabase_url=settings.supabase_url,
+            service_role_key=settings.supabase_service_role_key,
+            bucket_name=settings.storage_bucket,
+        )
+    
+    use_case = DeleteProjectUseCase(
+        repo, 
+        storage_service=local_storage,
+        supabase_storage_service=supabase_storage,
+    )
 
     try:
         await use_case.execute(DeleteProjectInput(project_id=project_id))
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message)
+    finally:
+        # Close Supabase storage client if created
+        if supabase_storage:
+            await supabase_storage.close()

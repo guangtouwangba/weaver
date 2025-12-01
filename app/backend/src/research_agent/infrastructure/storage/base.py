@@ -27,3 +27,8 @@ class StorageService(ABC):
         """Get full file system path."""
         pass
 
+    @abstractmethod
+    async def delete_directory(self, path: str) -> bool:
+        """Delete directory and all its contents. Return success status."""
+        pass
+

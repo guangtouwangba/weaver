@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Delete Project API with File Cleanup (2025-12-01)
+
+**Implement complete project deletion with file cleanup** (@siqiuchen)
+
+**Backend Changes:**
+- **Implemented** `DELETE /api/v1/projects/{project_id}` endpoint - Complete project deletion
+- **Enhanced** `DeleteProjectUseCase` - Added storage service integration for file cleanup
+- **Added** `delete_directory()` method to `StorageService` interface
+- **Implemented** Local storage directory deletion in `LocalStorageService`
+- **Implemented** Supabase storage directory deletion in `SupabaseStorageService`
+- **Added** Comprehensive unit tests for delete project use case
+
+**Deletion Behavior:**
+- Database cascade deletion for all related data (documents, chunks, canvas, chat messages, entities, relations)
+- Local file cleanup: `{upload_dir}/projects/{project_id}/`
+- Supabase storage cleanup: `projects/{project_id}/`
+- Graceful error handling - deletion continues even if file cleanup fails
+
+**Documentation:**
+- Added `app/backend/docs/api/delete_project.md` - Complete API documentation with examples
+
 ### Fixed - Knowledge Graph Extraction Bugs (2025-11-28)
 
 **Fix multiple import and configuration issues** (@siqiuchen)

@@ -265,6 +265,68 @@ class SupabaseStorageService:
         
         return True
 
+    async def delete_directory(self, folder_path: str) -> bool:
+        """
+        Delete a folder and all its contents from storage.
+        
+        Args:
+            folder_path: The path to the folder in storage (e.g., "projects/{project_id}")
+            
+        Returns:
+            True if deleted successfully
+        """
+        client = await self._get_client()
+        
+        # List all files in the folder
+        list_url = f"{self.storage_url}/object/list/{self.bucket_name}"
+        
+        logger.info(f"Listing files in folder: {folder_path}")
+        
+        response = await client.post(
+            list_url,
+            headers=self.headers,
+            json={
+                "prefix": folder_path,
+                "limit": 1000,  # Max files to list
+            }
+        )
+        
+        if response.status_code != 200:
+            logger.warning(f"Failed to list files in folder: {response.status_code} - {response.text}")
+            return False
+        
+        files = response.json()
+        
+        if not files:
+            logger.info(f"No files found in folder: {folder_path}")
+            return True
+        
+        # Delete all files in batch
+        file_paths = [f"{folder_path}/{f['name']}" for f in files if 'name' in f]
+        
+        if not file_paths:
+            return True
+        
+        logger.info(f"Deleting {len(file_paths)} files from folder: {folder_path}")
+        
+        # Supabase Storage batch delete API
+        # See: https://supabase.com/docs/reference/javascript/storage-from-remove
+        delete_url = f"{self.storage_url}/object/{self.bucket_name}"
+        
+        response = await client.delete(
+            delete_url,
+            headers=self.headers,
+            json={"prefixes": [folder_path]}
+        )
+        
+        logger.info(f"Delete folder response status: {response.status_code}, body: {response.text}")
+        
+        if response.status_code not in [200, 204]:
+            logger.warning(f"Failed to delete folder: {response.status_code} - {response.text}")
+            return False
+        
+        return True
+
     async def close(self) -> None:
         """Close the HTTP client."""
         if self._client:
