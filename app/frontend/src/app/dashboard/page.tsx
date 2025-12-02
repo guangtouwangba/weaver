@@ -67,12 +67,12 @@ export default function DashboardPage() {
   };
 
   const handleOpenProject = (projectId: string) => {
-    router.push(`/studio?projectId=${projectId}`);
+    router.push(`/studio/${projectId}`);
   };
 
   const handleProjectCreated = (project: Project) => {
     setProjects((prev) => [...prev, project]);
-    router.push(`/studio?projectId=${project.id}`);
+    router.push(`/studio/${project.id}`);
   };
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, project: Project) => {

@@ -61,6 +61,13 @@ if is_using_pooler and is_transaction_mode:
     engine_kwargs["poolclass"] = NullPool
 else:
     engine_kwargs["pool_pre_ping"] = True
+    # Configure connection pool for Session Mode
+    # Increase pool size to handle concurrent requests
+    # Default is 5, which is too small for concurrent API calls
+    engine_kwargs["pool_size"] = 20  # Allow up to 20 concurrent connections
+    engine_kwargs["max_overflow"] = 10  # Allow 10 additional connections beyond pool_size
+    engine_kwargs["pool_timeout"] = 30  # Wait up to 30 seconds for a connection
+    engine_kwargs["pool_recycle"] = 3600  # Recycle connections after 1 hour
 
 engine = create_async_engine(
     settings.async_database_url,

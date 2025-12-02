@@ -99,9 +99,25 @@ export function StudioProvider({
     setSourceNavigation({ documentId, pageNumber, searchText });
   }, []);
 
-  // Load data on mount
+  // Load data on mount and when projectId changes
   useEffect(() => {
     if (!projectId) return;
+
+    // Clear previous project data immediately to prevent showing stale data
+    setDocuments([]);
+    setCanvasNodes([]);
+    setCanvasEdges([]);
+    setCanvasViewport({ x: 0, y: 0, scale: 1 });
+    setChatMessages([
+      {
+        id: 'welcome',
+        role: 'ai',
+        content: "Hello! I'm your research assistant. Upload a document and ask me anything about it.",
+        timestamp: new Date(),
+      }
+    ]);
+    setActiveDocumentId(null);
+    setSourceNavigation(null);
 
     const loadData = async () => {
       try {
