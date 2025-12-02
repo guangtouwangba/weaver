@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Typography, TextField, IconButton, Drawer, Select, MenuItem, Switch, FormControlLabel, Chip } from '@mui/material';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, GripVertical } from 'lucide-react';
 
 interface CanvasNode {
   id: string;
@@ -20,7 +20,68 @@ interface NodeInspectorProps {
   onUpdate: (nodeId: string, updates: Partial<CanvasNode>) => void;
 }
 
+const MIN_WIDTH = 280;
+const MAX_WIDTH = 800;
+const DEFAULT_WIDTH = 420;
+
 export function NodeInspector({ node, isOpen, onClose, onUpdate }: NodeInspectorProps) {
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(DEFAULT_WIDTH);
+
+  // Load saved width from localStorage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('inspectorWidth');
+    if (savedWidth) {
+      const parsedWidth = parseInt(savedWidth, 10);
+      if (parsedWidth >= MIN_WIDTH && parsedWidth <= MAX_WIDTH) {
+        setWidth(parsedWidth);
+      }
+    }
+  }, []);
+
+  // Save width to localStorage
+  useEffect(() => {
+    localStorage.setItem('inspectorWidth', width.toString());
+  }, [width]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = width;
+  };
+
+  useEffect(() => {
+    if (!isResizing) {
+      document.body.classList.remove('inspector-resizing');
+      return;
+    }
+
+    document.body.classList.add('inspector-resizing');
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = startXRef.current - e.clientX;
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidthRef.current + deltaX));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.classList.remove('inspector-resizing');
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.classList.remove('inspector-resizing');
+    };
+  }, [isResizing]);
+
   if (!node) return null;
 
   const handleUpdate = (field: string, value: any) => {
@@ -34,12 +95,46 @@ export function NodeInspector({ node, isOpen, onClose, onUpdate }: NodeInspector
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: 320,
+          width: width,
           bgcolor: 'white',
           boxShadow: '-4px 0 20px rgba(0,0,0,0.15)',
+          transition: isResizing ? 'none' : 'width 0.2s ease',
         }
       }}
     >
+      {/* Resize Handle */}
+      <Box
+        onMouseDown={handleMouseDown}
+        sx={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 8,
+          cursor: 'ew-resize',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'background-color 0.2s',
+          '&:hover': {
+            bgcolor: 'rgba(59, 130, 246, 0.1)',
+          },
+          ...(isResizing && {
+            bgcolor: 'rgba(59, 130, 246, 0.2)',
+          }),
+        }}
+      >
+        <GripVertical 
+          size={16} 
+          style={{ 
+            color: '#94A3B8',
+            opacity: isResizing ? 1 : 0.4,
+            transition: 'opacity 0.2s',
+          }} 
+        />
+      </Box>
+
       {/* Header */}
       <Box sx={{ 
         p: 2.5, 

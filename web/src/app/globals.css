@@ -82,3 +82,14 @@ canvas, svg {
 .zooming * {
   pointer-events: none !important;
 }
+
+/* Inspector resize cursor */
+.inspector-resizing {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+.inspector-resizing * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
