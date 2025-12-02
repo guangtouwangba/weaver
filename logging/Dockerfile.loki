@@ -6,8 +6,8 @@ COPY loki-config.yaml /etc/loki/local-config.yaml
 # Expose Loki port
 EXPOSE 3100
 
-# Volume for data persistence (directories will be created automatically)
-VOLUME ["/loki"]
+# Note: For Zeabur deployment, Volume should be configured via Zeabur console
+# not in Dockerfile. Remove VOLUME declaration to avoid mount conflicts.
 
 # Run Loki with custom config
 ENTRYPOINT ["/usr/bin/loki"]
