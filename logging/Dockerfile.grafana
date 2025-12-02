@@ -1,15 +1,22 @@
 FROM grafana/grafana:latest
 
+# Create provisioning directory
+RUN mkdir -p /etc/grafana/provisioning/datasources
+
 # Copy datasource provisioning
 COPY grafana-datasource.yaml /etc/grafana/provisioning/datasources/datasource.yaml
 
-# Set default admin password via environment variable
-ENV GF_SECURITY_ADMIN_PASSWORD=admin123
+# Set default environment variables (can be overridden by Zeabur)
+ENV GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin123}
 ENV GF_USERS_ALLOW_SIGN_UP=false
+ENV GF_SERVER_HTTP_PORT=3000
 
 # Expose Grafana port
 EXPOSE 3000
 
-# Run Grafana
-CMD ["/run.sh"]
+# Volume for data persistence
+VOLUME ["/var/lib/grafana"]
+
+# Run Grafana (default entrypoint from base image)
+# No need to specify CMD, uses base image's entrypoint
 
