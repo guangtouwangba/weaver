@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed - LangGraph RAG State Management & Error Logging (2025-12-02)
+
+**Fixed critical state management bug in RAG pipeline** (@siqiuchen)
+
+**Bug Fixes:**
+- **State Management** - Fixed state dict being completely replaced instead of merged in `stream_rag_response`
+  - Changed from `state = await transform_query(state, llm)` to `state.update(await transform_query(state, llm))`
+  - Applied fix to all pipeline steps: query rewriting, retrieval, reranking, and grading
+  - Added defensive check in `grade_documents` to validate required fields before access
+- **Error Logging** - Enhanced error logging throughout RAG pipeline
+  - Added full exception traceback and error type to all error logs
+  - Include query context, configuration, and state keys in error messages
+  - Added detailed logging in `stream_message.py` with structured error details
+  - Improved error context in document grading with metadata logging
+
+**Root Cause:**
+- Node functions returned partial state dictionaries
+- Direct assignment (`state = result`) replaced entire state instead of merging
+- Lost `question` field caused `KeyError` in downstream steps
+- Minimal error logging made debugging difficult
+
+**Impact:**
+- Resolves `KeyError: 'question'` errors in document grading step
+- Provides detailed context for faster debugging of future issues
+- Maintains all state fields throughout the RAG pipeline
+
+**Key Files:**
+- `app/backend/src/research_agent/application/graphs/rag_graph.py` - State management fixes
+- `app/backend/src/research_agent/application/use_cases/chat/stream_message.py` - Enhanced error logging
+
 ### Added - RAG Real-time Evaluation with Ragas (2025-12-02)
 
 **Automatic RAG quality evaluation using Ragas framework** (@aqiu)

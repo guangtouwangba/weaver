@@ -202,8 +202,29 @@ class StreamMessageUseCase:
                 )
 
         except Exception as e:
-            logger.error(f"Error in LangGraph RAG: {e}")
-            yield StreamEvent(type="error", content=str(e))
+            import traceback
+            error_details = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "query": input.message[:100],
+                "project_id": str(input.project_id),
+                "config": {
+                    "use_hybrid_search": input.use_hybrid_search,
+                    "use_rewrite": input.use_rewrite,
+                    "use_rerank": input.use_rerank,
+                    "use_grading": input.use_grading,
+                    "top_k": input.top_k,
+                }
+            }
+            logger.error(
+                f"Error in LangGraph RAG: {e}\n"
+                f"Error Type: {type(e).__name__}\n"
+                f"Query: {input.message[:100]}...\n"
+                f"Config: {error_details['config']}\n"
+                f"Traceback:\n{traceback.format_exc()}",
+                exc_info=True
+            )
+            yield StreamEvent(type="error", content=f"{type(e).__name__}: {str(e)}")
     
     def _should_evaluate(self) -> bool:
         """Determine if evaluation should be triggered (based on sampling rate)."""

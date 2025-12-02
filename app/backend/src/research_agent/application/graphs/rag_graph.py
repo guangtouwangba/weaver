@@ -224,10 +224,15 @@ Output ONLY a single number between 0-10. No explanation."""
 
 def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Grade retrieved documents for relevance."""
-    question = state.get("rewritten_question", state["question"])
+    # Defensive check for required fields
+    if "question" not in state and "rewritten_question" not in state:
+        logger.error(f"[Grade] Missing 'question' in state. Available keys: {list(state.keys())}")
+        raise ValueError("State must contain 'question' or 'rewritten_question' field")
+    
+    question = state.get("rewritten_question", state.get("question", ""))
     # Use reranked documents if available, otherwise use retrieved documents
     documents = state.get("reranked_documents", state.get("documents", []))
-    logger.info(f"Grading {len(documents)} documents for relevance")
+    logger.info(f"[Grade] Grading {len(documents)} documents for relevance (question: '{question[:50]}...')")
     
     # Simple prompt that asks for yes/no directly (no structured output needed)
     system_prompt = """You are a grader assessing relevance of a retrieved document to a user question.
@@ -260,12 +265,16 @@ Reply with ONLY 'yes' or 'no'. Nothing else."""
             logger.info(f"[Grade] Document {i+1} raw response: '{result_lower}'")
             
             is_relevant = "yes" in result_lower and "no" not in result_lower[:10]
-            logger.debug(f"[Grade] Document {i+1} relevant: {is_relevant}")
+            logger.info(f"[Grade] Document {i+1} relevant: {is_relevant} (metadata: {doc.metadata})")
             
             if is_relevant:
                 filtered_docs.append(doc)
         except Exception as e:
-            logger.warning(f"[Grade] Failed to grade document {i+1}: {e}")
+            import traceback
+            logger.warning(
+                f"[Grade] Failed to grade document {i+1}: {type(e).__name__}: {e}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             # On error, include the document (fail-safe: better to include than exclude)
             filtered_docs.append(doc)
     
@@ -423,18 +432,21 @@ async def stream_rag_response(
     # Step 1: Query rewriting (optional)
     if use_rewrite and chat_history:
         logger.info("[Stream] Rewriting query...")
-        state = await transform_query(state, llm)
+        rewrite_result = await transform_query(state, llm)
+        state.update(rewrite_result)  # Merge instead of replace
     else:
         state["rewritten_question"] = question
     
     # Step 2: Retrieve documents
-    state = await retrieve(state, retriever)
+    retrieve_result = await retrieve(state, retriever)
+    state.update(retrieve_result)  # Merge instead of replace
     yield {"type": "sources", "documents": state["documents"]}
     
     # Step 3: Rerank (optional)
     if use_rerank:
         logger.info("[Stream] Reranking documents...")
-        state = await rerank(state, llm)
+        rerank_result = await rerank(state, llm)
+        state.update(rerank_result)  # Merge instead of replace
         documents = state.get("reranked_documents", [])
     else:
         documents = state.get("documents", [])
@@ -443,7 +455,9 @@ async def stream_rag_response(
     if use_grading:
         logger.info("[Stream] Grading documents...")
         state["reranked_documents"] = documents  # Pass to grading
-        state = grade_documents(state, llm)
+        logger.debug(f"[Stream] State keys before grading: {list(state.keys())}")
+        grade_result = grade_documents(state, llm)
+        state.update(grade_result)  # Merge instead of replace
         documents = state.get("filtered_documents", [])
     
     filtered_count = len(documents)
@@ -481,8 +495,15 @@ async def stream_rag_response(
             yield {"type": "token", "content": token}
         logger.info(f"[Stream] Generation complete: {token_count} tokens")
     except Exception as e:
-        logger.error(f"[Stream] Generation error: {e}")
-        yield {"type": "token", "content": f"\n\n[Error: {str(e)}]"}
+        import traceback
+        logger.error(
+            f"[Stream] Generation error: {type(e).__name__}: {e}\n"
+            f"Question: {question[:100]}...\n"
+            f"Context length: {len(context)} chars\n"
+            f"Traceback:\n{traceback.format_exc()}",
+            exc_info=True
+        )
+        yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
     
     yield {"type": "done"}
 
