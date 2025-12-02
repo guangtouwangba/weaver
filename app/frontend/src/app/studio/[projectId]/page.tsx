@@ -8,6 +8,7 @@ import { StudioProvider } from "@/contexts/StudioContext";
 import SourcePanel from "@/components/studio/SourcePanel";
 import AssistantPanel from "@/components/studio/AssistantPanel";
 import CanvasPanel from "@/components/studio/CanvasPanel";
+import CanvasPanelKonva from "@/components/studio/CanvasPanelKonva";
 
 // Helper Component
 const VerticalResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
@@ -33,6 +34,9 @@ const VerticalResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEve
 export default function StudioPage() {
   const params = useParams();
   const projectId = params.projectId as string;
+
+  // --- Canvas Engine Selection ---
+  const [useKonva, setUseKonva] = useState(true); // Default to Konva for better performance
 
   // --- Layout State ---
   const [leftVisible, setLeftVisible] = useState(true);
@@ -124,8 +128,8 @@ export default function StudioPage() {
           />
           {centerVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('center')} />}
           
-          {/* RIGHT: Canvas */}
-          <CanvasPanel />
+          {/* RIGHT: Canvas (Konva-powered or Legacy) */}
+          {useKonva ? <CanvasPanelKonva /> : <CanvasPanel />}
         </Box>
       </GlobalLayout>
     </StudioProvider>
