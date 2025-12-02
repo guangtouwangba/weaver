@@ -24,3 +24,61 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Canvas Performance Optimizations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes dash {
+  to { stroke-dashoffset: -12; }
+}
+
+/* GPU acceleration for canvas nodes */
+.MuiPaper-root {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* Smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Optimize rendering performance */
+canvas, svg {
+  will-change: auto;
+}
+
+/* Prevent text selection during drag */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Force GPU acceleration for transforms */
+[style*="translate3d"],
+[style*="transform"] {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* Optimize canvas container */
+#canvas-container {
+  will-change: auto;
+  contain: layout style paint;
+}
+
+/* Disable pointer events during pan/zoom for better performance */
+.panning *,
+.zooming * {
+  pointer-events: none !important;
+}

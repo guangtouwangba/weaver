@@ -7,6 +7,7 @@ import CurriculumPreviewModal from "@/components/dialogs/CurriculumPreviewModal"
 import PodcastView from "./PodcastView";
 import WriterView from "./WriterView";
 import ProjectInitializer from "@/components/studio/ProjectInitializer";
+import { NodeInspector } from "@/components/studio/NodeInspector";
 import { 
   Box, 
   Typography, 
@@ -436,6 +437,7 @@ function StudioPageContent() {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null); // Format: "sourceId-targetId"
   const [tempLineEnd, setTempLineEnd] = useState<{ x: number, y: number } | null>(null);
   const lastMousePos = useRef({ x: 0, y: 0 });
@@ -463,15 +465,25 @@ function StudioPageContent() {
     
     if (manager.pendingPan) {
       const { dx, dy } = manager.pendingPan;
-      setViewport(prev => ({ x: prev.x + dx, y: prev.y + dy, scale: prev.scale }));
+      // Batch update viewport - only update if change is significant
+      if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+        setViewport(prev => ({ 
+          x: prev.x + dx, 
+          y: prev.y + dy, 
+          scale: prev.scale 
+        }));
+      }
       manager.pendingPan = null;
     }
     
     if (manager.pendingNodeDrag) {
       const { nodeId, dx, dy } = manager.pendingNodeDrag;
-      setCanvasNodes(prev => prev.map(node => 
-        node.id === nodeId ? { ...node, x: node.x + dx, y: node.y + dy } : node
-      ));
+      // Batch update node position - only update if change is significant
+      if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+        setCanvasNodes(prev => prev.map(node => 
+          node.id === nodeId ? { ...node, x: node.x + dx, y: node.y + dy } : node
+        ));
+      }
       manager.pendingNodeDrag = null;
     }
     
@@ -2509,16 +2521,19 @@ function StudioPageContent() {
             
           <Box 
             ref={canvasRef}
+            className={isPanning ? 'panning' : ''}
             sx={{ 
                 width: '100%',
                 height: '100%',
-              bgcolor: '#F9FAFB', 
-              position: 'relative',
-              overflow: 'hidden',
-              overflow: 'hidden',
-              cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
-              touchAction: 'none', // Prevent native browser zooming
-              userSelect: 'none'   // Prevent text selection while dragging
+                bgcolor: '#F9FAFB', 
+                position: 'relative',
+                overflow: 'hidden',
+                cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
+                touchAction: 'none', // Prevent native browser zooming
+                userSelect: 'none',   // Prevent text selection while dragging
+                // Performance optimizations
+                contain: 'layout style paint', // CSS containment for better performance
+                willChange: isPanning || draggingNodeId ? 'contents' : 'auto',
             }}
             onMouseDown={(e) => {
                 // Only start panning if:
@@ -2787,16 +2802,18 @@ function StudioPageContent() {
               </Box>
             )}
             
-            {/* Infinite Grid Background - moves with viewport */}
+            {/* Infinite Grid Background - Static (no recalc on viewport change) */}
             <Box 
               sx={{ 
                 position: 'absolute', 
                 inset: 0, 
-                opacity: 0.4, 
-                backgroundImage: 'radial-gradient(#CBD5E1 1.5px, transparent 1.5px)', 
-                backgroundSize: `${24 * viewport.scale}px ${24 * viewport.scale}px`,
-                backgroundPosition: `${viewport.x}px ${viewport.y}px`,
-                pointerEvents: 'none'
+                opacity: 0.3, 
+                backgroundImage: 'radial-gradient(#CBD5E1 1px, transparent 1px)', 
+                backgroundSize: '24px 24px',
+                pointerEvents: 'none',
+                // Use transform for better performance
+                transform: `translate3d(${viewport.x % 24}px, ${viewport.y % 24}px, 0) scale(${viewport.scale})`,
+                transformOrigin: '0 0',
               }} 
             />
             
@@ -2819,10 +2836,13 @@ function StudioPageContent() {
             sx={{ 
                 transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`,
                 transformOrigin: '0 0',
-                willChange: 'transform', // Hint browser to optimize for transform changes
+                willChange: isPanning || draggingNodeId ? 'transform' : 'auto',
                 position: 'absolute',
                 top: 0, 
                 left: 0,
+                // Performance: Force GPU layer
+                backfaceVisibility: 'hidden',
+                perspective: 1000,
               }}
             >
               {/* Drag Preview for AI Insights */}
@@ -2872,7 +2892,16 @@ function StudioPageContent() {
                 </Box>
               )}
                   {/* SVG Connections - Render lines between connected nodes (only visible) */}
-              <svg style={{ position: 'absolute', top: 0, left: 0, width: 10000, height: 10000, overflow: 'visible', pointerEvents: 'visiblePainted' }}>
+              <svg style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                width: 10000, 
+                height: 10000, 
+                overflow: 'visible', 
+                pointerEvents: 'visiblePainted',
+                shapeRendering: 'geometricPrecision',
+              }}>
                 {/* Background rect to pass through events */}
                 <rect width="10000" height="10000" fill="transparent" style={{ pointerEvents: 'none' }} />
                     {/* Existing Connections - only render visible ones */}
@@ -3141,6 +3170,10 @@ function StudioPageContent() {
                           dragStartPos.current = { x: e.clientX, y: e.clientY };
                       }
                   }}
+                  onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setInspectorOpen(true);
+                  }}
                   onMouseUp={(e) => {
                       e.stopPropagation();
                       
@@ -3169,8 +3202,9 @@ function StudioPageContent() {
                   onMouseLeave={() => setHoveredNodeId(null)}
                   sx={{ 
                     position: 'absolute', 
-                    top: node.y, 
-                    left: node.x, 
+                    top: 0,
+                    left: 0,
+                    transform: `translate(${node.x}px, ${node.y}px)`,
                     width: 280, 
                     p: node.type === 'card' && node.title === 'SOURCE PDF' ? 2 : 0, 
                     borderRadius: 4, 
@@ -3188,11 +3222,35 @@ function StudioPageContent() {
                         : (node.color === 'blue' ? '#3B82F6' : 'transparent'),
                     overflow: 'visible', // Allow handle to overflow
                     cursor: isSpacePressed ? 'grab' : 'grab',
-                    transition: 'box-shadow 0.2s, border-color 0.2s, opacity 0.3s, filter 0.3s',
+                    transition: 'box-shadow 0.2s ease-out, border-color 0.2s ease-out, opacity 0.2s ease-out',
                     opacity: isLocked ? 0.3 : focusOpacity,
                     filter: isLocked ? 'blur(2px)' : (focusMode && !isInFocus ? 'blur(1px)' : 'none'),
+                    willChange: draggingNodeId === node.id ? 'transform' : 'auto',
+                    // Glassmorphism effect for selected nodes
+                    ...(selectedNodeId === node.id || selectedNodeIds.has(node.id) ? {
+                      background: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(12px)',
+                      // Halo effect - colorful gradient glow
+                      boxShadow: `
+                        0 0 0 1px rgba(255, 255, 255, 0.2),
+                        0 0 20px rgba(99, 102, 241, 0.4),
+                        0 0 40px rgba(168, 85, 247, 0.3),
+                        0 0 60px rgba(236, 72, 153, 0.2),
+                        0 8px 32px rgba(0, 0, 0, 0.12)
+                      `,
+                    } : {}),
                     '&:active': { cursor: 'grabbing' },
-                    '&:hover': { boxShadow: 6 },
+                    '&:hover': { 
+                      boxShadow: (selectedNodeId === node.id || selectedNodeIds.has(node.id)) 
+                        ? `
+                          0 0 0 1px rgba(255, 255, 255, 0.2),
+                          0 0 25px rgba(99, 102, 241, 0.5),
+                          0 0 50px rgba(168, 85, 247, 0.4),
+                          0 0 75px rgba(236, 72, 153, 0.3),
+                          0 12px 40px rgba(0, 0, 0, 0.15)
+                        `
+                        : '0 8px 16px rgba(0,0,0,0.12)',
+                    },
                     // Highlight current step in learning path
                     ...(isCurrentStep && {
                       boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.2)',
@@ -4392,6 +4450,16 @@ function StudioPageContent() {
           console.log('Curriculum confirmed:', steps);
           setIsCurriculumModalOpen(false);
           // Here we could add a tab for curriculum or navigate to a view
+        }}
+      />
+      <NodeInspector
+        node={selectedNodeId ? canvasNodes.find(n => n.id === selectedNodeId) || null : null}
+        isOpen={inspectorOpen && selectedNodeId !== null}
+        onClose={() => setInspectorOpen(false)}
+        onUpdate={(nodeId, updates) => {
+          setCanvasNodes(prev => prev.map(n => 
+            n.id === nodeId ? { ...n, ...updates } : n
+          ));
         }}
       />
     </GlobalLayout>
