@@ -188,6 +188,8 @@ function StudioPageContent() {
       similarity?: number;
     }[];
     timestamp: Date;
+    // For AI messages, keep track of originating user query (for drag-to-canvas)
+    query?: string;
   }
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -203,6 +205,11 @@ function StudioPageContent() {
   const [isTyping, setIsTyping] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const chatMessageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Drag preview state for AI → Canvas
+  const [dragPreview, setDragPreview] = useState<{ x: number; y: number; content: string } | null>(null);
+  const dragContentRef = useRef<string | null>(null);
 
   // --- Selection State (moved before useEffect) ---
   const [activeResource, setActiveResource] = useState<Resource>(SAMPLE_RESOURCES[0]);
@@ -262,7 +269,7 @@ function StudioPageContent() {
   // --- Canvas State (moved before callbacks that use it) ---
   interface CanvasNode {
     id: string;
-    type: 'card' | 'group' | 'source' | 'concept' | 'application' | 'critique';
+    type: 'card' | 'group' | 'source' | 'concept' | 'application' | 'critique' | 'ai_insight';
     title: string;
     content?: string;
     x: number;
@@ -270,11 +277,15 @@ function StudioPageContent() {
     color?: string;
     tags?: string[];
     timestamp?: string;
+    // Source metadata (PDF or Chat)
     sourceId?: string;
-    sourcePage?: number; // PDF page number
-    sourceText?: string; // Highlighted text in source
-    connections?: string[]; // Array of target node IDs
-    isSimplified?: boolean; // Flag to track if node has been simplified
+    sourcePage?: number;   // PDF page number
+    sourceText?: string;   // Highlighted text in source
+    sourceType?: 'pdf' | 'chat';
+    sourceMessageId?: string; // Chat message id
+    sourceQuery?: string;     // Original user query
+    connections?: string[];   // Array of target node IDs
+    isSimplified?: boolean;   // Flag to track if node has been simplified
   }
 
   // Generate many nodes for performance testing
@@ -339,12 +350,27 @@ function StudioPageContent() {
 
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>(generateInitialNodes());
 
-  // Navigate from node to PDF
+  // Scroll chat to specific message (for chat-linked nodes)
+  const scrollToChatMessage = useCallback((messageId: string) => {
+    const target = chatMessageRefs.current[messageId];
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
+  // Navigate from node to its source (PDF or Chat)
   const handleNodeToSource = useCallback((node: CanvasNode) => {
+    // Chat source: scroll Assistant column to corresponding message
+    if (node.sourceType === 'chat' && node.sourceMessageId) {
+      scrollToChatMessage(node.sourceMessageId);
+      return;
+    }
+
+    // PDF source: existing behavior
     if (node.sourceId) {
       navigateToSource(node.sourceId, node.sourcePage, node.sourceText);
     }
-  }, []);
+  }, [navigateToSource, scrollToChatMessage]);
 
   // Navigate from PDF back to node
   const handleSourceToNode = useCallback((nodeId: string) => {
@@ -941,7 +967,19 @@ function StudioPageContent() {
     }
   }, [selectedNodeIds, selectedNodeId]);
 
-  const handleCreateCard = (text?: string, metadata?: { timestamp?: string; sourceId?: string }, position?: { x: number, y: number }) => {
+  const handleCreateCard = (
+    text?: string,
+    metadata?: { 
+      timestamp?: string; 
+      sourceId?: string; 
+      sourcePage?: number;
+      sourceText?: string;
+      sourceType?: 'pdf' | 'chat';
+      sourceMessageId?: string;
+      sourceQuery?: string;
+    }, 
+    position?: { x: number, y: number }
+  ) => {
     const contentToUse = text || "The output is computed as a weighted sum of the values."; // Fallback for demo
     const newId = `c-${Date.now()}`;
     
@@ -949,16 +987,25 @@ function StudioPageContent() {
     const centerX = position ? position.x : (-viewport.x + (canvasRef.current?.clientWidth || 800) / 2) / viewport.scale;
     const centerY = position ? position.y : (-viewport.y + (canvasRef.current?.clientHeight || 600) / 2) / viewport.scale;
 
+    const isChatInsight = metadata?.sourceType === 'chat';
+
     const newNode: CanvasNode = {
       id: newId,
-      type: 'card',
-      title: metadata?.timestamp ? `Timestamp ${metadata.timestamp}` : 'New Concept',
+      type: isChatInsight ? 'ai_insight' : 'card',
+      title: isChatInsight
+        ? (metadata?.sourceQuery || 'AI Insight')
+        : (metadata?.timestamp ? `Timestamp ${metadata.timestamp}` : 'New Concept'),
       content: contentToUse,
       x: centerX - 140, // Center the card (width 280)
       y: centerY - 100,
-      color: 'white',
+      color: isChatInsight ? 'pink' : 'white',
       timestamp: metadata?.timestamp,
-      sourceId: metadata?.sourceId
+      sourceId: metadata?.sourceId,
+      sourcePage: metadata?.sourcePage,
+      sourceText: metadata?.sourceText,
+      sourceType: metadata?.sourceType,
+      sourceMessageId: metadata?.sourceMessageId,
+      sourceQuery: metadata?.sourceQuery,
     };
 
     setCanvasNodes(prev => [...prev, newNode]);
@@ -1016,7 +1063,8 @@ function StudioPageContent() {
             similarity: 0.72
           }
         ],
-        timestamp: new Date()
+        timestamp: new Date(),
+        query: userMsg.content,
       };
       setChatMessages(prev => [...prev, aiMsg]);
       setIsTyping(false);
@@ -2564,6 +2612,21 @@ function StudioPageContent() {
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "copy";
+
+              // Update drag preview position while dragging AI response
+              if (dragContentRef.current && canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const canvasX = (screenX - viewport.x) / viewport.scale;
+                const canvasY = (screenY - viewport.y) / viewport.scale;
+
+                setDragPreview({
+                  x: canvasX,
+                  y: canvasY,
+                  content: dragContentRef.current,
+                });
+              }
             }}
             onDrop={(e) => {
               e.preventDefault();
@@ -2581,24 +2644,54 @@ function StudioPageContent() {
                   const jsonData = e.dataTransfer.getData("application/json");
                   let handled = false;
                   if (jsonData) {
-                      try {
-                          const data = JSON.parse(jsonData);
-                          if (data.type === 'transcript') {
-                              handleCreateCard(data.text, { timestamp: data.timestamp, sourceId: data.sourceId }, { x: canvasX, y: canvasY });
-                              handled = true;
-                          }
-                      } catch(err) { console.error(err); }
+                    try {
+                      const data = JSON.parse(jsonData);
+                      
+                      // From transcript / timeline
+                      if (data.type === 'transcript') {
+                        handleCreateCard(
+                          data.text, 
+                          { 
+                            timestamp: data.timestamp, 
+                            sourceId: data.sourceId, 
+                            sourcePage: data.pageNumber, 
+                            sourceText: data.text,
+                            sourceType: 'pdf',
+                          }, 
+                          { x: canvasX, y: canvasY }
+                        );
+                        handled = true;
+                      }
+
+                      // From AI Assistant response drag
+                      if (!handled && data.type === 'ai_response') {
+                        handleCreateCard(
+                          data.content,
+                          {
+                            sourceType: 'chat',
+                            sourceMessageId: data.source?.messageId,
+                            sourceQuery: data.source?.query,
+                            timestamp: data.source?.timestamp,
+                          },
+                          { x: canvasX, y: canvasY }
+                        );
+                        handled = true;
+                      }
+                    } catch(err) { 
+                      console.error(err); 
+                    }
                   }
 
                   if (!handled) {
-                      const text = e.dataTransfer.getData("text/plain");
-                      if (text) {
-                        handleCreateCard(text, undefined, { x: canvasX, y: canvasY });
-                      }
+                    const text = e.dataTransfer.getData("text/plain");
+                    if (text) {
+                      handleCreateCard(text, undefined, { x: canvasX, y: canvasY });
+                    }
                   }
               }
 
               setIsDraggingFromPdf(false);
+              setDragPreview(null);
             }}
           >
             {/* Floating Toolbar */}
@@ -2723,7 +2816,7 @@ function StudioPageContent() {
             
             {/* Canvas Content Container - Transformed */}
             <Box 
-              sx={{ 
+            sx={{ 
                 transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`,
                 transformOrigin: '0 0',
                 willChange: 'transform', // Hint browser to optimize for transform changes
@@ -2732,6 +2825,52 @@ function StudioPageContent() {
                 left: 0,
               }}
             >
+              {/* Drag Preview for AI Insights */}
+              {dragPreview && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: dragPreview.y - 80,
+                    left: dragPreview.x - 140,
+                    width: 280,
+                    pointerEvents: 'none',
+                    opacity: 0.7,
+                    zIndex: 20,
+                  }}
+                >
+                  <Paper
+                    elevation={6}
+                    sx={{
+                      borderRadius: 3,
+                      border: '1px dashed',
+                      borderColor: 'primary.main',
+                      bgcolor: 'background.paper',
+                      p: 2,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Bot size={14} className="text-blue-600" />
+                      <Typography variant="caption" fontWeight="bold" color="primary.main">
+                        AI Insight (Preview)
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        maxHeight: 72,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
+                      {dragPreview.content}
+                    </Typography>
+                  </Paper>
+                </Box>
+              )}
                   {/* SVG Connections - Render lines between connected nodes (only visible) */}
               <svg style={{ position: 'absolute', top: 0, left: 0, width: 10000, height: 10000, overflow: 'visible', pointerEvents: 'visiblePainted' }}>
                 {/* Background rect to pass through events */}
@@ -3259,11 +3398,68 @@ function StudioPageContent() {
                           </Typography>
                         )}
                         
-                        {node.timestamp && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, mb: 2, bgcolor: '#F3F4F6', p: 1, borderRadius: 1, width: 'fit-content', cursor: 'pointer', '&:hover': { bgcolor: '#E5E7EB' } }}>
-                               <PlayCircle size={16} className="text-blue-600" />
-                               <Typography variant="caption" fontWeight="bold" color="primary.main">{node.timestamp}</Typography>
-                            </Box>
+                        {node.timestamp && node.sourceType === 'pdf' && (
+                          <Box 
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 1, 
+                              mt: 1, 
+                              mb: 2, 
+                              bgcolor: '#F3F4F6', 
+                              p: 1, 
+                              borderRadius: 1, 
+                              width: 'fit-content', 
+                              cursor: 'pointer', 
+                              '&:hover': { bgcolor: '#E5E7EB' } 
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNodeToSource(node);
+                            }}
+                          >
+                            <PlayCircle size={16} className="text-blue-600" />
+                            <Typography variant="caption" fontWeight="bold" color="primary.main">
+                              {node.timestamp}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* Chat source badge (AI insight) */}
+                        {node.sourceType === 'chat' && node.sourceQuery && (
+                          <Box
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              px: 1,
+                              py: 0.5,
+                              mb: 2,
+                              bgcolor: '#EEF2FF',
+                              borderRadius: 1,
+                              cursor: 'pointer',
+                              '&:hover': { bgcolor: '#E0E7FF' },
+                              maxWidth: '100%',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNodeToSource(node);
+                            }}
+                          >
+                            <Bot size={12} className="text-blue-600" />
+                            <Typography
+                              variant="caption"
+                              color="primary.main"
+                              sx={{
+                                maxWidth: 200,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              Q: {node.sourceQuery}
+                            </Typography>
+                          </Box>
                         )}
 
                         {node.tags && (
@@ -3303,10 +3499,12 @@ function StudioPageContent() {
                           fontSize: 10, 
                           bgcolor: node.type === 'source' ? 'blue.100' : 
                                    node.type === 'concept' ? 'purple.100' : 
-                                   node.type === 'application' ? 'green.100' : 'pink.100',
+                                   node.type === 'application' ? 'green.100' : 
+                                   node.type === 'ai_insight' ? 'grey.900' : 'pink.100',
                           color: node.type === 'source' ? 'blue.500' : 
                                  node.type === 'concept' ? 'purple.500' : 
-                                 node.type === 'application' ? 'green.500' : 'pink.500'
+                                 node.type === 'application' ? 'green.500' : 
+                                 node.type === 'ai_insight' ? 'white' : 'pink.500'
                         }}>
                           {node.type === 'source' ? 'S' : node.type === 'concept' ? 'C' : node.type === 'application' ? 'A' : 'AI'}
                         </Avatar>
@@ -3794,15 +3992,22 @@ function StudioPageContent() {
         {leftVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('left')} />}
 
         <Box sx={{ width: centerVisible ? centerWidth : 0, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: centerVisible ? '1px solid' : 'none', borderColor: 'divider', transition: resizingCol ? 'none' : 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)', bgcolor: '#F9FAFB', overflow: 'hidden', position: 'relative' }}>
-          <Box sx={{ height: 56, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between', minWidth: 300 }}>
+            <Box sx={{ height: 56, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between', minWidth: 300 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10B981' }} /><Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>Assistant</Typography></Box>
             <Box sx={{ display: 'flex', gap: 0.5 }}><Tooltip title={quietMode ? "Show All" : "Quiet Mode"}><IconButton size="small" onClick={() => setQuietMode(!quietMode)} sx={{ bgcolor: quietMode ? 'primary.main' : 'transparent', color: quietMode ? '#fff' : 'text.secondary', '&:hover': { bgcolor: quietMode ? 'primary.dark' : 'action.hover' } }}><Filter size={14} /></IconButton></Tooltip><Tooltip title="Collapse Processor (Cmd+.)"><IconButton size="small" onClick={() => setCenterVisible(false)}><PanelRightClose size={16} /></IconButton></Tooltip></Box>
           </Box>
           
           {/* Chat Messages Area */}
-          <Box sx={{ p: 2, overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 300 }}>
+          <Box 
+            ref={chatContainerRef}
+            sx={{ p: 2, overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 300 }}
+          >
             {chatMessages.map((msg) => (
-              <Box key={msg.id} sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+              <Box 
+                key={msg.id} 
+                ref={(el) => { if (el) chatMessageRefs.current[msg.id] = el; }} 
+                sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}
+              >
                 <Paper 
                   elevation={0} 
                   sx={{ 
@@ -3815,10 +4020,61 @@ function StudioPageContent() {
                   }}
                 >
                   {msg.role === 'ai' && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: 'primary.main' }}>
-                      <Bot size={16} />
-                      <Typography variant="caption" fontWeight="bold">AI Assistant</Typography>
-          </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main' }}>
+                        <Bot size={16} />
+                        <Typography variant="caption" fontWeight="bold">AI Assistant</Typography>
+                      </Box>
+                      {/* Drag handle - only this area is draggable to keep text selection intact */}
+                      <Tooltip title="Drag answer to Canvas">
+                        <IconButton
+                          size="small"
+                          sx={{ 
+                            cursor: 'grab', 
+                            color: 'text.secondary',
+                            '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+                          }}
+                          draggable
+                          onDragStart={(e) => {
+                            // Prefer any selected text; fallback to full message
+                            const selection = window.getSelection();
+                            const selectedText = selection && selection.toString().trim().length > 0 
+                              ? selection.toString()
+                              : undefined;
+                            const content = selectedText || msg.content;
+
+                            // Cache content for drag preview
+                            dragContentRef.current = content;
+                            setDragPreview({ x: 0, y: 0, content });
+
+                            const payload = {
+                              type: 'ai_response',
+                              content,
+                              source: {
+                                type: 'chat',
+                                messageId: msg.id,
+                                timestamp: msg.timestamp.toISOString(),
+                                query: msg.query || '',
+                              },
+                            };
+
+                            e.dataTransfer.effectAllowed = 'copy';
+                            e.dataTransfer.setData('application/json', JSON.stringify(payload));
+                            e.dataTransfer.setData('text/plain', content);
+                          }}
+                          onDragEnd={() => {
+                            dragContentRef.current = null;
+                            setDragPreview(null);
+                          }}
+                          onClick={(e) => {
+                            // Prevent click from focusing / doing anything; drag only
+                            e.stopPropagation();
+                          }}
+                        >
+                          <GripHorizontal size={14} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   )}
                   
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</Typography>
