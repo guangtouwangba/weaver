@@ -1,4 +1,0 @@
-app
-domain_models
-rag_core
-shared_config
