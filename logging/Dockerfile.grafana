@@ -1,9 +1,6 @@
 FROM grafana/grafana:latest
 
-# Create provisioning directory
-RUN mkdir -p /etc/grafana/provisioning/datasources
-
-# Copy datasource provisioning
+# Copy datasource provisioning (directory exists in base image)
 COPY grafana-datasource.yaml /etc/grafana/provisioning/datasources/datasource.yaml
 
 # Set default environment variables (can be overridden by Zeabur)
@@ -17,6 +14,5 @@ EXPOSE 3000
 # Volume for data persistence
 VOLUME ["/var/lib/grafana"]
 
-# Run Grafana (default entrypoint from base image)
-# No need to specify CMD, uses base image's entrypoint
+# Run Grafana (uses base image's default entrypoint)
 

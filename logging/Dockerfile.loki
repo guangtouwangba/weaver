@@ -1,15 +1,12 @@
 FROM grafana/loki:latest
 
-# Create data directory
-RUN mkdir -p /loki/chunks /loki/rules /loki/compactor
-
 # Copy custom configuration
 COPY loki-config.yaml /etc/loki/local-config.yaml
 
 # Expose Loki port
 EXPOSE 3100
 
-# Volume for data persistence
+# Volume for data persistence (directories will be created automatically)
 VOLUME ["/loki"]
 
 # Run Loki with custom config
