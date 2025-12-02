@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Curriculum Backend API (2025-12-02)
+
+**Complete backend implementation for AI-generated learning paths** (@aqiu)
+
+**Backend Changes:**
+- **Database Layer**:
+  - Added `CurriculumModel` to store learning paths (JSONB steps, total_duration)
+  - Created Alembic migration `20241202_000001_add_curriculum_table.py`
+  - Implemented `SQLAlchemyCurriculumRepository` with CRUD operations
+- **Domain Layer**:
+  - Created `Curriculum` and `CurriculumStep` entities
+  - Defined `CurriculumRepository` interface
+- **Infrastructure Layer**:
+  - Created `curriculum_prompt.py` with LLM prompts for curriculum generation
+  - Smart context strategy: Uses first 3 chunks per document to avoid token overflow
+- **Application Layer**:
+  - Implemented `GenerateCurriculumUseCase`: Analyzes documents, calls LLM, parses JSON response
+  - Implemented `SaveCurriculumUseCase`: Persists curriculum to database
+  - Implemented `GetCurriculumUseCase`: Retrieves saved curriculum
+  - Created DTOs: `CurriculumStepDTO`, `CurriculumResponse`, `SaveCurriculumRequest`
+- **API Layer**:
+  - `POST /api/v1/projects/{project_id}/curriculum/generate`: Generate curriculum using AI
+  - `PUT /api/v1/projects/{project_id}/curriculum`: Save/update curriculum
+  - `GET /api/v1/projects/{project_id}/curriculum`: Retrieve curriculum
+
+**Architecture:**
+- Follows Clean Architecture with proper dependency injection
+- Uses document chunks (first 3 per doc) to build context for LLM
+- Auto-saves generated curriculum for convenience
+- Returns structured JSON with steps, durations, and source references
+
 ### Added - Curriculum Preview Modal (2025-12-02)
 
 **Implemented prototype for AI-generated learning path in web** (@aqiu)

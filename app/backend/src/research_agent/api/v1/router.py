@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from research_agent.api.v1 import canvas, chat, documents, projects
+from research_agent.api.v1 import canvas, chat, curriculum, documents, projects
 
 api_router = APIRouter()
 
@@ -11,4 +11,5 @@ api_router.include_router(projects.router, prefix="/projects", tags=["projects"]
 api_router.include_router(documents.router, tags=["documents"])
 api_router.include_router(chat.router, tags=["chat"])
 api_router.include_router(canvas.router, tags=["canvas"])
+api_router.include_router(curriculum.router, prefix="/projects/{project_id}/curriculum", tags=["curriculum"])
 
