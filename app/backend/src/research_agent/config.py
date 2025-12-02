@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     # Logging - Loki
     loki_url: str = ""
     loki_enabled: bool = False
+    
+    # Evaluation - Ragas
+    evaluation_enabled: bool = False
+    evaluation_sample_rate: float = 0.1  # Evaluate 10% of queries by default
 
     @property
     def cors_origins_list(self) -> List[str]:

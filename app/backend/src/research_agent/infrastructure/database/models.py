@@ -262,3 +262,39 @@ class CurriculumModel(Base):
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel")
 
+
+class EvaluationLogModel(Base):
+    """Evaluation log ORM model for storing RAG quality metrics."""
+
+    __tablename__ = "evaluation_logs"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
+    )
+    
+    # Test case information
+    test_case_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    ground_truth: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Retrieval information
+    chunking_strategy: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    retrieval_mode: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    retrieved_contexts: Mapped[List[str]] = mapped_column(JSONB, nullable=False, default=list)
+    
+    # Generation information
+    generated_answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Evaluation metrics (Ragas)
+    metrics: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    
+    # Metadata
+    evaluation_type: Mapped[str] = mapped_column(String(50), nullable=False, default="realtime")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    
+    # Relationships
+    project: Mapped[Optional["ProjectModel"]] = relationship("ProjectModel")
+

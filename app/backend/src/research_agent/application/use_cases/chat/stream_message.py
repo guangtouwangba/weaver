@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import AsyncIterator, List, Optional
 from uuid import UUID
+import asyncio
+import random
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +17,12 @@ from research_agent.infrastructure.llm.langchain_openrouter import create_langch
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
 from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.infrastructure.embedding.base import EmbeddingService
+from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
+from research_agent.infrastructure.evaluation.evaluation_logger import EvaluationLogger
+from research_agent.config import get_settings
 from research_agent.shared.utils.logger import logger
+
+settings = get_settings()
 
 
 @dataclass
@@ -65,6 +72,15 @@ class StreamMessageUseCase:
         self._embedding_service = embedding_service
         self._api_key = api_key
         self._model = model
+        
+        # Initialize evaluation services if enabled
+        self._evaluation_enabled = settings.evaluation_enabled
+        self._evaluation_sample_rate = settings.evaluation_sample_rate
+        
+        if self._evaluation_enabled:
+            logger.info("[Auto-Eval] Evaluation enabled with sample rate: {settings.evaluation_sample_rate}")
+            # Initialize Ragas service (will be created per request to use same LLM)
+            self._evaluation_logger = EvaluationLogger(session)
 
     async def execute(self, input: StreamMessageInput) -> AsyncIterator[StreamEvent]:
         """Execute the use case with streaming using LangGraph."""
@@ -79,6 +95,8 @@ class StreamMessageUseCase:
 
         full_response = ""
         response_sources: list = []
+        retrieved_documents = []  # Store documents for evaluation
+        retrieved_contexts = []  # Store context strings for evaluation
 
         try:
             # Get chat history for query rewriting
@@ -123,6 +141,8 @@ class StreamMessageUseCase:
                 if event["type"] == "sources":
                     # Convert LangChain documents to SourceRef
                     documents = event.get("documents", [])
+                    retrieved_documents = documents  # Store for evaluation
+                    
                     sources = [
                         SourceRef(
                             document_id=UUID(doc.metadata["document_id"]),
@@ -133,6 +153,9 @@ class StreamMessageUseCase:
                         for doc in documents
                     ]
 
+                    # Store contexts for evaluation
+                    retrieved_contexts = [doc.page_content for doc in documents]
+                    
                     # Store for saving to DB
                     response_sources = [
                         {
@@ -162,8 +185,85 @@ class StreamMessageUseCase:
                         sources=response_sources,
                     )
                 )
+            
+            # === Auto-Evaluation (Async, Non-blocking) ===
+            if self._should_evaluate() and full_response and retrieved_contexts:
+                # Trigger evaluation in background (don't await)
+                asyncio.create_task(
+                    self._auto_evaluate(
+                        question=input.message,
+                        answer=full_response,
+                        contexts=retrieved_contexts,
+                        project_id=input.project_id,
+                        chunking_strategy="dynamic",  # Could be detected from config
+                        retrieval_mode="hybrid" if input.use_hybrid_search else "vector",
+                        llm=llm,
+                    )
+                )
 
         except Exception as e:
             logger.error(f"Error in LangGraph RAG: {e}")
             yield StreamEvent(type="error", content=str(e))
+    
+    def _should_evaluate(self) -> bool:
+        """Determine if evaluation should be triggered (based on sampling rate)."""
+        if not self._evaluation_enabled:
+            return False
+        
+        # Sample based on rate (e.g., 0.1 = 10% of queries)
+        return random.random() < self._evaluation_sample_rate
+    
+    async def _auto_evaluate(
+        self,
+        question: str,
+        answer: str,
+        contexts: List[str],
+        project_id: UUID,
+        chunking_strategy: str,
+        retrieval_mode: str,
+        llm,
+    ):
+        """
+        Auto-evaluate RAG quality in background.
+        
+        This runs asynchronously and doesn't block the user response.
+        """
+        try:
+            logger.info(f"[Auto-Eval] Starting evaluation for: {question[:50]}...")
+            
+            # Create Ragas service with the same LLM
+            ragas_service = RagasEvaluationService(
+                llm=llm,
+                embeddings=self._embedding_service,
+            )
+            
+            # Evaluate
+            metrics = await ragas_service.evaluate_single(
+                question=question,
+                answer=answer,
+                contexts=contexts,
+            )
+            
+            if metrics:
+                logger.info(f"[Auto-Eval] Metrics: {metrics}")
+                
+                # Log to database and Loki
+                await self._evaluation_logger.log_evaluation(
+                    question=question,
+                    answer=answer,
+                    contexts=contexts,
+                    metrics=metrics,
+                    project_id=project_id,
+                    chunking_strategy=chunking_strategy,
+                    retrieval_mode=retrieval_mode,
+                    evaluation_type="realtime",
+                )
+                
+                logger.info(f"[Auto-Eval] Evaluation logged successfully")
+            else:
+                logger.warning(f"[Auto-Eval] No metrics returned")
+                
+        except Exception as e:
+            logger.error(f"[Auto-Eval] Failed: {e}", exc_info=True)
+            # Don't raise - evaluation failure shouldn't affect user experience
 

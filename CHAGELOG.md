@@ -4,6 +4,62 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - RAG Real-time Evaluation with Ragas (2025-12-02)
+
+**Automatic RAG quality evaluation using Ragas framework** (@aqiu)
+
+**Real-time Auto-Evaluation:**
+- **Automatic Trigger** - Evaluates answer quality after each user query (configurable sampling rate)
+- **Ragas Metrics** - Tracks faithfulness, answer relevancy, and context precision
+- **Async Processing** - Evaluation runs in background, doesn't block user responses
+- **Database Logging** - Stores evaluation results in `evaluation_logs` table
+- **Loki Integration** - Sends metrics to Loki for Grafana visualization
+- **Cost Control** - Configurable sample rate (default: 10% of queries)
+
+**Offline Batch Evaluation:**
+- **Test Dataset Management** - JSON-based test datasets with questions and ground truth
+- **Strategy Comparison** - Compare different chunking strategies and retrieval modes
+- **Retrieval Metrics** - Calculate Hit Rate@K, MRR, Precision@K, Recall@K, NDCG@K
+- **Comprehensive Reports** - CSV export and formatted comparison tables
+- **Strategy Evaluator** - Automated testing across multiple strategy combinations
+
+**Evaluation Infrastructure:**
+- **RagasEvaluationService** - Wrapper for Ragas library with single and batch evaluation
+- **EvaluationLogger** - Unified logging to PostgreSQL and Loki
+- **RetrievalMetrics** - Standalone retrieval quality metrics calculator
+- **StrategyEvaluator** - End-to-end strategy comparison framework
+- **Test Dataset Builder** - JSON-based test case management
+
+**Grafana Dashboard:**
+- **Real-time Monitoring** - Average faithfulness, answer relevancy, context precision
+- **Trend Analysis** - Metrics over time for quality tracking
+- **Strategy Comparison** - Metrics broken down by chunking strategy and retrieval mode
+- **Alert Rules** - Low faithfulness alerts (< 0.8) for quality degradation detection
+- **Detailed Logs** - Recent evaluations with full question/answer/metrics
+
+**Configuration:**
+```bash
+# Enable real-time evaluation
+EVALUATION_ENABLED=true
+# Sample rate: 0.1 = evaluate 10% of queries
+EVALUATION_SAMPLE_RATE=0.1
+```
+
+**Key Files:**
+- `app/backend/src/research_agent/infrastructure/evaluation/ragas_service.py` - Ragas integration
+- `app/backend/src/research_agent/infrastructure/evaluation/evaluation_logger.py` - Logging service
+- `app/backend/src/research_agent/infrastructure/evaluation/retrieval_metrics.py` - Metrics calculator
+- `app/backend/src/research_agent/infrastructure/evaluation/strategy_evaluator.py` - Strategy comparison
+- `app/backend/src/research_agent/infrastructure/evaluation/test_dataset.py` - Test dataset management
+- `app/backend/src/research_agent/application/use_cases/chat/stream_message.py` - Auto-evaluation integration
+- `app/backend/alembic/versions/20241202_000003_add_evaluation_log.py` - Database migration
+- `logging/grafana-dashboards/rag-evaluation-dashboard.json` - Grafana dashboard
+- `app/backend/docs/RAG_EVALUATION.md` - Complete documentation
+
+**Dependencies:**
+- Added `ragas>=0.2.0` for RAG evaluation
+- Added `datasets>=2.14.0` for test dataset management
+
 ### Added - RAG Enhancement: Dynamic Chunking, Hybrid Search & Multi-Turn Context (2025-12-02)
 
 **Comprehensive RAG system upgrade with dynamic document processing and advanced retrieval** (@aqiu)
