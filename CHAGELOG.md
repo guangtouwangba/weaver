@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Curriculum Preview Modal (2025-12-02)
+
+**Implemented prototype for AI-generated learning path in web** (@aqiu)
+
+**Frontend Changes (Web Prototype):**
+- **Created** `CurriculumPreviewModal` component with:
+  - AI generation simulation (loading state, mock data)
+  - Drag-and-drop step reordering (using `@dnd-kit`)
+  - Step management (add, remove steps)
+  - Source attribution (PDF/Video icons, page ranges)
+  - Duration calculation
+- **Updated** `StudioPage` to include access to Curriculum generation via "Generate with AI" menu
+- **Added** `curriculumApi` and types to `api.ts`
+
+
 ### Added - Delete Project API with File Cleanup (2025-12-01)
 
 **Implement complete project deletion with file cleanup** (@siqiuchen)

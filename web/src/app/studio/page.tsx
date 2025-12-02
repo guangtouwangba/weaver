@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import GlobalLayout from "@/components/layout/GlobalLayout";
+import CurriculumPreviewModal from "@/components/dialogs/CurriculumPreviewModal";
 import PodcastView from "./PodcastView";
 import WriterView from "./WriterView";
 import ProjectInitializer from "@/components/studio/ProjectInitializer";
@@ -161,6 +162,7 @@ function StudioPageContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get('projectId') || 'default';
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isCurriculumModalOpen, setIsCurriculumModalOpen] = useState(false);
 
   // Check initialization status on mount
   useEffect(() => {
@@ -4097,6 +4099,10 @@ function StudioPageContent() {
                 </MenuItem>
                 <Divider />
                 <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary', fontWeight: 600 }}>GENERATE WITH AI</Typography>
+                <MenuItem onClick={() => { setMenuAnchor(null); setIsCurriculumModalOpen(true); }}>
+                  <ListItemIcon><BookOpen size={16} className="text-blue-600" /></ListItemIcon>
+                  <ListItemText primary="Curriculum" secondary="Learning Path" secondaryTypographyProps={{ fontSize: 10 }} />
+                </MenuItem>
                 <MenuItem onClick={() => handleAddTab('podcast')}>
                   <ListItemIcon><Mic size={16} className="text-purple-500" /></ListItemIcon>
                   <ListItemText primary="Podcast" secondary="Audio Overview" secondaryTypographyProps={{ fontSize: 10 }} />
@@ -4123,6 +4129,15 @@ function StudioPageContent() {
 
           </Box>
       </Box>
+      <CurriculumPreviewModal
+        open={isCurriculumModalOpen}
+        onClose={() => setIsCurriculumModalOpen(false)}
+        onConfirm={(steps) => {
+          console.log('Curriculum confirmed:', steps);
+          setIsCurriculumModalOpen(false);
+          // Here we could add a tab for curriculum or navigate to a view
+        }}
+      />
     </GlobalLayout>
   );
 }
