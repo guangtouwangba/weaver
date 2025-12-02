@@ -29,10 +29,9 @@ def setup_logger(name: Optional[str] = None) -> logging.Logger:
         # Loki handler (optional, based on configuration)
         if settings.loki_enabled and settings.loki_url:
             try:
-                from logging_loki import LokiQueueHandler
+                from logging_loki import LokiHandler
 
-                loki_handler = LokiQueueHandler(
-                    queue=-1,  # Use unbounded queue
+                loki_handler = LokiHandler(
                     url=settings.loki_url,
                     tags={"service": "backend", "environment": settings.environment},
                     version="1",
