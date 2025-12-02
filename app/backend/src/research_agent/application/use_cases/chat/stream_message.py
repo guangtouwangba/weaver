@@ -36,6 +36,10 @@ class StreamMessageInput:
     message: str
     document_id: Optional[UUID] = None
     top_k: int = 5
+    use_hybrid_search: bool = False  # Enable hybrid search (vector + keyword)
+    use_rewrite: bool = True  # Enable query rewriting with chat history
+    use_rerank: bool = False  # Enable LLM-based reranking (expensive)
+    use_grading: bool = True  # Enable binary relevance grading
 
 
 @dataclass
@@ -77,13 +81,26 @@ class StreamMessageUseCase:
         response_sources: list = []
 
         try:
-            # Create vector store and retriever
+            # Get chat history for query rewriting
+            chat_history = []
+            if input.use_rewrite:
+                messages = await repo.get_history(input.project_id, limit=10)
+                # Convert to (human, ai) tuples
+                chat_history = [
+                    (messages[i].content, messages[i+1].content)
+                    for i in range(0, len(messages)-1, 2)
+                    if i+1 < len(messages) and messages[i].role == "user" and messages[i+1].role == "ai"
+                ]
+                logger.info(f"Retrieved {len(chat_history)} chat history pairs")
+            
+            # Create vector store and retriever with hybrid search option
             vector_store = PgVectorStore(self._session)
             retriever = create_pgvector_retriever(
                 vector_store=vector_store,
                 embedding_service=self._embedding_service,
                 project_id=input.project_id,
                 k=input.top_k,
+                use_hybrid_search=input.use_hybrid_search,
             )
             
             # Create LangChain LLM
@@ -93,11 +110,15 @@ class StreamMessageUseCase:
                 streaming=True,
             )
             
-            # Stream response from LangGraph
+            # Stream response from enhanced LangGraph pipeline
             async for event in stream_rag_response(
                 question=input.message,
                 retriever=retriever,
                 llm=llm,
+                chat_history=chat_history,
+                use_rewrite=input.use_rewrite,
+                use_rerank=input.use_rerank,
+                use_grading=input.use_grading,
             ):
                 if event["type"] == "sources":
                     # Convert LangChain documents to SourceRef

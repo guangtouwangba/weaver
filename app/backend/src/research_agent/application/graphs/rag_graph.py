@@ -71,10 +71,13 @@ logging_callback = LoggingCallbackHandler()
 
 class GraphState(TypedDict):
     """State for the RAG graph."""
-    question: str
-    documents: List[Document]
-    generation: str
-    filtered_documents: List[Document]
+    question: str  # Original user question
+    rewritten_question: str  # Rewritten question with context
+    chat_history: List[tuple[str, str]]  # List of (human, ai) message tuples
+    documents: List[Document]  # Retrieved documents
+    reranked_documents: List[Document]  # Reranked documents
+    generation: str  # Final answer
+    filtered_documents: List[Document]  # Filtered relevant documents
 
 
 # --- Grading Schema ---
@@ -89,22 +92,141 @@ class GradeDocuments(BaseModel):
 
 # --- Node Functions ---
 
-async def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphState:
-    """Retrieve documents from vector store."""
+async def transform_query(state: GraphState, llm: ChatOpenAI) -> GraphState:
+    """
+    Rewrite the query with chat history context for better retrieval.
+    Handles coreference resolution (e.g., "it", "that", "them").
+    """
     question = state["question"]
-    logger.info(f"Retrieving documents for query: {question}")
+    chat_history = state.get("chat_history", [])
+    
+    # If no chat history, return original question
+    if not chat_history:
+        logger.info("No chat history, using original question")
+        return {"rewritten_question": question, "question": question}
+    
+    logger.info(f"Rewriting query with {len(chat_history)} history messages")
+    
+    # Build context from chat history
+    history_context = "\n".join([
+        f"Human: {human}\nAssistant: {ai}"
+        for human, ai in chat_history[-3:]  # Use last 3 turns
+    ])
+    
+    # Prompt for query rewriting
+    system_prompt = """You are a query rewriting assistant. Your task is to rewrite the user's latest question 
+to be a standalone question that includes necessary context from the conversation history.
+
+Rules:
+1. Resolve all pronouns and references (it, that, them, this, etc.)
+2. Include relevant context from previous messages
+3. Keep the question concise and focused
+4. Maintain the original intent
+5. Output ONLY the rewritten question, nothing else."""
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", "Conversation history:\n{history}\n\nLatest question: {question}\n\nRewritten question:"),
+    ])
+    
+    chain = prompt | llm | StrOutputParser()
+    
+    try:
+        rewritten = chain.invoke(
+            {"history": history_context, "question": question},
+            config={"callbacks": [logging_callback]}
+        )
+        logger.info(f"[Rewrite] Original: '{question}' -> Rewritten: '{rewritten}'")
+        return {"rewritten_question": rewritten.strip(), "question": question}
+    except Exception as e:
+        logger.error(f"[Rewrite] Failed: {e}")
+        # Fallback to original question
+        return {"rewritten_question": question, "question": question}
+
+
+async def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphState:
+    """Retrieve documents from vector store using rewritten query."""
+    # Use rewritten question if available, otherwise use original
+    query = state.get("rewritten_question", state["question"])
+    logger.info(f"Retrieving documents for query: {query}")
     
     # Async retriever call
-    documents = await retriever._aget_relevant_documents(question)
+    documents = await retriever._aget_relevant_documents(query)
     
     logger.info(f"Retrieved {len(documents)} documents")
-    return {"documents": documents, "question": question}
+    return {"documents": documents}
+
+
+async def rerank(state: GraphState, llm: ChatOpenAI) -> GraphState:
+    """
+    Rerank retrieved documents using LLM-based relevance scoring.
+    Takes top-k documents and reranks them for better precision.
+    """
+    question = state.get("rewritten_question", state["question"])
+    documents = state["documents"]
+    
+    if not documents:
+        logger.warning("No documents to rerank")
+        return {"reranked_documents": []}
+    
+    logger.info(f"Reranking {len(documents)} documents")
+    
+    # Prompt for scoring document relevance
+    system_prompt = """You are a document relevance scorer. Rate how relevant the given document 
+is to answering the user's question on a scale of 0-10.
+
+0 = Completely irrelevant
+5 = Somewhat relevant
+10 = Highly relevant and directly answers the question
+
+Output ONLY a single number between 0-10. No explanation."""
+    
+    score_prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", "Question: {question}\n\nDocument: {document}\n\nRelevance score (0-10):"),
+    ])
+    
+    chain = score_prompt | llm | StrOutputParser()
+    
+    # Score each document
+    doc_scores = []
+    for i, doc in enumerate(documents):
+        try:
+            # Truncate very long documents
+            doc_content = doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
+            
+            result = chain.invoke(
+                {"question": question, "document": doc_content},
+                config={"callbacks": [logging_callback]}
+            )
+            
+            # Parse score
+            try:
+                score = float(result.strip().split()[0])  # Get first number
+                score = max(0.0, min(10.0, score))  # Clamp to 0-10
+            except (ValueError, IndexError):
+                logger.warning(f"[Rerank] Failed to parse score from '{result}', using 5.0")
+                score = 5.0
+            
+            doc_scores.append((score, doc))
+            logger.debug(f"[Rerank] Doc {i+1}: score={score}")
+        except Exception as e:
+            logger.warning(f"[Rerank] Error scoring doc {i+1}: {e}")
+            doc_scores.append((5.0, doc))  # Default mid-score
+    
+    # Sort by score (descending) and take top documents
+    sorted_docs = sorted(doc_scores, key=lambda x: x[0], reverse=True)
+    reranked = [doc for score, doc in sorted_docs if score >= 5.0]  # Filter low scores
+    
+    logger.info(f"Reranking complete: {len(reranked)}/{len(documents)} docs passed (score >= 5)")
+    return {"reranked_documents": reranked}
 
 
 def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Grade retrieved documents for relevance."""
-    question = state["question"]
-    documents = state["documents"]
+    question = state.get("rewritten_question", state["question"])
+    # Use reranked documents if available, otherwise use retrieved documents
+    documents = state.get("reranked_documents", state.get("documents", []))
     logger.info(f"Grading {len(documents)} documents for relevance")
     
     # Simple prompt that asks for yes/no directly (no structured output needed)
@@ -148,13 +270,14 @@ Reply with ONLY 'yes' or 'no'. Nothing else."""
             filtered_docs.append(doc)
     
     logger.info(f"Grading complete. {len(filtered_docs)}/{len(documents)} documents passed")
-    return {"filtered_documents": filtered_docs, "question": question}
+    return {"filtered_documents": filtered_docs}
 
 
 def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Generate answer from filtered documents."""
+    # Use original question for generation
     question = state["question"]
-    documents = state.get("filtered_documents", state.get("documents", []))
+    documents = state.get("filtered_documents", state.get("reranked_documents", state.get("documents", [])))
     
     logger.info(f"Generating answer using {len(documents)} documents")
     
@@ -163,7 +286,6 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
         logger.warning("No relevant documents found for generation")
         return {
             "generation": "I don't have enough relevant information in the documents to answer this question.",
-            "question": question,
         }
     
     # Build context from documents
@@ -193,7 +315,7 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
         logger.error(f"[Generate] Failed to generate response: {e}")
         generation = "I encountered an error while generating the response. Please try again."
     
-    return {"generation": generation, "question": question}
+    return {"generation": generation}
 
 
 # --- Graph Builder ---
@@ -201,26 +323,64 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
 def create_rag_graph(
     retriever: PGVectorRetriever,
     llm: ChatOpenAI,
+    use_rewrite: bool = True,
+    use_rerank: bool = True,
+    use_grading: bool = True,
 ) -> StateGraph:
     """
-    Create the Agentic RAG graph.
+    Create the Enhanced Agentic RAG graph.
     
-    Flow:
-    1. Retrieve documents from vector store
-    2. Grade documents for relevance
-    3. Generate answer from relevant documents
+    Flow (all nodes enabled):
+    1. Transform Query - Rewrite query with chat history context
+    2. Retrieve - Get documents from vector store (with optional hybrid search)
+    3. Rerank - LLM-based relevance scoring
+    4. Grade Documents - Binary relevance check
+    5. Generate - Create final answer
+    
+    Args:
+        retriever: PGVector retriever (can use hybrid search)
+        llm: Language model for rewriting, reranking, grading, and generation
+        use_rewrite: Enable query rewriting with chat history
+        use_rerank: Enable LLM-based reranking
+        use_grading: Enable binary relevance grading
     """
     workflow = StateGraph(GraphState)
     
-    # Add nodes
+    # Add nodes based on configuration
+    if use_rewrite:
+        workflow.add_node("transform_query", lambda state: transform_query(state, llm))
+    
     workflow.add_node("retrieve", lambda state: retrieve(state, retriever))
-    workflow.add_node("grade_documents", lambda state: grade_documents(state, llm))
+    
+    if use_rerank:
+        workflow.add_node("rerank", lambda state: rerank(state, llm))
+    
+    if use_grading:
+        workflow.add_node("grade_documents", lambda state: grade_documents(state, llm))
+    
     workflow.add_node("generate", lambda state: generate(state, llm))
     
-    # Build graph
-    workflow.set_entry_point("retrieve")
-    workflow.add_edge("retrieve", "grade_documents")
-    workflow.add_edge("grade_documents", "generate")
+    # Build graph edges
+    if use_rewrite:
+        workflow.set_entry_point("transform_query")
+        workflow.add_edge("transform_query", "retrieve")
+    else:
+        workflow.set_entry_point("retrieve")
+    
+    if use_rerank:
+        workflow.add_edge("retrieve", "rerank")
+        if use_grading:
+            workflow.add_edge("rerank", "grade_documents")
+            workflow.add_edge("grade_documents", "generate")
+        else:
+            workflow.add_edge("rerank", "generate")
+    else:
+        if use_grading:
+            workflow.add_edge("retrieve", "grade_documents")
+            workflow.add_edge("grade_documents", "generate")
+        else:
+            workflow.add_edge("retrieve", "generate")
+    
     workflow.add_edge("generate", END)
     
     return workflow.compile()
@@ -232,27 +392,62 @@ async def stream_rag_response(
     question: str,
     retriever: PGVectorRetriever,
     llm: ChatOpenAI,
+    chat_history: List[tuple[str, str]] = None,
+    use_rewrite: bool = True,
+    use_rerank: bool = True,
+    use_grading: bool = True,
 ):
     """
-    Stream RAG response token by token.
+    Stream RAG response token by token with enhanced pipeline.
+    
+    Args:
+        question: User question
+        retriever: PGVector retriever
+        llm: Language model
+        chat_history: List of (human, ai) message tuples
+        use_rewrite: Enable query rewriting
+        use_rerank: Enable reranking
+        use_grading: Enable grading
     
     Yields:
         dict with 'type' and 'content' keys
     """
-    logger.info(f"[Stream] Starting RAG stream for: {question[:50]}...")
+    logger.info(f"[Stream] Starting enhanced RAG stream for: {question[:50]}...")
     
-    # Run retrieval and grading (non-streaming)
-    state = {"question": question}
+    # Initialize state
+    state = {
+        "question": question,
+        "chat_history": chat_history or [],
+    }
     
-    # Execute retrieve step (async)
+    # Step 1: Query rewriting (optional)
+    if use_rewrite and chat_history:
+        logger.info("[Stream] Rewriting query...")
+        state = await transform_query(state, llm)
+    else:
+        state["rewritten_question"] = question
+    
+    # Step 2: Retrieve documents
     state = await retrieve(state, retriever)
     yield {"type": "sources", "documents": state["documents"]}
     
-    # Grade documents
-    logger.info("[Stream] Grading documents...")
-    state = grade_documents(state, llm)
-    filtered_count = len(state.get("filtered_documents", []))
-    logger.info(f"[Stream] {filtered_count} documents passed grading")
+    # Step 3: Rerank (optional)
+    if use_rerank:
+        logger.info("[Stream] Reranking documents...")
+        state = await rerank(state, llm)
+        documents = state.get("reranked_documents", [])
+    else:
+        documents = state.get("documents", [])
+    
+    # Step 4: Grade documents (optional)
+    if use_grading:
+        logger.info("[Stream] Grading documents...")
+        state["reranked_documents"] = documents  # Pass to grading
+        state = grade_documents(state, llm)
+        documents = state.get("filtered_documents", [])
+    
+    filtered_count = len(documents)
+    logger.info(f"[Stream] {filtered_count} documents for generation")
     
     if filtered_count == 0:
         logger.warning("[Stream] No relevant documents found")
@@ -261,7 +456,6 @@ async def stream_rag_response(
         return
     
     # Stream generation
-    documents = state["filtered_documents"]
     context = "\n\n".join([doc.page_content for doc in documents])
     logger.info(f"[Stream] Generating response with {len(context)} chars context")
     

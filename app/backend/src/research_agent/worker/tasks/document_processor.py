@@ -71,10 +71,21 @@ class DocumentProcessorTask(BaseTask):
             page_count = len(pages)
             logger.info(f"Extracted {page_count} pages")
             
-            # Step 3: Chunk text
-            logger.info("Chunking text")
+            # Step 3: Chunk text with dynamic strategy selection
+            logger.info("Chunking text with dynamic strategy")
+            
+            # Get document metadata for strategy selection
+            doc_result = await session.execute(
+                select(DocumentModel).where(DocumentModel.id == document_id)
+            )
+            doc = doc_result.scalar_one()
+            
             chunking_service = ChunkingService()
-            chunk_data = chunking_service.chunk_pages(pages)
+            chunk_data = chunking_service.chunk_pages(
+                pages=pages,
+                mime_type=doc.mime_type,
+                filename=doc.original_filename,
+            )
             logger.info(f"Created {len(chunk_data)} chunks")
             
             # Step 4: Generate embeddings
@@ -95,8 +106,9 @@ class DocumentProcessorTask(BaseTask):
                         project_id=project_id,
                         chunk_index=chunk["chunk_index"],
                         content=chunk["content"],
-                        page_number=chunk["page_number"],
+                        page_number=chunk.get("page_number"),
                         embedding=embedding,
+                        chunk_metadata=chunk.get("metadata", {}),
                     )
                     session.add(chunk_model)
                 
