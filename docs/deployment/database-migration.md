@@ -39,17 +39,25 @@ cd app/backend
 
 ## Production Deployment (Zeabur)
 
-### Current Issue: Missing `file_path` Column
+### ✅ Automatic Migrations (Recommended)
 
-If you encounter this error:
+**The backend is now configured to run migrations automatically on startup.**
 
-```
-sqlalchemy.exc.ProgrammingError: column documents.file_path does not exist
-```
+Both `start.sh` (local dev) and `start-prod.sh` (production) will:
+1. Run `alembic upgrade head` before starting the server
+2. Log success or failure
+3. Continue startup even if migration fails (for debugging)
 
-This means the production database schema is out of sync.
+This means:
+- ✅ New deployments automatically get the latest schema
+- ✅ No manual intervention needed for most migrations
+- ✅ Migration status is logged for debugging
 
-### Solution 1: Run Migration via Supabase SQL Editor
+### Manual Migration Options
+
+If you need to run migrations manually or troubleshoot issues:
+
+#### Solution 1: Run Migration via Supabase SQL Editor
 
 1. Go to your Supabase project dashboard
 2. Navigate to **SQL Editor**
@@ -88,33 +96,108 @@ cd /app
 alembic upgrade head
 ```
 
-### Solution 3: Automated Migration on Startup
+#### Solution 3: Automated Migration on Startup (Already Configured ✅)
 
-The backend's `start-prod.sh` script can be updated to run migrations automatically:
+The backend's startup scripts (`start.sh` and `start-prod.sh`) are **already configured** to run migrations automatically.
+
+Current implementation:
+- Runs `alembic upgrade head` before server startup
+- Logs migration success/failure
+- Continues startup even on failure (for debugging)
+- Non-blocking for quick iteration
+
+**No action needed** - this is the default behavior.
+
+⚠️ **Production Note**: 
+- Automatic migrations work well for most schema changes
+- For risky migrations (data transformations, large tables), consider running manually first
+- Always test migrations in staging before production
+
+## Supabase Integration
+
+### Syncing Alembic Migrations with Supabase
+
+The project uses **two migration systems**:
+1. **Alembic** (app/backend/alembic/versions/) - For backend development
+2. **Supabase Migrations** - For Supabase platform
+
+#### Workflow
+
+1. **Create migration locally**
+   ```bash
+   make migration
+   # Or: cd app/backend && alembic revision --autogenerate -m "your_message"
+   ```
+
+2. **Test locally**
+   ```bash
+   make migrate
+   ```
+
+3. **Deploy to Supabase**
+   
+   Option A: Automatic (via start-prod.sh on deployment)
+   - Just deploy, migrations run automatically
+   
+   Option B: Manual (via Supabase MCP)
+   - Use the Supabase MCP tool to apply migrations
+   - Example: `mcp_supabase_apply_migration`
+
+4. **Or run SQL directly in Supabase**
+   - Copy the migration SQL
+   - Run in Supabase SQL Editor
+   - Useful for quick fixes or one-time operations
+
+### Example: Adding a New Column
 
 ```bash
-#!/bin/bash
-set -e
+# 1. Modify the model (e.g., add column to DocumentModel)
+# 2. Generate migration
+make migration  # Enter: "add_new_column_to_documents"
 
-echo "=== Weaver API Starting ==="
+# 3. Review generated migration in alembic/versions/
+# 4. Test locally
+make migrate
 
-# Run database migrations
-echo "Running database migrations..."
-alembic upgrade head
+# 5. Commit and push
+git add app/backend/alembic/versions/*.py
+git commit -m "feat: add new column to documents"
+git push
 
-# Start the server
-echo "Starting Uvicorn server..."
-exec uvicorn research_agent.main:app \
-    --host 0.0.0.0 \
-    --port 8000 \
-    --workers 1 \
-    --proxy-headers \
-    --forwarded-allow-ips='*'
+# 6. Deploy - migration runs automatically!
 ```
 
-⚠️ **Note**: Automatic migrations on startup can be risky in production. Use with caution.
-
 ## Migration History
+
+### 20241202_000002 - Add TSVector for Hybrid Search
+- Added `content_tsvector` column to `document_chunks` table
+- Created GIN index for full-text search performance
+- Added trigger for automatic tsvector updates
+- Required for hybrid search (vector + keyword) functionality
+
+### 20241202_000001 - Add Curriculum Table
+- Created `curriculum` table for learning paths
+- Required for personalized learning features
+
+### 20241128_000003 - Add Graph Status
+- Added status tracking for knowledge graph extraction
+
+### 20241128_000002 - Add Task Queue and Graph Tables
+- Created async task queue for background processing
+- Added knowledge graph tables
+
+### 20241128_000001 - Add Chat Messages Table
+- Created `chat_messages` table for conversation history
+- Required for RAG with chat context
+
+### 20241127_000002 - Add Data Column to Canvases
+- Added `data` column to store canvas state
+- Required for TLDraw integration
+
+### 20241127_000001 - Add file_path to Documents
+- Added `file_path` column to `documents` table
+- Handles existing data by using `filename` as default
+- Required for document upload and retrieval functionality
 
 ### 20241126_000001 - Initial Schema
 - Created `projects`, `documents`, `document_chunks`, `canvases` tables

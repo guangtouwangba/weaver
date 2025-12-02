@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Automatic Database Migration on Startup (2025-12-02)
+
+**自动化数据库迁移流程** (@siqiuchen)
+
+**Features:**
+- **自动迁移** - 启动脚本在服务启动前自动运行 `alembic upgrade head`
+  - 本地开发环境 (`start.sh`) 自动执行迁移
+  - 生产环境 (`start-prod.sh`) 自动执行迁移
+  - Docker 容器启动时自动应用所有待处理的迁移
+- **日志记录** - 迁移成功/失败状态会记录到日志
+- **容错处理** - 迁移失败不会阻止服务启动（便于调试）
+- **文档更新** - 完善了数据库迁移指南
+
+**Benefits:**
+- ✅ 部署时无需手动运行迁移
+- ✅ 减少因忘记迁移导致的生产问题
+- ✅ 本地开发更流畅
+- ✅ CI/CD 流程更简单
+
+**Migration Workflow:**
+```bash
+# 1. 修改 SQLAlchemy 模型
+# 2. 生成迁移: make migration
+# 3. 测试: make run-api (自动运行迁移)
+# 4. 提交并部署 (自动应用迁移)
+```
+
+**Key Files:**
+- `app/backend/start.sh` - 本地开发启动脚本（包含自动迁移）
+- `app/backend/scripts/start-prod.sh` - 生产环境启动脚本（包含自动迁移）
+- `docs/deployment/database-migration.md` - 更新的迁移指南
+- `app/backend/README.md` - 更新的开发说明
+
 ### Fixed - LangGraph RAG State Management & Error Logging (2025-12-02)
 
 **Fixed critical state management bug in RAG pipeline** (@siqiuchen)

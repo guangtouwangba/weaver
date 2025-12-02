@@ -3,8 +3,14 @@ set -e
 
 echo "=== Research Agent RAG API Starting ==="
 
-# Note: Database migrations are managed via Supabase MCP
-# Tables and pgvector extension are already set up in Supabase
+# Run database migrations automatically
+echo "Running database migrations..."
+if alembic upgrade head; then
+    echo "✅ Migrations completed successfully"
+else
+    echo "⚠️  Migration failed, but continuing startup..."
+    echo "   Check logs and run migrations manually if needed"
+fi
 
 # Start the server
 echo "Starting Uvicorn server..."

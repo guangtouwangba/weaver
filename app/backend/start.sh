@@ -38,4 +38,15 @@ echo "Starting Research Agent RAG API..."
 echo "API Key: ${OPENROUTER_API_KEY:0:20}..."
 echo "Database: ${DATABASE_URL:0:50}..."
 
+# Run database migrations automatically (for local development)
+echo ""
+echo "Running database migrations..."
+if python -m alembic upgrade head 2>/dev/null; then
+    echo "✅ Migrations completed successfully"
+else
+    echo "⚠️  Migration failed or not available"
+    echo "   You may need to run 'make migrate' manually"
+fi
+
+echo ""
 uvicorn research_agent.main:app --reload --port 8000

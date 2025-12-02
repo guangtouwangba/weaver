@@ -21,12 +21,11 @@ AI-powered research assistant with knowledge cards.
 # Start database
 docker compose up -d
 
-# Run migrations
-alembic upgrade head
-
-# Start server
+# Start server (migrations run automatically)
 ./start.sh
 ```
+
+**Note:** Database migrations run automatically on startup. No need to run `alembic upgrade head` manually!
 
 ## API Documentation
 
