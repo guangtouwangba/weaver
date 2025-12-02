@@ -102,6 +102,10 @@ class Settings(BaseSettings):
     # Environment
     environment: str = "development"
     log_level: str = "INFO"
+    
+    # Logging - Loki
+    loki_url: str = ""
+    loki_enabled: bool = False
 
     @property
     def cors_origins_list(self) -> List[str]:

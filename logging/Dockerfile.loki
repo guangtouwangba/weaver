@@ -1,0 +1,11 @@
+FROM grafana/loki:latest
+
+# Copy custom configuration
+COPY loki-config.yaml /etc/loki/local-config.yaml
+
+# Expose Loki port
+EXPOSE 3100
+
+# Run Loki with custom config
+CMD ["-config.file=/etc/loki/local-config.yaml"]
+
