@@ -53,11 +53,13 @@ const KnowledgeNode = ({
   node,
   isSelected,
   onSelect,
+  onDragStart,
   onDragEnd,
 }: {
   node: CanvasNode;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart: () => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
 }) => {
   const width = node.width || 280;
@@ -71,6 +73,7 @@ const KnowledgeNode = ({
       draggable
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
       {/* Border/Background */}
@@ -172,6 +175,8 @@ export default function KonvaCanvas({
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const lastPosRef = useRef({ x: 0, y: 0 });
 
   // Update dimensions on resize
   useEffect(() => {
@@ -189,7 +194,41 @@ export default function KonvaCanvas({
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
+  // Handle keyboard shortcuts (Space for panning)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      if (e.code === 'Space' && !e.repeat && !isInput) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+        setIsPanning(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   // Handle node drag
+  const handleNodeDragStart = useCallback(
+    (nodeId: string) => () => {
+      setSelectedNodeId(nodeId);
+    },
+    []
+  );
+
   const handleNodeDragEnd = useCallback(
     (nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
       const updatedNodes = nodes.map((n) =>
@@ -229,13 +268,39 @@ export default function KonvaCanvas({
     });
   };
 
-  // Handle stage drag (panning)
-  const handleStageDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+  // Handle manual panning
+  const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Only pan when clicking on empty space (Stage or background)
+    const clickedOnEmpty = e.target === e.target.getStage() || e.target.getClassName() === 'Rect';
+    
+    if (clickedOnEmpty) {
+      // Left click on empty space = pan, or middle mouse button
+      if (e.evt.button === 0 || e.evt.button === 1 || isSpacePressed) {
+        setIsPanning(true);
+        lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+      }
+      // Also deselect when clicking on empty space
+      setSelectedNodeId(null);
+    }
+  };
+
+  const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!isPanning) return;
+
+    const dx = e.evt.clientX - lastPosRef.current.x;
+    const dy = e.evt.clientY - lastPosRef.current.y;
+
     onViewportChange({
       ...viewport,
-      x: e.target.x(),
-      y: e.target.y(),
+      x: viewport.x + dx,
+      y: viewport.y + dy,
     });
+
+    lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+  };
+
+  const handleStageMouseUp = () => {
+    setIsPanning(false);
   };
 
   // Draw connections
@@ -312,19 +377,16 @@ export default function KonvaCanvas({
           ref={stageRef}
           width={dimensions.width}
           height={dimensions.height}
-          draggable
           x={viewport.x}
           y={viewport.y}
           scaleX={viewport.scale}
           scaleY={viewport.scale}
           onWheel={handleWheel}
-          onDragEnd={handleStageDragEnd}
-          onMouseDown={(e) => {
-            // Deselect when clicking on empty space
-            if (e.target === e.target.getStage()) {
-              setSelectedNodeId(null);
-            }
-          }}
+          onMouseDown={handleStageMouseDown}
+          onMouseMove={handleStageMouseMove}
+          onMouseUp={handleStageMouseUp}
+          onMouseLeave={handleStageMouseUp}
+          style={{ cursor: isPanning ? 'grabbing' : 'default' }}
         >
           {/* Background Layer with Grid */}
           <Layer>
@@ -349,6 +411,7 @@ export default function KonvaCanvas({
                 node={node}
                 isSelected={selectedNodeId === node.id}
                 onSelect={() => setSelectedNodeId(node.id)}
+                onDragStart={handleNodeDragStart(node.id)}
                 onDragEnd={handleNodeDragEnd(node.id)}
               />
             ))}
