@@ -1,6 +1,7 @@
 """Alembic environment configuration."""
 
 import asyncio
+import ssl
 from logging.config import fileConfig
 
 from alembic import context
@@ -50,10 +51,30 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine."""
+    # Configure connection args for asyncpg
+    connect_args = {}
+    
+    # Check if using Transaction Mode (port 6543) or connection pooler
+    database_url = settings.database_url
+    is_using_pooler = "pooler" in database_url
+    is_transaction_mode = ":6543/" in database_url
+    
+    # For connection poolers (especially Transaction Mode), disable prepared statements
+    if is_using_pooler:
+        connect_args["statement_cache_size"] = 0
+    
+    # Configure SSL for cloud PostgreSQL
+    if "supabase" in database_url or "neon" in database_url or "pooler" in database_url:
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ssl_context
+    
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:
