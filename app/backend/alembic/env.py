@@ -43,7 +43,12 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """Run migrations with connection."""
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection, 
+        target_metadata=target_metadata,
+        # 重要：设置较短的超时，避免在 Transaction Mode 下长时间等待
+        transaction_per_migration=True,  # 每个迁移一个事务
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -62,6 +67,8 @@ async def run_async_migrations() -> None:
     # For connection poolers (especially Transaction Mode), disable prepared statements
     if is_using_pooler:
         connect_args["statement_cache_size"] = 0
+        # 添加命令超时，避免长时间卡住
+        connect_args["command_timeout"] = 30  # 30 秒超时
     
     # Configure SSL for cloud PostgreSQL
     if "supabase" in database_url or "neon" in database_url or "pooler" in database_url:
@@ -70,8 +77,16 @@ async def run_async_migrations() -> None:
         ssl_context.verify_mode = ssl.CERT_NONE
         connect_args["ssl"] = ssl_context
     
+    # 配置引擎参数
+    engine_config = config.get_section(config.config_ini_section, {})
+    
+    # Transaction Mode 下使用更短的超时
+    if is_transaction_mode:
+        engine_config["pool_timeout"] = "10"  # 10 秒连接超时
+        engine_config["pool_recycle"] = "300"  # 5 分钟回收连接
+    
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        engine_config,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         connect_args=connect_args,
