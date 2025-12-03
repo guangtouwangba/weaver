@@ -12,7 +12,7 @@ from research_agent.api.middleware import setup_middleware
 from research_agent.api.v1.router import api_router
 from research_agent.config import get_settings
 from research_agent.domain.entities.task import TaskType
-from research_agent.infrastructure.database.session import init_db, get_async_session_factory
+from research_agent.infrastructure.database.session import init_db, close_db, get_async_session_factory
 from research_agent.shared.utils.logger import logger
 from research_agent.worker.dispatcher import TaskDispatcher
 from research_agent.worker.tasks import DocumentProcessorTask, GraphExtractorTask, CanvasSyncerTask
@@ -84,8 +84,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Stop background worker
     if _background_worker:
-        await _background_worker.stop()
-        logger.info("Background worker stopped")
+        try:
+            await asyncio.wait_for(_background_worker.stop(), timeout=30.0)
+            logger.info("Background worker stopped")
+        except asyncio.TimeoutError:
+            logger.warning("Background worker stop timed out")
+        except Exception as e:
+            logger.warning(f"Error stopping background worker: {e}")
+    
+    # Close database connections gracefully
+    try:
+        await asyncio.wait_for(close_db(), timeout=10.0)
+    except asyncio.TimeoutError:
+        logger.warning("Database close timed out during shutdown")
+    except Exception as e:
+        logger.warning(f"Error during database close: {e}")
 
 
 def create_app() -> FastAPI:

@@ -41,12 +41,32 @@ class TaskDispatcher:
         handler_class = self._handlers.get(task.task_type.value)
         
         if not handler_class:
-            raise ValueError(f"No handler registered for task type: {task.task_type.value}")
+            error_msg = f"No handler registered for task type: {task.task_type.value}"
+            logger.error(
+                f"❌ Dispatch error - task_id={task.id}, task_type={task.task_type.value}, "
+                f"registered_types={list(self._handlers.keys())}"
+            )
+            raise ValueError(error_msg)
         
         handler = handler_class()
-        logger.info(f"Dispatching task {task.id} to {handler_class.__name__}")
+        logger.info(
+            f"📤 Dispatching task - task_id={task.id}, task_type={task.task_type.value}, "
+            f"handler={handler_class.__name__}, payload_keys={list(task.payload.keys())}"
+        )
         
-        await handler.execute(task.payload, session)
+        try:
+            await handler.execute(task.payload, session)
+            logger.debug(f"✅ Task dispatched successfully - task_id={task.id}")
+        except Exception as e:
+            error_type = type(e).__name__
+            error_message = str(e)
+            logger.error(
+                f"❌ Task dispatch execution failed - task_id={task.id}, "
+                f"task_type={task.task_type.value}, handler={handler_class.__name__}, "
+                f"error_type={error_type}, error={error_message}, payload={task.payload}",
+                exc_info=True,
+            )
+            raise
 
     def get_registered_types(self) -> list[str]:
         """Get list of registered task types."""

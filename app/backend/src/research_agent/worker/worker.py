@@ -121,7 +121,10 @@ class BackgroundWorker:
 
     async def _process_task(self, task) -> None:
         """Process a single task."""
-        logger.info(f"Processing task {task.id} ({task.task_type.value})")
+        logger.info(
+            f"🔄 Processing task - task_id={task.id}, task_type={task.task_type.value}, "
+            f"attempts={task.attempts}/{task.max_attempts}, payload_keys={list(task.payload.keys())}"
+        )
         
         async with self._session_factory() as session:
             service = TaskQueueService(session)
@@ -134,16 +137,47 @@ class BackgroundWorker:
                 await service.complete(task.id)
                 await session.commit()
                 
-                logger.info(f"Task {task.id} completed successfully")
+                logger.info(
+                    f"✅ Task completed successfully - task_id={task.id}, "
+                    f"task_type={task.task_type.value}"
+                )
                 
             except Exception as e:
-                await session.rollback()
+                error_type = type(e).__name__
+                error_message = str(e)
+                
+                logger.error(
+                    f"❌ Task execution failed - task_id={task.id}, "
+                    f"task_type={task.task_type.value}, error_type={error_type}, "
+                    f"error={error_message}, attempts={task.attempts}/{task.max_attempts}, "
+                    f"payload={task.payload}",
+                    exc_info=True,
+                )
+                
+                try:
+                    await session.rollback()
+                    logger.debug(f"✅ Session rolled back for task {task.id}")
+                except Exception as rollback_error:
+                    logger.error(
+                        f"❌ Failed to rollback session - task_id={task.id}, "
+                        f"rollback_error={rollback_error}",
+                        exc_info=True,
+                    )
                 
                 # Mark as failed
-                async with self._session_factory() as fail_session:
-                    fail_service = TaskQueueService(fail_session)
-                    await fail_service.fail(task.id, str(e))
-                    await fail_session.commit()
-                
-                logger.error(f"Task {task.id} failed: {e}", exc_info=True)
+                try:
+                    async with self._session_factory() as fail_session:
+                        fail_service = TaskQueueService(fail_session)
+                        await fail_service.fail(task.id, str(e))
+                        await fail_session.commit()
+                    logger.info(
+                        f"✅ Task marked as failed - task_id={task.id}, "
+                        f"error_message={error_message[:200]}"
+                    )
+                except Exception as fail_error:
+                    logger.error(
+                        f"❌ CRITICAL: Failed to mark task as failed - task_id={task.id}, "
+                        f"original_error={error_message}, fail_error={fail_error}",
+                        exc_info=True,
+                    )
 
