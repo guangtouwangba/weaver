@@ -195,7 +195,21 @@ class OpenRouterEmbeddingService(EmbeddingService):
         """Get embedding for a single text."""
         logger.debug(f"[OpenRouter Embedding] Processing single text (length: {len(text)})")
         result = await self._call_api(text)
-        if not result.get("data") or len(result["data"]) == 0:
+        
+        # Validate response structure
+        if "data" not in result:
+            logger.error(
+                f"[OpenRouter Embedding] Response missing 'data' key. "
+                f"Response keys: {list(result.keys())}, "
+                f"Full response: {result}"
+            )
+            raise ValueError(
+                f"OpenRouter API response missing 'data' key. "
+                f"Response: {result}"
+            )
+        
+        data = result["data"]
+        if not data or len(data) == 0:
             logger.error(
                 f"[OpenRouter Embedding] Empty data array in response. "
                 f"Response: {result}"
@@ -203,7 +217,19 @@ class OpenRouterEmbeddingService(EmbeddingService):
             raise ValueError(
                 f"OpenRouter API returned empty data array. Response: {result}"
             )
-        embedding = result["data"][0]["embedding"]
+        
+        if "embedding" not in data[0]:
+            logger.error(
+                f"[OpenRouter Embedding] Response data item missing 'embedding' key. "
+                f"Data item keys: {list(data[0].keys()) if data[0] else 'empty'}, "
+                f"Response: {result}"
+            )
+            raise ValueError(
+                f"OpenRouter API response data item missing 'embedding' key. "
+                f"Response: {result}"
+            )
+        
+        embedding = data[0]["embedding"]
         logger.debug(f"[OpenRouter Embedding] Generated embedding (dimension: {len(embedding)})")
         return embedding
 
@@ -240,7 +266,21 @@ class OpenRouterEmbeddingService(EmbeddingService):
             )
             
             result = await self._call_api(batch)
-            if not result.get("data"):
+            
+            # Validate response structure
+            if "data" not in result:
+                logger.error(
+                    f"[OpenRouter Embedding] Response missing 'data' key for batch {batch_num}. "
+                    f"Response keys: {list(result.keys())}, "
+                    f"Response: {result}"
+                )
+                raise ValueError(
+                    f"OpenRouter API response missing 'data' key for batch {batch_num}. "
+                    f"Response: {result}"
+                )
+            
+            data = result["data"]
+            if not data or len(data) == 0:
                 logger.error(
                     f"[OpenRouter Embedding] No data in response for batch {batch_num}. "
                     f"Response keys: {list(result.keys())}, "
@@ -252,7 +292,7 @@ class OpenRouterEmbeddingService(EmbeddingService):
                 )
             
             # Validate that we got the expected number of embeddings
-            received_count = len(result["data"])
+            received_count = len(data)
             expected_count = len(batch)
             if received_count != expected_count:
                 logger.warning(
@@ -261,7 +301,7 @@ class OpenRouterEmbeddingService(EmbeddingService):
                 )
             
             # Extract embeddings with validation
-            for j, item in enumerate(result["data"]):
+            for j, item in enumerate(data):
                 if "embedding" not in item:
                     logger.error(
                         f"[OpenRouter Embedding] Batch {batch_num}, item {j} missing 'embedding' key. "

@@ -49,4 +49,4 @@ else
 fi
 
 echo ""
-uvicorn research_agent.main:app --reload --port 8000
+uvicorn research_agent.main:app --reload --host 0.0.0.0 --port 8000

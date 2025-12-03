@@ -23,9 +23,9 @@ logger.info(f"Database URL: {_mask_password(settings.database_url)}")
 # Check connection mode
 if 'pooler' in settings.database_url:
     if ':6543/' in settings.database_url:
-        logger.warning("Using Transaction Mode (port 6543) - consider Session Mode (port 5432)")
+        logger.info("✅ Using Transaction Mode (port 6543) - Recommended for applications with connection pooling")
     elif ':5432/' in settings.database_url:
-        logger.info("Using Session Mode (port 5432)")
+        logger.warning("⚠️  Using Session Mode (port 5432) - Consider Transaction Mode (port 6543) for better concurrency")
 
 # Configure connection args for asyncpg
 connect_args: dict = {}
@@ -55,13 +55,18 @@ engine_kwargs: dict = {
     "connect_args": connect_args,
 }
 
-# Disable pool_pre_ping for transaction mode
+# Configure connection pool based on mode
 if is_using_pooler and is_transaction_mode:
+    # Transaction Mode: Use NullPool (connection pooling handled by Supabase pooler)
+    # Transaction Mode uses Supabase's connection pooler, so we don't need SQLAlchemy's pool
     from sqlalchemy.pool import NullPool
     engine_kwargs["poolclass"] = NullPool
+    logger.info(
+        "Transaction Mode: Using NullPool (connection pooling handled by Supabase pooler)"
+    )
 else:
+    # Session Mode: Use SQLAlchemy connection pool
     engine_kwargs["pool_pre_ping"] = True
-    # Configure connection pool for Session Mode
     # Reduce pool size to avoid exceeding PostgreSQL max_connections
     # For local PostgreSQL, max_connections is typically 100
     # For Supabase Session Mode, it depends on your plan
@@ -71,7 +76,7 @@ else:
     engine_kwargs["pool_recycle"] = 3600  # Recycle connections after 1 hour
     
     logger.info(
-        f"Database pool configuration: pool_size={engine_kwargs['pool_size']}, "
+        f"Session Mode: Database pool configuration: pool_size={engine_kwargs['pool_size']}, "
         f"max_overflow={engine_kwargs['max_overflow']}, "
         f"max_connections={engine_kwargs['pool_size'] + engine_kwargs['max_overflow']}"
     )
@@ -98,7 +103,8 @@ async def init_db() -> None:
     except Exception as e:
         logger.error(f"Database connection failed: {type(e).__name__}: {e}")
         logger.error("Please check your DATABASE_URL configuration")
-        logger.error("For Supabase, use Session Mode (port 5432) instead of Transaction Mode (port 6543)")
+        logger.error("For Supabase, use Transaction Mode (port 6543) for better concurrency")
+        logger.error("Transaction Mode uses connection pooling and supports more concurrent connections")
         raise
 
 
