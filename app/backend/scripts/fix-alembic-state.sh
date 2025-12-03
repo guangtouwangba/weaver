@@ -7,10 +7,29 @@ set -e
 echo "=== Fixing Alembic Migration State ==="
 echo ""
 
+# Change to backend directory (where alembic.ini is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "Changing to backend directory: $BACKEND_DIR"
+cd "$BACKEND_DIR"
+echo ""
+
+# Check if alembic.ini exists
+if [ ! -f "alembic.ini" ]; then
+    echo "❌ ERROR: alembic.ini not found in $BACKEND_DIR"
+    echo "   Please run this script from the app/backend directory"
+    exit 1
+fi
+
 # Check if DATABASE_URL is set
 if [ -z "$DATABASE_URL" ]; then
     echo "❌ ERROR: DATABASE_URL is not set"
     echo "   Please set DATABASE_URL environment variable"
+    echo ""
+    echo "Example:"
+    echo "  export DATABASE_URL='postgresql://...'"
+    echo "  ./scripts/fix-alembic-state.sh"
     exit 1
 fi
 
@@ -19,12 +38,16 @@ echo ""
 
 # Option 1: Show current state
 echo "1. Checking current migration state..."
-alembic current 2>&1 || echo "   No current version found"
-echo ""
+if alembic current 2>&1; then
+    echo ""
+else
+    echo "   No current version found or error checking version"
+    echo ""
+fi
 
 # Option 2: Show migration history
 echo "2. Available migrations:"
-alembic history | head -20
+alembic history | head -20 || echo "   Could not retrieve migration history"
 echo ""
 
 # Option 3: Try to stamp database with latest revision
@@ -36,6 +59,7 @@ echo ""
 read -p "Do you want to stamp the database? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Running: alembic stamp head"
     if alembic stamp head; then
         echo "✅ Database stamped successfully"
         echo ""
@@ -44,6 +68,10 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     else
         echo "❌ Failed to stamp database"
         echo "   You may need to manually fix the alembic_version table"
+        echo ""
+        echo "Manual fix SQL:"
+        echo "  DELETE FROM alembic_version;"
+        echo "  INSERT INTO alembic_version (version_num) VALUES ('20241202_000003_add_evaluation_log');"
     fi
 else
     echo "Skipped stamping"
@@ -52,9 +80,10 @@ fi
 echo ""
 echo "=== Next Steps ==="
 echo "1. If stamping succeeded, restart your application"
-echo "2. If stamping failed, you may need to manually check the database:"
-echo "   - Check if tables exist: \\dt in psql"
-echo "   - Check alembic_version table: SELECT * FROM alembic_version;"
-echo "   - Manually insert version if needed:"
-echo "     INSERT INTO alembic_version VALUES ('20241202_000003_add_evaluation_log');"
+echo "2. If stamping failed, you may need to manually run SQL:"
+echo "   - Connect to your database (Supabase SQL Editor or psql)"
+echo "   - Run the fix SQL from scripts/fix-alembic-version.sql"
+echo "3. Or manually insert version:"
+echo "   DELETE FROM alembic_version;"
+echo "   INSERT INTO alembic_version (version_num) VALUES ('20241202_000003_add_evaluation_log');"
 
