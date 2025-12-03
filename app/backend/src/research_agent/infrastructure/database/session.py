@@ -1,11 +1,12 @@
 """SQLAlchemy async session management."""
 
 import asyncio
+import atexit
 import ssl
 import sys
+import threading
 import weakref
 from contextlib import asynccontextmanager
-from io import StringIO
 
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -13,6 +14,69 @@ from sqlalchemy.pool import NullPool, Pool
 
 from research_agent.config import get_settings
 from research_agent.shared.utils.logger import logger
+
+
+# ✅ CRITICAL: Global stderr filter to suppress asyncpg close timeout errors
+class AsyncpgErrorFilter:
+    """Filter stderr to suppress asyncpg connection close timeout errors."""
+
+    def __init__(self, original_stderr):
+        self.original_stderr = original_stderr
+        self._buffer = ""
+        self._lock = threading.Lock()
+        self._suppressing = False
+
+    def write(self, text):
+        with self._lock:
+            # Check if this is the start of an asyncpg close error
+            if "Exception closing connection" in text:
+                self._suppressing = True
+                self._buffer = text
+                return
+
+            if self._suppressing:
+                self._buffer += text
+                # Check if we've captured the full traceback
+                if "TimeoutError" in text and text.strip().endswith("TimeoutError"):
+                    # Suppress this entire error, clear buffer
+                    self._buffer = ""
+                    self._suppressing = False
+                    return
+                # If it's something else, stop suppressing and flush
+                if text.strip() and not any(x in text for x in [
+                    "Traceback", "File ", "line ", "asyncpg", "sqlalchemy",
+                    "await", "TimeoutError", "close", "connection", "pool"
+                ]):
+                    # This is different content, stop suppressing and output
+                    self._suppressing = False
+                    self.original_stderr.write(self._buffer + text)
+                    self._buffer = ""
+                return
+
+            # Normal output
+            self.original_stderr.write(text)
+
+    def flush(self):
+        self.original_stderr.flush()
+
+    def fileno(self):
+        return self.original_stderr.fileno()
+
+    def isatty(self):
+        return self.original_stderr.isatty()
+
+
+# Install global stderr filter immediately
+_original_stderr = sys.stderr
+sys.stderr = AsyncpgErrorFilter(_original_stderr)
+
+
+def _restore_stderr():
+    """Restore original stderr on exit."""
+    sys.stderr = _original_stderr
+
+
+atexit.register(_restore_stderr)
 
 settings = get_settings()
 
@@ -96,34 +160,6 @@ engine = create_async_engine(
 )
 
 
-# ✅ Critical: Suppress asyncpg close timeout errors
-class SuppressAsyncpgCloseErrors:
-    """Context manager to suppress asyncpg close timeout errors."""
-
-    def __init__(self):
-        self.original_stderr = None
-        self.devnull = None
-
-    def __enter__(self):
-        # Redirect stderr to devnull to suppress TimeoutError stack traces
-        self.original_stderr = sys.stderr
-        self.devnull = StringIO()
-        sys.stderr = self.devnull
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Restore stderr
-        sys.stderr = self.original_stderr
-        # Check if there was a real error we should show
-        if exc_type is not None and not issubclass(exc_type, TimeoutError):
-            # Real error occurred, show it
-            stderr_content = self.devnull.getvalue()
-            if stderr_content and "Exception closing connection" not in stderr_content:
-                sys.stderr.write(stderr_content)
-        self.devnull.close()
-        return False  # Don't suppress exceptions
-
-
 # Event listeners are minimal for NullPool
 @event.listens_for(Pool, "connect")
 def receive_connect(dbapi_conn, connection_record):
@@ -144,10 +180,8 @@ async_session_maker = async_sessionmaker(
 async def init_db() -> None:
     """Initialize database connection."""
     try:
-        # ✅ Suppress asyncpg close timeout errors during connection test
-        with SuppressAsyncpgCloseErrors():
-            async with engine.begin() as conn:
-                await conn.run_sync(lambda _: None)
+        async with engine.begin() as conn:
+            await conn.run_sync(lambda _: None)
         logger.info("Database connected")
     except Exception as e:
         logger.error(f"Database connection failed: {type(e).__name__}: {e}")
