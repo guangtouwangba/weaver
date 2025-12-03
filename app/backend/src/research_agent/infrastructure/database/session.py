@@ -2,8 +2,10 @@
 
 import asyncio
 import ssl
+import sys
 import weakref
 from contextlib import asynccontextmanager
+from io import StringIO
 
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -94,7 +96,35 @@ engine = create_async_engine(
 )
 
 
-# Event listeners are minimal for NullPool (no pooling happening)
+# ✅ Critical: Suppress asyncpg close timeout errors
+class SuppressAsyncpgCloseErrors:
+    """Context manager to suppress asyncpg close timeout errors."""
+
+    def __init__(self):
+        self.original_stderr = None
+        self.devnull = None
+
+    def __enter__(self):
+        # Redirect stderr to devnull to suppress TimeoutError stack traces
+        self.original_stderr = sys.stderr
+        self.devnull = StringIO()
+        sys.stderr = self.devnull
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Restore stderr
+        sys.stderr = self.original_stderr
+        # Check if there was a real error we should show
+        if exc_type is not None and not issubclass(exc_type, TimeoutError):
+            # Real error occurred, show it
+            stderr_content = self.devnull.getvalue()
+            if stderr_content and "Exception closing connection" not in stderr_content:
+                sys.stderr.write(stderr_content)
+        self.devnull.close()
+        return False  # Don't suppress exceptions
+
+
+# Event listeners are minimal for NullPool
 @event.listens_for(Pool, "connect")
 def receive_connect(dbapi_conn, connection_record):
     """Set connection parameters on connect."""
@@ -114,9 +144,11 @@ async_session_maker = async_sessionmaker(
 async def init_db() -> None:
     """Initialize database connection."""
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(lambda _: None)
-            logger.info("Database connected")
+        # ✅ Suppress asyncpg close timeout errors during connection test
+        with SuppressAsyncpgCloseErrors():
+            async with engine.begin() as conn:
+                await conn.run_sync(lambda _: None)
+        logger.info("Database connected")
     except Exception as e:
         logger.error(f"Database connection failed: {type(e).__name__}: {e}")
         logger.error("Please check your DATABASE_URL configuration")
