@@ -32,7 +32,7 @@ dependencies = [
     "pymupdf>=1.24.0",
     
     # Utilities
-    "httpx>=0.28.0",
+    "httpx[socks]>=0.28.0",  # 包含 SOCKS 代理支持
     "python-dotenv>=1.0.1",
     
     # Logging

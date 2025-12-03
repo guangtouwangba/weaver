@@ -1,6 +1,5 @@
 """Documents API endpoints."""
 
-import logging
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
@@ -12,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db, get_embedding_service
+from research_agent.shared.utils.logger import setup_logger
 from research_agent.application.dto.document import (
     DocumentListResponse,
     DocumentResponse,
@@ -46,7 +46,7 @@ from research_agent.domain.entities.task import TaskType
 from research_agent.worker.service import TaskQueueService
 from research_agent.shared.exceptions import NotFoundError, PDFProcessingError
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 router = APIRouter()
 settings = get_settings()
 
@@ -103,17 +103,40 @@ async def get_presigned_upload_url(
     2. Upload the file directly to the presigned URL (PUT request)
     3. Call /confirm endpoint to register the document
     """
+    logger.info(
+        f"[Presign] Request received: project_id={project_id}, "
+        f"filename={request.filename}, content_type={request.content_type}"
+    )
+    
+    # Check Supabase configuration
+    logger.debug(
+        f"[Presign] Supabase config check: "
+        f"url={'set' if settings.supabase_url else 'not set'}, "
+        f"key={'set' if settings.supabase_service_role_key else 'not set'}, "
+        f"bucket={settings.storage_bucket}"
+    )
+    
     storage = get_supabase_storage()
     if not storage:
-        raise HTTPException(
-            status_code=501,
-            detail="Supabase Storage not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+        error_msg = (
+            "Supabase Storage not configured. "
+            f"SUPABASE_URL={'set' if settings.supabase_url else 'NOT SET'}, "
+            f"SUPABASE_SERVICE_ROLE_KEY={'set' if settings.supabase_service_role_key else 'NOT SET'}"
         )
+        logger.error(f"[Presign] Configuration error: {error_msg}")
+        raise HTTPException(status_code=501, detail=error_msg)
     
     try:
+        logger.info(f"[Presign] Creating signed upload URL for project {project_id}")
         result = await storage.create_signed_upload_url(
             project_id=str(project_id),
             filename=request.filename,
+        )
+        
+        logger.info(
+            f"[Presign] Successfully created presigned URL: "
+            f"file_path={result.file_path}, "
+            f"expires_at={result.expires_at}"
         )
         
         return PresignResponse(
@@ -122,9 +145,28 @@ async def get_presigned_upload_url(
             token=result.token,
             expires_at=result.expires_at.isoformat(),
         )
+    except HTTPException:
+        # Re-raise HTTPException as-is
+        raise
     except Exception as e:
-        logger.error(f"Failed to create presigned URL: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create presigned URL: {str(e)}")
+        error_detail = str(e)
+        error_type = type(e).__name__
+        
+        logger.error(
+            f"[Presign] Failed to create presigned URL: "
+            f"project_id={project_id}, "
+            f"filename={request.filename}, "
+            f"error_type={error_type}, "
+            f"error={error_detail}",
+            exc_info=True  # Include full stack trace
+        )
+        
+        # Include more context in error message
+        detail_msg = (
+            f"Failed to create presigned URL: {error_detail} "
+            f"(type: {error_type})"
+        )
+        raise HTTPException(status_code=500, detail=detail_msg)
 
 
 @router.post("/projects/{project_id}/documents/confirm", response_model=DocumentUploadResponse, status_code=202)

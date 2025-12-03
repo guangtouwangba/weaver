@@ -1,6 +1,5 @@
 """Supabase Storage service for file uploads."""
 
-import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -8,7 +7,9 @@ from typing import BinaryIO, Optional
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from research_agent.shared.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 @dataclass
@@ -57,7 +58,12 @@ class SupabaseStorageService:
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            # Explicitly disable proxy to avoid SOCKS proxy issues
+            # trust_env=False disables reading proxy settings from environment variables
+            self._client = httpx.AsyncClient(
+                timeout=30.0,
+                trust_env=False,  # Disable proxy from environment variables
+            )
         return self._client
 
     async def create_signed_upload_url(
@@ -98,20 +104,37 @@ class SupabaseStorageService:
         # See: https://supabase.com/docs/reference/python/storage-from-createsigneduploadurl
         url = f"{self.storage_url}/object/upload/sign/{self.bucket_name}/{file_path}"
         
-        logger.info(f"Creating signed upload URL for: {file_path}")
-        logger.info(f"Request URL: {url}")
+        logger.info(f"[Supabase Storage] Creating signed upload URL")
+        logger.info(f"[Supabase Storage] Request URL: {url}")
+        logger.info(f"[Supabase Storage] Bucket: {self.bucket_name}")
+        logger.info(f"[Supabase Storage] File path: {file_path}")
+        logger.debug(f"[Supabase Storage] Headers: {list(self.headers.keys())}")
         
-        response = await client.post(
-            url,
-            headers=self.headers,
-        )
-        
-        logger.info(f"Response status: {response.status_code}")
-        logger.info(f"Response body: {response.text}")
-        
-        if response.status_code != 200:
-            logger.error(f"Failed to create signed upload URL: {response.status_code} - {response.text}")
-            raise Exception(f"Failed to create signed upload URL: {response.text}")
+        try:
+            response = await client.post(
+                url,
+                headers=self.headers,
+            )
+            
+            logger.info(f"[Supabase Storage] Response status: {response.status_code}")
+            logger.debug(f"[Supabase Storage] Response headers: {dict(response.headers)}")
+            logger.debug(f"[Supabase Storage] Response body: {response.text[:500]}")  # First 500 chars
+            
+            if response.status_code != 200:
+                logger.error(
+                    f"[Supabase Storage] Failed to create signed upload URL: "
+                    f"status={response.status_code}, body={response.text}"
+                )
+                raise Exception(f"Failed to create signed upload URL: {response.status_code} - {response.text}")
+        except httpx.ProxyError as e:
+            logger.error(f"[Supabase Storage] Proxy error: {e}")
+            raise Exception(f"Proxy configuration error: {e}. Please check HTTP_PROXY/HTTPS_PROXY environment variables.")
+        except httpx.RequestError as e:
+            logger.error(f"[Supabase Storage] Request error: {e}")
+            raise Exception(f"Request failed: {e}")
+        except Exception as e:
+            logger.error(f"[Supabase Storage] Unexpected error: {e}", exc_info=True)
+            raise
         
         data = response.json()
         
@@ -156,15 +179,32 @@ class SupabaseStorageService:
         
         url = f"{self.storage_url}/object/sign/{self.bucket_name}/{file_path}"
         
-        response = await client.post(
-            url,
-            headers=self.headers,
-            json={"expiresIn": expires_in_seconds},
-        )
+        logger.info(f"[Supabase Storage] Creating signed download URL for: {file_path}")
+        logger.debug(f"[Supabase Storage] Request URL: {url}")
+        logger.debug(f"[Supabase Storage] Expires in: {expires_in_seconds}s")
         
-        if response.status_code != 200:
-            logger.error(f"Failed to create signed download URL: {response.status_code} - {response.text}")
-            raise Exception(f"Failed to create signed download URL: {response.text}")
+        try:
+            response = await client.post(
+                url,
+                headers=self.headers,
+                json={"expiresIn": expires_in_seconds},
+            )
+            
+            logger.debug(f"[Supabase Storage] Response status: {response.status_code}")
+            logger.debug(f"[Supabase Storage] Response body: {response.text[:500]}")
+            
+            if response.status_code != 200:
+                logger.error(
+                    f"[Supabase Storage] Failed to create signed download URL: "
+                    f"status={response.status_code}, body={response.text}"
+                )
+                raise Exception(f"Failed to create signed download URL: {response.status_code} - {response.text}")
+        except httpx.ProxyError as e:
+            logger.error(f"[Supabase Storage] Proxy error: {e}")
+            raise Exception(f"Proxy configuration error: {e}")
+        except httpx.RequestError as e:
+            logger.error(f"[Supabase Storage] Request error: {e}")
+            raise Exception(f"Request failed: {e}")
         
         data = response.json()
         signed_url = f"{self.supabase_url}/storage/v1{data['signedURL']}"
@@ -230,12 +270,29 @@ class SupabaseStorageService:
         
         url = f"{self.storage_url}/object/{self.bucket_name}/{file_path}"
         
-        response = await client.get(url, headers=self.headers)
+        logger.info(f"[Supabase Storage] Downloading file: {file_path}")
+        logger.debug(f"[Supabase Storage] Request URL: {url}")
         
-        if response.status_code != 200:
-            raise Exception(f"Failed to download file: {response.text}")
-        
-        return response.content
+        try:
+            response = await client.get(url, headers=self.headers)
+            
+            logger.debug(f"[Supabase Storage] Response status: {response.status_code}")
+            logger.debug(f"[Supabase Storage] Content length: {len(response.content) if response.status_code == 200 else 0} bytes")
+            
+            if response.status_code != 200:
+                logger.error(
+                    f"[Supabase Storage] Failed to download file: "
+                    f"status={response.status_code}, body={response.text[:500]}"
+                )
+                raise Exception(f"Failed to download file: {response.status_code} - {response.text}")
+            
+            return response.content
+        except httpx.ProxyError as e:
+            logger.error(f"[Supabase Storage] Proxy error: {e}")
+            raise Exception(f"Proxy configuration error: {e}")
+        except httpx.RequestError as e:
+            logger.error(f"[Supabase Storage] Request error: {e}")
+            raise Exception(f"Request failed: {e}")
 
     async def delete_file(self, file_path: str) -> bool:
         """
