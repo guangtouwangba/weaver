@@ -1,6 +1,6 @@
 """Stream message use case (SSE streaming) - LangGraph implementation."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import AsyncIterator, List, Optional
 from uuid import UUID
 import asyncio
