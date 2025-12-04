@@ -1,5 +1,6 @@
 """Agentic RAG workflow using LangGraph (Corrective RAG pattern)."""
 
+import hashlib
 from typing import List, TypedDict, Annotated, Any, Dict
 
 from langchain_core.documents import Document
@@ -13,6 +14,9 @@ from pydantic import BaseModel, Field
 
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
+
+# Query rewrite cache (in-memory, simple LRU could be added later)
+_rewrite_cache: Dict[str, Dict[str, str]] = {}
 
 
 # --- Logging Callback Handler ---
@@ -90,43 +94,145 @@ class GradeDocuments(BaseModel):
     )
 
 
+# --- Helper Functions for Query Rewriting ---
+
+def needs_rewriting(question: str, chat_history: List[tuple[str, str]]) -> bool:
+    """
+    Smart check if query rewriting is actually needed.
+    
+    Returns True if:
+    - Question contains pronouns/references (it, that, them, this, etc.)
+    - Question is very short (< 10 chars) and has history
+    - Question contains context-dependent words
+    """
+    if not chat_history:
+        return False
+    
+    question_lower = question.lower()
+    
+    # Check for pronouns and references
+    pronouns = ["it", "that", "them", "this", "these", "those", "he", "she", "they", "his", "her", "their"]
+    if any(pronoun in question_lower for pronoun in pronouns):
+        return True
+    
+    # Very short questions with history likely need context
+    if len(question.strip()) < 10:
+        return True
+    
+    # Context-dependent words
+    context_words = ["also", "again", "more", "another", "same", "different", "previous", "earlier"]
+    if any(word in question_lower for word in context_words):
+        return True
+    
+    return False
+
+
+def get_cache_key(question: str, chat_history: List[tuple[str, str]]) -> str:
+    """Generate cache key from question and recent history."""
+    # Use last 3 turns for cache key
+    recent_history = chat_history[-3:] if chat_history else []
+    history_str = "|".join([f"{h[0]}:{h[1]}" for h in recent_history])
+    key_str = f"{question}|{history_str}"
+    return hashlib.md5(key_str.encode()).hexdigest()
+
+
+def validate_rewrite(original: str, rewritten: str, max_expansion_ratio: float = 3.0) -> bool:
+    """
+    Validate rewrite quality.
+    
+    Returns False if:
+    - Rewritten is too long compared to original (expansion ratio exceeded)
+    - Rewritten is empty or too short
+    - Rewritten is identical to original (no improvement)
+    """
+    if not rewritten or len(rewritten.strip()) < 3:
+        logger.warning("Rewrite too short or empty")
+        return False
+    
+    if rewritten.strip() == original.strip():
+        logger.warning("Rewrite identical to original")
+        return False
+    
+    # Check expansion ratio
+    original_len = len(original)
+    rewritten_len = len(rewritten)
+    
+    if original_len > 0:
+        expansion_ratio = rewritten_len / original_len
+        if expansion_ratio > max_expansion_ratio:
+            logger.warning(f"Rewrite too long: {expansion_ratio:.2f}x expansion (max {max_expansion_ratio})")
+            return False
+    
+    return True
+
+
 # --- Node Functions ---
 
-async def transform_query(state: GraphState, llm: ChatOpenAI) -> GraphState:
+async def transform_query(
+    state: GraphState,
+    llm: ChatOpenAI,
+    enable_validation: bool = True,
+    enable_cache: bool = True,
+    max_expansion_ratio: float = 3.0
+) -> GraphState:
     """
-    Rewrite the query with chat history context for better retrieval.
-    Handles coreference resolution (e.g., "it", "that", "them").
+    Enhanced query rewriting with validation and optimization.
+    
+    Args:
+        state: Graph state containing question and chat_history
+        llm: Language model for rewriting
+        enable_validation: Validate rewrite quality before using
+        enable_cache: Cache rewrite results
+        max_expansion_ratio: Maximum allowed expansion ratio (rewritten/original length)
     """
     question = state["question"]
     chat_history = state.get("chat_history", [])
     
-    # If no chat history, return original question
+    # Quick return if no history
     if not chat_history:
         logger.info("No chat history, using original question")
         return {"rewritten_question": question, "question": question}
     
+    # Smart skip: check if rewriting is actually needed
+    if not needs_rewriting(question, chat_history):
+        logger.info("Query doesn't need rewriting")
+        return {"rewritten_question": question, "question": question}
+    
+    # Check cache
+    cache_key = None
+    if enable_cache:
+        cache_key = get_cache_key(question, chat_history)
+        if cache_key in _rewrite_cache:
+            logger.info("Cache hit for query rewrite")
+            return _rewrite_cache[cache_key]
+    
     logger.info(f"Rewriting query with {len(chat_history)} history messages")
     
-    # Build context from chat history
+    # Build context
     history_context = "\n".join([
         f"Human: {human}\nAssistant: {ai}"
         for human, ai in chat_history[-3:]  # Use last 3 turns
     ])
     
-    # Prompt for query rewriting
-    system_prompt = """You are a query rewriting assistant. Your task is to rewrite the user's latest question 
-to be a standalone question that includes necessary context from the conversation history.
+    # Improved prompt with examples
+    system_prompt = """You are a query rewriting assistant. Rewrite the user's question to be standalone.
 
 Rules:
-1. Resolve all pronouns and references (it, that, them, this, etc.)
-2. Include relevant context from previous messages
-3. Keep the question concise and focused
-4. Maintain the original intent
-5. Output ONLY the rewritten question, nothing else."""
+1. Resolve pronouns (it, that, them, etc.) with their actual referents
+2. Include ONLY essential context from history
+3. DO NOT add details the user didn't mention
+4. Keep the question's original scope and openness
+5. Output ONLY the rewritten question
+
+Examples:
+History: "什么是图谱模式" -> "图谱模式是..."
+Question: "如何定义它？"
+Rewrite: "如何定义图谱模式？" ✓
+NOT: "如何通过配置文件定义图谱模式的Node对象？" ✗"""
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
-        ("human", "Conversation history:\n{history}\n\nLatest question: {question}\n\nRewritten question:"),
+        ("human", "History:\n{history}\n\nQuestion: {question}\n\nRewrite:"),
     ])
     
     chain = prompt | llm | StrOutputParser()
@@ -136,11 +242,30 @@ Rules:
             {"history": history_context, "question": question},
             config={"callbacks": [logging_callback]}
         )
-        logger.info(f"[Rewrite] Original: '{question}' -> Rewritten: '{rewritten}'")
-        return {"rewritten_question": rewritten.strip(), "question": question}
+        rewritten = rewritten.strip()
+        
+        # Validate rewrite quality
+        if enable_validation and not validate_rewrite(question, rewritten, max_expansion_ratio):
+            logger.warning("Validation failed, using original")
+            rewritten = question
+        
+        logger.info(f"[Rewrite] '{question}' -> '{rewritten}'")
+        
+        result = {"rewritten_question": rewritten, "question": question}
+        
+        # Cache result
+        if enable_cache and cache_key:
+            _rewrite_cache[cache_key] = result
+            # Simple cache size limit (keep last 100 entries)
+            if len(_rewrite_cache) > 100:
+                # Remove oldest entry (simple FIFO)
+                oldest_key = next(iter(_rewrite_cache))
+                del _rewrite_cache[oldest_key]
+        
+        return result
+        
     except Exception as e:
-        logger.error(f"[Rewrite] Failed: {e}")
-        # Fallback to original question
+        logger.error(f"Rewrite failed: {e}")
         return {"rewritten_question": question, "question": question}
 
 
@@ -335,6 +460,9 @@ def create_rag_graph(
     use_rewrite: bool = True,
     use_rerank: bool = True,
     use_grading: bool = True,
+    enable_rewrite_validation: bool = True,
+    enable_rewrite_cache: bool = True,
+    max_expansion_ratio: float = 3.0,
 ) -> StateGraph:
     """
     Create the Enhanced Agentic RAG graph.
@@ -352,12 +480,23 @@ def create_rag_graph(
         use_rewrite: Enable query rewriting with chat history
         use_rerank: Enable LLM-based reranking
         use_grading: Enable binary relevance grading
+        enable_rewrite_validation: Validate rewrite quality before using
+        enable_rewrite_cache: Cache rewrite results to avoid redundant LLM calls
+        max_expansion_ratio: Maximum allowed expansion ratio (rewritten/original length)
     """
     workflow = StateGraph(GraphState)
     
     # Add nodes based on configuration
     if use_rewrite:
-        workflow.add_node("transform_query", lambda state: transform_query(state, llm))
+        # Create wrapper function with validation and cache settings
+        async def transform_query_wrapper(state: GraphState) -> GraphState:
+            return await transform_query(
+                state, llm,
+                enable_validation=enable_rewrite_validation,
+                enable_cache=enable_rewrite_cache,
+                max_expansion_ratio=max_expansion_ratio,
+            )
+        workflow.add_node("transform_query", transform_query_wrapper)
     
     workflow.add_node("retrieve", lambda state: retrieve(state, retriever))
     
@@ -405,6 +544,9 @@ async def stream_rag_response(
     use_rewrite: bool = True,
     use_rerank: bool = True,
     use_grading: bool = True,
+    enable_rewrite_validation: bool = True,
+    enable_rewrite_cache: bool = True,
+    max_expansion_ratio: float = 3.0,
 ):
     """
     Stream RAG response token by token with enhanced pipeline.
@@ -417,6 +559,9 @@ async def stream_rag_response(
         use_rewrite: Enable query rewriting
         use_rerank: Enable reranking
         use_grading: Enable grading
+        enable_rewrite_validation: Validate rewrite quality before using
+        enable_rewrite_cache: Cache rewrite results to avoid redundant LLM calls
+        max_expansion_ratio: Maximum allowed expansion ratio (rewritten/original length)
     
     Yields:
         dict with 'type' and 'content' keys
@@ -432,7 +577,12 @@ async def stream_rag_response(
     # Step 1: Query rewriting (optional)
     if use_rewrite and chat_history:
         logger.info("[Stream] Rewriting query...")
-        rewrite_result = await transform_query(state, llm)
+        rewrite_result = await transform_query(
+            state, llm,
+            enable_validation=enable_rewrite_validation,
+            enable_cache=enable_rewrite_cache,
+            max_expansion_ratio=max_expansion_ratio,
+        )
         state.update(rewrite_result)  # Merge instead of replace
     else:
         state["rewritten_question"] = question
