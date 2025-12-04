@@ -10,3 +10,4 @@ alwaysApply: true
 注意：
 - app/frontend 是开发目录
 - web 是原型目录
+- .env文件在根目录而不是在frontend或者backend目录

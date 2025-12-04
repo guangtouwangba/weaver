@@ -138,9 +138,10 @@ if (
 if is_using_pooler:
     connect_args["statement_cache_size"] = 0
 
-# ✅ Key: Reduce timeout times for faster failure detection
-connect_args["timeout"] = 30  # Reduced from 60 to 30 seconds
-connect_args["command_timeout"] = 60  # Reduced from 300 to 60 seconds
+# ✅ Key: Connection timeout configuration
+# Increase timeout for slow network or busy database
+connect_args["timeout"] = 60  # Connection timeout: 60 seconds
+connect_args["command_timeout"] = 120  # Command execution timeout: 120 seconds
 connect_args["server_settings"] = {
     "application_name": "research_agent_backend",
 }
@@ -189,19 +190,50 @@ async_session_maker = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Initialize database connection."""
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(lambda _: None)
-        logger.info("Database connected")
-    except Exception as e:
-        logger.error(f"Database connection failed: {type(e).__name__}: {e}")
-        logger.error("Please check your DATABASE_URL configuration")
-        logger.error("For Supabase, use Transaction Mode (port 6543) for better concurrency")
-        logger.error(
-            "Transaction Mode uses connection pooling and supports more concurrent connections"
-        )
-        raise
+    """Initialize database connection with retry logic."""
+    max_retries = 3
+    retry_delay = 2  # seconds
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            logger.info(f"Attempting database connection (attempt {attempt}/{max_retries})...")
+            async with asyncio.timeout(10):  # 10 second timeout for init check
+                async with engine.begin() as conn:
+                    await conn.run_sync(lambda _: None)
+            logger.info("✅ Database connected successfully")
+            return
+        except asyncio.TimeoutError:
+            logger.error(f"❌ Database connection timeout on attempt {attempt}/{max_retries}")
+            if attempt < max_retries:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error("Database connection failed after all retries")
+                logger.error("Please check:")
+                logger.error("  1. Database server is running")
+                logger.error("  2. DATABASE_URL is correct")
+                logger.error("  3. Network connectivity to database")
+                logger.error(
+                    "For Supabase, use Transaction Mode (port 6543) for better concurrency"
+                )
+                raise
+        except Exception as e:
+            logger.error(
+                f"❌ Database connection error on attempt {attempt}/{max_retries}: {type(e).__name__}: {e}"
+            )
+            if attempt < max_retries:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error("Database connection failed after all retries")
+                logger.error("Please check your DATABASE_URL configuration")
+                logger.error(
+                    "For Supabase, use Transaction Mode (port 6543) for better concurrency"
+                )
+                logger.error(
+                    "Transaction Mode uses connection pooling and supports more concurrent connections"
+                )
+                raise
 
 
 async def close_db() -> None:

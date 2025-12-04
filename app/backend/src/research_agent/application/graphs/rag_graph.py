@@ -1,32 +1,121 @@
 """Agentic RAG workflow using LangGraph (Corrective RAG pattern)."""
 
 import hashlib
-from typing import List, TypedDict, Annotated, Any, Dict
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, TypedDict
 
-from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.documents import Document
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import LLMResult
-from langgraph.graph import StateGraph, END
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
 
 # Query rewrite cache (in-memory, simple LRU could be added later)
-_rewrite_cache: Dict[str, Dict[str, str]] = {}
+_rewrite_cache: dict[str, dict[str, str]] = {}
+
+# Intent classification cache
+_intent_cache: dict[str, dict[str, Any]] = {}
+
+
+# --- Intent Classification System ---
+
+
+class IntentType(str, Enum):
+    """Question intent types for adaptive RAG strategies."""
+
+    FACTUAL = "factual"  # "什么是X"、"X的定义" - Needs precise matching
+    CONCEPTUAL = "conceptual"  # "如何理解X"、"X的原理" - Needs detailed context
+    COMPARISON = "comparison"  # "X和Y的区别"、"X vs Y" - Needs multiple docs
+    HOWTO = "howto"  # "如何做X"、"X的步骤" - Needs procedural content
+    SUMMARY = "summary"  # "总结X"、"X的要点" - Needs broad coverage
+    EXPLANATION = "explanation"  # "为什么X"、"X的原因" - Needs causal chain
+
+
+@dataclass
+class RetrievalStrategy:
+    """Retrieval strategy configuration."""
+
+    top_k: int  # Number of documents to retrieve
+    min_similarity: float  # Minimum similarity threshold
+    use_hybrid_search: bool  # Use hybrid search (vector + keyword)
+
+
+@dataclass
+class GenerationStrategy:
+    """Generation strategy configuration."""
+
+    style: str  # concise | detailed | structured
+    max_length: int  # Maximum response length in tokens (approximate)
+    system_prompt: str  # Custom system prompt for this intent
+
+
+# Default strategies for each intent type
+INTENT_STRATEGIES: dict[IntentType, tuple[RetrievalStrategy, GenerationStrategy]] = {
+    IntentType.FACTUAL: (
+        RetrievalStrategy(top_k=3, min_similarity=0.7, use_hybrid_search=True),
+        GenerationStrategy(
+            style="concise",
+            max_length=150,
+            system_prompt="You are a research assistant. Provide a concise, factual answer (1-2 sentences). Be direct and precise.",
+        ),
+    ),
+    IntentType.CONCEPTUAL: (
+        RetrievalStrategy(top_k=8, min_similarity=0.5, use_hybrid_search=False),
+        GenerationStrategy(
+            style="detailed",
+            max_length=500,
+            system_prompt="You are a research assistant. Provide a detailed explanation with principles and examples. Help the user understand the concept deeply.",
+        ),
+    ),
+    IntentType.COMPARISON: (
+        RetrievalStrategy(top_k=10, min_similarity=0.6, use_hybrid_search=True),
+        GenerationStrategy(
+            style="structured",
+            max_length=400,
+            system_prompt="You are a research assistant. Compare the items using a clear structure (table or bullet points). Highlight key similarities and differences.",
+        ),
+    ),
+    IntentType.HOWTO: (
+        RetrievalStrategy(top_k=5, min_similarity=0.6, use_hybrid_search=True),
+        GenerationStrategy(
+            style="structured",
+            max_length=400,
+            system_prompt="You are a research assistant. Provide step-by-step instructions in a numbered list format. Be clear and actionable.",
+        ),
+    ),
+    IntentType.SUMMARY: (
+        RetrievalStrategy(top_k=15, min_similarity=0.4, use_hybrid_search=False),
+        GenerationStrategy(
+            style="structured",
+            max_length=500,
+            system_prompt="You are a research assistant. Provide a comprehensive summary with key points in bullet format. Cover all important aspects.",
+        ),
+    ),
+    IntentType.EXPLANATION: (
+        RetrievalStrategy(top_k=8, min_similarity=0.5, use_hybrid_search=False),
+        GenerationStrategy(
+            style="detailed",
+            max_length=500,
+            system_prompt="You are a research assistant. Explain the reasoning and causality. Help the user understand why and how things work.",
+        ),
+    ),
+}
 
 
 # --- Logging Callback Handler ---
 
+
 class LoggingCallbackHandler(BaseCallbackHandler):
     """Callback handler for logging LLM calls."""
-    
-    def on_llm_start(
-        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
-    ) -> None:
+
+    def on_llm_start(self, serialized: dict[str, Any], prompts: list[str], **kwargs: Any) -> None:
         """Log when LLM starts."""
         model = "unknown"
         if serialized:
@@ -36,7 +125,7 @@ class LoggingCallbackHandler(BaseCallbackHandler):
             # Truncate long prompts
             truncated = prompt[:300] + "..." if len(prompt) > 300 else prompt
             logger.debug(f"[LLM] Prompt {i}: {truncated}")
-    
+
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         """Log when LLM ends."""
         if response and response.generations:
@@ -44,24 +133,28 @@ class LoggingCallbackHandler(BaseCallbackHandler):
                 for j, g in enumerate(gen):
                     content = g.text[:500] + "..." if len(g.text) > 500 else g.text
                     logger.info(f"[LLM] Raw response: {content}")
-    
+
     def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
         """Log LLM errors."""
         logger.error(f"[LLM] Error: {error}")
-    
+
     def on_chain_start(
-        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
+        self, serialized: dict[str, Any], inputs: dict[str, Any], **kwargs: Any
     ) -> None:
         """Log when chain starts."""
         chain_name = "unknown"
         if serialized:
-            chain_name = serialized.get("name") or serialized.get("id", ["unknown"])[-1] if serialized.get("id") else "unknown"
+            chain_name = (
+                serialized.get("name") or serialized.get("id", ["unknown"])[-1]
+                if serialized.get("id")
+                else "unknown"
+            )
         logger.debug(f"[Chain] Starting: {chain_name}")
-    
-    def on_chain_end(self, outputs: Dict[str, Any], **kwargs: Any) -> None:
+
+    def on_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
         """Log when chain ends."""
-        logger.debug(f"[Chain] Completed")
-    
+        logger.debug("[Chain] Completed")
+
     def on_chain_error(self, error: Exception, **kwargs: Any) -> None:
         """Log chain errors."""
         logger.error(f"[Chain] Error: {error}")
@@ -73,33 +166,45 @@ logging_callback = LoggingCallbackHandler()
 
 # --- State Schema ---
 
+
 class GraphState(TypedDict):
     """State for the RAG graph."""
+
     question: str  # Original user question
     rewritten_question: str  # Rewritten question with context
-    chat_history: List[tuple[str, str]]  # List of (human, ai) message tuples
-    documents: List[Document]  # Retrieved documents
-    reranked_documents: List[Document]  # Reranked documents
+    chat_history: list[tuple[str, str]]  # List of (human, ai) message tuples
+    documents: list[Document]  # Retrieved documents
+    reranked_documents: list[Document]  # Reranked documents
     generation: str  # Final answer
-    filtered_documents: List[Document]  # Filtered relevant documents
+    filtered_documents: list[Document]  # Filtered relevant documents
+    # Intent classification fields
+    intent_type: str  # IntentType enum value
+    intent_confidence: float  # Confidence score (0-1)
+    retrieval_strategy: dict[str, Any]  # Dynamic retrieval parameters
+    generation_strategy: dict[str, Any]  # Dynamic generation parameters
+    # Long context mode fields
+    long_context_content: str  # Formatted full document content for long context
+    document_selection: dict[str, Any]  # Document selection result
+    citations: list[dict[str, Any]]  # Parsed citations from generation
+    rag_mode: str  # "traditional" | "long_context" | "hybrid"
 
 
 # --- Grading Schema ---
 
+
 class GradeDocuments(BaseModel):
     """Binary score for relevance check on retrieved documents."""
-    
-    binary_score: str = Field(
-        description="Documents are relevant to the question, 'yes' or 'no'"
-    )
+
+    binary_score: str = Field(description="Documents are relevant to the question, 'yes' or 'no'")
 
 
 # --- Helper Functions for Query Rewriting ---
 
-def needs_rewriting(question: str, chat_history: List[tuple[str, str]]) -> bool:
+
+def needs_rewriting(question: str, chat_history: list[tuple[str, str]]) -> bool:
     """
     Smart check if query rewriting is actually needed.
-    
+
     Returns True if:
     - Question contains pronouns/references (it, that, them, this, etc.)
     - Question is very short (< 10 chars) and has history
@@ -107,27 +212,40 @@ def needs_rewriting(question: str, chat_history: List[tuple[str, str]]) -> bool:
     """
     if not chat_history:
         return False
-    
+
     question_lower = question.lower()
-    
+
     # Check for pronouns and references
-    pronouns = ["it", "that", "them", "this", "these", "those", "he", "she", "they", "his", "her", "their"]
+    pronouns = [
+        "it",
+        "that",
+        "them",
+        "this",
+        "these",
+        "those",
+        "he",
+        "she",
+        "they",
+        "his",
+        "her",
+        "their",
+    ]
     if any(pronoun in question_lower for pronoun in pronouns):
         return True
-    
+
     # Very short questions with history likely need context
     if len(question.strip()) < 10:
         return True
-    
+
     # Context-dependent words
     context_words = ["also", "again", "more", "another", "same", "different", "previous", "earlier"]
     if any(word in question_lower for word in context_words):
         return True
-    
+
     return False
 
 
-def get_cache_key(question: str, chat_history: List[tuple[str, str]]) -> str:
+def get_cache_key(question: str, chat_history: list[tuple[str, str]]) -> str:
     """Generate cache key from question and recent history."""
     # Use last 3 turns for cache key
     recent_history = chat_history[-3:] if chat_history else []
@@ -139,7 +257,7 @@ def get_cache_key(question: str, chat_history: List[tuple[str, str]]) -> str:
 def validate_rewrite(original: str, rewritten: str, max_expansion_ratio: float = 3.0) -> bool:
     """
     Validate rewrite quality.
-    
+
     Returns False if:
     - Rewritten is too long compared to original (expansion ratio exceeded)
     - Rewritten is empty or too short
@@ -148,36 +266,39 @@ def validate_rewrite(original: str, rewritten: str, max_expansion_ratio: float =
     if not rewritten or len(rewritten.strip()) < 3:
         logger.warning("Rewrite too short or empty")
         return False
-    
+
     if rewritten.strip() == original.strip():
         logger.warning("Rewrite identical to original")
         return False
-    
+
     # Check expansion ratio
     original_len = len(original)
     rewritten_len = len(rewritten)
-    
+
     if original_len > 0:
         expansion_ratio = rewritten_len / original_len
         if expansion_ratio > max_expansion_ratio:
-            logger.warning(f"Rewrite too long: {expansion_ratio:.2f}x expansion (max {max_expansion_ratio})")
+            logger.warning(
+                f"Rewrite too long: {expansion_ratio:.2f}x expansion (max {max_expansion_ratio})"
+            )
             return False
-    
+
     return True
 
 
 # --- Node Functions ---
+
 
 async def transform_query(
     state: GraphState,
     llm: ChatOpenAI,
     enable_validation: bool = True,
     enable_cache: bool = True,
-    max_expansion_ratio: float = 3.0
+    max_expansion_ratio: float = 3.0,
 ) -> GraphState:
     """
     Enhanced query rewriting with validation and optimization.
-    
+
     Args:
         state: Graph state containing question and chat_history
         llm: Language model for rewriting
@@ -187,17 +308,17 @@ async def transform_query(
     """
     question = state["question"]
     chat_history = state.get("chat_history", [])
-    
+
     # Quick return if no history
     if not chat_history:
         logger.info("No chat history, using original question")
         return {"rewritten_question": question, "question": question}
-    
+
     # Smart skip: check if rewriting is actually needed
     if not needs_rewriting(question, chat_history):
         logger.info("Query doesn't need rewriting")
         return {"rewritten_question": question, "question": question}
-    
+
     # Check cache
     cache_key = None
     if enable_cache:
@@ -205,15 +326,17 @@ async def transform_query(
         if cache_key in _rewrite_cache:
             logger.info("Cache hit for query rewrite")
             return _rewrite_cache[cache_key]
-    
+
     logger.info(f"Rewriting query with {len(chat_history)} history messages")
-    
+
     # Build context
-    history_context = "\n".join([
-        f"Human: {human}\nAssistant: {ai}"
-        for human, ai in chat_history[-3:]  # Use last 3 turns
-    ])
-    
+    history_context = "\n".join(
+        [
+            f"Human: {human}\nAssistant: {ai}"
+            for human, ai in chat_history[-3:]  # Use last 3 turns
+        ]
+    )
+
     # Improved prompt with examples
     system_prompt = """You are a query rewriting assistant. Rewrite the user's question to be standalone.
 
@@ -229,30 +352,32 @@ History: "什么是图谱模式" -> "图谱模式是..."
 Question: "如何定义它？"
 Rewrite: "如何定义图谱模式？" ✓
 NOT: "如何通过配置文件定义图谱模式的Node对象？" ✗"""
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "History:\n{history}\n\nQuestion: {question}\n\nRewrite:"),
-    ])
-    
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "History:\n{history}\n\nQuestion: {question}\n\nRewrite:"),
+        ]
+    )
+
     chain = prompt | llm | StrOutputParser()
-    
+
     try:
         rewritten = chain.invoke(
             {"history": history_context, "question": question},
-            config={"callbacks": [logging_callback]}
+            config={"callbacks": [logging_callback]},
         )
         rewritten = rewritten.strip()
-        
+
         # Validate rewrite quality
         if enable_validation and not validate_rewrite(question, rewritten, max_expansion_ratio):
             logger.warning("Validation failed, using original")
             rewritten = question
-        
+
         logger.info(f"[Rewrite] '{question}' -> '{rewritten}'")
-        
+
         result = {"rewritten_question": rewritten, "question": question}
-        
+
         # Cache result
         if enable_cache and cache_key:
             _rewrite_cache[cache_key] = result
@@ -261,24 +386,287 @@ NOT: "如何通过配置文件定义图谱模式的Node对象？" ✗"""
                 # Remove oldest entry (simple FIFO)
                 oldest_key = next(iter(_rewrite_cache))
                 del _rewrite_cache[oldest_key]
-        
+
         return result
-        
+
     except Exception as e:
         logger.error(f"Rewrite failed: {e}")
         return {"rewritten_question": question, "question": question}
 
 
+async def classify_intent(
+    state: GraphState,
+    llm: ChatOpenAI,
+    enable_cache: bool = True,
+) -> GraphState:
+    """
+    Classify user question intent and select appropriate strategies.
+
+    Args:
+        state: Graph state containing question
+        llm: Language model for classification
+        enable_cache: Cache classification results
+
+    Returns:
+        Updated state with intent_type, intent_confidence, and strategies
+    """
+    from research_agent.infrastructure.llm.prompts.rag_prompt import (
+        INTENT_CLASSIFICATION_PROMPT,
+    )
+
+    # Use rewritten question if available, otherwise use original
+    question = state.get("rewritten_question", state["question"])
+
+    # Check cache
+    cache_key = None
+    if enable_cache:
+        cache_key = hashlib.md5(question.encode()).hexdigest()
+        if cache_key in _intent_cache:
+            logger.info("[Intent] Cache hit for intent classification")
+            return _intent_cache[cache_key]
+
+    logger.info(f"[Intent] Classifying intent for: {question[:50]}...")
+
+    # Create classification prompt
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", INTENT_CLASSIFICATION_PROMPT),
+            ("human", "Question: {question}"),
+        ]
+    )
+
+    chain = prompt | llm | StrOutputParser()
+
+    try:
+        # Get classification result
+        result = chain.invoke(
+            {"question": question},
+            config={"callbacks": [logging_callback]},
+        )
+
+        # Parse JSON response
+        import json
+
+        result_data = json.loads(result.strip())
+        intent_type_str = result_data.get("intent", "factual")
+        intent_confidence = result_data.get("confidence", 0.8)
+
+        # Validate intent type
+        try:
+            intent_type = IntentType(intent_type_str)
+        except ValueError:
+            logger.warning(f"[Intent] Invalid intent type: {intent_type_str}, using FACTUAL")
+            intent_type = IntentType.FACTUAL
+            intent_confidence = 0.5
+
+        logger.info(
+            f"[Intent] Classified as {intent_type.value} (confidence: {intent_confidence:.2f})"
+        )
+
+        # Get strategies for this intent
+        retrieval_strategy, generation_strategy = INTENT_STRATEGIES[intent_type]
+
+        # Convert to dict for state
+        result_state = {
+            "intent_type": intent_type.value,
+            "intent_confidence": intent_confidence,
+            "retrieval_strategy": {
+                "top_k": retrieval_strategy.top_k,
+                "min_similarity": retrieval_strategy.min_similarity,
+                "use_hybrid_search": retrieval_strategy.use_hybrid_search,
+            },
+            "generation_strategy": {
+                "style": generation_strategy.style,
+                "max_length": generation_strategy.max_length,
+                "system_prompt": generation_strategy.system_prompt,
+            },
+        }
+
+        # Cache result
+        if enable_cache and cache_key:
+            _intent_cache[cache_key] = result_state
+            # Simple cache size limit (keep last 100 entries)
+            if len(_intent_cache) > 100:
+                oldest_key = next(iter(_intent_cache))
+                del _intent_cache[oldest_key]
+
+        return result_state
+
+    except Exception as e:
+        logger.error(f"[Intent] Classification failed: {e}, using default (FACTUAL)", exc_info=True)
+        # Fallback to FACTUAL intent
+        retrieval_strategy, generation_strategy = INTENT_STRATEGIES[IntentType.FACTUAL]
+        return {
+            "intent_type": IntentType.FACTUAL.value,
+            "intent_confidence": 0.0,
+            "retrieval_strategy": {
+                "top_k": retrieval_strategy.top_k,
+                "min_similarity": retrieval_strategy.min_similarity,
+                "use_hybrid_search": retrieval_strategy.use_hybrid_search,
+            },
+            "generation_strategy": {
+                "style": generation_strategy.style,
+                "max_length": generation_strategy.max_length,
+                "system_prompt": generation_strategy.system_prompt,
+            },
+        }
+
+
+async def prepare_long_context(
+    document_models: list[Any],  # DocumentModel from database
+    session: Any,  # AsyncSession
+) -> str:
+    """
+    Prepare formatted long context from full document content.
+
+    Args:
+        document_models: List of DocumentModel objects
+        session: AsyncSession for database access
+
+    Returns:
+        Formatted long context string
+    """
+    from research_agent.domain.services.context_cache import ContextCacheService
+
+    context_service = ContextCacheService(session)
+    doc_sections = []
+
+    for i, doc_model in enumerate(document_models, 1):
+        doc_id = doc_model.id
+        filename = doc_model.filename
+        page_count = doc_model.page_count or 0
+
+        # Get full context with metadata
+        context_data = await context_service.get_context_with_metadata(doc_id)
+        if not context_data or not context_data.get("content"):
+            logger.warning(f"[LongContext] No full content for document {doc_id}")
+            continue
+
+        content = context_data["content"]
+
+        # Build document section
+        section = f"--- Document {i}: {filename} (ID: {doc_id})"
+        if page_count > 0:
+            section += f", {page_count} pages"
+        section += " ---\n\n"
+        section += content
+        doc_sections.append(section)
+
+    formatted_context = "\n\n".join(doc_sections)
+    logger.info(f"[LongContext] Prepared context from {len(doc_sections)} documents")
+    return formatted_context
+
+
+async def retrieve_long_context(
+    state: GraphState,
+    retriever: PGVectorRetriever,
+    document_selection: dict[str, Any],
+    session: Any,  # AsyncSession
+) -> GraphState:
+    """
+    Retrieve documents using long context mode.
+
+    Args:
+        state: Graph state
+        retriever: PGVector retriever (for traditional retrieval fallback)
+        document_selection: DocumentSelectionResult dict
+        session: AsyncSession
+
+    Returns:
+        Updated state with documents
+    """
+    from sqlalchemy import select
+
+    from research_agent.infrastructure.database.models import DocumentModel
+
+    long_context_docs = document_selection.get("long_context_docs", [])
+    retrieval_docs = document_selection.get("retrieval_docs", [])
+    strategy = document_selection.get("strategy", "traditional")
+
+    all_documents = []
+
+    # Process long context documents
+    if long_context_docs:
+        logger.info(
+            f"[LongContext] Processing {len(long_context_docs)} documents in long context mode"
+        )
+
+        # Get DocumentModel objects from database
+        doc_ids = [doc.id for doc in long_context_docs]
+        stmt = select(DocumentModel).where(DocumentModel.id.in_(doc_ids))
+        result = await session.execute(stmt)
+        doc_models = list(result.scalars().all())
+
+        # Prepare long context
+        long_context_content = await prepare_long_context(doc_models, session)
+
+        # Create Document objects for long context docs
+        for doc_model in doc_models:
+            # Create a Document with full content
+            doc = Document(
+                page_content=doc_model.full_content or "",
+                metadata={
+                    "document_id": str(doc_model.id),
+                    "filename": doc_model.filename,
+                    "page_number": 0,  # Full document, no specific page
+                    "source_type": "long_context",
+                },
+            )
+            all_documents.append(doc)
+
+        # Store long context content in state
+        state["long_context_content"] = long_context_content
+
+    # Process retrieval documents (traditional mode)
+    if retrieval_docs:
+        logger.info(f"[LongContext] Processing {len(retrieval_docs)} documents in retrieval mode")
+        query = state.get("rewritten_question", state["question"])
+
+        # Use traditional retrieval for these documents
+        # Note: This is simplified - in practice, you might want to filter by document_id
+        retrieved = await retriever._aget_relevant_documents(query)
+        all_documents.extend(retrieved)
+
+    logger.info(
+        f"[LongContext] Total documents: {len(all_documents)} "
+        f"(long_context: {len(long_context_docs)}, retrieval: {len(retrieval_docs)})"
+    )
+
+    return {
+        "documents": all_documents,
+        "rag_mode": strategy,
+        "document_selection": document_selection,
+    }
+
+
 async def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphState:
-    """Retrieve documents from vector store using rewritten query."""
+    """Retrieve documents from vector store using rewritten query and adaptive strategy."""
     # Use rewritten question if available, otherwise use original
     query = state.get("rewritten_question", state["question"])
-    logger.info(f"Retrieving documents for query: {query}")
-    
+
+    # Get retrieval strategy from state (set by intent classification)
+    retrieval_strategy = state.get("retrieval_strategy", {})
+
+    if retrieval_strategy:
+        # Apply dynamic retrieval parameters
+        top_k = retrieval_strategy.get("top_k", retriever.k)
+        use_hybrid = retrieval_strategy.get("use_hybrid_search", False)
+
+        logger.info(
+            f"[Retrieve] Using adaptive strategy: top_k={top_k}, hybrid={use_hybrid}, "
+            f"intent={state.get('intent_type', 'unknown')}"
+        )
+
+        # Update retriever parameters dynamically
+        retriever.k = top_k
+        retriever.use_hybrid_search = use_hybrid
+    else:
+        logger.info(f"[Retrieve] Using default strategy: top_k={retriever.k}")
+
     # Async retriever call
     documents = await retriever._aget_relevant_documents(query)
-    
-    logger.info(f"Retrieved {len(documents)} documents")
+
+    logger.info(f"[Retrieve] Retrieved {len(documents)} documents")
     return {"documents": documents}
 
 
@@ -289,15 +677,15 @@ async def rerank(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """
     question = state.get("rewritten_question", state["question"])
     documents = state["documents"]
-    
+
     if not documents:
         logger.warning("No documents to rerank")
         return {"reranked_documents": []}
-    
+
     logger.info(f"Reranking {len(documents)} documents")
-    
+
     # Prompt for scoring document relevance
-    system_prompt = """You are a document relevance scorer. Rate how relevant the given document 
+    system_prompt = """You are a document relevance scorer. Rate how relevant the given document
 is to answering the user's question on a scale of 0-10.
 
 0 = Completely irrelevant
@@ -305,26 +693,30 @@ is to answering the user's question on a scale of 0-10.
 10 = Highly relevant and directly answers the question
 
 Output ONLY a single number between 0-10. No explanation."""
-    
-    score_prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Question: {question}\n\nDocument: {document}\n\nRelevance score (0-10):"),
-    ])
-    
+
+    score_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "Question: {question}\n\nDocument: {document}\n\nRelevance score (0-10):"),
+        ]
+    )
+
     chain = score_prompt | llm | StrOutputParser()
-    
+
     # Score each document
     doc_scores = []
     for i, doc in enumerate(documents):
         try:
             # Truncate very long documents
-            doc_content = doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
-            
+            doc_content = (
+                doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
+            )
+
             result = chain.invoke(
                 {"question": question, "document": doc_content},
-                config={"callbacks": [logging_callback]}
+                config={"callbacks": [logging_callback]},
             )
-            
+
             # Parse score
             try:
                 score = float(result.strip().split()[0])  # Get first number
@@ -332,17 +724,17 @@ Output ONLY a single number between 0-10. No explanation."""
             except (ValueError, IndexError):
                 logger.warning(f"[Rerank] Failed to parse score from '{result}', using 5.0")
                 score = 5.0
-            
+
             doc_scores.append((score, doc))
-            logger.debug(f"[Rerank] Doc {i+1}: score={score}")
+            logger.debug(f"[Rerank] Doc {i + 1}: score={score}")
         except Exception as e:
-            logger.warning(f"[Rerank] Error scoring doc {i+1}: {e}")
+            logger.warning(f"[Rerank] Error scoring doc {i + 1}: {e}")
             doc_scores.append((5.0, doc))  # Default mid-score
-    
+
     # Sort by score (descending) and take top documents
     sorted_docs = sorted(doc_scores, key=lambda x: x[0], reverse=True)
     reranked = [doc for score, doc in sorted_docs if score >= 5.0]  # Filter low scores
-    
+
     logger.info(f"Reranking complete: {len(reranked)}/{len(documents)} docs passed (score >= 5)")
     return {"reranked_documents": reranked}
 
@@ -353,168 +745,333 @@ def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
     if "question" not in state and "rewritten_question" not in state:
         logger.error(f"[Grade] Missing 'question' in state. Available keys: {list(state.keys())}")
         raise ValueError("State must contain 'question' or 'rewritten_question' field")
-    
+
     question = state.get("rewritten_question", state.get("question", ""))
     # Use reranked documents if available, otherwise use retrieved documents
     documents = state.get("reranked_documents", state.get("documents", []))
-    logger.info(f"[Grade] Grading {len(documents)} documents for relevance (question: '{question[:50]}...')")
-    
+    logger.info(
+        f"[Grade] Grading {len(documents)} documents for relevance (question: '{question[:50]}...')"
+    )
+
     # Simple prompt that asks for yes/no directly (no structured output needed)
     system_prompt = """You are a grader assessing relevance of a retrieved document to a user question.
 If the document contains keyword(s) or semantic meaning related to the question, it is relevant.
 Reply with ONLY 'yes' or 'no'. Nothing else."""
-    
-    grade_prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Document: {document}\n\nQuestion: {question}\n\nIs this document relevant? Reply only 'yes' or 'no':"),
-    ])
-    
+
+    grade_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            (
+                "human",
+                "Document: {document}\n\nQuestion: {question}\n\nIs this document relevant? Reply only 'yes' or 'no':",
+            ),
+        ]
+    )
+
     chain = grade_prompt | llm | StrOutputParser()
-    
+
     # Grade each document
     filtered_docs = []
     for i, doc in enumerate(documents):
         try:
-            logger.debug(f"[Grade] Grading document {i+1}/{len(documents)}")
-            
+            logger.debug(f"[Grade] Grading document {i + 1}/{len(documents)}")
+
             # Truncate very long documents
-            doc_content = doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
-            
+            doc_content = (
+                doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
+            )
+
             result = chain.invoke(
                 {"question": question, "document": doc_content},
-                config={"callbacks": [logging_callback]}
+                config={"callbacks": [logging_callback]},
             )
-            
+
             # Parse the response - look for yes/no
             result_lower = result.strip().lower()
-            logger.info(f"[Grade] Document {i+1} raw response: '{result_lower}'")
-            
+            logger.info(f"[Grade] Document {i + 1} raw response: '{result_lower}'")
+
             is_relevant = "yes" in result_lower and "no" not in result_lower[:10]
-            logger.info(f"[Grade] Document {i+1} relevant: {is_relevant} (metadata: {doc.metadata})")
-            
+            logger.info(
+                f"[Grade] Document {i + 1} relevant: {is_relevant} (metadata: {doc.metadata})"
+            )
+
             if is_relevant:
                 filtered_docs.append(doc)
         except Exception as e:
             import traceback
+
             logger.warning(
-                f"[Grade] Failed to grade document {i+1}: {type(e).__name__}: {e}\n"
+                f"[Grade] Failed to grade document {i + 1}: {type(e).__name__}: {e}\n"
                 f"Traceback: {traceback.format_exc()}"
             )
             # On error, include the document (fail-safe: better to include than exclude)
             filtered_docs.append(doc)
-    
+
     logger.info(f"Grading complete. {len(filtered_docs)}/{len(documents)} documents passed")
     return {"filtered_documents": filtered_docs}
 
 
+def parse_citations(text: str) -> list[dict[str, Any]]:
+    """
+    Parse citations from generated text.
+
+    Args:
+        text: Generated text with citation markers
+
+    Returns:
+        List of citation dictionaries
+    """
+    from research_agent.domain.services.citation_service import CitationService
+
+    citation_service = CitationService()
+    markers = citation_service.parse_citation_markers(text)
+
+    citations = []
+    for marker in markers:
+        cit = marker.citation
+        citations.append(
+            {
+                "document_id": str(cit.document_id),
+                "page_number": cit.page_number,
+                "char_start": cit.char_start,
+                "char_end": cit.char_end,
+                "paragraph_index": cit.paragraph_index,
+                "sentence_index": cit.sentence_index,
+                "snippet": cit.snippet,
+            }
+        )
+
+    return citations
+
+
+def generate_long_context(state: GraphState, llm: ChatOpenAI) -> GraphState:
+    """Generate answer from long context with citation grounding."""
+    from research_agent.config import get_settings
+    from research_agent.infrastructure.llm.prompts.rag_prompt import (
+        LONG_CONTEXT_SYSTEM_PROMPT,
+        build_long_context_prompt,
+    )
+
+    settings = get_settings()
+    question = state["question"]
+    long_context_content = state.get("long_context_content", "")
+    document_selection = state.get("document_selection", {})
+
+    if not long_context_content:
+        logger.warning("[GenerateLongContext] No long context content available")
+        return {
+            "generation": "I don't have enough relevant information to answer this question.",
+            "citations": [],
+        }
+
+    logger.info(f"[GenerateLongContext] Generating with {len(long_context_content)} chars context")
+
+    # Build documents list for prompt
+    long_context_docs = document_selection.get("long_context_docs", [])
+    documents = []
+    for doc in long_context_docs:
+        documents.append(
+            {
+                "document_id": str(doc.id),
+                "filename": doc.filename,
+                "content": long_context_content,  # Use prepared content
+                "page_count": doc.page_count or 0,
+            }
+        )
+
+    # Build prompt
+    user_prompt = build_long_context_prompt(
+        query=question,
+        documents=documents,
+        citation_format=settings.citation_format,
+    )
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", LONG_CONTEXT_SYSTEM_PROMPT),
+            ("human", user_prompt),
+        ]
+    )
+
+    chain = prompt | llm | StrOutputParser()
+
+    try:
+        generation = chain.invoke({"question": question}, config={"callbacks": [logging_callback]})
+        logger.info(f"[GenerateLongContext] Response generated: {len(generation)} chars")
+
+        # Parse citations
+        citations = parse_citations(generation)
+
+        logger.info(f"[GenerateLongContext] Parsed {len(citations)} citations")
+
+        return {
+            "generation": generation,
+            "citations": citations,
+        }
+    except Exception as e:
+        logger.error(f"[GenerateLongContext] Failed to generate response: {e}", exc_info=True)
+        return {
+            "generation": "I encountered an error while generating the response. Please try again.",
+            "citations": [],
+        }
+
+
 def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
-    """Generate answer from filtered documents."""
+    """Generate answer from filtered documents with adaptive strategy."""
+    # Check if we should use long context mode
+    rag_mode = state.get("rag_mode", "traditional")
+    if rag_mode in ("long_context", "hybrid") and state.get("long_context_content"):
+        logger.info("[Generate] Using long context generation mode")
+        return generate_long_context(state, llm)
+
     # Use original question for generation
     question = state["question"]
-    documents = state.get("filtered_documents", state.get("reranked_documents", state.get("documents", [])))
-    
-    logger.info(f"Generating answer using {len(documents)} documents")
-    
+    documents = state.get(
+        "filtered_documents", state.get("reranked_documents", state.get("documents", []))
+    )
+
+    # Get generation strategy from state (set by intent classification)
+    generation_strategy = state.get("generation_strategy", {})
+
+    logger.info(
+        f"[Generate] Using {len(documents)} documents, "
+        f"intent={state.get('intent_type', 'unknown')}, "
+        f"style={generation_strategy.get('style', 'default')}"
+    )
+
     # Check if we have documents
     if not documents:
-        logger.warning("No relevant documents found for generation")
+        logger.warning("[Generate] No relevant documents found")
         return {
             "generation": "I don't have enough relevant information in the documents to answer this question.",
         }
-    
+
     # Build context from documents
     context = "\n\n".join([doc.page_content for doc in documents])
     logger.debug(f"[Generate] Context length: {len(context)} chars")
-    
-    # Prompt
-    system_prompt = """You are an assistant for question-answering tasks.
-    Use the following pieces of retrieved context to answer the question.
-    If you don't know the answer, just say that you don't know.
-    Use three sentences maximum and keep the answer concise."""
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Question: {question}\n\nContext: {context}\n\nAnswer:"),
-    ])
-    
+
+    # Use intent-specific system prompt if available
+    if generation_strategy and "system_prompt" in generation_strategy:
+        system_prompt = generation_strategy["system_prompt"]
+        logger.info(f"[Generate] Using intent-specific prompt for {state.get('intent_type')}")
+    else:
+        # Default prompt
+        system_prompt = """You are an assistant for question-answering tasks.
+        Use the following pieces of retrieved context to answer the question.
+        If you don't know the answer, just say that you don't know.
+        Use three sentences maximum and keep the answer concise."""
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "Question: {question}\n\nContext: {context}\n\nAnswer:"),
+        ]
+    )
+
     chain = prompt | llm | StrOutputParser()
-    
+
     try:
         generation = chain.invoke(
-            {"question": question, "context": context},
-            config={"callbacks": [logging_callback]}
+            {"question": question, "context": context}, config={"callbacks": [logging_callback]}
         )
         logger.info(f"[Generate] Response generated: {len(generation)} chars")
     except Exception as e:
         logger.error(f"[Generate] Failed to generate response: {e}")
         generation = "I encountered an error while generating the response. Please try again."
-    
+
     return {"generation": generation}
 
 
 # --- Graph Builder ---
 
+
 def create_rag_graph(
     retriever: PGVectorRetriever,
     llm: ChatOpenAI,
     use_rewrite: bool = True,
+    use_intent_classification: bool = True,
     use_rerank: bool = True,
     use_grading: bool = True,
     enable_rewrite_validation: bool = True,
     enable_rewrite_cache: bool = True,
+    enable_intent_cache: bool = True,
     max_expansion_ratio: float = 3.0,
 ) -> StateGraph:
     """
-    Create the Enhanced Agentic RAG graph.
-    
+    Create the Enhanced Agentic RAG graph with intent-based strategies.
+
     Flow (all nodes enabled):
     1. Transform Query - Rewrite query with chat history context
-    2. Retrieve - Get documents from vector store (with optional hybrid search)
-    3. Rerank - LLM-based relevance scoring
-    4. Grade Documents - Binary relevance check
-    5. Generate - Create final answer
-    
+    2. Classify Intent - Identify question type and select strategies
+    3. Retrieve - Get documents from vector store (adaptive top_k and hybrid search)
+    4. Rerank - LLM-based relevance scoring
+    5. Grade Documents - Binary relevance check
+    6. Generate - Create final answer (adaptive style and prompts)
+
     Args:
         retriever: PGVector retriever (can use hybrid search)
-        llm: Language model for rewriting, reranking, grading, and generation
+        llm: Language model for all LLM-based operations
         use_rewrite: Enable query rewriting with chat history
+        use_intent_classification: Enable intent classification and adaptive strategies
         use_rerank: Enable LLM-based reranking
         use_grading: Enable binary relevance grading
         enable_rewrite_validation: Validate rewrite quality before using
         enable_rewrite_cache: Cache rewrite results to avoid redundant LLM calls
+        enable_intent_cache: Cache intent classification results
         max_expansion_ratio: Maximum allowed expansion ratio (rewritten/original length)
     """
     workflow = StateGraph(GraphState)
-    
+
     # Add nodes based on configuration
     if use_rewrite:
         # Create wrapper function with validation and cache settings
         async def transform_query_wrapper(state: GraphState) -> GraphState:
             return await transform_query(
-                state, llm,
+                state,
+                llm,
                 enable_validation=enable_rewrite_validation,
                 enable_cache=enable_rewrite_cache,
                 max_expansion_ratio=max_expansion_ratio,
             )
+
         workflow.add_node("transform_query", transform_query_wrapper)
-    
+
+    if use_intent_classification:
+        # Create wrapper function with cache settings
+        async def classify_intent_wrapper(state: GraphState) -> GraphState:
+            return await classify_intent(
+                state,
+                llm,
+                enable_cache=enable_intent_cache,
+            )
+
+        workflow.add_node("classify_intent", classify_intent_wrapper)
+
     workflow.add_node("retrieve", lambda state: retrieve(state, retriever))
-    
+
     if use_rerank:
         workflow.add_node("rerank", lambda state: rerank(state, llm))
-    
+
     if use_grading:
         workflow.add_node("grade_documents", lambda state: grade_documents(state, llm))
-    
+
     workflow.add_node("generate", lambda state: generate(state, llm))
-    
+
     # Build graph edges
     if use_rewrite:
         workflow.set_entry_point("transform_query")
-        workflow.add_edge("transform_query", "retrieve")
+        if use_intent_classification:
+            workflow.add_edge("transform_query", "classify_intent")
+            workflow.add_edge("classify_intent", "retrieve")
+        else:
+            workflow.add_edge("transform_query", "retrieve")
     else:
-        workflow.set_entry_point("retrieve")
-    
+        if use_intent_classification:
+            workflow.set_entry_point("classify_intent")
+            workflow.add_edge("classify_intent", "retrieve")
+        else:
+            workflow.set_entry_point("retrieve")
+
     if use_rerank:
         workflow.add_edge("retrieve", "rerank")
         if use_grading:
@@ -528,57 +1085,68 @@ def create_rag_graph(
             workflow.add_edge("grade_documents", "generate")
         else:
             workflow.add_edge("retrieve", "generate")
-    
+
     workflow.add_edge("generate", END)
-    
+
     return workflow.compile()
 
 
 # --- Streaming Support ---
 
+
 async def stream_rag_response(
     question: str,
     retriever: PGVectorRetriever,
     llm: ChatOpenAI,
-    chat_history: List[tuple[str, str]] = None,
+    chat_history: list[tuple[str, str]] = None,
     use_rewrite: bool = True,
+    use_intent_classification: bool = True,
     use_rerank: bool = True,
     use_grading: bool = True,
     enable_rewrite_validation: bool = True,
     enable_rewrite_cache: bool = True,
+    enable_intent_cache: bool = True,
     max_expansion_ratio: float = 3.0,
+    rag_mode: str = "traditional",
+    project_id: Any = None,  # UUID
+    session: Any = None,  # AsyncSession
+    embedding_service: Any = None,  # EmbeddingService
 ):
     """
-    Stream RAG response token by token with enhanced pipeline.
-    
+    Stream RAG response token by token with intent-based adaptive strategies.
+
     Args:
         question: User question
         retriever: PGVector retriever
         llm: Language model
         chat_history: List of (human, ai) message tuples
         use_rewrite: Enable query rewriting
+        use_intent_classification: Enable intent classification and adaptive strategies
         use_rerank: Enable reranking
         use_grading: Enable grading
         enable_rewrite_validation: Validate rewrite quality before using
         enable_rewrite_cache: Cache rewrite results to avoid redundant LLM calls
+        enable_intent_cache: Cache intent classification results
         max_expansion_ratio: Maximum allowed expansion ratio (rewritten/original length)
-    
+
     Yields:
         dict with 'type' and 'content' keys
     """
-    logger.info(f"[Stream] Starting enhanced RAG stream for: {question[:50]}...")
-    
+    logger.info(f"[Stream] Starting adaptive RAG stream for: {question[:50]}...")
+    logger.info(f"[RAG Mode] Using RAG mode: {rag_mode}")
+
     # Initialize state
     state = {
         "question": question,
         "chat_history": chat_history or [],
     }
-    
+
     # Step 1: Query rewriting (optional)
     if use_rewrite and chat_history:
         logger.info("[Stream] Rewriting query...")
         rewrite_result = await transform_query(
-            state, llm,
+            state,
+            llm,
             enable_validation=enable_rewrite_validation,
             enable_cache=enable_rewrite_cache,
             max_expansion_ratio=max_expansion_ratio,
@@ -586,13 +1154,97 @@ async def stream_rag_response(
         state.update(rewrite_result)  # Merge instead of replace
     else:
         state["rewritten_question"] = question
-    
-    # Step 2: Retrieve documents
-    retrieve_result = await retrieve(state, retriever)
-    state.update(retrieve_result)  # Merge instead of replace
+
+    # Step 2: Intent classification (optional)
+    if use_intent_classification:
+        logger.info("[Stream] Classifying intent...")
+        intent_result = await classify_intent(
+            state,
+            llm,
+            enable_cache=enable_intent_cache,
+        )
+        state.update(intent_result)  # Merge instead of replace
+        logger.info(
+            f"[Stream] Intent: {state.get('intent_type')} "
+            f"(confidence: {state.get('intent_confidence', 0):.2f})"
+        )
+
+    # Step 3: Retrieve documents (with adaptive strategy or long context)
+    if rag_mode in ("long_context", "auto") and session and project_id and embedding_service:
+        from research_agent.config import get_settings
+        from research_agent.domain.services.document_selector import DocumentSelectorService
+        from research_agent.domain.services.token_estimator import TokenEstimator
+        from research_agent.infrastructure.llm.model_config import calculate_available_tokens
+
+        settings = get_settings()
+
+        # Calculate available tokens
+        max_tokens = calculate_available_tokens(
+            settings.llm_model, settings.long_context_safety_ratio
+        )
+        min_tokens = settings.long_context_min_tokens
+
+        logger.info(
+            f"[RAG Mode] Long context mode enabled - max_tokens={max_tokens}, "
+            f"min_tokens={min_tokens}, model={settings.llm_model}, "
+            f"safety_ratio={settings.long_context_safety_ratio}"
+        )
+
+        try:
+            # Create document selector
+            token_estimator = TokenEstimator()
+            doc_selector = DocumentSelectorService(
+                session=session,
+                embedding_service=embedding_service,
+                token_estimator=token_estimator,
+            )
+
+            # Select documents for long context
+            query = state.get("rewritten_question", state["question"])
+            selection_result = await doc_selector.select_documents_for_query(
+                query=query,
+                project_id=project_id,
+                max_tokens=max_tokens,
+                min_tokens=min_tokens,
+            )
+
+            # Convert selection result to dict for state
+            document_selection = {
+                "long_context_docs": selection_result.long_context_docs,
+                "retrieval_docs": selection_result.retrieval_docs,
+                "strategy": selection_result.strategy,
+                "total_tokens": selection_result.total_tokens,
+                "reason": selection_result.reason,
+            }
+
+            logger.info(
+                f"[RAG Mode] Document selection result: strategy={selection_result.strategy}, "
+                f"long_context_docs={len(selection_result.long_context_docs)}, "
+                f"retrieval_docs={len(selection_result.retrieval_docs)}, "
+                f"total_tokens={selection_result.total_tokens}, "
+                f"reason={selection_result.reason}"
+            )
+
+            # Retrieve using long context mode
+            retrieve_result = await retrieve_long_context(
+                state, retriever, document_selection, session
+            )
+            state.update(retrieve_result)
+        except Exception as e:
+            logger.warning(
+                f"[Stream] Long context mode failed: {e}, falling back to traditional mode",
+                exc_info=True,
+            )
+            retrieve_result = await retrieve(state, retriever)
+            state.update(retrieve_result)
+    else:
+        logger.info(f"[RAG Mode] Using traditional retrieval mode")
+        retrieve_result = await retrieve(state, retriever)
+        state.update(retrieve_result)
+
     yield {"type": "sources", "documents": state["documents"]}
-    
-    # Step 3: Rerank (optional)
+
+    # Step 4: Rerank (optional)
     if use_rerank:
         logger.info("[Stream] Reranking documents...")
         rerank_result = await rerank(state, llm)
@@ -600,8 +1252,8 @@ async def stream_rag_response(
         documents = state.get("reranked_documents", [])
     else:
         documents = state.get("documents", [])
-    
-    # Step 4: Grade documents (optional)
+
+    # Step 5: Grade documents (optional)
     if use_grading:
         logger.info("[Stream] Grading documents...")
         state["reranked_documents"] = documents  # Pass to grading
@@ -609,51 +1261,138 @@ async def stream_rag_response(
         grade_result = grade_documents(state, llm)
         state.update(grade_result)  # Merge instead of replace
         documents = state.get("filtered_documents", [])
-    
+
     filtered_count = len(documents)
     logger.info(f"[Stream] {filtered_count} documents for generation")
-    
+
     if filtered_count == 0:
         logger.warning("[Stream] No relevant documents found")
-        yield {"type": "token", "content": "I don't have enough relevant information to answer this question."}
+        yield {
+            "type": "token",
+            "content": "I don't have enough relevant information to answer this question.",
+        }
         yield {"type": "done"}
         return
-    
-    # Stream generation
-    context = "\n\n".join([doc.page_content for doc in documents])
-    logger.info(f"[Stream] Generating response with {len(context)} chars context")
-    
-    system_prompt = """You are an assistant for question-answering tasks.
-    Use the following pieces of retrieved context to answer the question.
-    If you don't know the answer, just say that you don't know.
-    Use three sentences maximum and keep the answer concise."""
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "Question: {question}\n\nContext: {context}\n\nAnswer:"),
-    ])
-    
-    # Create streaming LLM with callback
-    streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
-    chain = prompt | streaming_llm | StrOutputParser()
-    
-    # Stream tokens
-    token_count = 0
-    try:
-        async for token in chain.astream({"question": question, "context": context}):
-            token_count += 1
-            yield {"type": "token", "content": token}
-        logger.info(f"[Stream] Generation complete: {token_count} tokens")
-    except Exception as e:
-        import traceback
-        logger.error(
-            f"[Stream] Generation error: {type(e).__name__}: {e}\n"
-            f"Question: {question[:100]}...\n"
-            f"Context length: {len(context)} chars\n"
-            f"Traceback:\n{traceback.format_exc()}",
-            exc_info=True
-        )
-        yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
-    
-    yield {"type": "done"}
 
+    # Step 6: Stream generation (with adaptive strategy or long context)
+    current_rag_mode = state.get("rag_mode", "traditional")
+    long_context_content = state.get("long_context_content", "")
+
+    if current_rag_mode in ("long_context", "hybrid") and long_context_content:
+        # Use long context generation
+        logger.info(
+            f"[RAG Mode] Using long context generation mode (content_length={len(long_context_content)} chars)"
+        )
+        from research_agent.config import get_settings
+        from research_agent.infrastructure.llm.prompts.rag_prompt import (
+            LONG_CONTEXT_SYSTEM_PROMPT,
+            build_long_context_prompt,
+        )
+
+        settings = get_settings()
+        document_selection = state.get("document_selection", {})
+        long_context_docs = document_selection.get("long_context_docs", [])
+
+        # Build documents list for prompt
+        documents_for_prompt = []
+        for doc in long_context_docs:
+            documents_for_prompt.append(
+                {
+                    "document_id": str(doc.id),
+                    "filename": doc.filename,
+                    "content": long_context_content,  # Use prepared content
+                    "page_count": doc.page_count or 0,
+                }
+            )
+
+        # Build prompt
+        user_prompt = build_long_context_prompt(
+            query=question,
+            documents=documents_for_prompt,
+            citation_format=settings.citation_format,
+        )
+
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", LONG_CONTEXT_SYSTEM_PROMPT),
+                ("human", user_prompt),
+            ]
+        )
+
+        # Create streaming LLM with callback
+        streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
+        chain = prompt | streaming_llm | StrOutputParser()
+
+        # Stream tokens
+        token_count = 0
+        full_response = ""
+        try:
+            async for token in chain.astream({"question": question}):
+                token_count += 1
+                full_response += token
+                yield {"type": "token", "content": token}
+            logger.info(f"[Stream] Long context generation complete: {token_count} tokens")
+
+            # Parse citations from response
+            citations = parse_citations(full_response)
+            if citations:
+                yield {"type": "citations", "citations": citations}
+                logger.info(f"[Stream] Parsed {len(citations)} citations")
+        except Exception as e:
+            import traceback
+
+            logger.error(
+                f"[Stream] Long context generation error: {type(e).__name__}: {e}\n"
+                f"Question: {question[:100]}...\n"
+                f"Context length: {len(long_context_content)} chars\n"
+                f"Traceback:\n{traceback.format_exc()}",
+                exc_info=True,
+            )
+            yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
+    else:
+        # Use traditional generation
+        context = "\n\n".join([doc.page_content for doc in documents])
+        logger.info(f"[Stream] Generating response with {len(context)} chars context")
+
+        # Use intent-specific system prompt if available
+        generation_strategy = state.get("generation_strategy", {})
+        if generation_strategy and "system_prompt" in generation_strategy:
+            system_prompt = generation_strategy["system_prompt"]
+            logger.info(f"[Stream] Using intent-specific prompt for {state.get('intent_type')}")
+        else:
+            system_prompt = """You are an assistant for question-answering tasks.
+            Use the following pieces of retrieved context to answer the question.
+            If you don't know the answer, just say that you don't know.
+            Use three sentences maximum and keep the answer concise."""
+
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                ("human", "Question: {question}\n\nContext: {context}\n\nAnswer:"),
+            ]
+        )
+
+        # Create streaming LLM with callback
+        streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
+        chain = prompt | streaming_llm | StrOutputParser()
+
+        # Stream tokens
+        token_count = 0
+        try:
+            async for token in chain.astream({"question": question, "context": context}):
+                token_count += 1
+                yield {"type": "token", "content": token}
+            logger.info(f"[Stream] Generation complete: {token_count} tokens")
+        except Exception as e:
+            import traceback
+
+            logger.error(
+                f"[Stream] Generation error: {type(e).__name__}: {e}\n"
+                f"Question: {question[:100]}...\n"
+                f"Context length: {len(context)} chars\n"
+                f"Traceback:\n{traceback.format_exc()}",
+                exc_info=True,
+            )
+            yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
+
+    yield {"type": "done"}

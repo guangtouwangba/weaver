@@ -67,6 +67,11 @@ class DocumentModel(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+    # Long context mode fields
+    full_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Full document content for long context
+    content_token_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Cached token count
+    parsing_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)  # Parsing metadata (layout, tables, etc.)
+
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="documents")
     chunks: Mapped[List["DocumentChunkModel"]] = relationship(
@@ -95,6 +100,12 @@ class DocumentChunkModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    
+    # Citation and positioning fields
+    char_start: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Character start position in original document
+    char_end: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Character end position
+    paragraph_index: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Paragraph index
+    sentence_index: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Sentence index for precise citation
 
     # Relationships
     document: Mapped["DocumentModel"] = relationship("DocumentModel", back_populates="chunks")

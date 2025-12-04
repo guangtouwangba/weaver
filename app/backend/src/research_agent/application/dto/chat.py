@@ -20,6 +20,22 @@ class SourceReference(BaseModel):
     page_number: int
     snippet: str
     similarity: float
+    char_start: Optional[int] = None  # Character start position for citation
+    char_end: Optional[int] = None  # Character end position
+    paragraph_index: Optional[int] = None  # Paragraph index
+    sentence_index: Optional[int] = None  # Sentence index for precise citation
+
+
+class Citation(BaseModel):
+    """Citation in chat response."""
+
+    document_id: UUID
+    page_number: int
+    char_start: int
+    char_end: int
+    paragraph_index: Optional[int] = None
+    sentence_index: Optional[int] = None
+    snippet: str = ""  # Quoted text snippet
 
 
 class ChatMessageResponse(BaseModel):
@@ -27,6 +43,9 @@ class ChatMessageResponse(BaseModel):
 
     answer: str
     sources: List[SourceReference]
+    citations: Optional[List[Citation]] = None  # Citations for long context mode
+    rag_mode: Optional[str] = None  # "traditional" | "long_context" | "hybrid"
+    context_tokens: Optional[int] = None  # Number of tokens used in context
 
 
 class StreamChunk(BaseModel):

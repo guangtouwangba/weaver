@@ -111,6 +111,42 @@ class DocumentProcessorTask(BaseTask):
                     filename=doc.original_filename,
                 )
                 logger.info(f"✅ Step 3 completed: Created {len(chunk_data)} chunks")
+
+                # Step 3b: Prepare full content and metadata for long context mode
+                logger.info("📝 Step 3b: Preparing full content and metadata for long context mode")
+                try:
+                    from research_agent.domain.services.token_estimator import TokenEstimator
+
+                    # Combine all pages into full content
+                    full_content = "\n\n".join([page.content for page in pages])
+
+                    # Estimate token count
+                    token_estimator = TokenEstimator()
+                    token_count = token_estimator.estimate_tokens(full_content)
+
+                    # Prepare parsing metadata (simplified version)
+                    parsing_metadata = {
+                        "layout_type": "single_column",  # Default, can be enhanced later
+                        "page_count": page_count,
+                        "total_chunks": len(chunk_data),
+                    }
+
+                    # Update document with full content and metadata
+                    doc.full_content = full_content
+                    doc.content_token_count = token_count
+                    doc.parsing_metadata = parsing_metadata
+
+                    await session.flush()
+                    logger.info(
+                        f"✅ Step 3b completed: Saved full content ({token_count} tokens) "
+                        f"and metadata for document {document_id}"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"⚠️ Step 3b failed: Failed to save full content - document_id={document_id}: {e}",
+                        exc_info=True,
+                    )
+                    # Continue processing even if full content save fails
             except Exception as e:
                 logger.error(
                     f"❌ Step 3 failed: Chunking error - document_id={document_id}: {e}",
@@ -118,88 +154,148 @@ class DocumentProcessorTask(BaseTask):
                 )
                 raise
 
-            # Step 4: Generate embeddings
+            # Step 4: Generate embeddings (optional for long_context mode)
             if chunk_data:
-                logger.info(
-                    f"🔢 Step 4: Generating embeddings - chunk_count={len(chunk_data)}, "
-                    f"model={settings.embedding_model}"
-                )
-                try:
-                    # OpenRouter DOES support embedding API!
-                    # The curl test confirmed it works.
-                    embedding_service = OpenRouterEmbeddingService(
-                        api_key=settings.openrouter_api_key,
-                        model=settings.embedding_model,
-                    )
+                # Check if we can skip embedding generation for long_context mode
+                should_skip_embedding = False
+                skip_reason = ""
 
-                    contents = [c["content"] for c in chunk_data]
-                    logger.debug(
-                        f"First chunk preview: {contents[0][:100]}..."
-                        if contents
-                        else "No contents"
-                    )
-
-                    try:
-                        embeddings = await embedding_service.embed_batch(contents)
-                        logger.info(f"✅ Step 4a completed: Generated {len(embeddings)} embeddings")
-                    except Exception as e:
-                        logger.error(
-                            f"❌ Step 4a failed: Embedding generation error - "
-                            f"document_id={document_id}, chunk_count={len(contents)}, "
-                            f"model={settings.embedding_model}: {e}",
-                            exc_info=True,
+                if settings.rag_mode == "long_context":
+                    # Check if document fits in context and we have full_content
+                    if doc.full_content and doc.content_token_count:
+                        from research_agent.infrastructure.llm.model_config import (
+                            calculate_available_tokens,
                         )
-                        raise
 
-                    # Save chunks with embeddings in batches to avoid connection timeout
-                    # Large batch inserts can cause "connection is closed" errors
-                    logger.debug(f"💾 Saving {len(chunk_data)} chunks to database in batches")
+                        max_tokens = calculate_available_tokens(
+                            settings.llm_model, settings.long_context_safety_ratio
+                        )
+                        if doc.content_token_count <= max_tokens:
+                            should_skip_embedding = True
+                            skip_reason = (
+                                f"Long context mode: document fits in context "
+                                f"({doc.content_token_count} <= {max_tokens} tokens), "
+                                f"embedding not needed for retrieval"
+                            )
 
-                    batch_size = 50  # Insert chunks in batches of 50
+                if should_skip_embedding:
+                    logger.info(f"⏭️ Step 4 skipped: {skip_reason}")
+                    logger.info(
+                        f"💾 Saving {len(chunk_data)} chunks without embeddings "
+                        f"(for citation/reference purposes only)"
+                    )
+
+                    # Still save chunks (without embeddings) for citation/reference purposes
+                    batch_size = 50
                     total_chunks = len(chunk_data)
                     saved_count = 0
 
                     for i in range(0, total_chunks, batch_size):
                         batch_end = min(i + batch_size, total_chunks)
                         batch_chunks = chunk_data[i:batch_end]
-                        batch_embeddings = embeddings[i:batch_end]
 
-                        logger.debug(
-                            f"💾 Saving batch {i // batch_size + 1}/{(total_chunks + batch_size - 1) // batch_size} "
-                            f"(chunks {i + 1}-{batch_end} of {total_chunks})"
-                        )
-
-                        for chunk, embedding in zip(batch_chunks, batch_embeddings):
+                        for chunk in batch_chunks:
                             chunk_model = DocumentChunkModel(
                                 document_id=document_id,
                                 project_id=project_id,
                                 chunk_index=chunk["chunk_index"],
                                 content=chunk["content"],
                                 page_number=chunk.get("page_number"),
-                                embedding=embedding,
+                                embedding=None,  # No embedding for long_context mode
                                 chunk_metadata=chunk.get("metadata", {}),
                             )
                             session.add(chunk_model)
 
-                        # Flush each batch separately
                         await session.flush()
                         saved_count += len(batch_chunks)
 
-                        logger.debug(
-                            f"✅ Batch saved: {saved_count}/{total_chunks} chunks saved so far"
+                    logger.info(
+                        f"✅ Step 4 completed: Saved {saved_count} chunks without embeddings"
+                    )
+                else:
+                    # Generate embeddings (needed for traditional mode, hybrid mode, or document selection)
+                    logger.info(
+                        f"🔢 Step 4: Generating embeddings - chunk_count={len(chunk_data)}, "
+                        f"model={settings.embedding_model}, rag_mode={settings.rag_mode}"
+                    )
+                    try:
+                        # OpenRouter DOES support embedding API!
+                        # The curl test confirmed it works.
+                        embedding_service = OpenRouterEmbeddingService(
+                            api_key=settings.openrouter_api_key,
+                            model=settings.embedding_model,
                         )
 
-                    logger.info(
-                        f"✅ Step 4b completed: Saved {saved_count} chunks with embeddings "
-                        f"in {(total_chunks + batch_size - 1) // batch_size} batches"
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"❌ Step 4 failed: Embedding or chunk saving error - "
-                        f"document_id={document_id}: {e}",
-                        exc_info=True,
-                    )
-                    raise
+                        contents = [c["content"] for c in chunk_data]
+                        logger.debug(
+                            f"First chunk preview: {contents[0][:100]}..."
+                            if contents
+                            else "No contents"
+                        )
+
+                        try:
+                            embeddings = await embedding_service.embed_batch(contents)
+                            logger.info(
+                                f"✅ Step 4a completed: Generated {len(embeddings)} embeddings"
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"❌ Step 4a failed: Embedding generation error - "
+                                f"document_id={document_id}, chunk_count={len(contents)}, "
+                                f"model={settings.embedding_model}: {e}",
+                                exc_info=True,
+                            )
+                            raise
+
+                        # Save chunks with embeddings in batches to avoid connection timeout
+                        # Large batch inserts can cause "connection is closed" errors
+                        logger.debug(f"💾 Saving {len(chunk_data)} chunks to database in batches")
+
+                        batch_size = 50  # Insert chunks in batches of 50
+                        total_chunks = len(chunk_data)
+                        saved_count = 0
+
+                        for i in range(0, total_chunks, batch_size):
+                            batch_end = min(i + batch_size, total_chunks)
+                            batch_chunks = chunk_data[i:batch_end]
+                            batch_embeddings = embeddings[i:batch_end]
+
+                            logger.debug(
+                                f"💾 Saving batch {i // batch_size + 1}/{(total_chunks + batch_size - 1) // batch_size} "
+                                f"(chunks {i + 1}-{batch_end} of {total_chunks})"
+                            )
+
+                            for chunk, embedding in zip(batch_chunks, batch_embeddings):
+                                chunk_model = DocumentChunkModel(
+                                    document_id=document_id,
+                                    project_id=project_id,
+                                    chunk_index=chunk["chunk_index"],
+                                    content=chunk["content"],
+                                    page_number=chunk.get("page_number"),
+                                    embedding=embedding,
+                                    chunk_metadata=chunk.get("metadata", {}),
+                                )
+                                session.add(chunk_model)
+
+                            # Flush each batch separately
+                            await session.flush()
+                            saved_count += len(batch_chunks)
+
+                            logger.debug(
+                                f"✅ Batch saved: {saved_count}/{total_chunks} chunks saved so far"
+                            )
+
+                        logger.info(
+                            f"✅ Step 4b completed: Saved {saved_count} chunks with embeddings "
+                            f"in {(total_chunks + batch_size - 1) // batch_size} batches"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"❌ Step 4 failed: Embedding or chunk saving error - "
+                            f"document_id={document_id}: {e}",
+                            exc_info=True,
+                        )
+                        raise
             else:
                 logger.warning(
                     f"⚠️ Step 4 skipped: No chunks to process - document_id={document_id}"

@@ -10,3 +10,4 @@ export const customShapeUtils = [KnowledgeNodeUtil]
 // Export shape types for TypeScript
 export type CustomShapes = typeof KnowledgeNodeUtil
 
+

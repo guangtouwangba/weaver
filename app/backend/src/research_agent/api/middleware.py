@@ -19,7 +19,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Note: We don't read request body here because it conflicts with
         # BaseHTTPMiddleware's internal state, especially for streaming endpoints.
         # The question content will be logged at the endpoint level if needed.
-        
+
         # Log request
         logger.info(f"Request: {request.method} {request.url.path}")
 

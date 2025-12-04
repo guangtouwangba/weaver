@@ -14,7 +14,7 @@ from research_agent.worker.service import TaskQueueService
 class BackgroundWorker:
     """
     Background worker that polls the task queue and processes tasks.
-    
+
     Uses a database-backed queue for persistence and supports
     graceful shutdown.
     """
@@ -28,7 +28,7 @@ class BackgroundWorker:
     ):
         """
         Initialize the background worker.
-        
+
         Args:
             dispatcher: Task dispatcher for routing tasks
             session_factory: Factory function to create database sessions
@@ -48,57 +48,58 @@ class BackgroundWorker:
         if self._running:
             logger.warning("Worker is already running")
             return
-        
+
         self._running = True
         self._shutdown_event = asyncio.Event()
-        
+
         from research_agent.config import get_settings
+
         env_settings = get_settings()
-        
+
         logger.info("Background worker started")
         logger.info(f"Environment: {env_settings.environment}")  # ✅ Show current environment
-        logger.info(f"Poll interval: {self._poll_interval}s, Max concurrent: {self._max_concurrent_tasks}")
+        logger.info(
+            f"Poll interval: {self._poll_interval}s, Max concurrent: {self._max_concurrent_tasks}"
+        )
         logger.info(f"Registered task types: {self._dispatcher.get_registered_types()}")
-        logger.info(f"⚠️  Worker will ONLY process tasks from environment '{env_settings.environment}'")
-        
+        logger.info(
+            f"⚠️  Worker will ONLY process tasks from environment '{env_settings.environment}'"
+        )
+
         while self._running:
             try:
                 await self._poll_and_process()
             except Exception as e:
                 logger.error(f"Error in worker loop: {e}", exc_info=True)
-            
+
             # Wait for poll interval or shutdown signal
             try:
-                await asyncio.wait_for(
-                    self._shutdown_event.wait(),
-                    timeout=self._poll_interval
-                )
+                await asyncio.wait_for(self._shutdown_event.wait(), timeout=self._poll_interval)
                 # Shutdown was signaled
                 break
             except asyncio.TimeoutError:
                 # Normal timeout, continue polling
                 pass
-        
+
         logger.info("Background worker stopped")
 
     async def stop(self) -> None:
         """Stop the background worker gracefully."""
         if not self._running:
             return
-        
+
         logger.info("Stopping background worker...")
         self._running = False
-        
+
         if self._shutdown_event:
             self._shutdown_event.set()
-        
+
         # Wait for current tasks to complete (with timeout)
         if self._current_tasks:
             logger.info(f"Waiting for {len(self._current_tasks)} tasks to complete...")
             try:
                 await asyncio.wait_for(
-                    asyncio.gather(*self._current_tasks, return_exceptions=True),
-                    timeout=30.0
+                    asyncio.gather(*self._current_tasks, return_exceptions=True), timeout=30.0
                 )
             except asyncio.TimeoutError:
                 logger.warning("Timeout waiting for tasks, some tasks may be interrupted")
@@ -108,16 +109,16 @@ class BackgroundWorker:
         # Check if we can take more tasks
         if len(self._current_tasks) >= self._max_concurrent_tasks:
             return
-        
+
         async with self._session_factory() as session:
             service = TaskQueueService(session)
-            
+
             # Try to get a task
             task = await service.pop()
-            
+
             if task:
                 await session.commit()
-                
+
                 # Process task in background
                 task_coro = self._process_task(task)
                 task_future = asyncio.create_task(task_coro)
@@ -130,27 +131,27 @@ class BackgroundWorker:
             f"🔄 Processing task - task_id={task.id}, task_type={task.task_type.value}, "
             f"attempts={task.attempts}/{task.max_attempts}, payload_keys={list(task.payload.keys())}"
         )
-        
+
         async with self._session_factory() as session:
             service = TaskQueueService(session)
-            
+
             try:
                 # Execute the task
                 await self._dispatcher.dispatch(task, session)
-                
+
                 # Mark as completed
                 await service.complete(task.id)
                 await session.commit()
-                
+
                 logger.info(
                     f"✅ Task completed successfully - task_id={task.id}, "
                     f"task_type={task.task_type.value}"
                 )
-                
+
             except Exception as e:
                 error_type = type(e).__name__
                 error_message = str(e)
-                
+
                 logger.error(
                     f"❌ Task execution failed - task_id={task.id}, "
                     f"task_type={task.task_type.value}, error_type={error_type}, "
@@ -158,7 +159,7 @@ class BackgroundWorker:
                     f"payload={task.payload}",
                     exc_info=True,
                 )
-                
+
                 try:
                     await session.rollback()
                     logger.debug(f"✅ Session rolled back for task {task.id}")
@@ -168,21 +169,20 @@ class BackgroundWorker:
                         f"rollback_error={rollback_error}",
                         exc_info=True,
                     )
-                
+
                 # Mark as failed
                 try:
                     async with self._session_factory() as fail_session:
                         fail_service = TaskQueueService(fail_session)
                         await fail_service.fail(task.id, str(e))
                         await fail_session.commit()
-                    logger.info(
-                        f"✅ Task marked as failed - task_id={task.id}, "
-                        f"error_message={error_message[:200]}"
-                    )
+                        logger.info(
+                            f"✅ Task marked as failed - task_id={task.id}, "
+                            f"error_message={error_message[:200]}"
+                        )
                 except Exception as fail_error:
                     logger.error(
                         f"❌ CRITICAL: Failed to mark task as failed - task_id={task.id}, "
                         f"original_error={error_message}, fail_error={fail_error}",
                         exc_info=True,
                     )
-
