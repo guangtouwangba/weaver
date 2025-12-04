@@ -43,10 +43,21 @@ class AsyncpgErrorFilter:
                     self._suppressing = False
                     return
                 # If it's something else, stop suppressing and flush
-                if text.strip() and not any(x in text for x in [
-                    "Traceback", "File ", "line ", "asyncpg", "sqlalchemy",
-                    "await", "TimeoutError", "close", "connection", "pool"
-                ]):
+                if text.strip() and not any(
+                    x in text
+                    for x in [
+                        "Traceback",
+                        "File ",
+                        "line ",
+                        "asyncpg",
+                        "sqlalchemy",
+                        "await",
+                        "TimeoutError",
+                        "close",
+                        "connection",
+                        "pool",
+                    ]
+                ):
                     # This is different content, stop suppressing and output
                     self._suppressing = False
                     self.original_stderr.write(self._buffer + text)
