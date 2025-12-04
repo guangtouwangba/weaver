@@ -10,6 +10,7 @@ import { Stage, Layer, Group, Rect, Text, Line, Arrow } from 'react-konva';
 import Konva from 'konva';
 import { Box, Typography } from '@mui/material';
 import { Layout } from 'lucide-react';
+import { useStudio } from '@/contexts/StudioContext';
 
 interface CanvasNode {
   id: string;
@@ -177,6 +178,7 @@ export default function KonvaCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
+  const { dragPreview, setDragPreview, dragContentRef } = useStudio();
 
   // Update dimensions on resize
   useEffect(() => {
@@ -372,6 +374,90 @@ export default function KonvaCanvas({
           position: 'relative',
           overflow: 'hidden'
         }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+
+          // Update drag preview position while dragging AI response
+          if (dragContentRef.current && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
+            const canvasX = (screenX - viewport.x) / viewport.scale;
+            const canvasY = (screenY - viewport.y) / viewport.scale;
+
+            setDragPreview({
+              x: canvasX,
+              y: canvasY,
+              content: dragContentRef.current,
+            });
+          }
+        }}
+        onDragLeave={() => {
+          setDragPreview(null);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          if (!containerRef.current) return;
+
+          const rect = containerRef.current.getBoundingClientRect();
+          const screenX = e.clientX - rect.left;
+          const screenY = e.clientY - rect.top;
+          const canvasX = (screenX - viewport.x) / viewport.scale;
+          const canvasY = (screenY - viewport.y) / viewport.scale;
+
+          // Center the card on mouse position (card width: 280, height: 200)
+          const cardWidth = 280;
+          const cardHeight = 200;
+          const centeredX = canvasX - cardWidth / 2;
+          const centeredY = canvasY - cardHeight / 2;
+
+          let handled = false;
+
+          const jsonData = e.dataTransfer.getData('application/json');
+          if (jsonData && onNodeAdd) {
+            try {
+              const data = JSON.parse(jsonData);
+              if (data.type === 'ai_response') {
+                onNodeAdd({
+                  type: 'ai_insight',
+                  title: data.source?.query || 'AI Insight',
+                  content: data.content,
+                  x: centeredX,
+                  y: centeredY,
+                  width: cardWidth,
+                  height: cardHeight,
+                  color: 'blue',
+                  tags: ['#ai'],
+                });
+                handled = true;
+              }
+            } catch {
+              // ignore JSON parse errors
+            }
+          }
+
+          if (!handled && onNodeAdd) {
+            const text = e.dataTransfer.getData('text/plain');
+            if (text) {
+              onNodeAdd({
+                type: 'card',
+                title: 'New Insight',
+                content: text,
+                x: centeredX,
+                y: centeredY,
+                width: cardWidth,
+                height: cardHeight,
+                color: 'blue',
+                tags: ['#from-drag'],
+              });
+            }
+          }
+
+          setDragPreview(null);
+        }}
       >
         <Stage
           ref={stageRef}
@@ -415,6 +501,57 @@ export default function KonvaCanvas({
                 onDragEnd={handleNodeDragEnd(node.id)}
               />
             ))}
+
+            {/* Drag Preview for AI Insight */}
+            {dragPreview && (
+              <Group
+                x={dragPreview.x - 140}
+                y={dragPreview.y - 100}
+                opacity={0.7}
+                listening={false}
+              >
+                <Rect
+                  width={280}
+                  height={200}
+                  fill="white"
+                  cornerRadius={12}
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  dash={[6, 4]}
+                  shadowColor="black"
+                  shadowBlur={8}
+                  shadowOpacity={0.15}
+                  shadowOffsetY={4}
+                />
+                <Rect
+                  y={0}
+                  width={280}
+                  height={4}
+                  fill="#3B82F6"
+                  cornerRadius={[12, 12, 0, 0]}
+                />
+                <Text
+                  x={16}
+                  y={16}
+                  width={280 - 32}
+                  text="AI Insight"
+                  fontSize={12}
+                  fontStyle="bold"
+                  fill="#1F2937"
+                />
+                <Text
+                  x={16}
+                  y={40}
+                  width={280 - 32}
+                  height={130}
+                  text={dragPreview.content}
+                  fontSize={12}
+                  fill="#6B7280"
+                  wrap="word"
+                  ellipsis
+                />
+              </Group>
+            )}
           </Layer>
         </Stage>
       </Box>

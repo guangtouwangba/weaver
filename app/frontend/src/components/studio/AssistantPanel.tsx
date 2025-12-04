@@ -23,6 +23,7 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
+  GripHorizontal,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { chatApi } from '@/lib/api';
@@ -34,7 +35,7 @@ interface AssistantPanelProps {
 }
 
 export default function AssistantPanel({ visible, width, onToggle }: AssistantPanelProps) {
-  const { projectId, chatMessages, setChatMessages, activeDocumentId, addNodeToCanvas, navigateToSource } = useStudio();
+  const { projectId, chatMessages, setChatMessages, activeDocumentId, addNodeToCanvas, navigateToSource, setDragPreview, dragContentRef } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
@@ -82,7 +83,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               id: aiMsgId,
               role: 'ai',
               content: '',
-              timestamp: new Date()
+              timestamp: new Date(),
+              query: userInput,
           }]);
         });
 
@@ -207,6 +209,64 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                     color: msg.role === 'user' ? '#1E40AF' : 'text.primary'
                 }}
             >
+              {msg.role === 'ai' && msg.content ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main' }}>
+                    <Bot size={14} />
+                    <Typography variant="caption" fontWeight="bold">
+                      AI Assistant
+                    </Typography>
+                  </Box>
+                  {/* Drag handle - only this area is draggable to keep text selection intact */}
+                  <Tooltip title="Drag answer to Canvas">
+                    <IconButton
+                      size="small"
+                      sx={{ 
+                        cursor: 'grab', 
+                        color: 'text.secondary',
+                        '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+                      }}
+                      draggable
+                      onDragStart={(e) => {
+                        const selection = window.getSelection();
+                        const selectedText = selection && selection.toString().trim().length > 0 
+                          ? selection.toString()
+                          : undefined;
+                        const content = selectedText || msg.content;
+
+                        // Cache content for drag preview
+                        dragContentRef.current = content;
+                        setDragPreview({ x: 0, y: 0, content });
+
+                        const payload = {
+                          type: 'ai_response',
+                          content,
+                          source: {
+                            type: 'chat',
+                            messageId: msg.id,
+                            timestamp: msg.timestamp.toISOString(),
+                            query: msg.query || '',
+                          },
+                        };
+
+                        e.dataTransfer.effectAllowed = 'copy';
+                        e.dataTransfer.setData('application/json', JSON.stringify(payload));
+                        e.dataTransfer.setData('text/plain', content);
+                      }}
+                      onDragEnd={() => {
+                        dragContentRef.current = null;
+                        setDragPreview(null);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
+                      <GripHorizontal size={14} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ) : null}
+
               {msg.role === 'ai' && !msg.content && isLoading ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CircularProgress size={12} />

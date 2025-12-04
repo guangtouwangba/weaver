@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { ProjectDocument, CanvasNode, CanvasEdge, documentsApi, canvasApi, chatApi } from '@/lib/api';
 
 interface ChatMessage {
@@ -14,6 +14,8 @@ interface ChatMessage {
     similarity: number;
   }>;
   timestamp: Date;
+  // Optional: original user query that triggered this AI response
+  query?: string;
 }
 
 interface StudioContextType {
@@ -49,6 +51,11 @@ interface StudioContextType {
     pageNumber: number;
     searchText?: string;
   } | null;
+  
+  // Drag Preview
+  dragPreview: { x: number; y: number; content: string } | null;
+  setDragPreview: (preview: { x: number; y: number; content: string } | null) => void;
+  dragContentRef: React.MutableRefObject<string | null>;
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
@@ -80,6 +87,10 @@ export function StudioProvider({
     pageNumber: number;
     searchText?: string;
   } | null>(null);
+  
+  // Drag preview state
+  const [dragPreview, setDragPreview] = useState<{ x: number; y: number; content: string } | null>(null);
+  const dragContentRef = useRef<string | null>(null);
 
   const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
     const newNode: CanvasNode = {
@@ -176,6 +187,9 @@ export function StudioProvider({
     saveCanvas,
     navigateToSource,
     sourceNavigation,
+    dragPreview,
+    setDragPreview,
+    dragContentRef,
   };
 
   return (
