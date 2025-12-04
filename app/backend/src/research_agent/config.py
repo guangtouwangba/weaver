@@ -38,8 +38,12 @@ def find_env_file() -> str:
 
 
 _env_file_path = find_env_file()
-print(f"[Config] Loading .env from: {_env_file_path}")
-print(f"[Config] File exists: {Path(_env_file_path).exists()}")
+_env_file_exists = Path(_env_file_path).exists()
+if _env_file_exists:
+    print(f"[Config] Loading .env from: {_env_file_path}")
+else:
+    # This is normal in production - Zeabur/Docker uses environment variables directly
+    print(f"[Config] No .env file found (using environment variables instead)")
 
 
 class Settings(BaseSettings):
