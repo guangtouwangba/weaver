@@ -1,6 +1,7 @@
 """Chat API endpoints."""
 
 import json
+import time
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db, get_embedding_service, get_llm_service
+from research_agent.shared.utils.logger import logger
 from research_agent.application.dto.chat import (
     ChatHistoryResponse,
     ChatMessageRequest,
@@ -47,6 +49,8 @@ async def send_message(
     embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
 ) -> ChatMessageResponse:
     """Send a chat message and get RAG response."""
+    start_time = time.time()
+    
     # Create services
     vector_store = PgVectorStore(session)
     retrieval_service = RetrievalService(
@@ -65,6 +69,15 @@ async def send_message(
             message=request.message,
             document_id=request.document_id,
         )
+    )
+    
+    # Log chat request with question for Grafana
+    duration_ms = round((time.time() - start_time) * 1000, 2)
+    question_short = request.message[:200] + "..." if len(request.message) > 200 else request.message
+    logger.info(
+        f"ChatRequest: endpoint_type=chat duration_ms={duration_ms} "
+        f"question_length={len(request.message)} question=\"{question_short}\" | "
+        f"JSON: {json.dumps({'endpoint_type': 'chat', 'duration_ms': duration_ms, 'question': question_short, 'question_length': len(request.message)}, ensure_ascii=False)}"
     )
 
     return ChatMessageResponse(
@@ -91,6 +104,16 @@ async def stream_message(
     """Send a chat message and get streaming RAG response (SSE) using LangGraph."""
     from research_agent.config import get_settings
     settings = get_settings()
+    
+    start_time = time.time()
+    question_short = request.message[:200] + "..." if len(request.message) > 200 else request.message
+    
+    # Log chat stream request start with question for Grafana
+    logger.info(
+        f"ChatStreamStart: endpoint_type=chat_stream question_length={len(request.message)} "
+        f"question=\"{question_short}\" | "
+        f"JSON: {json.dumps({'endpoint_type': 'chat_stream', 'question': question_short, 'question_length': len(request.message)}, ensure_ascii=False)}"
+    )
 
     use_case = StreamMessageUseCase(
         session=session,
@@ -126,6 +149,13 @@ async def stream_message(
             elif event.type == "error":
                 data = {"type": "error", "content": event.content}
             else:
+                # Log stream completion with duration
+                duration_ms = round((time.time() - start_time) * 1000, 2)
+                logger.info(
+                    f"ChatStreamEnd: endpoint_type=chat_stream duration_ms={duration_ms} "
+                    f"question_length={len(request.message)} | "
+                    f"JSON: {json.dumps({'endpoint_type': 'chat_stream', 'duration_ms': duration_ms, 'question_length': len(request.message)}, ensure_ascii=False)}"
+                )
                 data = {"type": "done"}
 
             yield f"data: {json.dumps(data)}\n\n"

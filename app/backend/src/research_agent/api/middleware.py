@@ -16,34 +16,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         start_time = time.time()
         
-        # Extract request body for chat endpoints (to log the question)
-        question = None
-        if request.method == "POST" and "/chat" in str(request.url.path):
-            try:
-                # Save original receive function
-                original_receive = request.receive
-                
-                # Read body
-                body_bytes = await request.body()
-                if body_bytes:
-                    request_body = json.loads(body_bytes)
-                    question = request_body.get("message", "")
-                    
-                    # Restore body for downstream handlers with proper state management
-                    body_sent = False
-                    
-                    async def receive():
-                        nonlocal body_sent
-                        if not body_sent:
-                            body_sent = True
-                            return {"type": "http.request", "body": body_bytes}
-                        # After first call, delegate to original receive for disconnect events
-                        return await original_receive()
-                    
-                    request._receive = receive
-            except Exception:
-                pass  # Ignore parsing errors
-
+        # Note: We don't read request body here because it conflicts with
+        # BaseHTTPMiddleware's internal state, especially for streaming endpoints.
+        # The question content will be logged at the endpoint level if needed.
+        
         # Log request
         logger.info(f"Request: {request.method} {request.url.path}")
 
@@ -62,13 +38,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             "duration_ms": duration_ms,
         }
         
-        # Add question for chat endpoints
-        if question:
-            # Truncate long questions for readability
-            question_short = question[:200] + "..." if len(question) > 200 else question
-            log_data["question"] = question_short
-            log_data["question_length"] = len(question)
+        # Mark chat endpoints for filtering in Grafana
+        if "/chat" in str(request.url.path):
             log_data["endpoint_type"] = "chat"
+            if "/stream" in str(request.url.path):
+                log_data["endpoint_type"] = "chat_stream"
         
         # Log as JSON for easier parsing in Grafana
         logger.info(
