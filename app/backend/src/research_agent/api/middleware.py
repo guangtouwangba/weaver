@@ -20,15 +20,26 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         question = None
         if request.method == "POST" and "/chat" in str(request.url.path):
             try:
-                # Read body and restore it for downstream handlers
+                # Save original receive function
+                original_receive = request.receive
+                
+                # Read body
                 body_bytes = await request.body()
                 if body_bytes:
                     request_body = json.loads(body_bytes)
                     question = request_body.get("message", "")
                     
-                    # Restore body for FastAPI handlers
+                    # Restore body for downstream handlers with proper state management
+                    body_sent = False
+                    
                     async def receive():
-                        return {"type": "http.request", "body": body_bytes}
+                        nonlocal body_sent
+                        if not body_sent:
+                            body_sent = True
+                            return {"type": "http.request", "body": body_bytes}
+                        # After first call, delegate to original receive for disconnect events
+                        return await original_receive()
+                    
                     request._receive = receive
             except Exception:
                 pass  # Ignore parsing errors
