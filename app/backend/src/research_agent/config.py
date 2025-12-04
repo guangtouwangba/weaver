@@ -110,6 +110,10 @@ class Settings(BaseSettings):
     # Evaluation - Ragas
     evaluation_enabled: bool = False
     evaluation_sample_rate: float = 0.1  # Evaluate 10% of queries by default
+    
+    # Retrieval Configuration
+    retrieval_top_k: int = 5  # Number of top similar documents to retrieve for RAG
+    retrieval_min_similarity: float = 0.0  # Minimum similarity threshold (0.0 = no filter)
 
     @property
     def cors_origins_list(self) -> List[str]:

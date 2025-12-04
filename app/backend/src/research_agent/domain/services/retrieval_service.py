@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List
 from uuid import UUID
 
+from research_agent.config import get_settings
 from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.infrastructure.vector_store.base import SearchResult, VectorStore
 
@@ -12,8 +13,16 @@ from research_agent.infrastructure.vector_store.base import SearchResult, Vector
 class RetrievalConfig:
     """Retrieval configuration."""
 
-    top_k: int = 5
-    min_similarity: float = 0.0
+    top_k: int | None = None  # If None, will use settings.retrieval_top_k
+    min_similarity: float | None = None  # If None, will use settings.retrieval_min_similarity
+    
+    def __post_init__(self):
+        """Initialize from settings if not explicitly provided."""
+        settings = get_settings()
+        if self.top_k is None:
+            self.top_k = settings.retrieval_top_k
+        if self.min_similarity is None:
+            self.min_similarity = settings.retrieval_min_similarity
 
 
 class RetrievalService:

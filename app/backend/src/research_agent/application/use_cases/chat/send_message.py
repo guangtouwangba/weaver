@@ -1,9 +1,10 @@
 """Send message use case (non-streaming)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 from uuid import UUID
 
+from research_agent.config import get_settings
 from research_agent.domain.services.retrieval_service import RetrievalService
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
 from research_agent.infrastructure.llm.prompts.rag_prompt import SYSTEM_PROMPT, build_rag_prompt
@@ -20,6 +21,11 @@ class SourceRef:
     similarity: float
 
 
+def _get_default_top_k() -> int:
+    """Get default top_k from settings."""
+    return get_settings().retrieval_top_k
+
+
 @dataclass
 class SendMessageInput:
     """Input for send message use case."""
@@ -27,7 +33,7 @@ class SendMessageInput:
     project_id: UUID
     message: str
     document_id: Optional[UUID] = None
-    top_k: int = 5
+    top_k: int = field(default_factory=_get_default_top_k)
 
 
 @dataclass

@@ -35,6 +35,11 @@ class SourceRef:
     similarity: float
 
 
+def _get_default_top_k() -> int:
+    """Get default top_k from settings."""
+    return settings.retrieval_top_k
+
+
 @dataclass
 class StreamMessageInput:
     """Input for stream message use case."""
@@ -42,7 +47,7 @@ class StreamMessageInput:
     project_id: UUID
     message: str
     document_id: Optional[UUID] = None
-    top_k: int = 5
+    top_k: int = field(default_factory=_get_default_top_k)
     use_hybrid_search: bool = False  # Enable hybrid search (vector + keyword)
     use_rewrite: bool = True  # Enable query rewriting with chat history
     use_rerank: bool = False  # Enable LLM-based reranking (expensive)

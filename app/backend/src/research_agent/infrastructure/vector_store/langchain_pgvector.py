@@ -7,9 +7,12 @@ from langchain_core.documents import Document as LangChainDocument
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 
+from research_agent.config import get_settings
 from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.shared.utils.logger import logger
+
+settings = get_settings()
 
 
 class PGVectorRetriever(BaseRetriever):
@@ -18,7 +21,7 @@ class PGVectorRetriever(BaseRetriever):
     vector_store: PgVectorStore
     embedding_service: EmbeddingService
     project_id: UUID
-    k: int = 5
+    k: int = settings.retrieval_top_k  # Default from settings
     use_hybrid_search: bool = False  # Enable hybrid search
     vector_weight: float = 0.7
     keyword_weight: float = 0.3
@@ -85,7 +88,7 @@ def create_pgvector_retriever(
     vector_store: PgVectorStore,
     embedding_service: EmbeddingService,
     project_id: UUID,
-    k: int = 5,
+    k: int | None = None,
     use_hybrid_search: bool = False,
     vector_weight: float = 0.7,
     keyword_weight: float = 0.3,
@@ -97,11 +100,14 @@ def create_pgvector_retriever(
         vector_store: PGVector store instance
         embedding_service: Embedding service
         project_id: Project UUID
-        k: Number of results to return
+        k: Number of results to return (defaults to settings.retrieval_top_k)
         use_hybrid_search: Whether to use hybrid search (vector + keyword)
         vector_weight: Weight for vector search in hybrid mode
         keyword_weight: Weight for keyword search in hybrid mode
     """
+    if k is None:
+        k = settings.retrieval_top_k
+    
     return PGVectorRetriever(
         vector_store=vector_store,
         embedding_service=embedding_service,
