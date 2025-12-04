@@ -8,6 +8,7 @@ import PodcastView from "./PodcastView";
 import WriterView from "./WriterView";
 import ProjectInitializer from "@/components/studio/ProjectInitializer";
 import { NodeInspector } from "@/components/studio/NodeInspector";
+import PDFViewer from "@/components/studio/PDFViewer";
 import { 
   Box, 
   Typography, 
@@ -2019,90 +2020,106 @@ function StudioPageContent() {
         {type === 'pdf' && (
           <Box 
             data-pdf-viewer
-            sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }} 
+            sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             onClick={handleCloseContextMenu}
           >
-            <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>3.2 Attention</Typography>
-            <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>An attention function can be described as mapping a query and a set of key-value pairs to an output.</Typography>
-            
-            {/* Highlighted Text Area simulating user selection */}
-            <Box 
-              component="span"
-              onContextMenu={handleContextMenu}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("text/plain", "The output is computed as a weighted sum of the values.");
-                e.dataTransfer.effectAllowed = "copy";
-                setIsDraggingFromPdf(true);
-              }}
-              onDragEnd={() => {
-                setIsDraggingFromPdf(false);
-              }}
-              sx={{ 
-                bgcolor: sourceNavigation?.searchText?.includes('output is computed') ? '#FFEB3B' : '#FFF9C4', 
-                p: 0.5, 
-                borderRadius: 1, 
-                mx: -0.5,
-                cursor: 'text',
-                display: 'inline',
-                border: '1px solid transparent',
-                '&:hover': { border: '1px dashed', borderColor: 'orange.300', cursor: 'grab' } 
-              }}
-            >
-              <Typography component="span" variant="body1" sx={{ lineHeight: 1.8, fontWeight: 500 }}>The output is computed as a weighted sum of the values.</Typography>
-            </Box>
-            
-            {/* Additional content that can be highlighted based on source navigation */}
-            {sourceNavigation && sourceNavigation.resourceId === activeResource.id && sourceNavigation.searchText && (
-              <Typography 
-                variant="body1" 
-                paragraph 
-                sx={{ 
-                  lineHeight: 1.8, 
-                  color: 'text.secondary',
-                  mt: 2,
-                  '& .highlighted-text': {
-                    bgcolor: '#FFEB3B',
-                    borderRadius: '2px',
-                    padding: '1px 2px',
-                    fontWeight: 500,
-                  }
-                }}
-              >
-                {sourceNavigation.searchText.toLowerCase().includes('bert') && activeResource.title.includes('BERT') && (
-                  <>
-                    BERT is designed to{' '}
-                    <Box component="span" className="highlighted-text">
-                      pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers
-                    </Box>
-                    . This approach allows the model to understand the full context of a word by looking at both its left and right neighbors simultaneously.
-                  </>
-                )}
-                {sourceNavigation.searchText.toLowerCase().includes('transformer') && activeResource.title.includes('Attention') && (
-                  <>
-                    The{' '}
-                    <Box component="span" className="highlighted-text">
-                      Transformer model relies entirely on self-attention to compute representations
-                    </Box>
-                    {' '}of its input and output without using sequence-aligned RNNs or convolution.
-                  </>
-                )}
-                {!sourceNavigation.searchText.toLowerCase().includes('bert') && !sourceNavigation.searchText.toLowerCase().includes('transformer') && (
-                  <>
-                    <Box component="span" className="highlighted-text">
-                      {sourceNavigation.searchText}
-                    </Box>
-                    {' '}This is the relevant content from the document that matches your query.
-                  </>
-                )}
-              </Typography>
-            )}
+            <PDFViewer
+              documentId={activeResource.id}
+              content={
+                <Box sx={{ p: 4 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>3.2 Attention</Typography>
+                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>An attention function can be described as mapping a query and a set of key-value pairs to an output.</Typography>
+                  
+                  {/* Highlighted Text Area simulating user selection */}
+                  <Box 
+                    component="span"
+                    onContextMenu={handleContextMenu}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", "The output is computed as a weighted sum of the values.");
+                      e.dataTransfer.effectAllowed = "copy";
+                      setIsDraggingFromPdf(true);
+                    }}
+                    onDragEnd={() => {
+                      setIsDraggingFromPdf(false);
+                    }}
+                    sx={{ 
+                      bgcolor: sourceNavigation?.searchText?.includes('output is computed') ? '#FFEB3B' : '#FFF9C4', 
+                      p: 0.5, 
+                      borderRadius: 1, 
+                      mx: -0.5,
+                      cursor: 'text',
+                      display: 'inline',
+                      border: '1px solid transparent',
+                      '&:hover': { border: '1px dashed', borderColor: 'orange.300', cursor: 'grab' } 
+                    }}
+                  >
+                    <Typography component="span" variant="body1" sx={{ lineHeight: 1.8, fontWeight: 500 }}>The output is computed as a weighted sum of the values.</Typography>
+                  </Box>
+                  
+                  {/* Additional content that can be highlighted based on source navigation */}
+                  {sourceNavigation && sourceNavigation.resourceId === activeResource.id && sourceNavigation.searchText && (
+                    <Typography 
+                      variant="body1" 
+                      paragraph 
+                      sx={{ 
+                        lineHeight: 1.8, 
+                        color: 'text.secondary',
+                        mt: 2,
+                        '& .highlighted-text': {
+                          bgcolor: '#FFEB3B',
+                          borderRadius: '2px',
+                          padding: '1px 2px',
+                          fontWeight: 500,
+                        }
+                      }}
+                    >
+                      {sourceNavigation.searchText.toLowerCase().includes('bert') && activeResource.title.includes('BERT') && (
+                        <>
+                          BERT is designed to{' '}
+                          <Box component="span" className="highlighted-text">
+                            pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers
+                          </Box>
+                          . This approach allows the model to understand the full context of a word by looking at both its left and right neighbors simultaneously.
+                        </>
+                      )}
+                      {sourceNavigation.searchText.toLowerCase().includes('transformer') && activeResource.title.includes('Attention') && (
+                        <>
+                          The{' '}
+                          <Box component="span" className="highlighted-text">
+                            Transformer model relies entirely on self-attention to compute representations
+                          </Box>
+                          {' '}of its input and output without using sequence-aligned RNNs or convolution.
+                        </>
+                      )}
+                      {!sourceNavigation.searchText.toLowerCase().includes('bert') && !sourceNavigation.searchText.toLowerCase().includes('transformer') && (
+                        <>
+                          <Box component="span" className="highlighted-text">
+                            {sourceNavigation.searchText}
+                          </Box>
+                          {' '}This is the relevant content from the document that matches your query.
+                        </>
+                      )}
+                    </Typography>
+                  )}
 
-            <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', mt: 2 }}>
-              The two most commonly used attention functions are additive attention, and dot-product (multiplicative) attention. 
-            </Typography>
+                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', mt: 2 }}>
+                    The two most commonly used attention functions are additive attention, and dot-product (multiplicative) attention. 
+                  </Typography>
 
-            <Paper variant="outlined" sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', my: 4, borderStyle: 'dashed' }}><Box sx={{ textAlign: 'center', color: 'text.disabled' }}><ImageIcon size={32} className="mx-auto mb-2" /><Typography variant="caption">Figure 1: Scaled Dot-Product Attention</Typography></Box></Paper>
+                  <Paper variant="outlined" sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', my: 4, borderStyle: 'dashed' }}><Box sx={{ textAlign: 'center', color: 'text.disabled' }}><ImageIcon size={32} className="mx-auto mb-2" /><Typography variant="caption">Figure 1: Scaled Dot-Product Attention</Typography></Box></Paper>
+                </Box>
+              }
+              onHighlightCreate={(highlight) => {
+                console.log('Highlight created:', highlight);
+              }}
+              onHighlightUpdate={(highlight) => {
+                console.log('Highlight updated:', highlight);
+              }}
+              onHighlightDelete={(highlightId) => {
+                console.log('Highlight deleted:', highlightId);
+              }}
+            />
           
             {/* Context Menu */}
             <Menu
