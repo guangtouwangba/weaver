@@ -52,10 +52,54 @@ Create a new Zeabur service with a custom Dockerfile that includes both Loki and
 
 Example queries:
 ```logql
+# Basic queries
 {service="backend"}
 {service="frontend", level="error"}
 {service="backend"} |= "database"
+
+# Query request time statistics for chat endpoints
+{service="backend"} |= "JSON:" | json | endpoint_type = "chat" | duration_ms > 0
+
+# Average response time for chat requests (last 1 hour)
+avg_over_time(
+  {service="backend"} |= "JSON:" 
+  | json 
+  | endpoint_type = "chat" 
+  | unwrap duration_ms [1h]
+)
+
+# P95 response time for chat requests
+quantile_over_time(0.95, 
+  {service="backend"} |= "JSON:" 
+  | json 
+  | endpoint_type = "chat" 
+  | unwrap duration_ms [1h]
+)
+
+# List all questions with their response times
+{service="backend"} |= "JSON:" 
+| json 
+| endpoint_type = "chat" 
+| question != "" 
+| line_format "{{.question}} - {{.duration_ms}}ms"
+
+# Count requests by status code
+sum by (status_code) (
+  count_over_time(
+    {service="backend"} |= "JSON:" 
+    | json [1h]
+  )
+)
 ```
+
+## 请求时间统计
+
+详细的 Grafana 查询示例请参考 [GRAFANA_QUERIES.md](./GRAFANA_QUERIES.md)，包括：
+- 每个问题的请求时间列表
+- 平均/P50/P95/P99 响应时间
+- 响应时间分布直方图
+- 最慢的请求列表
+- 完整的 Dashboard 配置示例
 
 ## Log Retention
 

@@ -154,6 +154,8 @@ class TaskQueueModel(Base):
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # ✅ Environment isolation: tasks are only processed by workers in the same environment
+    environment: Mapped[str] = mapped_column(String(50), nullable=False, default="development", index=True)
     scheduled_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

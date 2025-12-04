@@ -52,9 +52,14 @@ class BackgroundWorker:
         self._running = True
         self._shutdown_event = asyncio.Event()
         
+        from research_agent.config import get_settings
+        env_settings = get_settings()
+        
         logger.info("Background worker started")
+        logger.info(f"Environment: {env_settings.environment}")  # ✅ Show current environment
         logger.info(f"Poll interval: {self._poll_interval}s, Max concurrent: {self._max_concurrent_tasks}")
         logger.info(f"Registered task types: {self._dispatcher.get_registered_types()}")
+        logger.info(f"⚠️  Worker will ONLY process tasks from environment '{env_settings.environment}'")
         
         while self._running:
             try:

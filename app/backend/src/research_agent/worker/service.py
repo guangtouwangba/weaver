@@ -7,9 +7,12 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from research_agent.config import get_settings
 from research_agent.domain.entities.task import Task, TaskStatus, TaskType
 from research_agent.infrastructure.database.models import TaskQueueModel
 from research_agent.shared.utils.logger import logger
+
+settings = get_settings()
 
 
 class TaskQueueService:
@@ -24,6 +27,7 @@ class TaskQueueService:
         payload: Dict[str, Any],
         priority: int = 0,
         max_attempts: int = 3,
+        environment: Optional[str] = None,
     ) -> Task:
         """
         Push a new task to the queue.
@@ -33,10 +37,14 @@ class TaskQueueService:
             payload: Task-specific data
             priority: Higher priority tasks are processed first
             max_attempts: Maximum number of retry attempts
+            environment: Environment name (defaults to current environment from settings)
             
         Returns:
             Created task entity
         """
+        # ✅ Use current environment if not specified
+        task_environment = environment or settings.environment
+        
         task = Task(
             task_type=task_type,
             payload=payload,
@@ -52,29 +60,41 @@ class TaskQueueService:
             priority=task.priority,
             attempts=task.attempts,
             max_attempts=task.max_attempts,
+            environment=task_environment,  # ✅ Set environment for isolation
             scheduled_at=task.scheduled_at,
         )
         
         self._session.add(model)
         await self._session.flush()
         
-        logger.info(f"Pushed task {task.id} of type {task_type.value}")
+        logger.info(
+            f"Pushed task {task.id} of type {task_type.value} "
+            f"to environment '{task_environment}'"
+        )
         return task
 
-    async def pop(self) -> Optional[Task]:
+    async def pop(self, environment: Optional[str] = None) -> Optional[Task]:
         """
         Pop the next pending task from the queue.
         
         Uses SELECT FOR UPDATE SKIP LOCKED to ensure atomic task acquisition
         in a multi-worker environment.
         
+        Args:
+            environment: Environment name to filter tasks (defaults to current environment)
+                        Only tasks from the same environment will be processed.
+        
         Returns:
             Next pending task or None if queue is empty
         """
-        # Find the next pending task with highest priority
+        # ✅ Only get tasks from current environment
+        task_environment = environment or settings.environment
+        
+        # Find the next pending task with highest priority from current environment
         stmt = (
             select(TaskQueueModel)
             .where(TaskQueueModel.status == TaskStatus.PENDING.value)
+            .where(TaskQueueModel.environment == task_environment)  # ✅ Environment isolation
             .where(TaskQueueModel.scheduled_at <= datetime.utcnow())
             .order_by(TaskQueueModel.priority.desc(), TaskQueueModel.scheduled_at.asc())
             .limit(1)
@@ -94,6 +114,10 @@ class TaskQueueService:
         model.updated_at = datetime.utcnow()
         
         await self._session.flush()
+        
+        logger.debug(
+            f"Popped task {model.id} from environment '{task_environment}'"
+        )
         
         return self._to_entity(model)
 
@@ -150,12 +174,17 @@ class TaskQueueService:
         
         return self._to_entity(model)
 
-    async def get_pending_count(self) -> int:
-        """Get the number of pending tasks."""
+    async def get_pending_count(self, environment: Optional[str] = None) -> int:
+        """Get the number of pending tasks in the current environment."""
         from sqlalchemy import func
         
-        stmt = select(func.count()).select_from(TaskQueueModel).where(
-            TaskQueueModel.status == TaskStatus.PENDING.value
+        task_environment = environment or settings.environment
+        
+        stmt = (
+            select(func.count())
+            .select_from(TaskQueueModel)
+            .where(TaskQueueModel.status == TaskStatus.PENDING.value)
+            .where(TaskQueueModel.environment == task_environment)  # ✅ Environment isolation
         )
         result = await self._session.execute(stmt)
         return result.scalar() or 0
@@ -164,11 +193,15 @@ class TaskQueueService:
         self,
         status: TaskStatus,
         limit: int = 100,
+        environment: Optional[str] = None,
     ) -> List[Task]:
-        """Get tasks by status."""
+        """Get tasks by status in the current environment."""
+        task_environment = environment or settings.environment
+        
         stmt = (
             select(TaskQueueModel)
             .where(TaskQueueModel.status == status.value)
+            .where(TaskQueueModel.environment == task_environment)  # ✅ Environment isolation
             .order_by(TaskQueueModel.created_at.desc())
             .limit(limit)
         )

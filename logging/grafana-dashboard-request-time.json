@@ -1,0 +1,80 @@
+{
+  "dashboard": {
+    "title": "Request Time Statistics",
+    "tags": ["request-time", "chat", "performance"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Average Response Time (Chat)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg_over_time({service=\"backend\"} |= \"JSON:\" | json | endpoint_type = \"chat\" | unwrap duration_ms [5m])",
+            "legendFormat": "Average Response Time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "min": 0
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "P95 Response Time (Chat)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "quantile_over_time(0.95, {service=\"backend\"} |= \"JSON:\" | json | endpoint_type = \"chat\" | unwrap duration_ms [5m])",
+            "legendFormat": "P95 Response Time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "min": 0
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Request Count (Chat)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(count_over_time({service=\"backend\"} |= \"JSON:\" | json | endpoint_type = \"chat\" [1h]))",
+            "legendFormat": "Total Requests"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Slow Requests (>5s)",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "{service=\"backend\"} |= \"JSON:\" | json | endpoint_type = \"chat\" | duration_ms > 5000 | line_format \"{{.question}} - {{.duration_ms}}ms\"",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12}
+      }
+    ],
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  }
+}
+
