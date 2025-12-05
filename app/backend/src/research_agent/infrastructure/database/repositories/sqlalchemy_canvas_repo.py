@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from research_agent.domain.entities.canvas import Canvas
 from research_agent.domain.repositories.canvas_repo import CanvasRepository
 from research_agent.infrastructure.database.models import CanvasModel
+from research_agent.shared.exceptions import ConflictError
 
 
 class SQLAlchemyCanvasRepository(CanvasRepository):
@@ -28,14 +29,63 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         if existing:
             # Update existing
             existing.data = canvas.to_dict()
+            existing.version = existing.version + 1
+            canvas.version = existing.version
         else:
             # Create new
             model = CanvasModel(
                 id=canvas.id,
                 project_id=canvas.project_id,
                 data=canvas.to_dict(),
+                version=1,
             )
             self._session.add(model)
+            canvas.version = 1
+
+        await self._session.flush()
+        return canvas
+
+    async def save_with_version(
+        self, canvas: Canvas, expected_version: Optional[int] = None
+    ) -> Canvas:
+        """Save canvas data with version check (optimistic locking)."""
+        # Use SELECT FOR UPDATE to lock the row
+        stmt = (
+            select(CanvasModel)
+            .where(CanvasModel.project_id == canvas.project_id)
+            .with_for_update()
+        )
+        result = await self._session.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            # Check version if provided
+            if expected_version is not None and existing.version != expected_version:
+                raise ConflictError(
+                    "Canvas",
+                    str(canvas.project_id),
+                    f"Version mismatch: expected {expected_version}, got {existing.version}",
+                )
+            # Update existing
+            existing.data = canvas.to_dict()
+            existing.version = existing.version + 1
+            canvas.version = existing.version
+        else:
+            # Create new
+            if expected_version is not None and expected_version != 0:
+                raise ConflictError(
+                    "Canvas",
+                    str(canvas.project_id),
+                    f"Canvas does not exist but expected version {expected_version}",
+                )
+            model = CanvasModel(
+                id=canvas.id,
+                project_id=canvas.project_id,
+                data=canvas.to_dict(),
+                version=1,
+            )
+            self._session.add(model)
+            canvas.version = 1
 
         await self._session.flush()
         return canvas
@@ -50,6 +100,7 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         if model:
             canvas = Canvas.from_dict(model.data, project_id)
             canvas.id = model.id
+            canvas.version = model.version
             canvas.updated_at = model.updated_at
             return canvas
 

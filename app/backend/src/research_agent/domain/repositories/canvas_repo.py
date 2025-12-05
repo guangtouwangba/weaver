@@ -16,6 +16,13 @@ class CanvasRepository(ABC):
         pass
 
     @abstractmethod
+    async def save_with_version(
+        self, canvas: Canvas, expected_version: Optional[int] = None
+    ) -> Canvas:
+        """Save canvas data with version check (optimistic locking)."""
+        pass
+
+    @abstractmethod
     async def find_by_project(self, project_id: UUID) -> Optional[Canvas]:
         """Find canvas by project ID."""
         pass

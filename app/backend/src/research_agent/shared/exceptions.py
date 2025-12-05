@@ -24,6 +24,18 @@ class ValidationError(ResearchAgentError):
     pass
 
 
+class ConflictError(ResearchAgentError):
+    """Resource conflict error (e.g., duplicate ID)."""
+
+    def __init__(self, resource: str, resource_id: str, message: str = None):
+        self.resource = resource
+        self.resource_id = resource_id
+        if message:
+            super().__init__(message)
+        else:
+            super().__init__(f"{resource} with id '{resource_id}' already exists")
+
+
 class StorageError(ResearchAgentError):
     """Storage operation error."""
 

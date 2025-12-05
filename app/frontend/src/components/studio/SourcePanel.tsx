@@ -728,8 +728,8 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   if (!visible) {
     return (
-      <Box sx={{ width: 48, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: 'background.paper' }}>
-        <Box sx={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ width: 48, height: '100vh', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: 'background.paper' }}>
+        <Box sx={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
           <Tooltip title="Expand (⌘\)" placement="right">
             <IconButton onClick={onToggle} size="small"><PanelLeftOpen size={18} /></IconButton>
           </Tooltip>
@@ -746,7 +746,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   }
 
   return (
-    <Box ref={containerRef} sx={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', overflow: 'hidden', bgcolor: 'background.paper' }}>
+    <Box ref={containerRef} sx={{ width, height: '100vh', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', overflow: 'hidden', bgcolor: 'background.paper' }}>
       {/* Browser Header */}
       <Box sx={{ height: isReaderExpanded ? 0 : (activeDocument ? `${splitRatio * 100}%` : '100%'), display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: isVerticalDragging ? 'none' : 'all 0.3s ease' }}>
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

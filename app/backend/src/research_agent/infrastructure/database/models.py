@@ -124,6 +124,9 @@ class CanvasModel(Base):
         unique=True,
     )
     data: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )  # Version for optimistic locking
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

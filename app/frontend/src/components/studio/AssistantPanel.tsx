@@ -161,8 +161,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
   if (!visible) {
     return (
-      <Box sx={{ width: 40, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: '#FAFAFA' }}>
-        <Box sx={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ width: 40, height: '100vh', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: '#FAFAFA' }}>
+        <Box sx={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
           <Tooltip title="Expand (⌘.)" placement="right">
             <IconButton onClick={onToggle} size="small"><PanelRightOpen size={18} /></IconButton>
           </Tooltip>
@@ -179,13 +179,14 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   }
 
   return (
-    <Box sx={{ width, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', bgcolor: '#FAFAFA', overflow: 'hidden' }}>
+    <Box sx={{ width, height: '100vh', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', bgcolor: '#FAFAFA', overflow: 'hidden' }}>
       {/* Header */}
       <Box 
         sx={{ 
             height: 48, 
             borderBottom: '1px solid', borderColor: 'divider', 
-            display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between'
+            display: 'flex', alignItems: 'center', px: 3, justifyContent: 'space-between',
+            flexShrink: 0
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

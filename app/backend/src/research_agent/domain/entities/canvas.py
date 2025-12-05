@@ -51,6 +51,7 @@ class Canvas:
     nodes: List[CanvasNode] = field(default_factory=list)
     edges: List[CanvasEdge] = field(default_factory=list)
     viewport: CanvasViewport = field(default_factory=CanvasViewport)
+    version: int = 1  # Version for optimistic locking
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
     def add_node(self, node: CanvasNode) -> None:
@@ -68,6 +69,44 @@ class Canvas:
         """Add an edge to the canvas."""
         self.edges.append(edge)
         self.updated_at = datetime.utcnow()
+
+    def update_node(self, node_id: str, **kwargs) -> bool:
+        """Update a node's properties."""
+        for node in self.nodes:
+            if node.id == node_id:
+                # Update only provided fields
+                if "type" in kwargs:
+                    node.type = kwargs["type"]
+                if "title" in kwargs:
+                    node.title = kwargs["title"]
+                if "content" in kwargs:
+                    node.content = kwargs["content"]
+                if "x" in kwargs:
+                    node.x = kwargs["x"]
+                if "y" in kwargs:
+                    node.y = kwargs["y"]
+                if "width" in kwargs:
+                    node.width = kwargs["width"]
+                if "height" in kwargs:
+                    node.height = kwargs["height"]
+                if "color" in kwargs:
+                    node.color = kwargs["color"]
+                if "tags" in kwargs:
+                    node.tags = kwargs["tags"]
+                if "source_id" in kwargs:
+                    node.source_id = kwargs["source_id"]
+                if "source_page" in kwargs:
+                    node.source_page = kwargs["source_page"]
+                self.updated_at = datetime.utcnow()
+                return True
+        return False
+
+    def find_node(self, node_id: str) -> Optional[CanvasNode]:
+        """Find a node by ID."""
+        for node in self.nodes:
+            if node.id == node_id:
+                return node
+        return None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert canvas to dictionary for storage."""

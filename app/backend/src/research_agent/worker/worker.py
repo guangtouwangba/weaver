@@ -3,6 +3,7 @@
 import asyncio
 from typing import Callable, Optional
 
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.domain.entities.task import TaskStatus
@@ -42,6 +43,8 @@ class BackgroundWorker:
         self._running = False
         self._current_tasks: set = set()
         self._shutdown_event: Optional[asyncio.Event] = None
+        self._connection_error_count = 0
+        self._max_connection_error_backoff = 60.0  # Max 60 seconds between retries
 
     async def start(self) -> None:
         """Start the background worker."""
@@ -67,14 +70,46 @@ class BackgroundWorker:
         )
 
         while self._running:
+            wait_time = self._poll_interval
+
             try:
                 await self._poll_and_process()
-            except Exception as e:
-                logger.error(f"Error in worker loop: {e}", exc_info=True)
+                # Reset error count on successful poll
+                self._connection_error_count = 0
+            except (OperationalError, ConnectionError, TimeoutError, OSError) as e:
+                # Database connection errors - use exponential backoff
+                self._connection_error_count += 1
+                error_type = type(e).__name__
+                error_message = str(e)
 
-            # Wait for poll interval or shutdown signal
+                # Calculate backoff time (exponential, capped at max)
+                wait_time = min(
+                    self._poll_interval * (2 ** min(self._connection_error_count - 1, 5)),
+                    self._max_connection_error_backoff,
+                )
+
+                # Log with appropriate level based on error count
+                if self._connection_error_count <= 3:
+                    logger.warning(
+                        f"⚠️  Database connection error (attempt {self._connection_error_count}): "
+                        f"{error_type}: {error_message[:200]}. Retrying in {wait_time:.1f}s..."
+                    )
+                elif self._connection_error_count % 10 == 0:
+                    # Only log every 10th error to avoid spam
+                    logger.error(
+                        f"❌ Database connection still failing after {self._connection_error_count} attempts: "
+                        f"{error_type}: {error_message[:200]}. Retrying in {wait_time:.1f}s... "
+                        f"Please check DATABASE_URL configuration."
+                    )
+            except Exception as e:
+                # Other errors - log and continue with normal poll interval
+                logger.error(f"Error in worker loop: {e}", exc_info=True)
+                self._connection_error_count = 0  # Reset on non-connection errors
+                wait_time = self._poll_interval
+
+            # Wait before next poll (with backoff for connection errors)
             try:
-                await asyncio.wait_for(self._shutdown_event.wait(), timeout=self._poll_interval)
+                await asyncio.wait_for(self._shutdown_event.wait(), timeout=wait_time)
                 # Shutdown was signaled
                 break
             except asyncio.TimeoutError:
@@ -110,20 +145,28 @@ class BackgroundWorker:
         if len(self._current_tasks) >= self._max_concurrent_tasks:
             return
 
-        async with self._session_factory() as session:
-            service = TaskQueueService(session)
+        try:
+            async with self._session_factory() as session:
+                service = TaskQueueService(session)
 
-            # Try to get a task
-            task = await service.pop()
+                # Try to get a task
+                task = await service.pop()
 
-            if task:
-                await session.commit()
+                if task:
+                    await session.commit()
 
-                # Process task in background
-                task_coro = self._process_task(task)
-                task_future = asyncio.create_task(task_coro)
-                self._current_tasks.add(task_future)
-                task_future.add_done_callback(self._current_tasks.discard)
+                    # Process task in background
+                    task_coro = self._process_task(task)
+                    task_future = asyncio.create_task(task_coro)
+                    self._current_tasks.add(task_future)
+                    task_future.add_done_callback(self._current_tasks.discard)
+        except (OperationalError, ConnectionError, TimeoutError, OSError) as e:
+            # Re-raise connection errors to be handled by the main loop
+            raise
+        except Exception as e:
+            # Other errors - log and continue
+            logger.error(f"Error in _poll_and_process: {e}", exc_info=True)
+            raise
 
     async def _process_task(self, task) -> None:
         """Process a single task."""

@@ -351,7 +351,8 @@ export default function KonvaCanvas({
           px: 3, 
           justifyContent: 'space-between', 
           bgcolor: '#FAFAFA',
-          zIndex: 100
+          zIndex: 100,
+          flexShrink: 0
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

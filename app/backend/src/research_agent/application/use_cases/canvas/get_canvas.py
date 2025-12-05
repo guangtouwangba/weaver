@@ -21,6 +21,7 @@ class GetCanvasOutput:
 
     data: Dict[str, Any]
     updated_at: Optional[datetime]
+    version: Optional[int] = None  # Canvas version
 
 
 class GetCanvasUseCase:
@@ -37,6 +38,7 @@ class GetCanvasUseCase:
             return GetCanvasOutput(
                 data=canvas.to_dict(),
                 updated_at=canvas.updated_at,
+                version=canvas.version,
             )
 
         # Return empty canvas if not found
@@ -47,5 +49,6 @@ class GetCanvasUseCase:
                 "viewport": {"x": 0, "y": 0, "scale": 1},
             },
             updated_at=None,
+            version=0,
         )
 
