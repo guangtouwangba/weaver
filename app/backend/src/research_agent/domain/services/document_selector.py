@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from research_agent.domain.entities.document import DocumentStatus
 from research_agent.domain.services.token_estimator import TokenEstimator
 from research_agent.infrastructure.database.models import DocumentModel
 from research_agent.infrastructure.embedding.base import EmbeddingService
@@ -59,7 +60,7 @@ class DocumentSelectorService:
         # Get all documents for the project
         stmt = select(DocumentModel).where(
             DocumentModel.project_id == project_id,
-            DocumentModel.status == "completed",  # Only completed documents
+            DocumentModel.status == DocumentStatus.READY.value,  # Only ready documents
             DocumentModel.full_content.isnot(None),  # Must have full content
         )
         result = await self._session.execute(stmt)
