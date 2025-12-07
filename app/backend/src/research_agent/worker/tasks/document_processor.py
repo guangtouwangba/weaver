@@ -1,6 +1,6 @@
 """Document processor task - orchestrates the full document processing pipeline."""
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -13,6 +13,8 @@ from research_agent.domain.entities.document import DocumentStatus
 from research_agent.domain.services.chunking_service import ChunkingService
 from research_agent.infrastructure.database.models import DocumentChunkModel, DocumentModel
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
+from research_agent.infrastructure.llm.base import ChatMessage
+from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
@@ -29,11 +31,12 @@ class DocumentProcessorTask(BaseTask):
     Pipeline:
     1. Download file (if from Supabase Storage)
     2. Extract text from PDF
-    3. Chunk text
-    4. Generate embeddings
-    5. Extract knowledge graph
-    6. Sync to canvas
-    7. Update document status
+    3. Generate summary and page mapping
+    4. Chunk text
+    5. Generate embeddings
+    6. Extract knowledge graph
+    7. Sync to canvas
+    8. Update document status
     """
 
     @property
@@ -91,6 +94,64 @@ class DocumentProcessorTask(BaseTask):
                 )
                 raise
 
+            # Step 2.5: Generate Summary and Page Map
+            logger.info(f"📝 Step 2.5: Generating summary and page map - document_id={document_id}")
+            try:
+                # Calculate Page Map
+                page_map = []
+                current_idx = 0
+                # Join logic matches step 3b full content generation: "\n\n".join()
+                # We simulate the join process to get correct indices
+                for i, page in enumerate(pages):
+                    content_len = len(page.content)
+                    start = current_idx
+                    end = current_idx + content_len
+
+                    page_map.append({"page": page.page_number, "start": start, "end": end})
+
+                    # Add separator length for next iteration, unless it's the last page
+                    if i < len(pages) - 1:
+                        current_idx = end + 2  # len("\n\n")
+                    else:
+                        current_idx = end
+
+                # Generate Summary
+                # Combine first 20k chars for summary generation (to avoid context limits if very large)
+                # or use LLM service's context window logic.
+                # For now, simple truncation.
+                full_content_preview = "\n\n".join([p.content for p in pages])
+                summary_context = full_content_preview[:20000]
+
+                summary = None
+                if settings.openrouter_api_key:
+                    llm = OpenRouterLLMService(
+                        api_key=settings.openrouter_api_key,
+                        model=settings.llm_model,  # Use primary model for high quality summary
+                    )
+                    summary = await self._generate_summary(llm, summary_context)
+                    logger.info("✅ Generated document summary")
+                else:
+                    logger.warning("⚠️ Skipping summary generation: No API key")
+
+                # Update document model immediately with summary and temp parsing metadata
+                # Note: parsing_metadata will be updated again in step 3b, so we merge or just wait?
+                # Step 3b updates `parsing_metadata` with page_count etc.
+                # Let's persist summary now.
+                stmt = (
+                    update(DocumentModel)
+                    .where(DocumentModel.id == document_id)
+                    .values(summary=summary)
+                )
+                await session.execute(stmt)
+                await session.commit()
+
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ Step 2.5 failed: Summary/PageMap generation error - document_id={document_id}: {e}",
+                    exc_info=True,
+                )
+                # Don't fail the whole process for summary error
+
             # Step 3: Chunk text with dynamic strategy selection
             logger.info(f"✂️ Step 3: Chunking text with dynamic strategy - page_count={page_count}")
             try:
@@ -124,17 +185,22 @@ class DocumentProcessorTask(BaseTask):
                     token_estimator = TokenEstimator()
                     token_count = token_estimator.estimate_tokens(full_content)
 
-                    # Prepare parsing metadata (simplified version)
+                    # Prepare parsing metadata
                     parsing_metadata = {
-                        "layout_type": "single_column",  # Default, can be enhanced later
+                        "layout_type": "single_column",
                         "page_count": page_count,
                         "total_chunks": len(chunk_data),
+                        "page_map": page_map,  # Injected from Step 2.5 logic
                     }
 
                     # Update document with full content and metadata
                     doc.full_content = full_content
                     doc.content_token_count = token_count
                     doc.parsing_metadata = parsing_metadata
+                    # summary is already updated or can be updated here if not persisted yet.
+                    # Since we re-fetched doc in Step 3, it might be stale if we updated it in 2.5?
+                    # Actually Step 3 re-selects doc. So if we committed in 2.5, doc has summary.
+                    # But here we are updating doc object attributes.
 
                     await session.flush()
                     logger.info(
@@ -397,18 +463,6 @@ class DocumentProcessorTask(BaseTask):
                 await session.rollback()
                 logger.debug(f"✅ Session rolled back for document {document_id}")
 
-                # If RAG failed (status != READY), mark document as error
-                # If RAG succeeded but Graph failed, mark graph as error
-                # For simplicity, if any step fails, we mark based on what stage we're likely in
-                # But since we committed RAG ready, we should check current status first?
-                # Actually, just marking both as error if unsafe, or careful logic.
-                # Here: Just mark graph_status as error if we are past RAG ready?
-                # Simple approach: Set document status to error if it wasn't ready yet.
-
-                # Since we can't easily check status in exception handler without query,
-                # let's just assume if it crashed, we set both to error for safety,
-                # OR we could refine this later.
-                # For now: set status to ERROR.
                 await self._update_document_status(
                     session, document_id, status=DocumentStatus.ERROR, graph_status="error"
                 )
@@ -422,6 +476,26 @@ class DocumentProcessorTask(BaseTask):
                     exc_info=True,
                 )
 
+            raise
+
+    async def _generate_summary(self, llm: OpenRouterLLMService, text: str) -> str:
+        """Generate a summary of the document text."""
+        prompt = (
+            "请仔细阅读以下文档片段，并生成一份结构清晰的中文摘要。\n"
+            "要求：\n"
+            "1. 概括核心观点、主要结论和关键数据。\n"
+            "2. 语言简练专业，字数控制在300字以内。\n"
+            "3. 使用 Markdown 格式（如使用列表项）。\n\n"
+            f"文档内容：\n{text}"
+        )
+
+        messages = [ChatMessage(role="user", content=prompt)]
+
+        try:
+            response = await llm.chat(messages)
+            return response.content
+        except Exception as e:
+            logger.error(f"Summary generation failed: {e}")
             raise
 
     async def _get_file_locally(

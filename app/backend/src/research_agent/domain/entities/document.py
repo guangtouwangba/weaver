@@ -29,6 +29,7 @@ class Document:
     mime_type: str = "application/pdf"
     page_count: int = 0
     status: DocumentStatus = DocumentStatus.PENDING
+    summary: Optional[str] = None  # Generated summary of the document
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -49,4 +50,3 @@ class Document:
     def is_ready(self) -> bool:
         """Check if document is ready for use."""
         return self.status == DocumentStatus.READY
-

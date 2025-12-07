@@ -39,3 +39,7 @@ def downgrade() -> None:
     # Remove version column
     op.drop_column('canvases', 'version')
 
+
+
+
+
