@@ -134,6 +134,13 @@ class Settings(BaseSettings):
     enable_citation_grounding: bool = True  # Enable citation anchors
     citation_format: str = "both"  # inline | structured | both
 
+    # Mega-Prompt Configuration (for long_context mode)
+    mega_prompt_citation_mode: str = "xml_quote"  # xml_quote | text_markers | json_mode
+    # xml_quote: XML tags with quote attribute for precise localization (default, recommended)
+    # text_markers: Simple [doc_01] text markers (document-level only)
+    # json_mode: Structured JSON output (more stable, less streaming-friendly)
+    citation_match_threshold: int = 85  # Fuzzy match threshold (0-100) for Quote-to-Coordinate
+
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins from comma-separated string."""

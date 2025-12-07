@@ -198,3 +198,166 @@ Remember to cite every factual claim using the citation format specified above.
 Be comprehensive and use all relevant information from the documents."""
 
     return prompt
+
+
+# =============================================================================
+# Mega-Prompt Mode (XML Structure with <cite> Tags)
+# =============================================================================
+
+# Intent-based thinking process templates
+THINKING_PROCESS_TEMPLATES = {
+    "factual": """Before answering, please think:
+1. Identify the specific fact or definition being asked about.
+2. Locate this information in the documents.
+3. Extract the exact text and note its location.
+4. Formulate a concise answer with proper citation.""",
+    "conceptual": """Before answering, please think:
+1. Identify the concept or principle the user wants to understand.
+2. Find relevant explanations, definitions, and examples in the documents.
+3. Build a logical flow from basics to details.
+4. Cite each piece of supporting information.""",
+    "comparison": """Before answering, please think:
+1. Identify the items being compared.
+2. Find information about each item in the documents.
+3. Identify dimensions for comparison (features, pros/cons, use cases).
+4. Structure your response as a clear comparison with citations.""",
+    "howto": """Before answering, please think:
+1. Identify the task or procedure the user wants to learn.
+2. Find step-by-step instructions or guidance in the documents.
+3. Organize steps in logical order.
+4. Cite the source for each step or instruction.""",
+    "summary": """Before answering, please think:
+1. Identify the scope of what needs to be summarized.
+2. Find all key points and main ideas in the documents.
+3. Group related points together.
+4. Present a comprehensive summary with citations for each major point.""",
+    "explanation": """Before answering, please think:
+1. Identify what needs to be explained (cause, mechanism, reasoning).
+2. Find causal relationships and explanations in the documents.
+3. Build a logical chain of reasoning.
+4. Cite evidence for each step in the explanation.""",
+}
+
+
+def build_mega_prompt(
+    query: str,
+    documents: list[dict],
+    intent_type: str = "factual",
+    role: str = "research assistant",
+) -> str:
+    """
+    Build Mega-Prompt with XML structure for long-context RAG.
+
+    This prompt format is optimized for:
+    1. Clear separation of instruction, context, and query
+    2. XML-based citation format for precise source attribution
+    3. Intent-driven thinking process for better reasoning
+
+    Args:
+        query: User question
+        documents: List of document dicts with keys:
+            - document_id: UUID or str
+            - filename: str
+            - content: str (full content)
+            - page_count: int (optional)
+        intent_type: Question intent type (factual, conceptual, comparison, etc.)
+        role: Role description for the assistant
+
+    Returns:
+        XML-structured Mega-Prompt string
+    """
+    # Build document sections with XML structure
+    doc_sections = []
+    for i, doc in enumerate(documents, 1):
+        doc_id = f"doc_{i:02d}"  # Format: doc_01, doc_02, etc.
+        filename = doc.get("filename", f"Document {i}")
+        content = doc.get("content", "")
+        page_count = doc.get("page_count", 0)
+
+        # Store mapping in document dict for later reference
+        doc["_mega_prompt_id"] = doc_id
+
+        section = f'  <document id="{doc_id}" title="{filename}"'
+        if page_count > 0:
+            section += f' page_count="{page_count}"'
+        section += ">\n"
+        section += content
+        section += "\n  </document>"
+        doc_sections.append(section)
+
+    documents_xml = "\n\n".join(doc_sections)
+
+    # Get thinking process based on intent
+    thinking_process = THINKING_PROCESS_TEMPLATES.get(
+        intent_type, THINKING_PROCESS_TEMPLATES["factual"]
+    )
+
+    # Build the complete Mega-Prompt
+    mega_prompt = f"""<system_instruction>
+You are an expert {role}. Your task is to answer the user's question based on the provided documents.
+
+You must cite specific data from the documents using the XML citation format.
+If the information is not present in the documents, state that you do not have enough information.
+Answer in the same language as the user's question.
+</system_instruction>
+
+<documents>
+{documents_xml}
+</documents>
+
+<output_rules>
+Citation Format Requirements (MUST be strictly followed):
+
+1. Output your answer in Markdown format.
+2. You MUST cite verbatim text from the documents to support your points.
+3. Citation Format: Use the XML tag <cite doc_id="doc_XX" quote="exact sentence from the document...">your conclusion</cite>
+   - doc_id: The ID of the document (format: doc_01, doc_02, etc.)
+   - quote: MUST be a continuous text fragment copied EXACTLY from the document without modification (at least 5-10 words)
+
+4. Examples:
+   Correct Examples:
+   - <cite doc_id="doc_01" quote="Q4 2023 gross margin was 45.2%, an increase of 2.3 percentage points from the previous quarter">According to the financial report, gross margin improved significantly</cite>
+   - <cite doc_id="doc_02" quote="Revenue increased by 15%, mainly driven by new product contributions">Revenue growth was primarily due to new product lines</cite>
+   
+   Incorrect Examples (Do NOT use):
+   - "Gross margin was 45.2% [doc_01]" ❌ Not using XML format
+   - <cite doc_id="doc_01">Gross margin improved</cite> ❌ Missing quote attribute
+   - <cite doc_id="doc_01" quote="Gross margin">Conclusion</cite> ❌ quote too short
+
+Rules:
+1. Every factual statement MUST be wrapped in a <cite> tag with both doc_id and quote.
+2. The 'quote' MUST be verbatim text from the document, no modifications or summarization.
+3. The 'quote' length should be at least 5-10 words to ensure unique localization.
+4. The 'doc_id' format MUST be strict: doc_XX (XX is two digits, e.g., doc_01, doc_02).
+5. Structure your answer with clear paragraphs and bullet points where appropriate.
+</output_rules>
+
+<thinking_process>
+{thinking_process}
+</thinking_process>
+
+<user_query>
+{query}
+</user_query>"""
+
+    return mega_prompt
+
+
+def get_document_id_mapping(documents: list[dict]) -> dict[str, str]:
+    """
+    Get mapping from mega-prompt doc IDs (doc_01) to actual document IDs.
+
+    Call this after build_mega_prompt() to get the mapping.
+
+    Args:
+        documents: Same list passed to build_mega_prompt()
+
+    Returns:
+        Dict mapping doc_01 -> actual_document_id
+    """
+    mapping = {}
+    for i, doc in enumerate(documents, 1):
+        mega_id = f"doc_{i:02d}"
+        actual_id = doc.get("document_id", doc.get("_mega_prompt_id", mega_id))
+        mapping[mega_id] = str(actual_id)
+    return mapping

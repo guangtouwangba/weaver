@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db, get_embedding_service
-from research_agent.shared.utils.logger import setup_logger
 from research_agent.application.dto.document import (
     DocumentListResponse,
     DocumentResponse,
@@ -30,7 +29,9 @@ from research_agent.application.use_cases.document.upload_document import (
     UploadDocumentUseCase,
 )
 from research_agent.config import get_settings
+from research_agent.domain.entities.task import TaskType
 from research_agent.domain.services.chunking_service import ChunkingService
+from research_agent.infrastructure.database.models import DocumentModel
 from research_agent.infrastructure.database.repositories.sqlalchemy_chunk_repo import (
     SQLAlchemyChunkRepository,
 )
@@ -41,10 +42,9 @@ from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddi
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
-from research_agent.infrastructure.database.models import DocumentModel
-from research_agent.domain.entities.task import TaskType
-from research_agent.worker.service import TaskQueueService
 from research_agent.shared.exceptions import NotFoundError, PDFProcessingError
+from research_agent.shared.utils.logger import setup_logger
+from research_agent.worker.service import TaskQueueService
 
 logger = setup_logger(__name__)
 router = APIRouter()
@@ -53,14 +53,17 @@ settings = get_settings()
 
 # ============== Request/Response Models ==============
 
+
 class PresignRequest(BaseModel):
     """Request for generating a presigned upload URL."""
+
     filename: str
     content_type: Optional[str] = "application/pdf"
 
 
 class PresignResponse(BaseModel):
     """Response containing presigned upload URL."""
+
     upload_url: str
     file_path: str
     token: str
@@ -69,6 +72,7 @@ class PresignResponse(BaseModel):
 
 class ConfirmUploadRequest(BaseModel):
     """Request to confirm a successful upload."""
+
     file_path: str
     filename: str
     file_size: int
@@ -76,6 +80,7 @@ class ConfirmUploadRequest(BaseModel):
 
 
 # ============== Helper Functions ==============
+
 
 def get_supabase_storage() -> Optional[SupabaseStorageService]:
     """Get Supabase storage service if configured."""
@@ -90,6 +95,7 @@ def get_supabase_storage() -> Optional[SupabaseStorageService]:
 
 # ============== Presigned URL Endpoints ==============
 
+
 @router.post("/projects/{project_id}/documents/presign", response_model=PresignResponse)
 async def get_presigned_upload_url(
     project_id: UUID,
@@ -97,7 +103,7 @@ async def get_presigned_upload_url(
 ) -> PresignResponse:
     """
     Generate a presigned URL for direct file upload to Supabase Storage.
-    
+
     The client should:
     1. Call this endpoint to get a presigned URL
     2. Upload the file directly to the presigned URL (PUT request)
@@ -107,7 +113,7 @@ async def get_presigned_upload_url(
         f"[Presign] Request received: project_id={project_id}, "
         f"filename={request.filename}, content_type={request.content_type}"
     )
-    
+
     # Check Supabase configuration
     logger.debug(
         f"[Presign] Supabase config check: "
@@ -115,7 +121,7 @@ async def get_presigned_upload_url(
         f"key={'set' if settings.supabase_service_role_key else 'not set'}, "
         f"bucket={settings.storage_bucket}"
     )
-    
+
     storage = get_supabase_storage()
     if not storage:
         error_msg = (
@@ -125,20 +131,20 @@ async def get_presigned_upload_url(
         )
         logger.error(f"[Presign] Configuration error: {error_msg}")
         raise HTTPException(status_code=501, detail=error_msg)
-    
+
     try:
         logger.info(f"[Presign] Creating signed upload URL for project {project_id}")
         result = await storage.create_signed_upload_url(
             project_id=str(project_id),
             filename=request.filename,
         )
-        
+
         logger.info(
             f"[Presign] Successfully created presigned URL: "
             f"file_path={result.file_path}, "
             f"expires_at={result.expires_at}"
         )
-        
+
         return PresignResponse(
             upload_url=result.upload_url,
             file_path=result.file_path,
@@ -151,25 +157,26 @@ async def get_presigned_upload_url(
     except Exception as e:
         error_detail = str(e)
         error_type = type(e).__name__
-        
+
         logger.error(
             f"[Presign] Failed to create presigned URL: "
             f"project_id={project_id}, "
             f"filename={request.filename}, "
             f"error_type={error_type}, "
             f"error={error_detail}",
-            exc_info=True  # Include full stack trace
+            exc_info=True,  # Include full stack trace
         )
-        
+
         # Include more context in error message
-        detail_msg = (
-            f"Failed to create presigned URL: {error_detail} "
-            f"(type: {error_type})"
-        )
+        detail_msg = f"Failed to create presigned URL: {error_detail} (type: {error_type})"
         raise HTTPException(status_code=500, detail=detail_msg)
 
 
-@router.post("/projects/{project_id}/documents/confirm", response_model=DocumentUploadResponse, status_code=202)
+@router.post(
+    "/projects/{project_id}/documents/confirm",
+    response_model=DocumentUploadResponse,
+    status_code=202,
+)
 async def confirm_upload(
     project_id: UUID,
     request: ConfirmUploadRequest,
@@ -177,35 +184,32 @@ async def confirm_upload(
 ) -> DocumentUploadResponse:
     """
     Confirm a successful file upload and schedule async processing.
-    
+
     This endpoint should be called after the file has been uploaded to Supabase Storage.
     It will:
     1. Verify the file exists in storage
     2. Create a document record with 'pending' status
     3. Schedule a background task for processing
-    
+
     Returns 202 Accepted - processing happens asynchronously.
     """
     storage = get_supabase_storage()
     if not storage:
-        raise HTTPException(
-            status_code=501,
-            detail="Supabase Storage not configured."
-        )
-    
+        raise HTTPException(status_code=501, detail="Supabase Storage not configured.")
+
     # Verify file exists in storage
     exists = await storage.file_exists(request.file_path)
     if not exists:
         raise HTTPException(
-            status_code=400,
-            detail=f"File not found in storage: {request.file_path}"
+            status_code=400, detail=f"File not found in storage: {request.file_path}"
         )
-    
+
     try:
         # Create document record with pending status
         from uuid import uuid4
+
         document_id = uuid4()
-        
+
         document = DocumentModel(
             id=document_id,
             project_id=project_id,
@@ -218,7 +222,7 @@ async def confirm_upload(
         )
         session.add(document)
         await session.flush()
-        
+
         # Schedule background processing task
         task_service = TaskQueueService(session)
         await task_service.push(
@@ -230,11 +234,11 @@ async def confirm_upload(
             },
             priority=0,
         )
-        
+
         await session.commit()
-        
+
         logger.info(f"Document {document_id} scheduled for processing")
-        
+
         return DocumentUploadResponse(
             id=document_id,
             filename=request.filename,
@@ -242,7 +246,7 @@ async def confirm_upload(
             status="pending",
             message="Document uploaded successfully. Processing scheduled.",
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to schedule document processing: {e}")
         await session.rollback()
@@ -250,6 +254,7 @@ async def confirm_upload(
 
 
 # ============== Standard Document Endpoints ==============
+
 
 @router.get("/projects/{project_id}/documents", response_model=DocumentListResponse)
 async def list_documents(
@@ -279,14 +284,30 @@ async def list_documents(
     )
 
 
-@router.post("/projects/{project_id}/documents", response_model=DocumentUploadResponse, status_code=201)
+@router.post(
+    "/projects/{project_id}/documents",
+    response_model=DocumentUploadResponse,
+    status_code=201,
+    deprecated=True,
+    description="**DEPRECATED**: Use presigned URL upload flow instead (POST /presign -> PUT to upload_url -> POST /confirm). This synchronous endpoint blocks until processing completes and may timeout for large files.",
+)
 async def upload_document(
     project_id: UUID,
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
     embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
 ) -> DocumentUploadResponse:
-    """Upload a PDF document."""
+    """
+    Upload a PDF document (DEPRECATED).
+
+    **Warning**: This endpoint is deprecated. Use the presigned URL upload flow for better
+    reliability and progress tracking:
+    1. POST /projects/{project_id}/documents/presign - Get presigned upload URL
+    2. PUT to upload_url - Upload file directly to storage
+    3. POST /projects/{project_id}/documents/confirm - Confirm and start processing
+
+    The new flow supports WebSocket notifications for real-time status updates.
+    """
     # Validate file type
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -353,6 +374,8 @@ async def get_document(
         file_size=document.file_size,
         page_count=document.page_count,
         status=document.status.value,
+        graph_status=getattr(document, "graph_status", None),
+        summary=getattr(document, "summary", None),
         created_at=document.created_at,
     )
 
@@ -364,7 +387,7 @@ async def get_document_file(
 ):
     """
     Get the PDF file for a document.
-    
+
     If the file is stored in Supabase Storage, returns a redirect to a signed URL.
     Otherwise, returns the file directly from local storage.
     """
@@ -389,7 +412,7 @@ async def get_document_file(
             except Exception as e:
                 logger.error(f"Failed to create signed download URL: {e}")
                 # Fall through to try local storage
-    
+
     # Try local storage
     file_path = Path(document.file_path)
     if not file_path.exists():
@@ -413,15 +436,15 @@ async def get_document_chunks(
     """Get parsed text chunks for a document (for text preview/debugging)."""
     document_repo = SQLAlchemyDocumentRepository(session)
     chunk_repo = SQLAlchemyChunkRepository(session)
-    
+
     # Verify document exists
     document = await document_repo.find_by_id(document_id)
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
-    
+
     # Get chunks
     chunks = await chunk_repo.find_by_document(document_id)
-    
+
     return {
         "document_id": str(document_id),
         "filename": document.filename,
@@ -465,7 +488,7 @@ async def delete_document(
             # e.g., "data/uploads/projects/..." -> "projects/..."
             idx = storage_path.find("projects/")
             storage_path = storage_path[idx:]
-        
+
         if storage_path.startswith("projects/"):
             try:
                 logger.info(f"Attempting to delete from Supabase Storage: {storage_path}")

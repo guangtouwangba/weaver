@@ -19,6 +19,9 @@ from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
+from research_agent.infrastructure.websocket.notification_service import (
+    document_notification_service,
+)
 from research_agent.shared.utils.logger import logger
 from research_agent.worker.tasks.base import BaseTask
 from research_agent.worker.tasks.canvas_syncer import CanvasSyncerTask
@@ -67,6 +70,13 @@ class DocumentProcessorTask(BaseTask):
             await self._update_document_status(session, document_id, DocumentStatus.PROCESSING)
             await session.commit()
             logger.debug(f"✅ Updated document {document_id} status to PROCESSING")
+
+            # Send WebSocket notification for processing status
+            await document_notification_service.notify_document_status(
+                project_id=str(project_id),
+                document_id=str(document_id),
+                status="processing",
+            )
         except Exception as e:
             logger.error(
                 f"❌ Failed to update document status to PROCESSING - document_id={document_id}: {e}",
@@ -97,6 +107,7 @@ class DocumentProcessorTask(BaseTask):
 
             # Step 2.5: Generate Summary and Page Map
             logger.info(f"📝 Step 2.5: Generating summary and page map - document_id={document_id}")
+            summary = None  # Initialize summary before try block to ensure it's always defined
             try:
                 # Calculate Page Map
                 page_map = []
@@ -344,6 +355,16 @@ class DocumentProcessorTask(BaseTask):
                         page_count=page_count,
                     )
                 logger.debug(f"✅ Document {document_id} status updated to READY")
+
+                # Send WebSocket notification for READY status
+                await document_notification_service.notify_document_status(
+                    project_id=str(project_id),
+                    document_id=str(document_id),
+                    status="ready",
+                    summary=summary,
+                    page_count=page_count,
+                    graph_status="processing",
+                )
             except Exception as e:
                 logger.error(
                     f"❌ Failed to mark document as READY - document_id={document_id}: {e}",
@@ -397,6 +418,16 @@ class DocumentProcessorTask(BaseTask):
                         fresh_session, document_id, graph_status="ready"
                     )
                 logger.info("✅ Step 7 completed: Graph status updated to ready")
+
+                # Send WebSocket notification for graph completion
+                await document_notification_service.notify_document_status(
+                    project_id=str(project_id),
+                    document_id=str(document_id),
+                    status="ready",
+                    summary=summary,
+                    page_count=page_count,
+                    graph_status="ready",
+                )
             except Exception as e:
                 logger.error(
                     f"❌ Step 7 failed: Failed to update graph status - "
@@ -436,6 +467,15 @@ class DocumentProcessorTask(BaseTask):
                         graph_status="error",
                     )
                 logger.info(f"✅ Updated document {document_id} status to ERROR")
+
+                # Send WebSocket notification for error status
+                await document_notification_service.notify_document_status(
+                    project_id=str(project_id),
+                    document_id=str(document_id),
+                    status="error",
+                    graph_status="error",
+                    error_message=error_message,
+                )
             except Exception as status_error:
                 logger.error(
                     f"❌ CRITICAL: Failed to update document status to ERROR - "

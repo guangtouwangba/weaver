@@ -34,6 +34,7 @@ dependencies = [
     # Utilities
     "httpx[socks]>=0.28.0",  # 包含 SOCKS 代理支持
     "python-dotenv>=1.0.1",
+    "rapidfuzz>=3.10.0",  # Fuzzy string matching for citation localization
     
     # Security
     "cryptography>=42.0.0",  # Fernet encryption for API keys

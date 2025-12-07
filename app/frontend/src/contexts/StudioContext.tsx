@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, documentsApi, canvasApi, chatApi } from '@/lib/api';
+import { ProjectDocument, CanvasNode, CanvasEdge, documentsApi, canvasApi, chatApi, Citation } from '@/lib/api';
 
 interface ChatMessage {
   id: string;
@@ -13,6 +13,7 @@ interface ChatMessage {
     snippet: string;
     similarity: number;
   }>;
+  citations?: Citation[];  // Mega-Prompt mode citations with quote localization
   timestamp: Date;
   // Optional: original user query that triggered this AI response
   query?: string;

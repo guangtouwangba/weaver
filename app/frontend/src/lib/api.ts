@@ -86,7 +86,21 @@ export interface ProjectDocument {
   page_count: number;
   status: 'pending' | 'processing' | 'ready' | 'error';
   graph_status?: 'pending' | 'processing' | 'ready' | 'error';
+  summary?: string;  // Document summary (generated during processing)
+  task_id?: string;  // Async task ID for tracking processing status
   created_at: string;
+}
+
+// Citation from Mega-Prompt RAG mode
+export interface Citation {
+  doc_id: string;        // Mega-prompt doc ID (doc_01, doc_02, etc.)
+  document_id: string;   // Actual document UUID
+  quote: string;         // Original text quoted from document
+  conclusion?: string;   // LLM's conclusion/statement
+  char_start?: number;   // Character start position in original document
+  char_end?: number;     // Character end position
+  page_number?: number;  // Page number (calculated from page_map)
+  match_score?: number;  // Fuzzy match score (0-100)
 }
 
 export interface ChatMessage {
@@ -102,6 +116,7 @@ export interface ChatResponse {
     snippet: string;
     similarity: number;
   }>;
+  citations?: Citation[];  // Mega-Prompt mode citations
 }
 
 export interface ChatHistoryResponse {
@@ -349,7 +364,13 @@ export const chatApi = {
   stream: async function* (
     projectId: string,
     message: ChatMessage
-  ): AsyncGenerator<{ type: string; content?: string; sources?: ChatResponse['sources'] }> {
+  ): AsyncGenerator<{ 
+    type: string; 
+    content?: string; 
+    sources?: ChatResponse['sources'];
+    data?: Citation;  // Single citation event
+    citations?: Citation[];  // All citations at end
+  }> {
     const response = await fetch(
       `${getApiUrl()}/api/v1/projects/${projectId}/chat/stream`,
       {

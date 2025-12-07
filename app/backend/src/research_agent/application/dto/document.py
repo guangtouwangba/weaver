@@ -16,6 +16,8 @@ class DocumentResponse(BaseModel):
     file_size: int
     page_count: int
     status: str
+    graph_status: Optional[str] = None
+    summary: Optional[str] = None  # Document summary (generated during processing)
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -36,4 +38,4 @@ class DocumentUploadResponse(BaseModel):
     page_count: int
     status: str
     message: str
-
+    task_id: Optional[UUID] = None  # Async task ID for tracking processing status

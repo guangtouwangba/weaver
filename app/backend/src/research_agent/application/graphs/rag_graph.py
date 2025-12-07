@@ -844,6 +844,157 @@ def parse_citations(text: str) -> list[dict[str, Any]]:
     return citations
 
 
+def parse_xml_citations(
+    text: str,
+    doc_id_mapping: dict[str, str],
+    doc_contents: dict[str, dict],
+) -> list[dict[str, Any]]:
+    """
+    Parse XML citation tags from Mega-Prompt generated text.
+
+    Args:
+        text: Generated text with <cite> XML tags
+        doc_id_mapping: Mapping from doc_XX to actual document UUIDs
+        doc_contents: Dict of document info with full_content and page_map
+
+    Returns:
+        List of citation dictionaries with location information
+    """
+    from research_agent.domain.services.xml_citation_parser import XMLCitationParser
+    from research_agent.utils.text_locator import TextLocator
+
+    parser = XMLCitationParser()
+    locator = TextLocator(fuzzy_threshold=85)
+
+    parsed = parser.parse(text)
+    citations = []
+
+    for citation in parsed:
+        # Map doc_id (doc_01) to actual document ID
+        actual_doc_id = doc_id_mapping.get(citation.doc_id)
+        if not actual_doc_id:
+            logger.warning(f"[XMLCitations] Unknown doc_id: {citation.doc_id}")
+            continue
+
+        # Get document content for location
+        doc_info = doc_contents.get(actual_doc_id, {})
+        full_content = doc_info.get("full_content", "")
+        page_map = doc_info.get("page_map", [])
+
+        # Locate quote in original document
+        location = locator.locate(full_content, citation.quote, page_map)
+
+        citations.append(
+            {
+                "doc_id": citation.doc_id,
+                "document_id": actual_doc_id,
+                "quote": citation.quote,
+                "conclusion": citation.conclusion,
+                "char_start": location.char_start,
+                "char_end": location.char_end,
+                "page_number": location.page_number,
+                "match_score": location.match_score,
+                "match_type": location.match_type,
+            }
+        )
+
+        if location.found:
+            logger.debug(
+                f"[XMLCitations] Located quote in {citation.doc_id}: "
+                f"page={location.page_number}, chars={location.char_start}-{location.char_end}"
+            )
+        else:
+            logger.warning(
+                f"[XMLCitations] Could not locate quote in {citation.doc_id}: "
+                f"{citation.quote[:50]}..."
+            )
+
+    return citations
+
+
+class StreamingCitationParser:
+    """Parser for streaming XML citations during LLM generation."""
+
+    def __init__(
+        self,
+        doc_id_mapping: dict[str, str],
+        doc_contents: dict[str, dict],
+    ):
+        self.doc_id_mapping = doc_id_mapping
+        self.doc_contents = doc_contents
+        self.buffer = ""
+        self._parser = None
+        self._locator = None
+
+    def _get_parser(self):
+        if self._parser is None:
+            from research_agent.domain.services.xml_citation_parser import XMLCitationParser
+
+            self._parser = XMLCitationParser()
+        return self._parser
+
+    def _get_locator(self):
+        if self._locator is None:
+            from research_agent.utils.text_locator import TextLocator
+
+            self._locator = TextLocator(fuzzy_threshold=85)
+        return self._locator
+
+    def process_token(self, token: str) -> tuple[str, list[dict]]:
+        """
+        Process a token and return any completed citations.
+
+        Args:
+            token: New token from LLM
+
+        Returns:
+            Tuple of (text_to_emit, list_of_citations)
+        """
+        self.buffer += token
+
+        parser = self._get_parser()
+        locator = self._get_locator()
+
+        citations_parsed, remaining, text_to_emit = parser.parse_streaming(self.buffer)
+        self.buffer = remaining
+
+        citations = []
+        for citation in citations_parsed:
+            # Map doc_id to actual document ID
+            actual_doc_id = self.doc_id_mapping.get(citation.doc_id)
+            if not actual_doc_id:
+                continue
+
+            # Get document content
+            doc_info = self.doc_contents.get(actual_doc_id, {})
+            full_content = doc_info.get("full_content", "")
+            page_map = doc_info.get("page_map", [])
+
+            # Locate quote
+            location = locator.locate(full_content, citation.quote, page_map)
+
+            citations.append(
+                {
+                    "doc_id": citation.doc_id,
+                    "document_id": actual_doc_id,
+                    "quote": citation.quote,
+                    "conclusion": citation.conclusion,
+                    "char_start": location.char_start,
+                    "char_end": location.char_end,
+                    "page_number": location.page_number,
+                    "match_score": location.match_score,
+                }
+            )
+
+        return text_to_emit or "", citations
+
+    def flush(self) -> str:
+        """Flush remaining buffer."""
+        remaining = self.buffer
+        self.buffer = ""
+        return remaining
+
+
 def generate_long_context(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Generate answer from long context with citation grounding."""
     from research_agent.config import get_settings
@@ -1287,68 +1438,154 @@ async def stream_rag_response(
         from research_agent.infrastructure.llm.prompts.rag_prompt import (
             LONG_CONTEXT_SYSTEM_PROMPT,
             build_long_context_prompt,
+            build_mega_prompt,
+            get_document_id_mapping,
         )
 
         settings = get_settings()
         document_selection = state.get("document_selection", {})
         long_context_docs = document_selection.get("long_context_docs", [])
 
+        # Get citation mode from settings (defaults to xml_quote for Mega-Prompt)
+        citation_mode = getattr(settings, "mega_prompt_citation_mode", "xml_quote")
+        intent_type = state.get("intent_type", "factual")
+
         # Build documents list for prompt
         documents_for_prompt = []
+        doc_contents = {}  # For citation localization
+
         for doc in long_context_docs:
-            documents_for_prompt.append(
-                {
-                    "document_id": str(doc.id),
-                    "filename": doc.filename,
-                    "content": long_context_content,  # Use prepared content
-                    "page_count": doc.page_count or 0,
-                }
+            doc_id = str(doc.id)
+            doc_info = {
+                "document_id": doc_id,
+                "filename": doc.filename,
+                "content": doc.full_content or long_context_content,
+                "page_count": doc.page_count or 0,
+            }
+            documents_for_prompt.append(doc_info)
+
+            # Store content info for citation localization
+            doc_contents[doc_id] = {
+                "full_content": doc.full_content or "",
+                "page_map": doc.parsing_metadata.get("page_map", [])
+                if doc.parsing_metadata
+                else [],
+            }
+
+        # Choose prompt format based on citation mode
+        if citation_mode == "xml_quote":
+            # Use Mega-Prompt with XML citations
+            logger.info("[RAG Mode] Using Mega-Prompt with XML citations")
+
+            mega_prompt = build_mega_prompt(
+                query=question,
+                documents=documents_for_prompt,
+                intent_type=intent_type,
+                role="research assistant",
             )
 
-        # Build prompt
-        user_prompt = build_long_context_prompt(
-            query=question,
-            documents=documents_for_prompt,
-            citation_format=settings.citation_format,
-        )
+            # Get doc ID mapping (doc_01 -> actual UUID)
+            doc_id_mapping = get_document_id_mapping(documents_for_prompt)
 
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", LONG_CONTEXT_SYSTEM_PROMPT),
-                ("human", user_prompt),
-            ]
-        )
-
-        # Create streaming LLM with callback
-        streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
-        chain = prompt | streaming_llm | StrOutputParser()
-
-        # Stream tokens
-        token_count = 0
-        full_response = ""
-        try:
-            async for token in chain.astream({"question": question}):
-                token_count += 1
-                full_response += token
-                yield {"type": "token", "content": token}
-            logger.info(f"[Stream] Long context generation complete: {token_count} tokens")
-
-            # Parse citations from response
-            citations = parse_citations(full_response)
-            if citations:
-                yield {"type": "citations", "citations": citations}
-                logger.info(f"[Stream] Parsed {len(citations)} citations")
-        except Exception as e:
-            import traceback
-
-            logger.error(
-                f"[Stream] Long context generation error: {type(e).__name__}: {e}\n"
-                f"Question: {question[:100]}...\n"
-                f"Context length: {len(long_context_content)} chars\n"
-                f"Traceback:\n{traceback.format_exc()}",
-                exc_info=True,
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("human", mega_prompt),
+                ]
             )
-            yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
+
+            # Create streaming LLM with callback
+            streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
+            chain = prompt | streaming_llm | StrOutputParser()
+
+            # Stream tokens with real-time citation parsing
+            token_count = 0
+            full_response = ""
+            citation_parser = StreamingCitationParser(doc_id_mapping, doc_contents)
+
+            try:
+                async for token in chain.astream({}):
+                    token_count += 1
+                    full_response += token
+
+                    # Process token for citations
+                    text_to_emit, citations = citation_parser.process_token(token)
+
+                    # Emit text (may be delayed due to buffering)
+                    if text_to_emit:
+                        yield {"type": "token", "content": text_to_emit}
+
+                    # Emit any completed citations
+                    for citation in citations:
+                        yield {"type": "citation", "data": citation}
+
+                # Flush remaining buffer
+                remaining = citation_parser.flush()
+                if remaining:
+                    yield {"type": "token", "content": remaining}
+
+                logger.info(f"[Stream] Mega-Prompt generation complete: {token_count} tokens")
+
+                # Parse any remaining citations from full response
+                all_citations = parse_xml_citations(full_response, doc_id_mapping, doc_contents)
+                if all_citations:
+                    yield {"type": "citations", "citations": all_citations}
+                    logger.info(f"[Stream] Total {len(all_citations)} XML citations parsed")
+
+            except Exception as e:
+                import traceback
+
+                logger.error(
+                    f"[Stream] Mega-Prompt generation error: {type(e).__name__}: {e}\n"
+                    f"Question: {question[:100]}...\n"
+                    f"Traceback:\n{traceback.format_exc()}",
+                    exc_info=True,
+                )
+                yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
+        else:
+            # Use traditional long context prompt
+            user_prompt = build_long_context_prompt(
+                query=question,
+                documents=documents_for_prompt,
+                citation_format=settings.citation_format,
+            )
+
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", LONG_CONTEXT_SYSTEM_PROMPT),
+                    ("human", user_prompt),
+                ]
+            )
+
+            # Create streaming LLM with callback
+            streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
+            chain = prompt | streaming_llm | StrOutputParser()
+
+            # Stream tokens
+            token_count = 0
+            full_response = ""
+            try:
+                async for token in chain.astream({"question": question}):
+                    token_count += 1
+                    full_response += token
+                    yield {"type": "token", "content": token}
+                logger.info(f"[Stream] Long context generation complete: {token_count} tokens")
+
+                # Parse citations from response
+                citations = parse_citations(full_response)
+                if citations:
+                    yield {"type": "citations", "citations": citations}
+                    logger.info(f"[Stream] Parsed {len(citations)} citations")
+            except Exception as e:
+                import traceback
+
+                logger.error(
+                    f"[Stream] Long context generation error: {type(e).__name__}: {e}\n"
+                    f"Question: {question[:100]}...\n"
+                    f"Context length: {len(long_context_content)} chars\n"
+                    f"Traceback:\n{traceback.format_exc()}",
+                    exc_info=True,
+                )
+                yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
     else:
         # Use traditional generation
         context = "\n\n".join([doc.page_content for doc in documents])

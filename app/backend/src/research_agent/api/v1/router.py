@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from research_agent.api.v1 import canvas, chat, curriculum, documents, projects, settings
+from research_agent.api.v1 import canvas, chat, curriculum, documents, projects, settings, websocket
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(
     curriculum.router, prefix="/projects/{project_id}/curriculum", tags=["curriculum"]
 )
 api_router.include_router(settings.router, tags=["settings"])
+api_router.include_router(websocket.router, tags=["websocket"])

@@ -26,7 +26,102 @@ import {
   GripHorizontal,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
-import { chatApi } from '@/lib/api';
+import { chatApi, Citation } from '@/lib/api';
+
+// Helper function to parse XML cite tags and render with clickable citations
+function renderContentWithCitations(
+  content: string,
+  citations: Citation[] | undefined,
+  onCitationClick: (citation: Citation) => void
+): React.ReactNode {
+  // If no content, return empty
+  if (!content) return null;
+
+  // Pattern to match <cite doc_id="doc_XX" quote="...">conclusion</cite>
+  const citePattern = /<cite\s+doc_id="(doc_\d+)"\s+quote="([^"]+)">([^<]+)<\/cite>/g;
+  
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+
+  while ((match = citePattern.exec(content)) !== null) {
+    // Add text before the citation
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`text-${keyIndex++}`}>
+          {content.slice(lastIndex, match.index)}
+        </span>
+      );
+    }
+
+    const docId = match[1];  // doc_01
+    const quote = match[2];  // Original quote
+    const conclusion = match[3];  // LLM conclusion
+
+    // Find the matching citation with location info
+    const citationData = citations?.find(c => c.doc_id === docId && c.quote === quote);
+
+    // Render as clickable citation
+    parts.push(
+      <Tooltip 
+        key={`cite-${keyIndex++}`}
+        title={
+          <Box sx={{ maxWidth: 300 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
+              Source: {docId}
+              {citationData?.page_number && ` (Page ${citationData.page_number})`}
+            </Typography>
+            <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block' }}>
+              "{quote.length > 100 ? quote.slice(0, 100) + '...' : quote}"
+            </Typography>
+          </Box>
+        }
+      >
+        <Box
+          component="span"
+          onClick={() => {
+            if (citationData) {
+              onCitationClick(citationData);
+            }
+          }}
+          sx={{
+            color: 'primary.main',
+            cursor: citationData ? 'pointer' : 'default',
+            textDecoration: 'underline',
+            textDecorationStyle: 'dotted',
+            textUnderlineOffset: '2px',
+            '&:hover': {
+              color: 'primary.dark',
+              bgcolor: 'primary.50',
+              borderRadius: '2px',
+            },
+          }}
+        >
+          {conclusion}
+        </Box>
+      </Tooltip>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < content.length) {
+    parts.push(
+      <span key={`text-${keyIndex++}`}>
+        {content.slice(lastIndex)}
+      </span>
+    );
+  }
+
+  // If no citations found, return original content
+  if (parts.length === 0) {
+    return content;
+  }
+
+  return <>{parts}</>;
+}
 
 interface AssistantPanelProps {
   visible: boolean;
@@ -105,6 +200,24 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                 flushSync(() => {
                   setChatMessages(prev => prev.map(m => 
                       m.id === aiMsgId ? { ...m, sources: chunk.sources } : m
+                  ));
+                });
+            } else if (chunk.type === 'citation' && chunk.data) {
+                // Handle single citation event from Mega-Prompt mode
+                flushSync(() => {
+                  setChatMessages(prev => prev.map(m => 
+                      m.id === aiMsgId 
+                        ? { ...m, citations: [...(m.citations || []), chunk.data as Citation] } 
+                        : m
+                  ));
+                });
+            } else if (chunk.type === 'citations' && chunk.citations) {
+                // Handle all citations at end of response
+                flushSync(() => {
+                  setChatMessages(prev => prev.map(m => 
+                      m.id === aiMsgId 
+                        ? { ...m, citations: chunk.citations } 
+                        : m
                   ));
                 });
             } else if (chunk.type === 'done') {
@@ -276,8 +389,20 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                   </Typography>
                 </Box>
               ) : (
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '1.5em' }}>
-                  {msg.content || (msg.role === 'ai' ? '...' : '')}
+                <Typography variant="body2" component="div" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '1.5em' }}>
+                  {msg.role === 'ai' && msg.content 
+                    ? renderContentWithCitations(
+                        msg.content, 
+                        msg.citations,
+                        (citation) => {
+                          // Navigate to the document and page when citation is clicked
+                          if (citation.document_id && citation.page_number) {
+                            navigateToSource(citation.document_id, citation.page_number, citation.quote);
+                          }
+                        }
+                      )
+                    : (msg.content || (msg.role === 'ai' ? '...' : ''))
+                  }
                 </Typography>
               )}
               
