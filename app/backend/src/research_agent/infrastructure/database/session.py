@@ -302,3 +302,36 @@ def get_active_session_count() -> int:
     # Clean up dead references
     _active_sessions.difference_update(ref for ref in _active_sessions if ref() is None)
     return len(_active_sessions)
+
+
+# ✅ FastAPI dependency for session injection
+async def get_session():
+    """
+    FastAPI dependency that yields a database session.
+
+    Usage:
+        @router.get("/example")
+        async def example(session: AsyncSession = Depends(get_session)):
+            # Use session
+            pass
+    """
+    session = async_session_maker()
+
+    # Track this session
+    session_ref = weakref.ref(session)
+    _active_sessions.add(session_ref)
+
+    try:
+        yield session
+        await session.commit()
+    except Exception as e:
+        logger.error(f"Session error, rolling back: {e}")
+        await session.rollback()
+        raise
+    finally:
+        try:
+            await session.close()
+        except Exception as e:
+            logger.warning(f"Error closing session: {e}")
+        finally:
+            _active_sessions.discard(session_ref)

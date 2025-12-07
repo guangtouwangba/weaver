@@ -12,6 +12,7 @@ settings = get_settings()
 from research_agent.domain.entities.document import DocumentStatus
 from research_agent.domain.services.chunking_service import ChunkingService
 from research_agent.infrastructure.database.models import DocumentChunkModel, DocumentModel
+from research_agent.infrastructure.database.session import get_async_session
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.llm.base import ChatMessage
 from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
@@ -203,6 +204,8 @@ class DocumentProcessorTask(BaseTask):
                     # But here we are updating doc object attributes.
 
                     await session.flush()
+                    # Commit before long embedding operation to release the connection
+                    await session.commit()
                     logger.info(
                         f"✅ Step 3b completed: Saved full content ({token_count} tokens) "
                         f"and metadata for document {document_id}"
@@ -221,6 +224,9 @@ class DocumentProcessorTask(BaseTask):
                 raise
 
             # Step 4: Generate embeddings (optional for long_context mode)
+            # ✅ CRITICAL: This step uses fresh sessions to avoid connection timeout
+            # Embedding generation can take 30-60+ seconds, which would cause the original
+            # session's connection to timeout.
             if chunk_data:
                 # Check if we can skip embedding generation for long_context mode
                 should_skip_embedding = False
@@ -251,32 +257,16 @@ class DocumentProcessorTask(BaseTask):
                         f"(for citation/reference purposes only)"
                     )
 
-                    # Still save chunks (without embeddings) for citation/reference purposes
-                    batch_size = 50
-                    total_chunks = len(chunk_data)
-                    saved_count = 0
-
-                    for i in range(0, total_chunks, batch_size):
-                        batch_end = min(i + batch_size, total_chunks)
-                        batch_chunks = chunk_data[i:batch_end]
-
-                        for chunk in batch_chunks:
-                            chunk_model = DocumentChunkModel(
-                                document_id=document_id,
-                                project_id=project_id,
-                                chunk_index=chunk["chunk_index"],
-                                content=chunk["content"],
-                                page_number=chunk.get("page_number"),
-                                embedding=None,  # No embedding for long_context mode
-                                chunk_metadata=chunk.get("metadata", {}),
-                            )
-                            session.add(chunk_model)
-
-                        await session.flush()
-                        saved_count += len(batch_chunks)
+                    # Save chunks without embeddings using fresh session
+                    await self._save_chunks_batch(
+                        document_id=document_id,
+                        project_id=project_id,
+                        chunk_data=chunk_data,
+                        embeddings=None,
+                    )
 
                     logger.info(
-                        f"✅ Step 4 completed: Saved {saved_count} chunks without embeddings"
+                        f"✅ Step 4 completed: Saved {len(chunk_data)} chunks without embeddings"
                     )
                 else:
                     # Generate embeddings (needed for traditional mode, hybrid mode, or document selection)
@@ -300,6 +290,7 @@ class DocumentProcessorTask(BaseTask):
                         )
 
                         try:
+                            # ✅ This is the long-running operation that was causing connection timeout
                             embeddings = await embedding_service.embed_batch(contents)
                             logger.info(
                                 f"✅ Step 4a completed: Generated {len(embeddings)} embeddings"
@@ -313,47 +304,19 @@ class DocumentProcessorTask(BaseTask):
                             )
                             raise
 
-                        # Save chunks with embeddings in batches to avoid connection timeout
-                        # Large batch inserts can cause "connection is closed" errors
+                        # ✅ CRITICAL FIX: Save chunks with embeddings using FRESH session
+                        # The original session's connection may have timed out during embedding generation
                         logger.debug(f"💾 Saving {len(chunk_data)} chunks to database in batches")
 
-                        batch_size = 50  # Insert chunks in batches of 50
-                        total_chunks = len(chunk_data)
-                        saved_count = 0
-
-                        for i in range(0, total_chunks, batch_size):
-                            batch_end = min(i + batch_size, total_chunks)
-                            batch_chunks = chunk_data[i:batch_end]
-                            batch_embeddings = embeddings[i:batch_end]
-
-                            logger.debug(
-                                f"💾 Saving batch {i // batch_size + 1}/{(total_chunks + batch_size - 1) // batch_size} "
-                                f"(chunks {i + 1}-{batch_end} of {total_chunks})"
-                            )
-
-                            for chunk, embedding in zip(batch_chunks, batch_embeddings):
-                                chunk_model = DocumentChunkModel(
-                                    document_id=document_id,
-                                    project_id=project_id,
-                                    chunk_index=chunk["chunk_index"],
-                                    content=chunk["content"],
-                                    page_number=chunk.get("page_number"),
-                                    embedding=embedding,
-                                    chunk_metadata=chunk.get("metadata", {}),
-                                )
-                                session.add(chunk_model)
-
-                            # Flush each batch separately
-                            await session.flush()
-                            saved_count += len(batch_chunks)
-
-                            logger.debug(
-                                f"✅ Batch saved: {saved_count}/{total_chunks} chunks saved so far"
-                            )
+                        await self._save_chunks_batch(
+                            document_id=document_id,
+                            project_id=project_id,
+                            chunk_data=chunk_data,
+                            embeddings=embeddings,
+                        )
 
                         logger.info(
-                            f"✅ Step 4b completed: Saved {saved_count} chunks with embeddings "
-                            f"in {(total_chunks + batch_size - 1) // batch_size} batches"
+                            f"✅ Step 4b completed: Saved {len(chunk_data)} chunks with embeddings"
                         )
                     except Exception as e:
                         logger.error(
@@ -369,16 +332,17 @@ class DocumentProcessorTask(BaseTask):
 
             # PROGRESSIVE PROCESSING: Mark document as READY for RAG now
             # This allows users to start chatting while graph extraction runs in background
+            # ✅ Use fresh session for status update
             logger.info(f"✅ Marking document as READY for RAG - document_id={document_id}")
             try:
-                await self._update_document_status(
-                    session,
-                    document_id,
-                    status=DocumentStatus.READY,
-                    graph_status="processing",
-                    page_count=page_count,
-                )
-                await session.commit()
+                async with get_async_session() as fresh_session:
+                    await self._update_document_status(
+                        fresh_session,
+                        document_id,
+                        status=DocumentStatus.READY,
+                        graph_status="processing",
+                        page_count=page_count,
+                    )
                 logger.debug(f"✅ Document {document_id} status updated to READY")
             except Exception as e:
                 logger.error(
@@ -388,13 +352,15 @@ class DocumentProcessorTask(BaseTask):
                 raise
 
             # Step 5: Extract knowledge graph
+            # ✅ Use fresh session for graph extraction
             logger.info(f"🕸️ Step 5: Extracting knowledge graph - document_id={document_id}")
             try:
-                graph_extractor = GraphExtractorTask()
-                await graph_extractor.execute(
-                    {"document_id": str(document_id), "project_id": str(project_id)},
-                    session,
-                )
+                async with get_async_session() as fresh_session:
+                    graph_extractor = GraphExtractorTask()
+                    await graph_extractor.execute(
+                        {"document_id": str(document_id), "project_id": str(project_id)},
+                        fresh_session,
+                    )
                 logger.info("✅ Step 5 completed: Knowledge graph extracted")
             except Exception as e:
                 logger.error(
@@ -404,17 +370,16 @@ class DocumentProcessorTask(BaseTask):
                 )
                 raise
 
-            # Commit entities before canvas sync to ensure they're visible
-            await session.commit()
-
             # Step 6: Sync to canvas
+            # ✅ Use fresh session for canvas sync
             logger.info(f"🎨 Step 6: Syncing to canvas - document_id={document_id}")
             try:
-                canvas_syncer = CanvasSyncerTask()
-                await canvas_syncer.execute(
-                    {"project_id": str(project_id), "document_id": str(document_id)},
-                    session,
-                )
+                async with get_async_session() as fresh_session:
+                    canvas_syncer = CanvasSyncerTask()
+                    await canvas_syncer.execute(
+                        {"project_id": str(project_id), "document_id": str(document_id)},
+                        fresh_session,
+                    )
                 logger.info("✅ Step 6 completed: Canvas synced")
             except Exception as e:
                 logger.error(
@@ -424,10 +389,13 @@ class DocumentProcessorTask(BaseTask):
                 raise
 
             # Step 7: Update graph status to ready
+            # ✅ Use fresh session for final status update
             logger.info(f"✅ Step 7: Updating graph status to ready - document_id={document_id}")
             try:
-                await self._update_document_status(session, document_id, graph_status="ready")
-                await session.commit()
+                async with get_async_session() as fresh_session:
+                    await self._update_document_status(
+                        fresh_session, document_id, graph_status="ready"
+                    )
                 logger.info("✅ Step 7 completed: Graph status updated to ready")
             except Exception as e:
                 logger.error(
@@ -458,15 +426,15 @@ class DocumentProcessorTask(BaseTask):
                 f"payload={payload}, exception_type={error_type}"
             )
 
-            # Update status to error
+            # Update status to error - use fresh session
             try:
-                await session.rollback()
-                logger.debug(f"✅ Session rolled back for document {document_id}")
-
-                await self._update_document_status(
-                    session, document_id, status=DocumentStatus.ERROR, graph_status="error"
-                )
-                await session.commit()
+                async with get_async_session() as fresh_session:
+                    await self._update_document_status(
+                        fresh_session,
+                        document_id,
+                        status=DocumentStatus.ERROR,
+                        graph_status="error",
+                    )
                 logger.info(f"✅ Updated document {document_id} status to ERROR")
             except Exception as status_error:
                 logger.error(
@@ -477,6 +445,57 @@ class DocumentProcessorTask(BaseTask):
                 )
 
             raise
+
+    async def _save_chunks_batch(
+        self,
+        document_id: UUID,
+        project_id: UUID,
+        chunk_data: List[Dict[str, Any]],
+        embeddings: Optional[List[List[float]]] = None,
+    ) -> None:
+        """
+        Save chunks to database in batches using a fresh session.
+
+        This method creates its own session to avoid connection timeout issues
+        that can occur when the caller's session has been idle during long operations
+        like embedding generation.
+        """
+        batch_size = 50
+        total_chunks = len(chunk_data)
+        saved_count = 0
+
+        for i in range(0, total_chunks, batch_size):
+            batch_end = min(i + batch_size, total_chunks)
+            batch_chunks = chunk_data[i:batch_end]
+            batch_embeddings = embeddings[i:batch_end] if embeddings else [None] * len(batch_chunks)
+
+            logger.debug(
+                f"💾 Saving batch {i // batch_size + 1}/{(total_chunks + batch_size - 1) // batch_size} "
+                f"(chunks {i + 1}-{batch_end} of {total_chunks})"
+            )
+
+            # ✅ Use fresh session for each batch to ensure connection is alive
+            async with get_async_session() as batch_session:
+                for chunk, embedding in zip(batch_chunks, batch_embeddings):
+                    chunk_model = DocumentChunkModel(
+                        document_id=document_id,
+                        project_id=project_id,
+                        chunk_index=chunk["chunk_index"],
+                        content=chunk["content"],
+                        page_number=chunk.get("page_number"),
+                        embedding=embedding,
+                        chunk_metadata=chunk.get("metadata", {}),
+                    )
+                    batch_session.add(chunk_model)
+
+                # Flush and commit will happen automatically when context manager exits
+                # But let's be explicit
+                await batch_session.flush()
+
+            saved_count += len(batch_chunks)
+            logger.debug(f"✅ Batch saved: {saved_count}/{total_chunks} chunks saved so far")
+
+        logger.info(f"✅ All {saved_count} chunks saved successfully")
 
     async def _generate_summary(self, llm: OpenRouterLLMService, text: str) -> str:
         """Generate a summary of the document text."""

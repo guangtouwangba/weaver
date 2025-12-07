@@ -425,3 +425,102 @@ export const healthApi = {
   check: () => fetchApi<{ status: string; environment: string; version: string }>('/health'),
 };
 
+// Settings Types
+export interface SettingOption {
+  value: string;
+  label: string;
+  description: string;
+  cost: 'low' | 'medium' | 'high' | 'variable';
+  performance: 'slow' | 'medium' | 'fast' | 'variable';
+  best_for: string;
+}
+
+export interface SettingMetadata {
+  category: string;
+  description: string;
+  default?: string | number | boolean;
+  allowed_values?: string[];
+  options?: SettingOption[];
+  min?: number;
+  max?: number;
+  encrypted?: boolean;
+}
+
+export interface AllSettingsResponse {
+  settings: Record<string, unknown>;
+  metadata: Record<string, SettingMetadata>;
+}
+
+export interface SettingResponse {
+  key: string;
+  value: unknown;
+  category: string;
+  description?: string;
+  is_encrypted: boolean;
+  is_project_override: boolean;
+  is_user_override: boolean;
+}
+
+export interface ApiKeyValidationResponse {
+  valid: boolean;
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+// Default user ID (placeholder until auth is implemented)
+const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+// Settings API
+export const settingsApi = {
+  // Get all user settings
+  getUserSettings: (userId: string = DEFAULT_USER_ID, category?: string) =>
+    fetchApi<AllSettingsResponse>(
+      `/api/v1/settings/users/${userId}${category ? `?category=${category}` : ''}`
+    ),
+
+  // Get a specific user setting
+  getUserSetting: (key: string, userId: string = DEFAULT_USER_ID) =>
+    fetchApi<SettingResponse>(`/api/v1/settings/users/${userId}/${key}`),
+
+  // Update a user setting
+  updateUserSetting: (
+    key: string,
+    value: unknown,
+    userId: string = DEFAULT_USER_ID,
+    description?: string
+  ) =>
+    fetchApi<SettingResponse>(`/api/v1/settings/users/${userId}/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value, description }),
+    }),
+
+  // Delete a user setting (reverts to default)
+  deleteUserSetting: (key: string, userId: string = DEFAULT_USER_ID) =>
+    fetchApi<{ message: string }>(`/api/v1/settings/users/${userId}/${key}`, {
+      method: 'DELETE',
+    }),
+
+  // Get settings metadata (for UI rendering)
+  getMetadata: () =>
+    fetchApi<{ settings: Record<string, SettingMetadata> }>('/api/v1/settings/metadata'),
+
+  // Validate API key
+  validateApiKey: (apiKey: string, provider: string = 'openrouter') =>
+    fetchApi<ApiKeyValidationResponse>('/api/v1/settings/validate-api-key', {
+      method: 'POST',
+      body: JSON.stringify({ api_key: apiKey, provider }),
+    }),
+
+  // Global settings (admin only)
+  getGlobalSettings: (category?: string) =>
+    fetchApi<AllSettingsResponse>(
+      `/api/v1/settings/global${category ? `?category=${category}` : ''}`
+    ),
+
+  updateGlobalSetting: (key: string, value: unknown, description?: string) =>
+    fetchApi<SettingResponse>(`/api/v1/settings/global/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value, description }),
+    }),
+};
+

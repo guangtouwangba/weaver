@@ -5,7 +5,17 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -318,3 +328,102 @@ class EvaluationLogModel(Base):
 
     # Relationships
     project: Mapped[Optional["ProjectModel"]] = relationship("ProjectModel")
+
+
+# =============================================================================
+# Configuration Center Models
+# =============================================================================
+
+
+class GlobalSettingModel(Base):
+    """
+    Global settings ORM model.
+
+    Stores system-wide configuration that applies to all projects.
+    Priority: Project Settings > Global Settings > Environment Variables
+    """
+
+    __tablename__ = "global_settings"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    value: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    category: Mapped[str] = mapped_column(
+        String(100), nullable=False, index=True
+    )  # model, api_key, rag_strategy, advanced
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ProjectSettingModel(Base):
+    """
+    Project-specific settings ORM model.
+
+    Stores configuration that overrides global settings for a specific project.
+    Priority: Project Settings > Global Settings > Environment Variables
+    """
+
+    __tablename__ = "project_settings"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    value: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    category: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # model, api_key, rag_strategy, advanced
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Unique constraint: each project can have only one setting per key
+    __table_args__ = (
+        UniqueConstraint("project_id", "key", name="uq_project_settings_project_key"),
+    )
+
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel")
+
+
+class UserSettingModel(Base):
+    """
+    User-specific settings ORM model.
+
+    Stores configuration for individual users.
+    Priority: User Settings > Project Settings > Global Settings > Environment Variables
+    """
+
+    __tablename__ = "user_settings"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        index=True,
+    )
+    key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    value: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    category: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # model, api_key, rag_strategy, advanced
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Unique constraint: each user can have only one setting per key
+    __table_args__ = (UniqueConstraint("user_id", "key", name="uq_user_settings_user_key"),)

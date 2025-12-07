@@ -152,7 +152,7 @@ export default function DashboardPage() {
           </Alert>
         )}
 
-        {/* Create Project Zone */}
+        {/* Create Project Zone - Always visible as requested */}
         <Box 
           sx={{ 
             border: '2px dashed', 
@@ -161,7 +161,12 @@ export default function DashboardPage() {
             p: 6, 
             textAlign: 'center',
             mb: 6,
-            bgcolor: 'background.default'
+            bgcolor: 'background.default',
+            transition: 'all 0.2s',
+            '&:hover': {
+              borderColor: 'primary.main',
+              bgcolor: 'action.hover'
+            }
           }}
         >
           <FolderOpen size={48} className="mx-auto mb-4 text-gray-400" />
@@ -181,98 +186,91 @@ export default function DashboardPage() {
           </Button>
         </Box>
 
-        {/* Projects List */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" fontWeight="600">
-            Your Projects ({projects.length})
-          </Typography>
-        </Box>
-
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : projects.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography variant="body1" color="text.secondary">
-              No projects yet. Create your first project to get started!
+        ) : projects.length > 0 && (
+          /* Projects Grid */
+          <Box>
+            <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+              Your Projects ({projects.length})
             </Typography>
-          </Box>
-        ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
-            {projects.map((project) => (
-              <Paper 
-                key={project.id}
-                elevation={0}
-                sx={{ 
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  transition: 'all 0.2s',
-                  cursor: 'pointer',
-                  '&:hover': { 
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 12px 24px rgba(0,0,0,0.05)',
-                    borderColor: 'primary.main'
-                  }
-                }}
-                onClick={() => handleOpenProject(project.id)}
-              >
-                {/* Content Area */}
-                <Box sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                    <Typography 
-                      variant="h6" 
-                      fontWeight="bold" 
-                      color="text.primary" 
-                      sx={{ lineHeight: 1.3, flex: 1, pr: 1 }}
-                    >
-                      {project.name}
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleOpenMenu(e, project)}
-                      sx={{ 
-                        mt: -0.5, 
-                        mr: -1,
-                        color: 'text.secondary',
-                        '&:hover': { 
-                          color: 'text.primary',
-                          bgcolor: 'action.hover'
-                        }
-                      }}
-                    >
-                      <MoreVertical size={16} />
-                    </IconButton>
-                  </Box>
-                  
-                  {project.description && (
-                    <Typography 
-                      variant="body2" 
-                      color="text.secondary" 
-                      sx={{ 
-                        mb: 3,
-                        height: 40,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                      }}
-                    >
-                      {project.description}
-                    </Typography>
-                  )}
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
+              {projects.map((project) => (
+                <Paper 
+                  key={project.id}
+                  elevation={0}
+                  sx={{ 
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    transition: 'all 0.2s',
+                    cursor: 'pointer',
+                    '&:hover': { 
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 12px 24px rgba(0,0,0,0.05)',
+                      borderColor: 'primary.main'
+                    }
+                  }}
+                  onClick={() => handleOpenProject(project.id)}
+                >
+                  {/* Content Area */}
+                  <Box sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                      <Typography 
+                        variant="h6" 
+                        fontWeight="bold" 
+                        color="text.primary" 
+                        sx={{ lineHeight: 1.3, flex: 1, pr: 1 }}
+                      >
+                        {project.name}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleOpenMenu(e, project)}
+                        sx={{ 
+                          mt: -0.5, 
+                          mr: -1,
+                          color: 'text.secondary',
+                          '&:hover': { 
+                            color: 'text.primary',
+                            bgcolor: 'action.hover'
+                          }
+                        }}
+                      >
+                        <MoreVertical size={16} />
+                      </IconButton>
+                    </Box>
+                    
+                    {project.description && (
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        sx={{ 
+                          mb: 3,
+                          height: 40,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {project.description}
+                      </Typography>
+                    )}
 
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Updated {new Date(project.updated_at).toLocaleDateString()}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Updated {new Date(project.updated_at).toLocaleDateString()}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </Paper>
-            ))}
+                </Paper>
+              ))}
+            </Box>
           </Box>
         )}
 

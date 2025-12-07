@@ -69,6 +69,9 @@ class BackgroundWorker:
             f"⚠️  Worker will ONLY process tasks from environment '{env_settings.environment}'"
         )
 
+        # Recover any stuck tasks from previous runs (e.g., after server restart/reload)
+        await self._recover_stuck_tasks()
+
         while self._running:
             wait_time = self._poll_interval
 
@@ -138,6 +141,18 @@ class BackgroundWorker:
                 )
             except asyncio.TimeoutError:
                 logger.warning("Timeout waiting for tasks, some tasks may be interrupted")
+
+    async def _recover_stuck_tasks(self) -> None:
+        """Recover tasks that were stuck in 'processing' state from previous runs."""
+        try:
+            async with self._session_factory() as session:
+                service = TaskQueueService(session)
+                recovered = await service.recover_stuck_tasks()
+                if recovered > 0:
+                    await session.commit()
+                    logger.info(f"🔄 Worker startup: recovered {recovered} stuck task(s)")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to recover stuck tasks: {e}")
 
     async def _poll_and_process(self) -> None:
         """Poll the queue and process available tasks."""

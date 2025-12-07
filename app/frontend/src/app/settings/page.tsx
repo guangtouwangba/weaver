@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import GlobalLayout from '@/components/layout/GlobalLayout';
+import StrategyTooltip, { StrategyOption } from '@/components/settings/StrategyTooltip';
+import StrategyCard from '@/components/settings/StrategyCard';
+import { settingsApi, SettingMetadata } from '@/lib/api';
 import { 
   Box, 
   Typography, 
@@ -14,42 +17,202 @@ import {
   ListItemText,
   TextField,
   Button,
-  Switch,
-  FormControlLabel,
   Chip,
   InputAdornment,
-  IconButton
+  IconButton,
+  Tooltip,
+  CircularProgress,
+  Alert,
+  Snackbar,
+  Slider,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
 } from '@mui/material';
 import { 
   User, 
   Cpu, 
   Database, 
-  Shield, 
   Palette, 
-  LogOut,
-  Eye,
-  EyeOff,
-  Key,
-  Sparkles
+  LogOut, 
+  Eye, 
+  EyeOff, 
+  Key, 
+  Sparkles, 
+  Check, 
+  X, 
+  Search, 
+  Settings2,
 } from 'lucide-react';
 
-// Mock user data
+// Mock user data (will be replaced with auth)
 const MOCK_USER = {
   name: "Alex Li",
   email: "alex@weaver.ai",
   avatar: "AL"
 };
 
+interface SettingsState {
+  // API Keys
+  openrouter_api_key: string;
+  // Models
+  llm_model: string;
+  embedding_model: string;
+  // RAG Strategy
+  rag_mode: string;
+  retrieval_strategy: string;
+  retrieval_top_k: number;
+  retrieval_min_similarity: number;
+  citation_format: string;
+  // Advanced
+  intent_classification_enabled: boolean;
+}
+
+const defaultSettings: SettingsState = {
+  openrouter_api_key: '',
+  llm_model: 'openai/gpt-4o-mini',
+  embedding_model: 'openai/text-embedding-3-small',
+  rag_mode: 'traditional',
+  retrieval_strategy: 'vector',
+  retrieval_top_k: 5,
+  retrieval_min_similarity: 0,
+  citation_format: 'both',
+  intent_classification_enabled: true,
+};
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('ai'); // Default to AI settings to emphasize product positioning
+  const [activeTab, setActiveTab] = useState('ai');
   const [showKey, setShowKey] = useState(false);
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings);
+  const [metadata, setMetadata] = useState<Record<string, SettingMetadata>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [validatingKey, setValidatingKey] = useState(false);
+  const [keyValidation, setKeyValidation] = useState<{ valid: boolean; message: string } | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const menuItems = [
     { id: 'profile', label: 'Profile & Account', icon: <User size={20} /> },
     { id: 'ai', label: 'AI & Models', icon: <Cpu size={20} /> },
-    { id: 'knowledge', label: 'Knowledge Base', icon: <Database size={20} /> },
+    { id: 'rag', label: 'RAG Strategy', icon: <Search size={20} /> },
+    { id: 'advanced', label: 'Advanced', icon: <Settings2 size={20} /> },
     { id: 'appearance', label: 'Appearance', icon: <Palette size={20} /> },
   ];
+
+  // Load settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const [settingsRes, metadataRes] = await Promise.all([
+          settingsApi.getUserSettings(),
+          settingsApi.getMetadata(),
+        ]);
+        
+        // Merge with defaults
+        setSettings({
+          ...defaultSettings,
+          ...settingsRes.settings as Partial<SettingsState>,
+        });
+        setMetadata(metadataRes.settings);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        setSnackbar({ open: true, message: 'Failed to load settings', severity: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadSettings();
+  }, []);
+
+  // Save setting with debounce
+  const saveSetting = useCallback(async (key: string, value: unknown) => {
+    try {
+      setSaving(true);
+      await settingsApi.updateUserSetting(key, value);
+      setSnackbar({ open: true, message: 'Setting saved', severity: 'success' });
+    } catch (error) {
+      console.error('Failed to save setting:', error);
+      setSnackbar({ open: true, message: 'Failed to save setting', severity: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  // Handle direct selection (for cards)
+  const handleSelection = (key: keyof SettingsState, value: string) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+    saveSetting(key, value);
+  };
+
+  // Handle setting change
+  const handleChange = (key: keyof SettingsState) => (
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | Event,
+    newValue?: number | boolean
+  ) => {
+    let value: string | number | boolean;
+    
+    if (typeof newValue !== 'undefined') {
+      value = newValue;
+    } else if ('target' in event && event.target) {
+      const target = event.target as HTMLInputElement;
+      value = target.type === 'checkbox' ? target.checked : target.value;
+    } else {
+      return;
+    }
+    
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Save on blur (for text fields)
+  const handleBlur = (key: keyof SettingsState) => () => {
+    saveSetting(key, settings[key]);
+  };
+
+  // Validate API key
+  const handleValidateApiKey = async () => {
+    if (!settings.openrouter_api_key) {
+      setKeyValidation({ valid: false, message: 'Please enter an API key' });
+      return;
+    }
+
+    try {
+      setValidatingKey(true);
+      setKeyValidation(null);
+      const result = await settingsApi.validateApiKey(settings.openrouter_api_key);
+      setKeyValidation(result);
+      
+      if (result.valid) {
+        await saveSetting('openrouter_api_key', settings.openrouter_api_key);
+      }
+    } catch (error) {
+      setKeyValidation({ valid: false, message: 'Validation failed' });
+    } finally {
+      setValidatingKey(false);
+    }
+  };
+
+  // Get options for a setting from metadata
+  const getOptions = (key: string): StrategyOption[] => {
+    return (metadata[key]?.options as StrategyOption[]) || [];
+  };
+
+  if (loading) {
+    return (
+      <GlobalLayout>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+          <CircularProgress />
+        </Box>
+      </GlobalLayout>
+    );
+  }
 
   return (
     <GlobalLayout>
@@ -113,7 +276,6 @@ export default function SettingsPage() {
                     '&.Mui-selected': {
                       bgcolor: 'primary.50',
                       color: 'primary.main',
-                      '& .lucide': { color: 'primary.main' }
                     },
                     '&:hover': {
                       bgcolor: 'action.hover'
@@ -146,17 +308,18 @@ export default function SettingsPage() {
           {/* RIGHT CONTENT: Configuration Panels */}
           <Box sx={{ flex: 1 }}>
             
-            {/* AI & Models Section (The "Brain" of Weaver) */}
+            {/* AI & Models Section */}
             {activeTab === 'ai' && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* API Key Section */}
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                     <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.50', color: 'primary.main' }}>
                       <Key size={24} />
                     </Box>
                     <Box>
-                      <Typography variant="h6" fontWeight="700">LLM Provider</Typography>
-                      <Typography variant="body2" color="text.secondary">Configure the brain behind your research agent</Typography>
+                      <Typography variant="h6" fontWeight="700">API Configuration</Typography>
+                      <Typography variant="body2" color="text.secondary">Configure your LLM provider</Typography>
                     </Box>
                   </Box>
 
@@ -165,7 +328,8 @@ export default function SettingsPage() {
                       label="API Key (OpenRouter / OpenAI)"
                       type={showKey ? 'text' : 'password'}
                       fullWidth
-                      defaultValue="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxx"
+                      value={settings.openrouter_api_key}
+                      onChange={handleChange('openrouter_api_key')}
                       InputProps={{
                         endAdornment: (
                           <InputAdornment position="end">
@@ -175,54 +339,226 @@ export default function SettingsPage() {
                           </InputAdornment>
                         ),
                       }}
-                      helperText="Your key is stored locally and never shared."
+                      helperText="Your key is encrypted and stored securely."
                     />
                     
-                    <TextField
-                      label="Base URL (Optional)"
-                      placeholder="https://openrouter.ai/api/v1"
-                      fullWidth
-                    />
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                      <Button 
+                        variant="outlined" 
+                        onClick={handleValidateApiKey}
+                        disabled={validatingKey}
+                        startIcon={validatingKey ? <CircularProgress size={16} /> : null}
+                      >
+                        {validatingKey ? 'Validating...' : 'Validate & Save Key'}
+                      </Button>
+                      
+                      {keyValidation && (
+                        <Chip
+                          icon={keyValidation.valid ? <Check size={16} /> : <X size={16} />}
+                          label={keyValidation.message}
+                          color={keyValidation.valid ? 'success' : 'error'}
+                          size="small"
+                        />
+                      )}
+                    </Box>
                   </Box>
                 </Paper>
 
+                {/* Model Selection */}
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                     <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'secondary.50', color: 'secondary.main' }}>
                       <Sparkles size={24} />
                     </Box>
                     <Box>
-                      <Typography variant="h6" fontWeight="700">Model Strategy</Typography>
-                      <Typography variant="body2" color="text.secondary">Define how Weaver processes your documents</Typography>
+                      <Typography variant="h6" fontWeight="700">Model Selection</Typography>
+                      <Typography variant="body2" color="text.secondary">Choose your AI models</Typography>
                     </Box>
                   </Box>
 
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight="600" gutterBottom>Reasoning Model (Slow & Deep)</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                        Used for complex analysis, report generation, and connecting dots.
-                      </Typography>
-                      <TextField select SelectProps={{ native: true }} fullWidth defaultValue="openai/gpt-4o">
-                        <option value="openai/gpt-4o">GPT-4o (Recommended)</option>
-                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                        <option value="openai/o1-preview">o1-preview (Advanced)</option>
-                      </TextField>
-                    </Box>
-
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight="600" gutterBottom>Chat Model (Fast)</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                        Used for quick Q&A and UI interactions.
-                      </Typography>
-                      <TextField select SelectProps={{ native: true }} fullWidth defaultValue="openai/gpt-4o-mini">
-                        <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                        <option value="meta-llama/llama-3-70b">Llama 3 70B</option>
-                      </TextField>
-                    </Box>
+                    <FormControl fullWidth>
+                      <FormLabel sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>LLM Model</FormLabel>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
+                        {getOptions('llm_model').map((opt) => (
+                          <StrategyCard 
+                            key={opt.value}
+                            option={opt}
+                            selected={settings.llm_model === opt.value}
+                            onClick={() => handleSelection('llm_model', opt.value)}
+                          />
+                        ))}
+                      </Box>
+                    </FormControl>
                   </Box>
                 </Paper>
               </Box>
+            )}
+
+            {/* RAG Strategy Section */}
+            {activeTab === 'rag' && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* RAG Mode */}
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'info.50', color: 'info.main' }}>
+                      <Database size={24} />
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" fontWeight="700">RAG Mode</Typography>
+                      <Typography variant="body2" color="text.secondary">How documents are processed for answering questions</Typography>
+                    </Box>
+                  </Box>
+
+                  <FormControl fullWidth>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
+                      {getOptions('rag_mode').map((opt) => (
+                        <StrategyCard 
+                          key={opt.value}
+                          option={opt}
+                          selected={settings.rag_mode === opt.value}
+                          onClick={() => handleSelection('rag_mode', opt.value)}
+                        />
+                      ))}
+                    </Box>
+                  </FormControl>
+                </Paper>
+
+                {/* Retrieval Strategy - Only show for Traditional (chunk-based) mode */}
+                {settings.rag_mode === 'traditional' && (
+                  <>
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                        <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'warning.50', color: 'warning.main' }}>
+                          <Search size={24} />
+                        </Box>
+                        <Box>
+                          <Typography variant="h6" fontWeight="700">Retrieval Strategy</Typography>
+                          <Typography variant="body2" color="text.secondary">How relevant content is found in your documents</Typography>
+                        </Box>
+                      </Box>
+
+                      <FormControl fullWidth>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
+                          {getOptions('retrieval_strategy').map((opt) => (
+                            <StrategyCard 
+                              key={opt.value}
+                              option={opt}
+                              selected={settings.retrieval_strategy === opt.value}
+                              onClick={() => handleSelection('retrieval_strategy', opt.value)}
+                            />
+                          ))}
+                        </Box>
+                      </FormControl>
+                    </Paper>
+
+                    {/* Retrieval Parameters */}
+                    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="h6" fontWeight="700" gutterBottom>Retrieval Parameters</Typography>
+                      
+                      <Box sx={{ mt: 3 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Top-K Documents: {settings.retrieval_top_k}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                          Number of document chunks to retrieve for each query
+                        </Typography>
+                        <Slider
+                          value={settings.retrieval_top_k}
+                          onChange={handleChange('retrieval_top_k')}
+                          onChangeCommitted={(_, value) => saveSetting('retrieval_top_k', value)}
+                          min={1}
+                          max={20}
+                          marks={[
+                            { value: 1, label: '1' },
+                            { value: 5, label: '5' },
+                            { value: 10, label: '10' },
+                            { value: 20, label: '20' },
+                          ]}
+                          valueLabelDisplay="auto"
+                        />
+                      </Box>
+
+                      <Box sx={{ mt: 4 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Min Similarity: {(settings.retrieval_min_similarity * 100).toFixed(0)}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                          Minimum similarity threshold for retrieved documents
+                        </Typography>
+                        <Slider
+                          value={settings.retrieval_min_similarity}
+                          onChange={handleChange('retrieval_min_similarity')}
+                          onChangeCommitted={(_, value) => saveSetting('retrieval_min_similarity', value)}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          marks={[
+                            { value: 0, label: '0%' },
+                            { value: 0.5, label: '50%' },
+                            { value: 1, label: '100%' },
+                          ]}
+                          valueLabelDisplay="auto"
+                          valueLabelFormat={(v) => `${(v * 100).toFixed(0)}%`}
+                        />
+                      </Box>
+                    </Paper>
+                  </>
+                )}
+
+                {/* Info message for Long Context mode */}
+                {settings.rag_mode === 'long_context' && (
+                  <Paper 
+                    elevation={0} 
+                    sx={{ 
+                      p: 3, 
+                      borderRadius: 4, 
+                      border: '1px solid', 
+                      borderColor: 'info.200',
+                      bgcolor: 'info.50'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                      <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'info.100', color: 'info.main' }}>
+                        <Database size={20} />
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="600" color="info.main">
+                          Long Context Mode Active
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          In Long Context mode, the entire document is included in the prompt context. 
+                          No retrieval strategy or parameters are needed since all content is directly available to the model.
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Paper>
+                )}
+              </Box>
+            )}
+
+            {/* Advanced Section */}
+            {activeTab === 'advanced' && (
+              <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="h6" fontWeight="700" gutterBottom>Advanced Settings</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Fine-tune the behavior of your research assistant
+                </Typography>
+
+                <FormControl fullWidth>
+                  <FormLabel sx={{ mb: 2, fontWeight: 600 }}>Citation Format</FormLabel>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
+                    {getOptions('citation_format').map((opt) => (
+                      <StrategyCard 
+                        key={opt.value}
+                        option={opt}
+                        selected={settings.citation_format === opt.value}
+                        onClick={() => handleSelection('citation_format', opt.value)}
+                      />
+                    ))}
+                  </Box>
+                </FormControl>
+              </Paper>
             )}
 
             {/* Profile Section */}
@@ -241,16 +577,32 @@ export default function SettingsPage() {
               </Paper>
             )}
 
-            {/* Placeholder for other tabs */}
-            {['knowledge', 'appearance'].includes(activeTab) && (
+            {/* Placeholder for appearance tab */}
+            {activeTab === 'appearance' && (
               <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px dashed', borderColor: 'divider', textAlign: 'center' }}>
-                <Typography color="text.secondary">This section is under construction.</Typography>
+                <Typography color="text.secondary">Appearance settings coming soon.</Typography>
               </Paper>
             )}
 
           </Box>
         </Box>
       </Box>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </GlobalLayout>
   );
 }
