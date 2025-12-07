@@ -342,7 +342,7 @@ class AsyncConfigurationService:
             # Get all effective settings (global + project)
             settings = await self._settings_service.get_all_settings(
                 project_id=project_id,
-                include_encrypted=False,  # Don't include API keys in config
+                include_encrypted=False,  # Don't include masked API keys
             )
 
             # Overlay user settings if user_id is provided
@@ -353,7 +353,16 @@ class AsyncConfigurationService:
                 )
                 settings.update(user_settings)
 
-            if not settings:
+            # Fetch API keys separately (need decryption)
+            # Priority: User > Project > Global > Env
+            api_key = await self._settings_service.get_setting(
+                "openrouter_api_key",
+                user_id=user_id,
+                project_id=project_id,
+                decrypt=True,
+            )
+
+            if not settings and not api_key:
                 return None
 
             # Map flat settings to nested RAGConfig structure
@@ -362,6 +371,13 @@ class AsyncConfigurationService:
             # LLM config
             if "llm_model" in settings:
                 overrides.setdefault("llm", {})["model_name"] = settings["llm_model"]
+
+            # Add API key to LLM config if available from DB
+            if api_key:
+                overrides.setdefault("llm", {})["api_key"] = api_key
+                overrides.setdefault("embedding", {})["api_key"] = (
+                    api_key  # Use same key for embedding
+                )
 
             # Embedding config
             if "embedding_model" in settings:

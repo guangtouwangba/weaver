@@ -8,8 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.api.deps import get_db, get_embedding_service, get_llm_service
-from research_agent.shared.utils.logger import logger
+from research_agent.api.deps import get_db, get_embedding_service
 from research_agent.application.dto.chat import (
     ChatHistoryResponse,
     ChatMessageRequest,
@@ -36,6 +35,7 @@ from research_agent.infrastructure.database.repositories.sqlalchemy_chat_repo im
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
 from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
+from research_agent.shared.utils.logger import logger
 
 router = APIRouter()
 
@@ -45,12 +45,36 @@ async def send_message(
     project_id: UUID,
     request: ChatMessageRequest,
     session: AsyncSession = Depends(get_db),
-    llm_service: OpenRouterLLMService = Depends(get_llm_service),
     embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
 ) -> ChatMessageResponse:
     """Send a chat message and get RAG response."""
+    from research_agent.config import get_settings
+    from research_agent.domain.services.config_service import AsyncConfigurationService
+
+    env_settings = get_settings()
     start_time = time.time()
-    
+
+    # Get configuration from database (User > Project > Global DB > Env)
+    config_service = AsyncConfigurationService(session)
+    rag_config = await config_service.get_config_async(
+        project_id=project_id,
+    )
+
+    # Use configured model and API key, fallback to env if not set
+    llm_model = rag_config.llm.model_name
+    api_key = rag_config.llm.api_key or env_settings.openrouter_api_key
+
+    logger.info(
+        f"[Config] send_message using model: {llm_model} (from {'db' if rag_config.llm.model_name != env_settings.llm_model else 'env'})"
+    )
+
+    # Create LLM service with configured model
+    llm_service = OpenRouterLLMService(
+        api_key=api_key,
+        model=llm_model,
+        site_name="Research Agent RAG",
+    )
+
     # Create services
     vector_store = PgVectorStore(session)
     retrieval_service = RetrievalService(
@@ -70,13 +94,15 @@ async def send_message(
             document_id=request.document_id,
         )
     )
-    
+
     # Log chat request with question for Grafana
     duration_ms = round((time.time() - start_time) * 1000, 2)
-    question_short = request.message[:200] + "..." if len(request.message) > 200 else request.message
+    question_short = (
+        request.message[:200] + "..." if len(request.message) > 200 else request.message
+    )
     logger.info(
         f"ChatRequest: endpoint_type=chat duration_ms={duration_ms} "
-        f"question_length={len(request.message)} question=\"{question_short}\" | "
+        f'question_length={len(request.message)} question="{question_short}" | '
         f"JSON: {json.dumps({'endpoint_type': 'chat', 'duration_ms': duration_ms, 'question': question_short, 'question_length': len(request.message)}, ensure_ascii=False)}"
     )
 
@@ -103,23 +129,49 @@ async def stream_message(
 ) -> StreamingResponse:
     """Send a chat message and get streaming RAG response (SSE) using LangGraph."""
     from research_agent.config import get_settings
-    settings = get_settings()
-    
+    from research_agent.domain.services.config_service import AsyncConfigurationService
+
+    env_settings = get_settings()
+
     start_time = time.time()
-    question_short = request.message[:200] + "..." if len(request.message) > 200 else request.message
-    
+    question_short = (
+        request.message[:200] + "..." if len(request.message) > 200 else request.message
+    )
+
     # Log chat stream request start with question for Grafana
     logger.info(
         f"ChatStreamStart: endpoint_type=chat_stream question_length={len(request.message)} "
-        f"question=\"{question_short}\" | "
+        f'question="{question_short}" | '
         f"JSON: {json.dumps({'endpoint_type': 'chat_stream', 'question': question_short, 'question_length': len(request.message)}, ensure_ascii=False)}"
+    )
+
+    # Get configuration from database (User > Project > Global DB > Env)
+    config_service = AsyncConfigurationService(session)
+    rag_config = await config_service.get_config_async(
+        project_id=project_id,
+        # user_id can be added when auth is implemented
+    )
+
+    # Use configured model and API key, fallback to env if not set
+    llm_model = rag_config.llm.model_name
+    api_key = rag_config.llm.api_key or env_settings.openrouter_api_key
+
+    # Map RAG mode from enum to string
+    rag_mode_str = (
+        rag_config.mode.value if hasattr(rag_config.mode, "value") else str(rag_config.mode)
+    )
+
+    logger.info(
+        f"[Config] Using model: {llm_model} (from {'db' if rag_config.llm.model_name != env_settings.llm_model else 'env'}), "
+        f"rag_mode: {rag_mode_str}, top_k: {rag_config.retrieval.top_k}, "
+        f"hybrid_search: {rag_config.retrieval.use_hybrid_search}"
     )
 
     use_case = StreamMessageUseCase(
         session=session,
         embedding_service=embedding_service,
-        api_key=settings.openrouter_api_key,
-        model=settings.llm_model,
+        api_key=api_key,
+        model=llm_model,
     )
 
     async def event_generator():
@@ -129,6 +181,10 @@ async def stream_message(
                 project_id=project_id,
                 message=request.message,
                 document_id=request.document_id,
+                top_k=rag_config.retrieval.top_k,
+                use_hybrid_search=rag_config.retrieval.use_hybrid_search,
+                use_intent_classification=rag_config.intent_classification.enabled,
+                rag_mode=rag_mode_str,
             )
         ):
             if event.type == "token":
