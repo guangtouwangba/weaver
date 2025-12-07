@@ -147,6 +147,12 @@ export interface CanvasNode {
   tags: string[];
   sourceId?: string;
   sourcePage?: number;
+  // New fields for view system
+  viewType: 'free' | 'thinking';
+  sectionId?: string;
+  promotedFrom?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CanvasEdge {
@@ -155,13 +161,45 @@ export interface CanvasEdge {
   target: string;
 }
 
-export interface CanvasData {
-  nodes: CanvasNode[];
-  edges: CanvasEdge[];
+export interface CanvasSection {
+  id: string;
+  title: string;
+  viewType: 'free' | 'thinking';
+  isCollapsed: boolean;
+  nodeIds: string[];
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  conversationId?: string;
+  question?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CanvasViewState {
+  viewType: 'free' | 'thinking';
   viewport: {
     x: number;
     y: number;
     scale: number;
+  };
+  selectedNodeIds: string[];
+  collapsedSectionIds: string[];
+}
+
+export interface CanvasData {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  sections?: CanvasSection[];
+  viewport: {
+    x: number;
+    y: number;
+    scale: number;
+  };
+  viewStates?: {
+    free?: CanvasViewState;
+    thinking?: CanvasViewState;
   };
   updated_at?: string;
 }

@@ -22,6 +22,12 @@ class CanvasNodeDTO(BaseModel):
     tags: List[str] = []
     sourceId: Optional[str] = None
     sourcePage: Optional[int] = None
+    # New fields for view system
+    viewType: str = "free"  # 'free' | 'thinking'
+    sectionId: Optional[str] = None
+    promotedFrom: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
 
 
 class CanvasEdgeDTO(BaseModel):
@@ -40,12 +46,41 @@ class CanvasViewportDTO(BaseModel):
     scale: float = 1
 
 
+class CanvasSectionDTO(BaseModel):
+    """Canvas section DTO."""
+
+    id: str
+    title: str
+    viewType: str = "free"  # 'free' | 'thinking'
+    isCollapsed: bool = False
+    nodeIds: List[str] = []
+    x: float = 0
+    y: float = 0
+    width: Optional[float] = None
+    height: Optional[float] = None
+    conversationId: Optional[str] = None
+    question: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+
+class CanvasViewStateDTO(BaseModel):
+    """Canvas view state DTO."""
+
+    viewType: str  # 'free' | 'thinking'
+    viewport: CanvasViewportDTO
+    selectedNodeIds: List[str] = []
+    collapsedSectionIds: List[str] = []
+
+
 class CanvasDataRequest(BaseModel):
     """Request DTO for saving canvas data."""
 
     nodes: List[CanvasNodeDTO] = []
     edges: List[CanvasEdgeDTO] = []
-    viewport: CanvasViewportDTO = CanvasViewportDTO()
+    sections: List[CanvasSectionDTO] = []
+    viewport: CanvasViewportDTO = CanvasViewportDTO()  # Legacy: for backward compatibility
+    viewStates: Dict[str, CanvasViewStateDTO] = {}  # Key: 'free' | 'thinking'
 
 
 class CanvasDataResponse(BaseModel):
@@ -53,7 +88,9 @@ class CanvasDataResponse(BaseModel):
 
     nodes: List[CanvasNodeDTO]
     edges: List[CanvasEdgeDTO]
-    viewport: CanvasViewportDTO
+    sections: List[CanvasSectionDTO] = []
+    viewport: CanvasViewportDTO  # Legacy: for backward compatibility
+    viewStates: Dict[str, CanvasViewStateDTO] = {}  # Key: 'free' | 'thinking'
     updated_at: Optional[datetime] = None
     version: Optional[int] = None  # Canvas version for optimistic locking
 
@@ -80,6 +117,9 @@ class CreateCanvasNodeRequest(BaseModel):
     tags: List[str] = []
     sourceId: Optional[str] = None
     sourcePage: Optional[int] = None
+    viewType: str = "free"  # 'free' | 'thinking'
+    sectionId: Optional[str] = None
+    promotedFrom: Optional[str] = None
 
 
 class UpdateCanvasNodeRequest(BaseModel):
@@ -96,6 +136,9 @@ class UpdateCanvasNodeRequest(BaseModel):
     tags: Optional[List[str]] = None
     sourceId: Optional[str] = None
     sourcePage: Optional[int] = None
+    viewType: Optional[str] = None
+    sectionId: Optional[str] = None
+    promotedFrom: Optional[str] = None
 
 
 class CanvasNodeOperationResponse(BaseModel):
@@ -105,4 +148,3 @@ class CanvasNodeOperationResponse(BaseModel):
     nodeId: Optional[str] = None
     updated_at: datetime
     version: int  # Canvas version after operation
-

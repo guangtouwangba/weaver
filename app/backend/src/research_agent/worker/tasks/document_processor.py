@@ -24,8 +24,6 @@ from research_agent.infrastructure.websocket.notification_service import (
 )
 from research_agent.shared.utils.logger import logger
 from research_agent.worker.tasks.base import BaseTask
-from research_agent.worker.tasks.canvas_syncer import CanvasSyncerTask
-from research_agent.worker.tasks.graph_extractor import GraphExtractorTask
 
 
 class DocumentProcessorTask(BaseTask):
@@ -37,10 +35,8 @@ class DocumentProcessorTask(BaseTask):
     2. Extract text from PDF
     3. Generate summary and page mapping
     4. Chunk text
-    5. Generate embeddings
-    6. Extract knowledge graph
-    7. Sync to canvas
-    8. Update document status
+    5. Generate embeddings (optional for long_context mode)
+    6. Update document status to READY
     """
 
     @property
@@ -105,68 +101,113 @@ class DocumentProcessorTask(BaseTask):
                 )
                 raise
 
-            # Step 2.5: Generate Summary and Page Map
-            logger.info(f"📝 Step 2.5: Generating summary and page map - document_id={document_id}")
-            summary = None  # Initialize summary before try block to ensure it's always defined
+            # Get user settings early to determine processing strategy
+            user_rag_mode = settings.rag_mode  # Default to env setting
+            user_safety_ratio = settings.long_context_safety_ratio  # Default to env setting
+            user_fast_upload_mode = True  # Default to True for fast processing
             try:
-                # Calculate Page Map
-                page_map = []
+                from uuid import UUID as UUIDType
+
+                from research_agent.domain.services.settings_service import SettingsService
+                from research_agent.infrastructure.database.repositories.sqlalchemy_settings_repo import (
+                    SQLAlchemySettingsRepository,
+                )
+
+                DEFAULT_USER_ID = UUIDType("00000000-0000-0000-0000-000000000001")
+                async with get_async_session() as settings_session:
+                    repo = SQLAlchemySettingsRepository(settings_session)
+                    settings_service = SettingsService(repo)
+
+                    # Get rag_mode
+                    db_rag_mode = await settings_service.get_setting(
+                        "rag_mode",
+                        user_id=DEFAULT_USER_ID,
+                        project_id=project_id,
+                    )
+                    if db_rag_mode:
+                        user_rag_mode = db_rag_mode
+
+                    # Get fast_upload_mode
+                    db_fast_upload = await settings_service.get_setting(
+                        "fast_upload_mode",
+                        user_id=DEFAULT_USER_ID,
+                        project_id=project_id,
+                    )
+                    if db_fast_upload is not None:
+                        user_fast_upload_mode = bool(db_fast_upload)
+
+                    # Get long_context_safety_ratio
+                    db_safety_ratio = await settings_service.get_setting(
+                        "long_context_safety_ratio",
+                        user_id=DEFAULT_USER_ID,
+                        project_id=project_id,
+                    )
+                    if db_safety_ratio is not None:
+                        user_safety_ratio = float(db_safety_ratio)
+
+                    logger.info(
+                        f"📋 User settings: rag_mode={user_rag_mode}, "
+                        f"fast_upload_mode={user_fast_upload_mode}, "
+                        f"safety_ratio={user_safety_ratio}"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to get user settings, using env defaults: {e}")
+
+            # Step 2.5 & 3: Generate Summary/Page Map and Chunking (parallel processing)
+            logger.info(
+                f"📝 Step 2.5 & 3: Processing summary/page_map and chunking - document_id={document_id}"
+            )
+            summary = None
+            page_map = []
+            chunk_data = []
+
+            async def calculate_page_map():
+                """Calculate page map for citation purposes."""
+                page_map_result = []
                 current_idx = 0
                 # Join logic matches step 3b full content generation: "\n\n".join()
-                # We simulate the join process to get correct indices
                 for i, page in enumerate(pages):
                     content_len = len(page.content)
                     start = current_idx
                     end = current_idx + content_len
 
-                    page_map.append({"page": page.page_number, "start": start, "end": end})
+                    page_map_result.append({"page": page.page_number, "start": start, "end": end})
 
                     # Add separator length for next iteration, unless it's the last page
                     if i < len(pages) - 1:
                         current_idx = end + 2  # len("\n\n")
                     else:
                         current_idx = end
+                return page_map_result
 
-                # Generate Summary
-                # Combine first 20k chars for summary generation (to avoid context limits if very large)
-                # or use LLM service's context window logic.
-                # For now, simple truncation.
-                full_content_preview = "\n\n".join([p.content for p in pages])
-                summary_context = full_content_preview[:20000]
+            async def generate_summary_if_needed():
+                """Generate summary only if not in fast_upload_mode or not long_context."""
+                if user_rag_mode == "long_context" and user_fast_upload_mode:
+                    logger.info("⏭️ Skipping summary generation (fast_upload_mode enabled)")
+                    return None
 
-                summary = None
-                if settings.openrouter_api_key:
+                if not settings.openrouter_api_key:
+                    logger.warning("⚠️ Skipping summary generation: No API key")
+                    return None
+
+                try:
+                    # Combine first 20k chars for summary generation
+                    full_content_preview = "\n\n".join([p.content for p in pages])
+                    summary_context = full_content_preview[:20000]
+
                     llm = OpenRouterLLMService(
                         api_key=settings.openrouter_api_key,
-                        model=settings.llm_model,  # Use primary model for high quality summary
+                        model=settings.llm_model,
                     )
-                    summary = await self._generate_summary(llm, summary_context)
+                    summary_result = await self._generate_summary(llm, summary_context)
                     logger.info("✅ Generated document summary")
-                else:
-                    logger.warning("⚠️ Skipping summary generation: No API key")
+                    return summary_result
+                except Exception as e:
+                    logger.warning(f"⚠️ Summary generation failed: {e}")
+                    return None
 
-                # Update document model immediately with summary and temp parsing metadata
-                # Note: parsing_metadata will be updated again in step 3b, so we merge or just wait?
-                # Step 3b updates `parsing_metadata` with page_count etc.
-                # Let's persist summary now.
-                stmt = (
-                    update(DocumentModel)
-                    .where(DocumentModel.id == document_id)
-                    .values(summary=summary)
-                )
-                await session.execute(stmt)
-                await session.commit()
-
-            except Exception as e:
-                logger.warning(
-                    f"⚠️ Step 2.5 failed: Summary/PageMap generation error - document_id={document_id}: {e}",
-                    exc_info=True,
-                )
-                # Don't fail the whole process for summary error
-
-            # Step 3: Chunk text with dynamic strategy selection
-            logger.info(f"✂️ Step 3: Chunking text with dynamic strategy - page_count={page_count}")
-            try:
+            async def perform_chunking():
+                """Perform text chunking."""
                 # Get document metadata for strategy selection
                 doc_result = await session.execute(
                     select(DocumentModel).where(DocumentModel.id == document_id)
@@ -178,55 +219,90 @@ class DocumentProcessorTask(BaseTask):
                 )
 
                 chunking_service = ChunkingService()
-                chunk_data = chunking_service.chunk_pages(
+                chunk_data_result = chunking_service.chunk_pages(
                     pages=pages,
                     mime_type=doc.mime_type,
                     filename=doc.original_filename,
                 )
-                logger.info(f"✅ Step 3 completed: Created {len(chunk_data)} chunks")
+                logger.info(f"✅ Chunking completed: Created {len(chunk_data_result)} chunks")
+                return chunk_data_result
 
-                # Step 3b: Prepare full content and metadata for long context mode
-                logger.info("📝 Step 3b: Preparing full content and metadata for long context mode")
-                try:
-                    from research_agent.domain.services.token_estimator import TokenEstimator
+            try:
+                # Parallel execution: page_map calculation, summary generation, and chunking
+                import asyncio
 
-                    # Combine all pages into full content
-                    full_content = "\n\n".join([page.content for page in pages])
+                page_map, summary, chunk_data = await asyncio.gather(
+                    calculate_page_map(),
+                    generate_summary_if_needed(),
+                    perform_chunking(),
+                )
 
-                    # Estimate token count
-                    token_estimator = TokenEstimator()
-                    token_count = token_estimator.estimate_tokens(full_content)
-
-                    # Prepare parsing metadata
-                    parsing_metadata = {
-                        "layout_type": "single_column",
-                        "page_count": page_count,
-                        "total_chunks": len(chunk_data),
-                        "page_map": page_map,  # Injected from Step 2.5 logic
-                    }
-
-                    # Update document with full content and metadata
-                    doc.full_content = full_content
-                    doc.content_token_count = token_count
-                    doc.parsing_metadata = parsing_metadata
-                    # summary is already updated or can be updated here if not persisted yet.
-                    # Since we re-fetched doc in Step 3, it might be stale if we updated it in 2.5?
-                    # Actually Step 3 re-selects doc. So if we committed in 2.5, doc has summary.
-                    # But here we are updating doc object attributes.
-
-                    await session.flush()
-                    # Commit before long embedding operation to release the connection
+                # Save summary if generated
+                if summary is not None:
+                    stmt = (
+                        update(DocumentModel)
+                        .where(DocumentModel.id == document_id)
+                        .values(summary=summary)
+                    )
+                    await session.execute(stmt)
                     await session.commit()
-                    logger.info(
-                        f"✅ Step 3b completed: Saved full content ({token_count} tokens) "
-                        f"and metadata for document {document_id}"
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"⚠️ Step 3b failed: Failed to save full content - document_id={document_id}: {e}",
-                        exc_info=True,
-                    )
-                    # Continue processing even if full content save fails
+
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ Step 2.5 & 3 failed: Processing error - document_id={document_id}: {e}",
+                    exc_info=True,
+                )
+                # Don't fail the whole process, but ensure we have at least page_map and chunk_data
+                if not page_map:
+                    page_map = await calculate_page_map()
+                if not chunk_data:
+                    chunk_data = await perform_chunking()
+
+            # Step 3b: Prepare full content and metadata for long context mode
+            logger.info("📝 Step 3b: Preparing full content and metadata for long context mode")
+            try:
+                from research_agent.domain.services.token_estimator import TokenEstimator
+
+                # Get document for updating
+                doc_result = await session.execute(
+                    select(DocumentModel).where(DocumentModel.id == document_id)
+                )
+                doc = doc_result.scalar_one()
+
+                # Combine all pages into full content
+                full_content = "\n\n".join([page.content for page in pages])
+
+                # Estimate token count
+                token_estimator = TokenEstimator()
+                token_count = token_estimator.estimate_tokens(full_content)
+
+                # Prepare parsing metadata
+                parsing_metadata = {
+                    "layout_type": "single_column",
+                    "page_count": page_count,
+                    "total_chunks": len(chunk_data),
+                    "page_map": page_map,  # From Step 2.5
+                }
+
+                # Update document with full content and metadata
+                doc.full_content = full_content
+                doc.content_token_count = token_count
+                doc.parsing_metadata = parsing_metadata
+                # summary is already updated in Step 2.5 if generated
+
+                await session.flush()
+                # Commit before long embedding operation to release the connection
+                await session.commit()
+                logger.info(
+                    f"✅ Step 3b completed: Saved full content ({token_count} tokens) "
+                    f"and metadata for document {document_id}"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ Step 3b failed: Failed to save full content - document_id={document_id}: {e}",
+                    exc_info=True,
+                )
+                # Continue processing even if full content save fails
             except Exception as e:
                 logger.error(
                     f"❌ Step 3 failed: Chunking error - document_id={document_id}: {e}",
@@ -239,19 +315,32 @@ class DocumentProcessorTask(BaseTask):
             # Embedding generation can take 30-60+ seconds, which would cause the original
             # session's connection to timeout.
             if chunk_data:
-                # Check if we can skip embedding generation for long_context mode
+                # Check if we can skip embedding generation
                 should_skip_embedding = False
                 skip_reason = ""
 
-                if settings.rag_mode == "long_context":
+                # Fast upload mode: skip embeddings in long_context mode
+                if user_rag_mode == "long_context" and user_fast_upload_mode:
+                    should_skip_embedding = True
+                    skip_reason = (
+                        f"Fast upload mode: skipping embeddings in long_context mode "
+                        f"(embeddings can be generated on-demand if needed)"
+                    )
+                elif user_rag_mode == "long_context":
                     # Check if document fits in context and we have full_content
+                    # Get document to check token count
+                    doc_result = await session.execute(
+                        select(DocumentModel).where(DocumentModel.id == document_id)
+                    )
+                    doc = doc_result.scalar_one()
+
                     if doc.full_content and doc.content_token_count:
                         from research_agent.infrastructure.llm.model_config import (
                             calculate_available_tokens,
                         )
 
                         max_tokens = calculate_available_tokens(
-                            settings.llm_model, settings.long_context_safety_ratio
+                            settings.llm_model, user_safety_ratio
                         )
                         if doc.content_token_count <= max_tokens:
                             should_skip_embedding = True
@@ -341,17 +430,15 @@ class DocumentProcessorTask(BaseTask):
                     f"⚠️ Step 4 skipped: No chunks to process - document_id={document_id}"
                 )
 
-            # PROGRESSIVE PROCESSING: Mark document as READY for RAG now
-            # This allows users to start chatting while graph extraction runs in background
+                # Step 5: Mark document as READY for RAG
             # ✅ Use fresh session for status update
-            logger.info(f"✅ Marking document as READY for RAG - document_id={document_id}")
+            logger.info(f"✅ Step 5: Marking document as READY for RAG - document_id={document_id}")
             try:
                 async with get_async_session() as fresh_session:
                     await self._update_document_status(
                         fresh_session,
                         document_id,
                         status=DocumentStatus.READY,
-                        graph_status="processing",
                         page_count=page_count,
                     )
                 logger.debug(f"✅ Document {document_id} status updated to READY")
@@ -363,75 +450,10 @@ class DocumentProcessorTask(BaseTask):
                     status="ready",
                     summary=summary,
                     page_count=page_count,
-                    graph_status="processing",
                 )
             except Exception as e:
                 logger.error(
-                    f"❌ Failed to mark document as READY - document_id={document_id}: {e}",
-                    exc_info=True,
-                )
-                raise
-
-            # Step 5: Extract knowledge graph
-            # ✅ Use fresh session for graph extraction
-            logger.info(f"🕸️ Step 5: Extracting knowledge graph - document_id={document_id}")
-            try:
-                async with get_async_session() as fresh_session:
-                    graph_extractor = GraphExtractorTask()
-                    await graph_extractor.execute(
-                        {"document_id": str(document_id), "project_id": str(project_id)},
-                        fresh_session,
-                    )
-                logger.info("✅ Step 5 completed: Knowledge graph extracted")
-            except Exception as e:
-                logger.error(
-                    f"❌ Step 5 failed: Knowledge graph extraction error - "
-                    f"document_id={document_id}: {e}",
-                    exc_info=True,
-                )
-                raise
-
-            # Step 6: Sync to canvas
-            # ✅ Use fresh session for canvas sync
-            logger.info(f"🎨 Step 6: Syncing to canvas - document_id={document_id}")
-            try:
-                async with get_async_session() as fresh_session:
-                    canvas_syncer = CanvasSyncerTask()
-                    await canvas_syncer.execute(
-                        {"project_id": str(project_id), "document_id": str(document_id)},
-                        fresh_session,
-                    )
-                logger.info("✅ Step 6 completed: Canvas synced")
-            except Exception as e:
-                logger.error(
-                    f"❌ Step 6 failed: Canvas sync error - document_id={document_id}: {e}",
-                    exc_info=True,
-                )
-                raise
-
-            # Step 7: Update graph status to ready
-            # ✅ Use fresh session for final status update
-            logger.info(f"✅ Step 7: Updating graph status to ready - document_id={document_id}")
-            try:
-                async with get_async_session() as fresh_session:
-                    await self._update_document_status(
-                        fresh_session, document_id, graph_status="ready"
-                    )
-                logger.info("✅ Step 7 completed: Graph status updated to ready")
-
-                # Send WebSocket notification for graph completion
-                await document_notification_service.notify_document_status(
-                    project_id=str(project_id),
-                    document_id=str(document_id),
-                    status="ready",
-                    summary=summary,
-                    page_count=page_count,
-                    graph_status="ready",
-                )
-            except Exception as e:
-                logger.error(
-                    f"❌ Step 7 failed: Failed to update graph status - "
-                    f"document_id={document_id}: {e}",
+                    f"❌ Step 5 failed: Failed to mark document as READY - document_id={document_id}: {e}",
                     exc_info=True,
                 )
                 raise
@@ -464,7 +486,6 @@ class DocumentProcessorTask(BaseTask):
                         fresh_session,
                         document_id,
                         status=DocumentStatus.ERROR,
-                        graph_status="error",
                     )
                 logger.info(f"✅ Updated document {document_id} status to ERROR")
 
@@ -473,7 +494,6 @@ class DocumentProcessorTask(BaseTask):
                     project_id=str(project_id),
                     document_id=str(document_id),
                     status="error",
-                    graph_status="error",
                     error_message=error_message,
                 )
             except Exception as status_error:
@@ -605,15 +625,12 @@ class DocumentProcessorTask(BaseTask):
         session: AsyncSession,
         document_id: UUID,
         status: DocumentStatus = None,
-        graph_status: str = None,
         page_count: int = None,
     ) -> None:
         """Update document status in database."""
         values = {}
         if status:
             values["status"] = status.value
-        if graph_status:
-            values["graph_status"] = graph_status
         if page_count is not None:
             values["page_count"] = page_count
 

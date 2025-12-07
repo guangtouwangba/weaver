@@ -39,6 +39,9 @@ from research_agent.shared.utils.logger import logger
 
 router = APIRouter()
 
+# Default user ID until auth is implemented (matches frontend DEFAULT_USER_ID)
+DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
+
 
 @router.post("/projects/{project_id}/chat", response_model=ChatMessageResponse)
 async def send_message(
@@ -57,6 +60,7 @@ async def send_message(
     # Get configuration from database (User > Project > Global DB > Env)
     config_service = AsyncConfigurationService(session)
     rag_config = await config_service.get_config_async(
+        user_id=DEFAULT_USER_ID,
         project_id=project_id,
     )
 
@@ -148,8 +152,8 @@ async def stream_message(
     # Get configuration from database (User > Project > Global DB > Env)
     config_service = AsyncConfigurationService(session)
     rag_config = await config_service.get_config_async(
+        user_id=DEFAULT_USER_ID,
         project_id=project_id,
-        # user_id can be added when auth is implemented
     )
 
     # Use configured model and API key, fallback to env if not set

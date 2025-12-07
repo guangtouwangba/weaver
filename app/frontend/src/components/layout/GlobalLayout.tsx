@@ -15,6 +15,9 @@ export default function GlobalLayout({ children }: { children: React.ReactNode }
         sx={{
           flexGrow: 1,
           ml: `${SIDEBAR_WIDTH}px`, // Reserve space for fixed sidebar
+          width: `calc(100vw - ${SIDEBAR_WIDTH}px)`,
+          maxWidth: `calc(100vw - ${SIDEBAR_WIDTH}px)`,
+          overflow: 'hidden',
           minHeight: '100vh',
           backgroundColor: 'background.paper', // Default to paper (white) for content areas
         }}

@@ -30,6 +30,8 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  Switch,
+  Box as MuiBox,
 } from '@mui/material';
 import { 
   User, 
@@ -62,6 +64,8 @@ interface SettingsState {
   embedding_model: string;
   // RAG Strategy
   rag_mode: string;
+  long_context_safety_ratio: number;
+  fast_upload_mode: boolean;
   retrieval_strategy: string;
   retrieval_top_k: number;
   retrieval_min_similarity: number;
@@ -75,6 +79,8 @@ const defaultSettings: SettingsState = {
   llm_model: 'openai/gpt-4o-mini',
   embedding_model: 'openai/text-embedding-3-small',
   rag_mode: 'traditional',
+  long_context_safety_ratio: 0.55,
+  fast_upload_mode: true,
   retrieval_strategy: 'vector',
   retrieval_top_k: 5,
   retrieval_min_similarity: 0,
@@ -506,31 +512,74 @@ export default function SettingsPage() {
                   </>
                 )}
 
-                {/* Info message for Long Context mode */}
+                {/* Long Context Mode Settings */}
                 {settings.rag_mode === 'long_context' && (
-                  <Paper 
-                    elevation={0} 
-                    sx={{ 
-                      p: 3, 
-                      borderRadius: 4, 
-                      border: '1px solid', 
-                      borderColor: 'info.200',
-                      bgcolor: 'info.50'
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                      <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'info.100', color: 'info.main' }}>
-                        <Database size={20} />
-                      </Box>
-                      <Box>
-                        <Typography variant="subtitle1" fontWeight="600" color="info.main">
-                          Long Context Mode Active
+                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="h6" fontWeight="700" gutterBottom>Context Window Settings</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Control how much of the model&apos;s context window is used for document content. 
+                      Documents exceeding this limit will use chunked retrieval instead.
+                    </Typography>
+                    
+                    <Box sx={{ mt: 3 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Context Usage Ratio: {(settings.long_context_safety_ratio * 100).toFixed(0)}%
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        Higher values allow more document content but leave less space for responses.
+                      </Typography>
+                      <Slider
+                        value={settings.long_context_safety_ratio}
+                        onChange={handleChange('long_context_safety_ratio')}
+                        onChangeCommitted={(_, value) => saveSetting('long_context_safety_ratio', value)}
+                        min={0.3}
+                        max={0.9}
+                        step={0.05}
+                        marks={[
+                          { value: 0.4, label: '40%' },
+                          { value: 0.55, label: '55%' },
+                          { value: 0.7, label: '70%' },
+                          { value: 0.85, label: '85%' },
+                        ]}
+                        valueLabelDisplay="auto"
+                        valueLabelFormat={(v) => `${(v * 100).toFixed(0)}%`}
+                      />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Conservative (more response space)
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          In Long Context mode, the entire document is included in the prompt context. 
-                          No retrieval strategy or parameters are needed since all content is directly available to the model.
+                        <Typography variant="caption" color="text.secondary">
+                          Aggressive (more document content)
                         </Typography>
                       </Box>
+                    </Box>
+
+                    {/* Fast Upload Mode Switch */}
+                    <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={settings.fast_upload_mode}
+                            onChange={(e) => {
+                              handleChange('fast_upload_mode')(e, e.target.checked);
+                              saveSetting('fast_upload_mode', e.target.checked);
+                            }}
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight="600">
+                              Fast Upload Mode
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              Skip summary generation and embeddings to speed up document processing. 
+                              Documents will be ready for querying immediately after upload.
+                            </Typography>
+                          </Box>
+                        }
+                        sx={{ alignItems: 'flex-start' }}
+                      />
                     </Box>
                   </Paper>
                 )}

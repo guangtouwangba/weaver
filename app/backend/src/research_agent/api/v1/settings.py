@@ -230,7 +230,7 @@ async def get_project_setting(
     is_override = project_value is not None
 
     # Get effective value
-    value = await service.get_setting(key, project_id, decrypt=False)
+    value = await service.get_setting(key, user_id=None, project_id=project_id, decrypt=False)
 
     if value is None:
         metadata = SETTING_METADATA.get(key)

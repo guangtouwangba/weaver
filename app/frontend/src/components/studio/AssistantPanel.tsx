@@ -130,7 +130,18 @@ interface AssistantPanelProps {
 }
 
 export default function AssistantPanel({ visible, width, onToggle }: AssistantPanelProps) {
-  const { projectId, chatMessages, setChatMessages, activeDocumentId, addNodeToCanvas, navigateToSource, setDragPreview, dragContentRef } = useStudio();
+  const { 
+    projectId, 
+    chatMessages, 
+    setChatMessages, 
+    activeDocumentId, 
+    addNodeToCanvas, 
+    addSection,
+    switchView,
+    navigateToSource, 
+    setDragPreview, 
+    dragContentRef 
+  } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
@@ -259,7 +270,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
   const handleAddToCanvas = (content: string, sourceId?: string) => {
     addNodeToCanvas({
-      type: 'card',
+      type: 'insight',
       title: 'AI Insight',
       content: content,
       x: 100, // Default position, will be adjusted by user or improved logic
@@ -268,8 +279,70 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       height: 200,
       color: 'blue',
       tags: ['#ai'],
-      sourceId: sourceId
+      sourceId: sourceId,
+      viewType: 'free',
     });
+  };
+
+  const handleAddThinkingPath = (conversationStart: number = -3) => {
+    // Get last N messages (default last 3: user question + AI answer + optional follow-ups)
+    const recentMessages = chatMessages.slice(conversationStart);
+    if (recentMessages.length === 0) return;
+
+    // Find the first user question
+    const firstUserMsg = recentMessages.find(m => m.role === 'user');
+    const question = firstUserMsg?.content || 'Conversation';
+
+    // Create section
+    const sectionId = `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+    
+    // Create nodes from conversation
+    const nodes: any[] = [];
+    let nodeX = 100;
+    const nodeY = 100;
+    const spacing = 320; // 280 width + 40 gap
+
+    recentMessages.forEach((msg, idx) => {
+      const nodeType = msg.role === 'user' ? 'answer' : 
+                      (idx === recentMessages.length - 1 ? 'conclusion' : 'question');
+      
+      nodes.push({
+        type: nodeType,
+        title: msg.role === 'user' ? 'Your Answer' : 'AI Question',
+        content: msg.content,
+        x: nodeX,
+        y: nodeY,
+        width: 280,
+        height: 200,
+        color: msg.role === 'user' ? 'green' : 'blue',
+        tags: [`#thinking-path`],
+        viewType: 'thinking',
+        sectionId: sectionId,
+      });
+      
+      nodeX += spacing;
+    });
+
+    // Add all nodes
+    nodes.forEach(node => addNodeToCanvas(node));
+
+    // Create section
+    addSection({
+      id: sectionId,
+      title: `Thinking: ${question.substring(0, 30)}${question.length > 30 ? '...' : ''}`,
+      viewType: 'thinking',
+      isCollapsed: false,
+      nodeIds: nodes.map(n => n.id || ''), // Will be assigned by addNodeToCanvas
+      x: 50,
+      y: 50,
+      question: question,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Switch to thinking view
+    switchView('thinking');
   };
 
   if (!visible) {
@@ -292,7 +365,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   }
 
   return (
-    <Box sx={{ width, height: '100vh', flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', bgcolor: '#FAFAFA', overflow: 'hidden' }}>
+    <Box sx={{ width, height: '100vh', flexShrink: 1, minWidth: 280, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', bgcolor: '#FAFAFA', overflow: 'hidden' }}>
       {/* Header */}
       <Box 
         sx={{ 
@@ -505,8 +578,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               )}
 
               {/* Action Buttons for AI messages */}
-              {msg.role === 'ai' && (
-                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              {msg.role === 'ai' && msg.content && (
+                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                       <Button 
                         size="small" 
                         startIcon={<Plus size={12} />} 
@@ -514,6 +587,19 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                         sx={{ fontSize: 10, textTransform: 'none', color: 'text.secondary' }}
                       >
                         Add to Canvas
+                      </Button>
+                      <Button 
+                        size="small" 
+                        startIcon={<GripHorizontal size={12} />} 
+                        onClick={() => handleAddThinkingPath()}
+                        sx={{ 
+                          fontSize: 10, 
+                          textTransform: 'none', 
+                          color: 'text.secondary',
+                          bgcolor: 'action.hover',
+                        }}
+                      >
+                        Add Thinking Path
                       </Button>
                   </Box>
               )}

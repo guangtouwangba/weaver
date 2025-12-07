@@ -84,6 +84,14 @@ SETTING_METADATA = {
                 "best_for": "Complex reasoning, code generation, multimodal tasks",
             },
             {
+                "value": "google/gemini-3-pro-preview",
+                "label": "Gemini 3 Pro Preview",
+                "description": "Google's flagship frontier model with 1M context, best multimodal reasoning",
+                "cost": "medium",
+                "performance": "medium",
+                "best_for": "Advanced reasoning, agentic workflows, multimodal analysis, long context",
+            },
+            {
                 "value": "anthropic/claude-sonnet-4",
                 "label": "Claude Sonnet 4",
                 "description": "Latest Claude model, excellent balance of speed and capability",
@@ -183,6 +191,42 @@ SETTING_METADATA = {
                 "best_for": "Mixed workloads, adaptive requirements",
             },
         ],
+    },
+    "long_context_safety_ratio": {
+        "category": SettingCategory.RAG_STRATEGY,
+        "description": "Percentage of model context window to use for long context mode (higher = more content but risk of truncation)",
+        "default": 0.55,
+        "min": 0.3,
+        "max": 0.9,
+        "step": 0.05,
+        "type": "slider",
+        "options": [
+            {
+                "value": 0.4,
+                "label": "40% (Conservative)",
+                "description": "Safe for complex prompts with many system instructions",
+            },
+            {
+                "value": 0.55,
+                "label": "55% (Balanced)",
+                "description": "Default balance between content and response space",
+            },
+            {
+                "value": 0.7,
+                "label": "70% (Aggressive)",
+                "description": "More document content, less response space",
+            },
+            {
+                "value": 0.85,
+                "label": "85% (Maximum)",
+                "description": "Maximum content, minimal response space",
+            },
+        ],
+    },
+    "fast_upload_mode": {
+        "category": SettingCategory.RAG_STRATEGY,
+        "description": "Skip summary generation and embeddings to speed up document processing in long context mode",
+        "default": True,
     },
     "retrieval_strategy": {
         "category": SettingCategory.RAG_STRATEGY,

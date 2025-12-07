@@ -233,7 +233,7 @@ class OpenRouterEmbeddingService(EmbeddingService):
         logger.debug(f"[OpenRouter Embedding] Generated embedding (dimension: {len(embedding)})")
         return embedding
 
-    async def embed_batch(self, texts: List[str], batch_size: int = 10) -> List[List[float]]:
+    async def embed_batch(self, texts: List[str], batch_size: int = 100) -> List[List[float]]:
         """Get embeddings for multiple texts.
         
         Args:

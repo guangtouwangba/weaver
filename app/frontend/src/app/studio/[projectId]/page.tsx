@@ -111,7 +111,7 @@ export default function StudioPage() {
   return (
     <StudioProvider projectId={projectId}>
       <GlobalLayout>
-        <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: 'background.paper' }}>
+        <Box sx={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', bgcolor: 'background.paper' }}>
           {/* LEFT: Source Panel */}
           <SourcePanel 
             visible={leftVisible} 

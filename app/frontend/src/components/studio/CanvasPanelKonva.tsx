@@ -6,9 +6,11 @@
  */
 
 import { useEffect } from 'react';
+import { Box } from '@mui/material';
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
 import KonvaCanvas from './KonvaCanvas';
+import CanvasSidebar from './CanvasSidebar';
 
 export default function CanvasPanelKonva() {
   const { 
@@ -17,8 +19,11 @@ export default function CanvasPanelKonva() {
     setCanvasNodes,
     canvasEdges,
     setCanvasEdges,
+    canvasSections,
     canvasViewport,
     setCanvasViewport,
+    currentView,
+    viewStates,
     saveCanvas,
     addNodeToCanvas,
   } = useStudio();
@@ -26,28 +31,34 @@ export default function CanvasPanelKonva() {
   // Auto-save on change (debounced)
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (canvasNodes.length > 0) {
+      if (canvasNodes.length > 0 || canvasSections.length > 0) {
         saveCanvas(); // Update context
         canvasApi.save(projectId, {
           nodes: canvasNodes,
           edges: canvasEdges,
-          viewport: canvasViewport
+          sections: canvasSections,
+          viewport: canvasViewport,
+          viewStates: viewStates,
         }).catch(err => console.error("Auto-save failed", err));
       }
     }, 2000);
     return () => clearTimeout(timeout);
-  }, [canvasNodes, canvasEdges, canvasViewport, projectId, saveCanvas]);
+  }, [canvasNodes, canvasEdges, canvasSections, canvasViewport, viewStates, projectId, saveCanvas]);
 
   return (
-    <KonvaCanvas 
-      nodes={canvasNodes}
-      edges={canvasEdges}
-      viewport={canvasViewport}
-      onNodesChange={setCanvasNodes}
-      onEdgesChange={setCanvasEdges}
-      onViewportChange={setCanvasViewport}
-      onNodeAdd={addNodeToCanvas}
-    />
+    <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+      <KonvaCanvas 
+        nodes={canvasNodes}
+        edges={canvasEdges}
+        viewport={canvasViewport}
+        currentView={currentView}
+        onNodesChange={setCanvasNodes}
+        onEdgesChange={setCanvasEdges}
+        onViewportChange={setCanvasViewport}
+        onNodeAdd={addNodeToCanvas}
+      />
+      <CanvasSidebar />
+    </Box>
   );
 }
 

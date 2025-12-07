@@ -13,7 +13,9 @@ from research_agent.application.dto.canvas import (
     CanvasNodeDTO,
     CanvasNodeOperationResponse,
     CanvasSaveResponse,
+    CanvasSectionDTO,
     CanvasViewportDTO,
+    CanvasViewStateDTO,
     CreateCanvasNodeRequest,
     UpdateCanvasNodeRequest,
 )
@@ -75,6 +77,11 @@ async def get_canvas(
                 tags=n.get("tags", []),
                 sourceId=n.get("sourceId"),
                 sourcePage=n.get("sourcePage"),
+                viewType=n.get("viewType", "free"),
+                sectionId=n.get("sectionId"),
+                promotedFrom=n.get("promotedFrom"),
+                createdAt=n.get("createdAt"),
+                updatedAt=n.get("updatedAt"),
             )
             for n in data.get("nodes", [])
         ],
@@ -86,11 +93,42 @@ async def get_canvas(
             )
             for e in data.get("edges", [])
         ],
+        sections=[
+            CanvasSectionDTO(
+                id=s["id"],
+                title=s.get("title", ""),
+                viewType=s.get("viewType", "free"),
+                isCollapsed=s.get("isCollapsed", False),
+                nodeIds=s.get("nodeIds", []),
+                x=s.get("x", 0),
+                y=s.get("y", 0),
+                width=s.get("width"),
+                height=s.get("height"),
+                conversationId=s.get("conversationId"),
+                question=s.get("question"),
+                createdAt=s.get("createdAt"),
+                updatedAt=s.get("updatedAt"),
+            )
+            for s in data.get("sections", [])
+        ],
         viewport=CanvasViewportDTO(
             x=data.get("viewport", {}).get("x", 0),
             y=data.get("viewport", {}).get("y", 0),
             scale=data.get("viewport", {}).get("scale", 1),
         ),
+        viewStates={
+            view_type: CanvasViewStateDTO(
+                viewType=vs_data.get("viewType", view_type),
+                viewport=CanvasViewportDTO(
+                    x=vs_data.get("viewport", {}).get("x", 0),
+                    y=vs_data.get("viewport", {}).get("y", 0),
+                    scale=vs_data.get("viewport", {}).get("scale", 1),
+                ),
+                selectedNodeIds=vs_data.get("selectedNodeIds", []),
+                collapsedSectionIds=vs_data.get("collapsedSectionIds", []),
+            )
+            for view_type, vs_data in data.get("viewStates", {}).items()
+        },
         updated_at=result.updated_at,
         version=result.version,
     )
@@ -115,7 +153,9 @@ async def save_canvas(
     canvas_data = {
         "nodes": [n.model_dump() for n in request.nodes],
         "edges": [e.model_dump() for e in request.edges],
+        "sections": [s.model_dump() for s in request.sections],
         "viewport": request.viewport.model_dump(),
+        "viewStates": {view_type: vs.model_dump() for view_type, vs in request.viewStates.items()},
     }
 
     try:

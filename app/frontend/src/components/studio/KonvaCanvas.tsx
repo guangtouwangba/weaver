@@ -8,8 +8,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Stage, Layer, Group, Rect, Text, Line, Arrow } from 'react-konva';
 import Konva from 'konva';
-import { Box, Typography } from '@mui/material';
-import { Layout } from 'lucide-react';
+import { Box, Typography, Menu, MenuItem } from '@mui/material';
+import { Layout, ArrowUp } from 'lucide-react';
 import { useStudio } from '@/contexts/StudioContext';
 
 interface CanvasNode {
@@ -25,6 +25,8 @@ interface CanvasNode {
   tags?: string[];
   sourceId?: string;
   sourcePage?: number;
+  viewType: 'free' | 'thinking';
+  sectionId?: string;
 }
 
 interface CanvasEdge {
@@ -43,11 +45,69 @@ interface KonvaCanvasProps {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   viewport: Viewport;
+  currentView: 'free' | 'thinking';
   onNodesChange: (nodes: CanvasNode[]) => void;
   onEdgesChange: (edges: CanvasEdge[]) => void;
   onViewportChange: (viewport: Viewport) => void;
   onNodeAdd?: (node: Partial<CanvasNode>) => void;
 }
+
+// Node style configuration based on type
+const getNodeStyle = (type: string) => {
+  const styles: Record<string, { 
+    borderColor: string; 
+    borderStyle: 'solid' | 'dashed'; 
+    bgColor: string; 
+    icon: string;
+    topBarColor: string;
+  }> = {
+    knowledge: {
+      borderColor: '#E5E7EB',
+      borderStyle: 'solid',
+      bgColor: '#FFFFFF',
+      icon: '📄',
+      topBarColor: '#E5E7EB',
+    },
+    insight: {
+      borderColor: '#3B82F6',
+      borderStyle: 'solid',
+      bgColor: '#EFF6FF',
+      icon: '💡',
+      topBarColor: '#3B82F6',
+    },
+    manual: {
+      borderColor: '#E5E7EB',
+      borderStyle: 'solid',
+      bgColor: '#FFFFFF',
+      icon: '✏️',
+      topBarColor: '#9CA3AF',
+    },
+    question: {
+      borderColor: '#3B82F6',
+      borderStyle: 'dashed',
+      bgColor: '#EFF6FF',
+      icon: '🤔',
+      topBarColor: '#3B82F6',
+    },
+    answer: {
+      borderColor: '#10B981',
+      borderStyle: 'dashed',
+      bgColor: '#F0FDF4',
+      icon: '💭',
+      topBarColor: '#10B981',
+    },
+    conclusion: {
+      borderColor: '#F59E0B',
+      borderStyle: 'dashed',
+      bgColor: '#FFFBEB',
+      icon: '✨',
+      topBarColor: '#F59E0B',
+    },
+  };
+  
+  // Default to knowledge style for backward compatibility
+  return styles[type] || styles.knowledge;
+};
 
 // Knowledge Node Component
 const KnowledgeNode = ({
@@ -56,16 +116,18 @@ const KnowledgeNode = ({
   onSelect,
   onDragStart,
   onDragEnd,
+  onContextMenu,
 }: {
   node: CanvasNode;
   isSelected: boolean;
   onSelect: () => void;
   onDragStart: () => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onContextMenu?: (e: Konva.KonvaEventObject<PointerEvent>) => void;
 }) => {
   const width = node.width || 280;
   const height = node.height || 200;
-  const nodeColor = node.color === 'blue' ? '#3B82F6' : '#E5E7EB';
+  const style = getNodeStyle(node.type);
 
   return (
     <Group
@@ -76,15 +138,17 @@ const KnowledgeNode = ({
       onTap={onSelect}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onContextMenu={onContextMenu}
     >
       {/* Border/Background */}
       <Rect
         width={width}
         height={height}
-        fill="white"
+        fill={style.bgColor}
         cornerRadius={12}
-        stroke={isSelected ? '#3B82F6' : '#E5E7EB'}
+        stroke={isSelected ? '#3B82F6' : style.borderColor}
         strokeWidth={isSelected ? 3 : 2}
+        dash={style.borderStyle === 'dashed' ? [8, 4] : undefined}
         shadowColor="black"
         shadowBlur={isSelected ? 12 : 8}
         shadowOpacity={isSelected ? 0.15 : 0.08}
@@ -96,15 +160,23 @@ const KnowledgeNode = ({
         y={0}
         width={width}
         height={4}
-        fill={nodeColor}
+        fill={style.topBarColor}
         cornerRadius={[12, 12, 0, 0]}
       />
 
-      {/* Title */}
+      {/* Type Icon (top-left) */}
       <Text
-        x={16}
-        y={20}
-        width={width - 32}
+        x={12}
+        y={12}
+        text={style.icon}
+        fontSize={16}
+      />
+
+      {/* Title (adjust for icon) */}
+      <Text
+        x={40}
+        y={14}
+        width={width - 56}
         text={node.title}
         fontSize={16}
         fontStyle="bold"
@@ -116,9 +188,9 @@ const KnowledgeNode = ({
       {/* Content */}
       <Text
         x={16}
-        y={55}
+        y={48}
         width={width - 32}
-        height={90}
+        height={95}
         text={node.content}
         fontSize={14}
         fill="#6B7280"
@@ -166,6 +238,7 @@ export default function KonvaCanvas({
   nodes,
   edges,
   viewport,
+  currentView,
   onNodesChange,
   onEdgesChange,
   onViewportChange,
@@ -177,23 +250,48 @@ export default function KonvaCanvas({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; sectionId?: string } | null>(null);
   const lastPosRef = useRef({ x: 0, y: 0 });
-  const { dragPreview, setDragPreview, dragContentRef } = useStudio();
+  const { 
+    dragPreview, 
+    setDragPreview, 
+    dragContentRef, 
+    promoteNode, 
+    deleteSection,
+    canvasSections,
+    setCanvasSections,
+    currentView: studioCurrentView 
+  } = useStudio();
+
+  // Filter nodes and sections by current view
+  const visibleNodes = nodes.filter(node => node.viewType === currentView);
+  const visibleSections = canvasSections.filter(section => section.viewType === currentView);
 
   // Update dimensions on resize
   useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
-        });
-      }
-    };
+    if (!containerRef.current) return;
 
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    // Set initial dimensions (ensure minimum 1x1 to avoid canvas errors)
+    const initialWidth = containerRef.current.offsetWidth || 800;
+    const initialHeight = containerRef.current.offsetHeight || 600;
+    setDimensions({
+      width: Math.max(1, initialWidth),
+      height: Math.max(1, initialHeight),
+    });
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect) {
+          // Ensure minimum 1x1 dimensions to prevent drawImage errors
+          const width = Math.max(1, entry.contentRect.width);
+          const height = Math.max(1, entry.contentRect.height);
+          setDimensions({ width, height });
+        }
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
   }, []);
 
   // Handle keyboard shortcuts (Space for panning)
@@ -305,11 +403,11 @@ export default function KonvaCanvas({
     setIsPanning(false);
   };
 
-  // Draw connections
+  // Draw connections (only for visible nodes)
   const renderEdges = () => {
     return edges.map((edge, index) => {
-      const source = nodes.find((n) => n.id === edge.source);
-      const target = nodes.find((n) => n.id === edge.target);
+      const source = visibleNodes.find((n) => n.id === edge.source);
+      const target = visibleNodes.find((n) => n.id === edge.target);
       
       if (!source || !target) return null;
 
@@ -339,7 +437,7 @@ export default function KonvaCanvas({
   };
 
   return (
-    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
       <Box 
         sx={{ 
@@ -362,7 +460,7 @@ export default function KonvaCanvas({
           </Typography>
         </Box>
         <Typography variant="caption" color="text.disabled">
-          Auto-saved • {nodes.length} nodes
+          Auto-saved • {visibleNodes.length} nodes ({currentView === 'free' ? '自由画布' : '思考路径'})
         </Typography>
       </Box>
 
@@ -460,6 +558,79 @@ export default function KonvaCanvas({
           setDragPreview(null);
         }}
       >
+        {/* Context Menu */}
+        {contextMenu && (
+          <Menu
+            open={Boolean(contextMenu)}
+            onClose={() => setContextMenu(null)}
+            anchorReference="anchorPosition"
+            anchorPosition={
+              contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined
+            }
+          >
+            {contextMenu.nodeId && studioCurrentView === 'thinking' && (
+              <MenuItem
+                onClick={() => {
+                  if (contextMenu.nodeId) {
+                    promoteNode(contextMenu.nodeId);
+                  }
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <ArrowUp size={14} style={{ marginRight: 8 }} />
+                提升到自由画布
+              </MenuItem>
+            )}
+            {contextMenu.nodeId && (
+              <MenuItem
+                onClick={() => {
+                  if (contextMenu.nodeId) {
+                    onNodesChange(nodes.filter(n => n.id !== contextMenu.nodeId));
+                  }
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14, color: 'error.main' }}
+              >
+                删除节点
+              </MenuItem>
+            )}
+            {contextMenu.sectionId && (
+              <>
+                <MenuItem
+                  onClick={() => {
+                    if (contextMenu.sectionId) {
+                      // Toggle collapse
+                      setCanvasSections(prev =>
+                        prev.map(s =>
+                          s.id === contextMenu.sectionId
+                            ? { ...s, isCollapsed: !s.isCollapsed }
+                            : s
+                        )
+                      );
+                    }
+                    setContextMenu(null);
+                  }}
+                  sx={{ fontSize: 14 }}
+                >
+                  折叠/展开Section
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    if (contextMenu.sectionId) {
+                      deleteSection(contextMenu.sectionId);
+                    }
+                    setContextMenu(null);
+                  }}
+                  sx={{ fontSize: 14, color: 'error.main' }}
+                >
+                  删除Section
+                </MenuItem>
+              </>
+            )}
+          </Menu>
+        )}
+        
         <Stage
           ref={stageRef}
           width={dimensions.width}
@@ -488,11 +659,109 @@ export default function KonvaCanvas({
 
           {/* Content Layer */}
           <Layer>
+            {/* Sections (render before nodes for proper layering) */}
+            {visibleSections.map((section) => {
+              const sectionNodes = visibleNodes.filter(n => n.sectionId === section.id);
+              
+              // Calculate section bounds
+              if (sectionNodes.length === 0) return null;
+              
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              sectionNodes.forEach(node => {
+                minX = Math.min(minX, node.x);
+                minY = Math.min(minY, node.y);
+                maxX = Math.max(maxX, node.x + (node.width || 280));
+                maxY = Math.max(maxY, node.y + (node.height || 200));
+              });
+              
+              const headerHeight = 48;
+              const padding = 16;
+              const contentWidth = maxX - minX + padding * 2;
+              const contentHeight = maxY - minY + padding * 2;
+              const totalHeight = headerHeight + (section.isCollapsed ? 0 : contentHeight);
+
+              return (
+                <Group
+                  key={section.id}
+                  x={section.x || minX - padding}
+                  y={section.y || minY - padding - headerHeight}
+                  onContextMenu={(e) => {
+                    e.evt.preventDefault();
+                    setContextMenu({
+                      x: e.evt.clientX,
+                      y: e.evt.clientY,
+                      sectionId: section.id,
+                    });
+                  }}
+                >
+                  {/* Section Background */}
+                  <Rect
+                    width={contentWidth}
+                    height={totalHeight}
+                    fill="#F3F4F6"
+                    cornerRadius={12}
+                    stroke="#E5E7EB"
+                    strokeWidth={1}
+                    shadowColor="black"
+                    shadowBlur={8}
+                    shadowOpacity={0.08}
+                    shadowOffsetY={2}
+                  />
+
+                  {/* Header */}
+                  <Rect
+                    width={contentWidth}
+                    height={headerHeight}
+                    fill="#FFFFFF"
+                    cornerRadius={[12, 12, 0, 0]}
+                    onClick={() => {
+                      setCanvasSections(prev =>
+                        prev.map(s =>
+                          s.id === section.id ? { ...s, isCollapsed: !s.isCollapsed } : s
+                        )
+                      );
+                    }}
+                  />
+
+                  {/* Icon */}
+                  <Text x={16} y={16} text="🌱" fontSize={18} />
+
+                  {/* Title */}
+                  <Text
+                    x={48}
+                    y={18}
+                    width={contentWidth - 100}
+                    text={section.title}
+                    fontSize={14}
+                    fontStyle="bold"
+                    fill="#1F2937"
+                    ellipsis
+                  />
+
+                  {/* Collapse icon */}
+                  <Text
+                    x={contentWidth - 40}
+                    y={18}
+                    text={section.isCollapsed ? '▶' : '▼'}
+                    fontSize={12}
+                    fill="#6B7280"
+                  />
+                </Group>
+              );
+            })}
+
             {/* Edges */}
             {renderEdges()}
 
-            {/* Nodes */}
-            {nodes.map((node) => (
+            {/* Nodes (filtered by current view, excluding ones in sections when collapsed) */}
+            {visibleNodes.map((node) => {
+              // Skip nodes in collapsed sections
+              if (node.sectionId) {
+                const section = visibleSections.find(s => s.id === node.sectionId);
+                if (section?.isCollapsed) return null;
+              }
+              
+              return (
               <KnowledgeNode
                 key={node.id}
                 node={node}
@@ -500,8 +769,17 @@ export default function KonvaCanvas({
                 onSelect={() => setSelectedNodeId(node.id)}
                 onDragStart={handleNodeDragStart(node.id)}
                 onDragEnd={handleNodeDragEnd(node.id)}
+                onContextMenu={(e) => {
+                  e.evt.preventDefault();
+                  setContextMenu({
+                    x: e.evt.clientX,
+                    y: e.evt.clientY,
+                    nodeId: node.id,
+                  });
+                }}
               />
-            ))}
+            );
+            })}
 
             {/* Drag Preview for AI Insight */}
             {dragPreview && (

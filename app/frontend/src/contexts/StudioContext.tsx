@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, documentsApi, canvasApi, chatApi, Citation } from '@/lib/api';
+import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, documentsApi, canvasApi, chatApi, Citation } from '@/lib/api';
 
 interface ChatMessage {
   id: string;
@@ -34,8 +34,20 @@ interface StudioContextType {
   setCanvasNodes: (nodes: CanvasNode[] | ((prev: CanvasNode[]) => CanvasNode[])) => void;
   canvasEdges: CanvasEdge[];
   setCanvasEdges: (edges: CanvasEdge[] | ((prev: CanvasEdge[]) => CanvasEdge[])) => void;
+  canvasSections: CanvasSection[];
+  setCanvasSections: (sections: CanvasSection[] | ((prev: CanvasSection[]) => CanvasSection[])) => void;
   canvasViewport: { x: number; y: number; scale: number };
   setCanvasViewport: (viewport: { x: number; y: number; scale: number }) => void;
+  
+  // View system
+  currentView: 'free' | 'thinking';
+  setCurrentView: (view: 'free' | 'thinking') => void;
+  viewStates: {
+    free: CanvasViewState;
+    thinking: CanvasViewState;
+  };
+  setViewStates: (viewStates: { free: CanvasViewState; thinking: CanvasViewState }) => void;
+  switchView: (view: 'free' | 'thinking') => void;
   
   // Chat
   chatMessages: ChatMessage[];
@@ -43,6 +55,9 @@ interface StudioContextType {
   
   // Actions
   addNodeToCanvas: (node: Omit<CanvasNode, 'id'>) => void;
+  addSection: (section: CanvasSection) => void;
+  promoteNode: (nodeId: string) => void;
+  deleteSection: (sectionId: string) => void;
   saveCanvas: () => Promise<void>;
   
   // Navigation
@@ -72,7 +87,26 @@ export function StudioProvider({
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
   const [canvasEdges, setCanvasEdges] = useState<CanvasEdge[]>([]);
+  const [canvasSections, setCanvasSections] = useState<CanvasSection[]>([]);
   const [canvasViewport, setCanvasViewport] = useState({ x: 0, y: 0, scale: 1 });
+  const [currentView, setCurrentView] = useState<'free' | 'thinking'>('free');
+  const [viewStates, setViewStates] = useState<{
+    free: CanvasViewState;
+    thinking: CanvasViewState;
+  }>({
+    free: {
+      viewType: 'free',
+      viewport: { x: 0, y: 0, scale: 1 },
+      selectedNodeIds: [],
+      collapsedSectionIds: [],
+    },
+    thinking: {
+      viewType: 'thinking',
+      viewport: { x: 0, y: 0, scale: 1 },
+      selectedNodeIds: [],
+      collapsedSectionIds: [],
+    },
+  });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -95,10 +129,59 @@ export function StudioProvider({
 
   const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
     const newNode: CanvasNode = {
+      viewType: currentView,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       ...node,
       id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
     setCanvasNodes(prev => [...prev, newNode]);
+  }, [currentView]);
+
+  const addSection = useCallback((section: CanvasSection) => {
+    setCanvasSections(prev => [...prev, section]);
+  }, []);
+
+  const switchView = useCallback((view: 'free' | 'thinking') => {
+    // Save current view state before switching
+    setViewStates(prev => ({
+      ...prev,
+      [currentView]: {
+        ...prev[currentView],
+        viewport: canvasViewport,
+      },
+    }));
+    
+    // Switch to new view and restore its viewport
+    setCurrentView(view);
+    setCanvasViewport(viewStates[view].viewport);
+  }, [currentView, canvasViewport, viewStates]);
+
+  const promoteNode = useCallback((nodeId: string) => {
+    const node = canvasNodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Create a copy in free canvas view
+    const newNode: CanvasNode = {
+      ...node,
+      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      viewType: 'free',
+      sectionId: undefined, // Remove section when promoting
+      promotedFrom: nodeId, // Keep reference to original
+      x: node.x + 50, // Slight offset for clarity
+      y: node.y + 50,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setCanvasNodes(prev => [...prev, newNode]);
+  }, [canvasNodes]);
+
+  const deleteSection = useCallback((sectionId: string) => {
+    // Remove section
+    setCanvasSections(prev => prev.filter(s => s.id !== sectionId));
+    // Remove nodes in section (optional, can keep nodes orphaned)
+    setCanvasNodes(prev => prev.filter(n => n.sectionId !== sectionId));
   }, []);
 
   const saveCanvas = useCallback(async () => {
@@ -119,7 +202,23 @@ export function StudioProvider({
     setDocuments([]);
     setCanvasNodes([]);
     setCanvasEdges([]);
+    setCanvasSections([]);
     setCanvasViewport({ x: 0, y: 0, scale: 1 });
+    setCurrentView('free');
+    setViewStates({
+      free: {
+        viewType: 'free',
+        viewport: { x: 0, y: 0, scale: 1 },
+        selectedNodeIds: [],
+        collapsedSectionIds: [],
+      },
+      thinking: {
+        viewType: 'thinking',
+        viewport: { x: 0, y: 0, scale: 1 },
+        selectedNodeIds: [],
+        collapsedSectionIds: [],
+      },
+    });
     setChatMessages([
       {
         id: 'welcome',
@@ -146,8 +245,25 @@ export function StudioProvider({
         if (canvasRes) {
           setCanvasNodes(canvasRes.nodes || []);
           setCanvasEdges(canvasRes.edges || []);
+          setCanvasSections(canvasRes.sections || []);
           if (canvasRes.viewport) {
             setCanvasViewport(canvasRes.viewport);
+          }
+          if (canvasRes.viewStates) {
+            setViewStates({
+              free: canvasRes.viewStates.free || {
+                viewType: 'free',
+                viewport: { x: 0, y: 0, scale: 1 },
+                selectedNodeIds: [],
+                collapsedSectionIds: [],
+              },
+              thinking: canvasRes.viewStates.thinking || {
+                viewType: 'thinking',
+                viewport: { x: 0, y: 0, scale: 1 },
+                selectedNodeIds: [],
+                collapsedSectionIds: [],
+              },
+            });
           }
         }
 
@@ -180,11 +296,21 @@ export function StudioProvider({
     setCanvasNodes,
     canvasEdges,
     setCanvasEdges,
+    canvasSections,
+    setCanvasSections,
     canvasViewport,
     setCanvasViewport,
+    currentView,
+    setCurrentView,
+    viewStates,
+    setViewStates,
+    switchView,
     chatMessages,
     setChatMessages,
     addNodeToCanvas,
+    addSection,
+    promoteNode,
+    deleteSection,
     saveCanvas,
     navigateToSource,
     sourceNavigation,
