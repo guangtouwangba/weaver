@@ -44,14 +44,16 @@ def create_langfuse_callback() -> Optional[BaseCallbackHandler]:
         return None
 
     try:
-        # langfuse v3 uses langfuse.langchain module
+        import os
+
+        # langfuse v3 reads from environment variables
+        os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
+        os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
+        os.environ["LANGFUSE_HOST"] = settings.langfuse_host
+
         from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
 
-        callback = LangfuseCallbackHandler(
-            secret_key=settings.langfuse_secret_key,
-            public_key=settings.langfuse_public_key,
-            host=settings.langfuse_host,
-        )
+        callback = LangfuseCallbackHandler()
 
         logger.info(f"[Langfuse] Callback handler created (host: {settings.langfuse_host})")
         return callback
