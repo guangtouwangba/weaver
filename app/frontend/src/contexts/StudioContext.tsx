@@ -72,6 +72,16 @@ interface StudioContextType {
   dragPreview: { x: number; y: number; content: string } | null;
   setDragPreview: (preview: { x: number; y: number; content: string } | null) => void;
   dragContentRef: React.MutableRefObject<string | null>;
+  
+  // Auto Thinking Path
+  autoThinkingPathEnabled: boolean;
+  setAutoThinkingPathEnabled: (enabled: boolean) => void;
+  
+  // Message <-> Node Navigation
+  navigateToMessage: (messageId: string) => void;
+  highlightedMessageId: string | null;
+  navigateToNode: (nodeId: string) => void;
+  highlightedNodeId: string | null;
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
@@ -127,21 +137,20 @@ export function StudioProvider({
   const [dragPreview, setDragPreview] = useState<{ x: number; y: number; content: string } | null>(null);
   const dragContentRef = useRef<string | null>(null);
 
-  const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
-    const newNode: CanvasNode = {
-      viewType: currentView,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...node,
-      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    };
-    setCanvasNodes(prev => [...prev, newNode]);
-  }, [currentView]);
+  // Auto Thinking Path state
+  const [autoThinkingPathEnabled, setAutoThinkingPathEnabled] = useState(true);
+  
+  // Message <-> Node Navigation state
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
 
-  const addSection = useCallback((section: CanvasSection) => {
-    setCanvasSections(prev => [...prev, section]);
+  const navigateToMessage = useCallback((messageId: string) => {
+    setHighlightedMessageId(messageId);
+    // Auto-clear highlight after 3 seconds
+    setTimeout(() => setHighlightedMessageId(null), 3000);
   }, []);
 
+  // Define switchView BEFORE navigateToNode since navigateToNode depends on it
   const switchView = useCallback((view: 'free' | 'thinking') => {
     // Save current view state before switching
     setViewStates(prev => ({
@@ -156,6 +165,32 @@ export function StudioProvider({
     setCurrentView(view);
     setCanvasViewport(viewStates[view].viewport);
   }, [currentView, canvasViewport, viewStates]);
+
+  const navigateToNode = useCallback((nodeId: string) => {
+    setHighlightedNodeId(nodeId);
+    // Switch to thinking view if the node is in thinking view
+    const node = canvasNodes.find(n => n.id === nodeId);
+    if (node?.viewType === 'thinking' && currentView !== 'thinking') {
+      switchView('thinking');
+    }
+    // Auto-clear highlight after 3 seconds
+    setTimeout(() => setHighlightedNodeId(null), 3000);
+  }, [canvasNodes, currentView, switchView]);
+
+  const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
+    const newNode: CanvasNode = {
+      viewType: currentView,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...node,
+      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+    setCanvasNodes(prev => [...prev, newNode]);
+  }, [currentView]);
+
+  const addSection = useCallback((section: CanvasSection) => {
+    setCanvasSections(prev => [...prev, section]);
+  }, []);
 
   const promoteNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -317,6 +352,12 @@ export function StudioProvider({
     dragPreview,
     setDragPreview,
     dragContentRef,
+    autoThinkingPathEnabled,
+    setAutoThinkingPathEnabled,
+    navigateToMessage,
+    highlightedMessageId,
+    navigateToNode,
+    highlightedNodeId,
   };
 
   return (

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from research_agent.api.errors import setup_error_handlers
 from research_agent.api.middleware import setup_middleware
 from research_agent.api.v1.router import api_router
+from research_agent.api.v1.websocket import router as websocket_router
 from research_agent.config import get_settings
 from research_agent.domain.entities.task import TaskType
 from research_agent.infrastructure.database.session import (
@@ -205,6 +206,10 @@ def create_app() -> FastAPI:
 
     # Include API router
     app.include_router(api_router, prefix="/api/v1")
+
+    # Include WebSocket router at root level (no /api/v1 prefix)
+    # This allows WebSocket connections at /ws/projects/{project_id}/...
+    app.include_router(websocket_router, tags=["websocket"])
 
     # Health check endpoint
     @app.get("/health", tags=["health"])

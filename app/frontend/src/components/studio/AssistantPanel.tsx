@@ -20,10 +20,11 @@ import {
   PanelRightOpen,
   Send,
   Link as LinkIcon,
-  Plus,
   ChevronDown,
   ChevronUp,
   GripHorizontal,
+  Brain,
+  ExternalLink,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { chatApi, Citation } from '@/lib/api';
@@ -135,12 +136,13 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     chatMessages, 
     setChatMessages, 
     activeDocumentId, 
-    addNodeToCanvas, 
-    addSection,
     switchView,
     navigateToSource, 
     setDragPreview, 
-    dragContentRef 
+    dragContentRef,
+    canvasNodes,
+    navigateToNode,
+    highlightedMessageId,
   } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -160,6 +162,26 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       }
       return next;
     });
+  };
+
+  // Find a canvas node linked to this message
+  const findLinkedNode = (messageId: string) => {
+    return canvasNodes.find(node => 
+      node.messageIds?.includes(messageId) || 
+      (node.viewType === 'thinking' && node.tags?.includes('#thinking-path'))
+    );
+  };
+
+  // Handle click on "View in Thinking Path" button
+  const handleViewInThinkingPath = (messageId: string) => {
+    const linkedNode = findLinkedNode(messageId);
+    if (linkedNode) {
+      navigateToNode(linkedNode.id);
+      switchView('thinking');
+    } else {
+      // If no linked node, switch to thinking view anyway
+      switchView('thinking');
+    }
   };
 
   const handleSend = async () => {
@@ -268,83 +290,6 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     }
   };
 
-  const handleAddToCanvas = (content: string, sourceId?: string) => {
-    addNodeToCanvas({
-      type: 'insight',
-      title: 'AI Insight',
-      content: content,
-      x: 100, // Default position, will be adjusted by user or improved logic
-      y: 100,
-      width: 280,
-      height: 200,
-      color: 'blue',
-      tags: ['#ai'],
-      sourceId: sourceId,
-      viewType: 'free',
-    });
-  };
-
-  const handleAddThinkingPath = (conversationStart: number = -3) => {
-    // Get last N messages (default last 3: user question + AI answer + optional follow-ups)
-    const recentMessages = chatMessages.slice(conversationStart);
-    if (recentMessages.length === 0) return;
-
-    // Find the first user question
-    const firstUserMsg = recentMessages.find(m => m.role === 'user');
-    const question = firstUserMsg?.content || 'Conversation';
-
-    // Create section
-    const sectionId = `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
-    
-    // Create nodes from conversation
-    const nodes: any[] = [];
-    let nodeX = 100;
-    const nodeY = 100;
-    const spacing = 320; // 280 width + 40 gap
-
-    recentMessages.forEach((msg, idx) => {
-      const nodeType = msg.role === 'user' ? 'answer' : 
-                      (idx === recentMessages.length - 1 ? 'conclusion' : 'question');
-      
-      nodes.push({
-        type: nodeType,
-        title: msg.role === 'user' ? 'Your Answer' : 'AI Question',
-        content: msg.content,
-        x: nodeX,
-        y: nodeY,
-        width: 280,
-        height: 200,
-        color: msg.role === 'user' ? 'green' : 'blue',
-        tags: [`#thinking-path`],
-        viewType: 'thinking',
-        sectionId: sectionId,
-      });
-      
-      nodeX += spacing;
-    });
-
-    // Add all nodes
-    nodes.forEach(node => addNodeToCanvas(node));
-
-    // Create section
-    addSection({
-      id: sectionId,
-      title: `Thinking: ${question.substring(0, 30)}${question.length > 30 ? '...' : ''}`,
-      viewType: 'thinking',
-      isCollapsed: false,
-      nodeIds: nodes.map(n => n.id || ''), // Will be assigned by addNodeToCanvas
-      x: 50,
-      y: 50,
-      question: question,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // Switch to thinking view
-    switchView('thinking');
-  };
-
   if (!visible) {
     return (
       <Box sx={{ width: 40, height: '100vh', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: '#FAFAFA' }}>
@@ -384,18 +329,36 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       
       {/* Messages */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {chatMessages.map((msg) => (
-          <Box key={msg.id} sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
-            <Paper 
+        {chatMessages.map((msg) => {
+          const isHighlighted = highlightedMessageId === msg.id;
+          const linkedNode = findLinkedNode(msg.id);
+          
+          return (
+            <Box 
+              key={msg.id} 
+              id={`message-${msg.id}`}
+              sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}
+            >
+              <Paper 
                 elevation={0} 
                 sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
-                    bgcolor: msg.role === 'user' ? '#EBF5FF' : '#fff',
-                    border: msg.role === 'ai' ? '1px solid #E5E7EB' : 'none',
-                    color: msg.role === 'user' ? '#1E40AF' : 'text.primary'
+                  p: 2, 
+                  borderRadius: 2, 
+                  bgcolor: msg.role === 'user' ? '#EBF5FF' : '#fff',
+                  border: msg.role === 'ai' ? '1px solid #E5E7EB' : 'none',
+                  color: msg.role === 'user' ? '#1E40AF' : 'text.primary',
+                  // Highlight effect when navigating from node
+                  ...(isHighlighted && {
+                    boxShadow: '0 0 0 2px #3B82F6',
+                    animation: 'highlightPulse 1.5s ease-in-out',
+                    '@keyframes highlightPulse': {
+                      '0%': { boxShadow: '0 0 0 2px #3B82F6' },
+                      '50%': { boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.5)' },
+                      '100%': { boxShadow: '0 0 0 2px #3B82F6' },
+                    },
+                  }),
                 }}
-            >
+              >
               {msg.role === 'ai' && msg.content ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main' }}>
@@ -577,35 +540,31 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                 </Box>
               )}
 
-              {/* Action Buttons for AI messages */}
-              {msg.role === 'ai' && msg.content && (
-                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                      <Button 
-                        size="small" 
-                        startIcon={<Plus size={12} />} 
-                        onClick={() => handleAddToCanvas(msg.content)}
-                        sx={{ fontSize: 10, textTransform: 'none', color: 'text.secondary' }}
-                      >
-                        Add to Canvas
-                      </Button>
-                      <Button 
-                        size="small" 
-                        startIcon={<GripHorizontal size={12} />} 
-                        onClick={() => handleAddThinkingPath()}
-                        sx={{ 
-                          fontSize: 10, 
-                          textTransform: 'none', 
-                          color: 'text.secondary',
-                          bgcolor: 'action.hover',
-                        }}
-                      >
-                        Add Thinking Path
-                      </Button>
+              {/* View in Thinking Path - shows when a linked node exists (auto-generated) */}
+              {msg.role === 'ai' && linkedNode && (
+                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button 
+                      size="small" 
+                      startIcon={<Brain size={12} />} 
+                      onClick={() => handleViewInThinkingPath(msg.id)}
+                      sx={{ 
+                        fontSize: 10, 
+                        textTransform: 'none', 
+                        color: 'primary.main',
+                        bgcolor: 'primary.50',
+                        '&:hover': {
+                          bgcolor: 'primary.100',
+                        },
+                      }}
+                    >
+                      View Node
+                    </Button>
                   </Box>
               )}
-            </Paper>
-          </Box>
-        ))}
+              </Paper>
+            </Box>
+          );
+        })}
         <div ref={messagesEndRef} />
       </Box>
       

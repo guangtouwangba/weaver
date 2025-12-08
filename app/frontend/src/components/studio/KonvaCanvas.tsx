@@ -27,6 +27,7 @@ interface CanvasNode {
   sourcePage?: number;
   viewType: 'free' | 'thinking';
   sectionId?: string;
+  messageIds?: string[];  // Linked chat message IDs
 }
 
 interface CanvasEdge {
@@ -50,6 +51,8 @@ interface KonvaCanvasProps {
   onEdgesChange: (edges: CanvasEdge[]) => void;
   onViewportChange: (viewport: Viewport) => void;
   onNodeAdd?: (node: Partial<CanvasNode>) => void;
+  highlightedNodeId?: string | null;  // Node to highlight (for navigation from chat)
+  onNodeClick?: (node: CanvasNode) => void;  // Callback when node is clicked
 }
 
 // Node style configuration based on type
@@ -113,14 +116,18 @@ const getNodeStyle = (type: string) => {
 const KnowledgeNode = ({
   node,
   isSelected,
+  isHighlighted,
   onSelect,
+  onClick,
   onDragStart,
   onDragEnd,
   onContextMenu,
 }: {
   node: CanvasNode;
   isSelected: boolean;
+  isHighlighted?: boolean;
   onSelect: () => void;
+  onClick?: () => void;
   onDragStart: () => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onContextMenu?: (e: Konva.KonvaEventObject<PointerEvent>) => void;
@@ -128,14 +135,24 @@ const KnowledgeNode = ({
   const width = node.width || 280;
   const height = node.height || 200;
   const style = getNodeStyle(node.type);
+  
+  // Highlight animation effect
+  const highlightStrokeWidth = isHighlighted ? 3 : (isSelected ? 2 : 1);
+  const highlightStrokeColor = isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor);
 
   return (
     <Group
       x={node.x}
       y={node.y}
       draggable
-      onClick={onSelect}
-      onTap={onSelect}
+      onClick={() => {
+        onSelect();
+        onClick?.();
+      }}
+      onTap={() => {
+        onSelect();
+        onClick?.();
+      }}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onContextMenu={onContextMenu}
@@ -146,12 +163,12 @@ const KnowledgeNode = ({
         height={height}
         fill={style.bgColor}
         cornerRadius={12}
-        stroke={isSelected ? '#3B82F6' : style.borderColor}
-        strokeWidth={isSelected ? 3 : 2}
+        stroke={highlightStrokeColor}
+        strokeWidth={highlightStrokeWidth}
         dash={style.borderStyle === 'dashed' ? [8, 4] : undefined}
-        shadowColor="black"
-        shadowBlur={isSelected ? 12 : 8}
-        shadowOpacity={isSelected ? 0.15 : 0.08}
+        shadowColor={isHighlighted ? '#3B82F6' : 'black'}
+        shadowBlur={isHighlighted ? 16 : (isSelected ? 12 : 8)}
+        shadowOpacity={isHighlighted ? 0.3 : (isSelected ? 0.15 : 0.08)}
         shadowOffsetY={4}
       />
 
@@ -243,6 +260,8 @@ export default function KonvaCanvas({
   onEdgesChange,
   onViewportChange,
   onNodeAdd,
+  highlightedNodeId,
+  onNodeClick,
 }: KonvaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -766,7 +785,9 @@ export default function KonvaCanvas({
                 key={node.id}
                 node={node}
                 isSelected={selectedNodeId === node.id}
+                isHighlighted={highlightedNodeId === node.id}
                 onSelect={() => setSelectedNodeId(node.id)}
+                onClick={() => onNodeClick?.(node)}
                 onDragStart={handleNodeDragStart(node.id)}
                 onDragEnd={handleNodeDragEnd(node.id)}
                 onContextMenu={(e) => {

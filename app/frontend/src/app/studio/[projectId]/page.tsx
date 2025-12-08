@@ -9,6 +9,7 @@ import SourcePanel from "@/components/studio/SourcePanel";
 import AssistantPanel from "@/components/studio/AssistantPanel";
 import CanvasPanel from "@/components/studio/CanvasPanel";
 import CanvasPanelKonva from "@/components/studio/CanvasPanelKonva";
+import ThinkingPathGenerator from "@/components/studio/ThinkingPathGenerator";
 
 // Helper Component
 const VerticalResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
@@ -130,6 +131,9 @@ export default function StudioPage() {
           
           {/* RIGHT: Canvas (Konva-powered or Legacy) */}
           {useKonva ? <CanvasPanelKonva /> : <CanvasPanel />}
+          
+          {/* Thinking Path Generator (WebSocket connection + status indicator) */}
+          <ThinkingPathGenerator />
         </Box>
       </GlobalLayout>
     </StudioProvider>

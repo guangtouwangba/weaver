@@ -153,6 +153,12 @@ export interface CanvasNode {
   promotedFrom?: string;
   createdAt?: string;
   updatedAt?: string;
+  // New fields for thinking path / message linking
+  messageIds?: string[];  // Linked chat message IDs
+  analysisStatus?: 'pending' | 'analyzed' | 'error';
+  isDuplicate?: boolean;
+  duplicateOf?: string;  // Node ID if this is a duplicate
+  isUserModified?: boolean;  // True if user has manually edited this node
 }
 
 export interface CanvasEdge {
@@ -482,6 +488,74 @@ export const canvasApi = {
 // Health check
 export const healthApi = {
   check: () => fetchApi<{ status: string; environment: string; version: string }>('/health'),
+};
+
+// WebSocket URL helper
+export function getWebSocketUrl(): string {
+  const apiUrl = getApiUrl();
+  // Convert HTTP(S) to WS(S)
+  return apiUrl
+    .replace('https://', 'wss://')
+    .replace('http://', 'ws://');
+}
+
+// Canvas WebSocket Event Types
+export type CanvasEventType =
+  | 'node_added'
+  | 'node_updated'
+  | 'node_deleted'
+  | 'edge_added'
+  | 'edge_deleted'
+  | 'section_added'
+  | 'section_updated'
+  | 'section_deleted'
+  | 'thinking_path_analyzing'
+  | 'thinking_path_analyzed'
+  | 'thinking_path_error'
+  | 'canvas_batch_update';
+
+export interface CanvasWebSocketEvent {
+  type: CanvasEventType;
+  timestamp: string;
+  node_id?: string;
+  node_data?: Partial<CanvasNode>;
+  message_ids?: string[];
+  analysis_status?: 'pending' | 'analyzed' | 'error';
+  edge_id?: string;
+  source_id?: string;
+  target_id?: string;
+  nodes?: CanvasNode[];
+  edges?: CanvasEdge[];
+  sections?: CanvasSection[];
+  message_id?: string;
+  error_message?: string;
+  duplicate_of?: string;
+}
+
+// Thinking Path API
+export const thinkingPathApi = {
+  analyze: (projectId: string, startIndex: number = 0, maxMessages: number = 20) =>
+    fetchApi<{
+      nodes_created: number;
+      edges_created: number;
+      duplicate_count: number;
+      error?: string;
+    }>(`/api/v1/projects/${projectId}/thinking-path/analyze`, {
+      method: 'POST',
+      body: JSON.stringify({ start_index: startIndex, max_messages: maxMessages }),
+    }),
+
+  triggerForMessage: (projectId: string, messageId: string) =>
+    fetchApi<{ status: string; message_id: string }>(
+      `/api/v1/projects/${projectId}/thinking-path/trigger/${messageId}`,
+      { method: 'POST' }
+    ),
+
+  clearCache: (projectId: string) =>
+    fetchApi<{ status: string; project_id: string }>(
+      `/api/v1/projects/${projectId}/thinking-path/cache`,
+      { method: 'DELETE' }
+    ),
 };
 
 // Settings Types

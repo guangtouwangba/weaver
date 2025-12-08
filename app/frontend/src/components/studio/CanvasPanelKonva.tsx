@@ -26,6 +26,8 @@ export default function CanvasPanelKonva() {
     viewStates,
     saveCanvas,
     addNodeToCanvas,
+    highlightedNodeId,
+    navigateToMessage,
   } = useStudio();
 
   // Auto-save on change (debounced)
@@ -56,6 +58,13 @@ export default function CanvasPanelKonva() {
         onEdgesChange={setCanvasEdges}
         onViewportChange={setCanvasViewport}
         onNodeAdd={addNodeToCanvas}
+        highlightedNodeId={highlightedNodeId}
+        onNodeClick={(node) => {
+          // Navigate to linked message when clicking on a thinking path node
+          if (node.messageIds?.length) {
+            navigateToMessage(node.messageIds[0]);
+          }
+        }}
       />
       <CanvasSidebar />
     </Box>

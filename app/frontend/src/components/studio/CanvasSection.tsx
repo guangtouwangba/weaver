@@ -136,3 +136,8 @@ export default function CanvasSectionComponent({
     </Group>
   );
 }
+
+
+
+
+
