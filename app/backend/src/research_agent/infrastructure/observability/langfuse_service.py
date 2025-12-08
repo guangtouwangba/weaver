@@ -55,14 +55,12 @@ def create_langfuse_callback() -> Optional[BaseCallbackHandler]:
         logger.info(f"[Langfuse] Callback handler created (host: {settings.langfuse_host})")
         return callback
 
-    except ImportError:
-        logger.error(
-            "[Langfuse] langfuse package not installed. "
-            "Run: pip install langfuse"
-        )
+    except ImportError as e:
+        # Log detailed import error for debugging
+        logger.error(f"[Langfuse] Import failed: {e}. Run: pip install langfuse")
         return None
     except Exception as e:
-        logger.error(f"[Langfuse] Failed to create callback handler: {e}")
+        logger.error(f"[Langfuse] Failed to create callback handler: {type(e).__name__}: {e}")
         return None
 
 
