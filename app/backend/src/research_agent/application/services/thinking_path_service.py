@@ -18,9 +18,14 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from research_agent.application.prompts.thinking_path_extraction import (
+    THINKING_PATH_EXTRACTION_SYSTEM_PROMPT,
+    THINKING_PATH_EXTRACTION_USER_PROMPT,
+)
 from research_agent.domain.entities.canvas import Canvas, CanvasEdge, CanvasNode, CanvasSection
 from research_agent.domain.entities.chat import ChatMessage
 from research_agent.infrastructure.embedding.base import EmbeddingService
+from research_agent.infrastructure.llm.base import ChatMessage as LLMChatMessage
 from research_agent.infrastructure.llm.base import LLMService
 from research_agent.infrastructure.websocket.canvas_notification_service import (
     CanvasEventType,
@@ -179,21 +184,25 @@ class ThinkingPathService:
                         f"[ThinkingPath] Duplicate detected: message {message.id} -> node {duplicate_node_id}"
                     )
 
-            # Step 3: Create node for this message
-            node = await self._create_node_for_message(
+            # Step 3: Create nodes for this message (may extract multiple nodes for AI response)
+            new_nodes, new_internal_edges = await self._create_nodes_for_message(
                 message=message,
                 existing_nodes=existing_nodes,
                 existing_messages=existing_messages,
                 duplicate_of=duplicate_node_id,
+                project_id=project_id,
             )
 
-            if node:
-                result.nodes.append(node)
+            if new_nodes:
+                result.nodes.extend(new_nodes)
+                result.edges.extend(new_internal_edges)
 
             # Step 4: Create edges (connect to previous message if applicable)
-            if node and existing_messages:
+            if new_nodes and existing_messages:
+                # Use the first node (root) as the connection point
+                root_node = new_nodes[0]
                 edges = self._create_edges_for_node(
-                    node=node,
+                    node=root_node,
                     existing_messages=existing_messages,
                     existing_nodes=existing_nodes,
                     new_nodes=result.nodes,
@@ -314,48 +323,219 @@ class ThinkingPathService:
 
         return dot_product / (norm1 * norm2)
 
-    async def _create_node_for_message(
+    async def _create_nodes_for_message(
         self,
         message: ChatMessage,
         existing_nodes: List[CanvasNode],
         existing_messages: List[ChatMessage],
         duplicate_of: Optional[str] = None,
-    ) -> Optional[ThinkingPathNode]:
+        project_id: Optional[str] = None,
+    ) -> Tuple[List[ThinkingPathNode], List[Dict[str, str]]]:
         """
-        Create a thinking path node for a chat message.
+        Create thinking path node(s) for a chat message.
+
+        If it's an AI message and LLM service is available, it extracts a structured graph.
+        Otherwise, it falls back to creating a single node.
         """
-        # Determine node type and appearance based on message role
+        nodes: List[ThinkingPathNode] = []
+        edges: List[Dict[str, str]] = []
+
+        # 1. User Message: Single "Question" Node
         if message.role == "user":
-            node_type = "question"
-            title = "Your Question"
-            color = "green"
-        else:
-            # AI message
-            node_type = "answer"
-            title = "AI Response"
-            color = "blue"
+            x, y = self._calculate_node_position(existing_nodes)
+            node_id = f"tp-node-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
 
-        # Calculate position based on existing nodes
+            node = ThinkingPathNode(
+                id=node_id,
+                type="question",
+                title="Your Question",
+                content=message.content[:500] if len(message.content) > 500 else message.content,
+                message_ids=[str(message.id)],
+                x=x,
+                y=y,
+                color="green",
+                analysis_status="analyzed",
+                is_duplicate=duplicate_of is not None,
+                duplicate_of=duplicate_of,
+            )
+            nodes.append(node)
+            return nodes, edges
+
+        # 2. AI Message: Try Structured Extraction
+        if self._llm_service and message.role != "user":
+            try:
+                # Find the user question for context
+                user_question = "Context not available"
+                if existing_messages:
+                    last_user_msg = next(
+                        (m for m in reversed(existing_messages) if m.role == "user"), None
+                    )
+                    if last_user_msg:
+                        user_question = last_user_msg.content
+
+                extracted_data = await self._extract_thinking_structure(
+                    user_question, message.content
+                )
+
+                if extracted_data and extracted_data.get("nodes"):
+                    return self._convert_extracted_data_to_nodes(
+                        extracted_data, message, existing_nodes
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"[ThinkingPath] Structure extraction failed, falling back to simple node: {e}"
+                )
+
+        # 3. Fallback: Single "Answer" Node
         x, y = self._calculate_node_position(existing_nodes)
-
-        # Generate unique node ID
         node_id = f"tp-node-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
 
         node = ThinkingPathNode(
             id=node_id,
-            type=node_type,
-            title=title,
+            type="answer",
+            title="AI Response",
             content=message.content[:500] if len(message.content) > 500 else message.content,
             message_ids=[str(message.id)],
             x=x,
             y=y,
-            color=color,
+            color="blue",
             analysis_status="analyzed",
-            is_duplicate=duplicate_of is not None,
-            duplicate_of=duplicate_of,
+        )
+        nodes.append(node)
+        return nodes, edges
+
+    async def _extract_thinking_structure(
+        self, question: str, response: str
+    ) -> Optional[Dict[str, Any]]:
+        """Call LLM to extract thinking path structure."""
+        if not self._llm_service:
+            return None
+
+        system_prompt = THINKING_PATH_EXTRACTION_SYSTEM_PROMPT
+        user_prompt = THINKING_PATH_EXTRACTION_USER_PROMPT.format(
+            question=question, response=response
         )
 
-        return node
+        messages = [
+            LLMChatMessage(role="system", content=system_prompt),
+            LLMChatMessage(role="user", content=user_prompt),
+        ]
+
+        try:
+            chat_response = await self._llm_service.chat(messages)
+            content = chat_response.content.strip()
+
+            # Remove markdown code blocks if present
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1]
+                if content.endswith("```"):
+                    content = content.rsplit("\n", 1)[0]
+
+            # Parse JSON
+            return json.loads(content)
+        except Exception as e:
+            logger.error(f"[ThinkingPath] LLM extraction error: {e}")
+            raise e
+
+    def _convert_extracted_data_to_nodes(
+        self, data: Dict[str, Any], message: ChatMessage, existing_nodes: List[CanvasNode]
+    ) -> Tuple[List[ThinkingPathNode], List[Dict[str, str]]]:
+        """Convert extracted JSON data to ThinkingPathNodes and Edges with layout."""
+
+        extracted_nodes = data.get("nodes", [])
+        extracted_edges = data.get("edges", [])
+
+        if not extracted_nodes:
+            return [], []
+
+        final_nodes: List[ThinkingPathNode] = []
+        final_edges: List[Dict[str, str]] = []
+
+        # Calculate base position (start of the new cluster)
+        base_x, base_y = self._calculate_node_position(existing_nodes)
+
+        # Simple Hierarchical Layout
+        # Group nodes by type to determine rank/level
+        # root -> diverge -> process -> converge -> conclusion
+        type_rank = {"root": 0, "diverge": 1, "process": 2, "converge": 3, "conclusion": 4}
+
+        # Map node_id -> rank
+        node_ranks = {}
+        for n in extracted_nodes:
+            n_type = n.get("type", "process")
+            node_ranks[n["id"]] = type_rank.get(n_type, 2)
+
+        # Group by rank
+        nodes_by_rank: Dict[int, List[Dict]] = {}
+        for n in extracted_nodes:
+            rank = node_ranks[n["id"]]
+            if rank not in nodes_by_rank:
+                nodes_by_rank[rank] = []
+            nodes_by_rank[rank].append(n)
+
+        # Assign coordinates
+        # X spreads horizontally by rank (level)
+        # Y spreads vertically within rank
+
+        # We need a mapping from extracted ID (e.g., "n1") to real UUID
+        id_mapping = {}
+
+        for rank in sorted(nodes_by_rank.keys()):
+            rank_nodes = nodes_by_rank[rank]
+            level_height = len(rank_nodes) * NODE_SPACING_Y
+            start_y = base_y - (level_height / 2) + (NODE_SPACING_Y / 2)
+
+            for i, n_data in enumerate(rank_nodes):
+                # Calculate pos
+                # Shift X right by rank
+                # Use base_x as start, then add horizontal spacing
+                node_x = base_x + (rank * NODE_SPACING_X)
+                node_y = start_y + (i * NODE_SPACING_Y)
+
+                # Create Node
+                real_id = f"tp-node-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
+                id_mapping[n_data["id"]] = real_id
+
+                # Determine color based on type
+                color = "blue"
+                if n_data.get("type") == "root":
+                    color = "purple"
+                elif n_data.get("type") == "diverge":
+                    color = "orange"
+                elif n_data.get("type") == "conclusion":
+                    color = "red"
+                elif n_data.get("type") == "converge":
+                    color = "teal"
+
+                node = ThinkingPathNode(
+                    id=real_id,
+                    type=n_data.get("type", "process"),
+                    title=n_data.get("label", "Node")[:30],
+                    content=n_data.get("detail", "") or n_data.get("label", ""),
+                    message_ids=[str(message.id)],
+                    x=node_x,
+                    y=node_y,
+                    color=color,
+                    analysis_status="analyzed",
+                )
+                final_nodes.append(node)
+
+        # Convert edges
+        for edge in extracted_edges:
+            source = edge.get("source")
+            target = edge.get("target")
+
+            if source in id_mapping and target in id_mapping:
+                final_edges.append(
+                    {
+                        "id": f"edge-{uuid4().hex[:8]}",
+                        "source": id_mapping[source],
+                        "target": id_mapping[target],
+                        "label": edge.get("type", "next"),
+                    }
+                )
+
+        return final_nodes, final_edges
 
     def _calculate_node_position(
         self,
@@ -480,39 +660,55 @@ class ThinkingPathService:
         }
 
         # Process each message
-        prev_node: Optional[ThinkingPathNode] = None
+        prev_nodes: List[ThinkingPathNode] = []
 
         for i, message in enumerate(messages_to_process):
-            # Create node
-            node = await self._create_node_for_message(
+            # Create nodes (pass project_id for context if needed)
+            new_nodes, new_internal_edges = await self._create_nodes_for_message(
                 message=message,
                 existing_nodes=[],  # Simplified for batch
                 existing_messages=messages_to_process[:i],
                 duplicate_of=None,
+                project_id=project_id,
             )
 
-            if node:
-                # Recalculate position for batch layout
+            if new_nodes:
+                # Recalculate position for batch layout is tricky with sub-graphs.
+                # _create_nodes_for_message already assigns positions based on existing_nodes count
+                # (which we passed as empty list [], so they all start at base position).
+                # We need to shift them manually based on row/col index.
+
+                # Calculate shift offset
                 row = i // NODES_PER_ROW
                 col = i % NODES_PER_ROW
-                node.x = 100 + col * NODE_SPACING_X
-                node.y = 100 + row * NODE_SPACING_Y
+                offset_x = (100 + col * NODE_SPACING_X) - new_nodes[0].x
+                offset_y = (100 + row * NODE_SPACING_Y) - new_nodes[0].y
 
-                result.nodes.append(node)
-                result.section["nodeIds"].append(node.id)
+                # Apply offset to all new nodes
+                for n in new_nodes:
+                    n.x += offset_x
+                    n.y += offset_y
+                    result.section["nodeIds"].append(n.id)
 
-                # Create edge to previous node
-                if prev_node:
-                    edge_id = f"edge-{prev_node.id}-{node.id}"
+                result.nodes.extend(new_nodes)
+                result.edges.extend(new_internal_edges)
+
+                # Create edge to previous message's last node
+                if prev_nodes:
+                    prev_last_node = prev_nodes[-1]
+                    curr_first_node = new_nodes[0]
+
+                    edge_id = f"edge-{prev_last_node.id}-{curr_first_node.id}"
                     result.edges.append(
                         {
                             "id": edge_id,
-                            "source": prev_node.id,
-                            "target": node.id,
+                            "source": prev_last_node.id,
+                            "target": curr_first_node.id,
+                            "label": "next",
                         }
                     )
 
-                prev_node = node
+                prev_nodes = new_nodes
 
         # Broadcast batch result
         await canvas_notification_service.notify_batch_update(

@@ -116,10 +116,10 @@ class StreamMessageUseCase:
         retrieved_contexts = []  # Store context strings for evaluation
 
         try:
-            # Get chat history for query rewriting
+            # Get chat history for query rewriting and thinking path
             chat_history = []
+            messages = await repo.get_history(input.project_id, limit=10)
             if input.use_rewrite:
-                messages = await repo.get_history(input.project_id, limit=10)
                 # Convert to (human, ai) tuples
                 chat_history = [
                     (messages[i].content, messages[i + 1].content)
@@ -224,7 +224,7 @@ class StreamMessageUseCase:
                     self._auto_thinking_path(
                         project_id=input.project_id,
                         ai_message=ai_message,
-                        recent_messages=messages if input.use_rewrite else [],
+                        recent_messages=messages,
                     )
                 )
 
@@ -346,9 +346,18 @@ class StreamMessageUseCase:
         try:
             logger.info(f"[Auto-ThinkingPath] Starting for message: {ai_message.id}")
 
-            # Create thinking path service
+            # Create LLM service for thinking path extraction
+            from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
+
+            llm_service = OpenRouterLLMService(
+                api_key=self._api_key,
+                model=self._model,
+            )
+
+            # Create thinking path service with LLM for structured extraction
             thinking_path_service = ThinkingPathService(
                 embedding_service=self._embedding_service,
+                llm_service=llm_service,
             )
 
             # Process the AI message (and implicitly the user question before it)
