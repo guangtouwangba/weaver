@@ -45,6 +45,9 @@ dependencies = [
     # Evaluation
     "ragas>=0.2.0",
     "datasets>=2.14.0",
+    
+    # Observability
+    "langfuse>=2.0.0",
 ]
 
 [project.optional-dependencies]

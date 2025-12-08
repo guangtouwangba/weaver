@@ -115,6 +115,13 @@ class Settings(BaseSettings):
     loki_url: str = ""
     loki_enabled: bool = False
 
+    # Observability - Langfuse
+    # See: https://langfuse.com/docs/integrations/langchain
+    langfuse_enabled: bool = False
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"  # Or self-hosted URL
+
     # Evaluation - Ragas
     evaluation_enabled: bool = False
     evaluation_sample_rate: float = 0.1  # Evaluate 10% of queries by default

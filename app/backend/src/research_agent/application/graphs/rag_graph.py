@@ -164,6 +164,28 @@ class LoggingCallbackHandler(BaseCallbackHandler):
 logging_callback = LoggingCallbackHandler()
 
 
+def get_callbacks() -> list[BaseCallbackHandler]:
+    """
+    Get all callback handlers for LLM tracing.
+
+    Returns a list containing:
+    - LoggingCallbackHandler (always included)
+    - LangfuseCallbackHandler (if enabled via LANGFUSE_ENABLED=true)
+    """
+    from research_agent.infrastructure.observability.langfuse_service import (
+        create_langfuse_callback,
+    )
+
+    callbacks: list[BaseCallbackHandler] = [logging_callback]
+
+    # Add Langfuse callback if enabled
+    langfuse_cb = create_langfuse_callback()
+    if langfuse_cb:
+        callbacks.append(langfuse_cb)
+
+    return callbacks
+
+
 # --- State Schema ---
 
 
@@ -365,7 +387,7 @@ NOT: "如何通过配置文件定义图谱模式的Node对象？" ✗"""
     try:
         rewritten = chain.invoke(
             {"history": history_context, "question": question},
-            config={"callbacks": [logging_callback]},
+            config={"callbacks": get_callbacks()},
         )
         rewritten = rewritten.strip()
 
@@ -441,7 +463,7 @@ async def classify_intent(
         # Get classification result
         result = chain.invoke(
             {"question": question},
-            config={"callbacks": [logging_callback]},
+            config={"callbacks": get_callbacks()},
         )
 
         # Parse JSON response
@@ -714,7 +736,7 @@ Output ONLY a single number between 0-10. No explanation."""
 
             result = chain.invoke(
                 {"question": question, "document": doc_content},
-                config={"callbacks": [logging_callback]},
+                config={"callbacks": get_callbacks()},
             )
 
             # Parse score
@@ -783,7 +805,7 @@ Reply with ONLY 'yes' or 'no'. Nothing else."""
 
             result = chain.invoke(
                 {"question": question, "document": doc_content},
-                config={"callbacks": [logging_callback]},
+                config={"callbacks": get_callbacks()},
             )
 
             # Parse the response - look for yes/no
@@ -1047,7 +1069,7 @@ def generate_long_context(state: GraphState, llm: ChatOpenAI) -> GraphState:
     chain = prompt | llm | StrOutputParser()
 
     try:
-        generation = chain.invoke({"question": question}, config={"callbacks": [logging_callback]})
+        generation = chain.invoke({"question": question}, config={"callbacks": get_callbacks()})
         logger.info(f"[GenerateLongContext] Response generated: {len(generation)} chars")
 
         # Parse citations
@@ -1123,7 +1145,7 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
 
     try:
         generation = chain.invoke(
-            {"question": question, "context": context}, config={"callbacks": [logging_callback]}
+            {"question": question, "context": context}, config={"callbacks": get_callbacks()}
         )
         logger.info(f"[Generate] Response generated: {len(generation)} chars")
     except Exception as e:
@@ -1493,8 +1515,8 @@ async def stream_rag_response(
                 ]
             )
 
-            # Create streaming LLM with callback
-            streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
+            # Create streaming LLM with callback (includes Langfuse if enabled)
+            streaming_llm = llm.with_config({"streaming": True, "callbacks": get_callbacks()})
             chain = prompt | streaming_llm | StrOutputParser()
 
             # Stream tokens with real-time citation parsing
@@ -1556,8 +1578,8 @@ async def stream_rag_response(
                 ]
             )
 
-            # Create streaming LLM with callback
-            streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
+            # Create streaming LLM with callback (includes Langfuse if enabled)
+            streaming_llm = llm.with_config({"streaming": True, "callbacks": get_callbacks()})
             chain = prompt | streaming_llm | StrOutputParser()
 
             # Stream tokens
@@ -1609,8 +1631,8 @@ async def stream_rag_response(
             ]
         )
 
-        # Create streaming LLM with callback
-        streaming_llm = llm.with_config({"streaming": True, "callbacks": [logging_callback]})
+        # Create streaming LLM with callback (includes Langfuse if enabled)
+        streaming_llm = llm.with_config({"streaming": True, "callbacks": get_callbacks()})
         chain = prompt | streaming_llm | StrOutputParser()
 
         # Stream tokens
