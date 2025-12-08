@@ -44,7 +44,8 @@ def create_langfuse_callback() -> Optional[BaseCallbackHandler]:
         return None
 
     try:
-        from langfuse.callback import CallbackHandler as LangfuseCallbackHandler
+        # langfuse v3 uses langfuse.langchain module
+        from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
 
         callback = LangfuseCallbackHandler(
             secret_key=settings.langfuse_secret_key,
@@ -56,7 +57,6 @@ def create_langfuse_callback() -> Optional[BaseCallbackHandler]:
         return callback
 
     except ImportError as e:
-        # Log detailed import error for debugging
         logger.error(f"[Langfuse] Import failed: {e}. Run: pip install langfuse")
         return None
     except Exception as e:
