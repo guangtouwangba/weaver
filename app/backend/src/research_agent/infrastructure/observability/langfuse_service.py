@@ -46,24 +46,20 @@ def create_langfuse_callback() -> Optional[BaseCallbackHandler]:
     try:
         from langfuse.callback import CallbackHandler as LangfuseCallbackHandler
 
-        # Langfuse v2+ reads from environment variables automatically:
-        # - LANGFUSE_PUBLIC_KEY
-        # - LANGFUSE_SECRET_KEY  
-        # - LANGFUSE_HOST
-        # We set them explicitly here to ensure they're available
-        import os
-
-        os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
-        os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
-        os.environ["LANGFUSE_HOST"] = settings.langfuse_host
-
-        callback = LangfuseCallbackHandler()
+        callback = LangfuseCallbackHandler(
+            secret_key=settings.langfuse_secret_key,
+            public_key=settings.langfuse_public_key,
+            host=settings.langfuse_host,
+        )
 
         logger.info(f"[Langfuse] Callback handler created (host: {settings.langfuse_host})")
         return callback
 
     except ImportError:
-        logger.error("[Langfuse] langfuse package not installed. Run: pip install langfuse")
+        logger.error(
+            "[Langfuse] langfuse package not installed. "
+            "Run: pip install langfuse"
+        )
         return None
     except Exception as e:
         logger.error(f"[Langfuse] Failed to create callback handler: {e}")
