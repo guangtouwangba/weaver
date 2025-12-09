@@ -81,3 +81,4 @@ class ClearCanvasUseCase:
             version=saved_canvas.version,
             cleared_view=input.view_type,
         )
+

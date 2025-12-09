@@ -11,6 +11,7 @@ import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
 import KonvaCanvas from './KonvaCanvas';
 import CanvasSidebar from './CanvasSidebar';
+import ThinkingPathGenerator from './ThinkingPathGenerator';
 
 export default function CanvasPanelKonva() {
   const { 
@@ -48,7 +49,7 @@ export default function CanvasPanelKonva() {
   }, [canvasNodes, canvasEdges, canvasSections, canvasViewport, viewStates, projectId, saveCanvas]);
 
   return (
-    <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, overflow: 'hidden', position: 'relative' }}>
       <KonvaCanvas 
         nodes={canvasNodes}
         edges={canvasEdges}
@@ -67,6 +68,7 @@ export default function CanvasPanelKonva() {
         }}
       />
       <CanvasSidebar />
+      <ThinkingPathGenerator />
     </Box>
   );
 }

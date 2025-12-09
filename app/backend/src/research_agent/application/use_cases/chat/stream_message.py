@@ -243,6 +243,17 @@ class StreamMessageUseCase:
                     )
                 )
 
+            # === Memory Ingestion (Async, Non-blocking) ===
+            # Store the Q&A pair as a memory for future semantic retrieval
+            if full_response:
+                asyncio.create_task(
+                    self._store_memory(
+                        project_id=input.project_id,
+                        question=input.message,
+                        answer=full_response,
+                    )
+                )
+
         except Exception as e:
             import traceback
 
@@ -379,3 +390,42 @@ class StreamMessageUseCase:
         except Exception as e:
             logger.error(f"[Auto-ThinkingPath] Failed: {e}", exc_info=True)
             # Don't raise - thinking path failure shouldn't affect user experience
+
+    async def _store_memory(
+        self,
+        project_id: UUID,
+        question: str,
+        answer: str,
+    ):
+        """
+        Store Q&A pair as a memory for future semantic retrieval.
+
+        This runs asynchronously and doesn't block the user response.
+        Enables long-term episodic memory - the system can recall similar
+        past discussions when handling new queries.
+        """
+        try:
+            from research_agent.domain.services.memory_service import MemoryService
+
+            logger.info(f"[Memory] Storing memory for: {question[:50]}...")
+
+            memory_service = MemoryService(
+                session=self._session,
+                embedding_service=self._embedding_service,
+            )
+
+            await memory_service.store_memory(
+                project_id=project_id,
+                question=question,
+                answer=answer,
+                metadata={
+                    "source": "chat",
+                    "model": self._model,
+                },
+            )
+
+            logger.info(f"[Memory] Memory stored successfully")
+
+        except Exception as e:
+            logger.error(f"[Memory] Failed to store memory: {e}", exc_info=True)
+            # Don't raise - memory storage failure shouldn't affect user experience

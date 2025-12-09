@@ -6,6 +6,10 @@ from research_agent.domain.services.config_service import (
     get_async_config_service,
     get_config_service,
 )
+from research_agent.domain.services.memory_service import (
+    MemoryContext,
+    MemoryService,
+)
 from research_agent.domain.services.settings_service import (
     SETTING_METADATA,
     SettingCategory,
@@ -22,6 +26,9 @@ __all__ = [
     "AsyncConfigurationService",
     "get_config_service",
     "get_async_config_service",
+    # Memory
+    "MemoryService",
+    "MemoryContext",
     # Settings
     "SettingsService",
     "SettingCategory",

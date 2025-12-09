@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-09
+
+#### RAG Memory Optimization - Short-term and Long-term Memory
+
+**Backend:**
+- **Long-Term Episodic Memory**: Vectorized conversation history for semantic retrieval
+  - New `chat_memories` table with vector embeddings for Q&A pairs
+  - `SQLAlchemyMemoryRepository` for memory CRUD operations and similarity search
+  - Automatic memory ingestion after each RAG response
+  - Semantic retrieval of relevant past discussions based on query similarity
+
+- **Short-Term Working Memory**: Session summaries for context efficiency
+  - New `chat_summaries` table for storing conversation summaries
+  - `MemoryService` with LLM-based summarization for older conversation turns
+  - Sliding window approach to maintain context while staying within token limits
+
+- **Memory-Aware RAG Pipeline**: 
+  - Updated `GraphState` with `session_summary` and `retrieved_memories` fields
+  - New `retrieve_memory` and `get_session_summary` graph nodes
+  - `format_memory_for_context` helper for prompt injection
+  - Memory context injection in both traditional and streaming generation modes
+
+- **Updated Prompts**: 
+  - New `MEMORY_AWARE_SYSTEM_PROMPT` for context-aware responses
+  - Updated generation prompts to explain available context types
+
+**Database:**
+- Migration `20241209_000001_add_chat_memory_tables.py`:
+  - `chat_memories` table with vector similarity index (ivfflat)
+  - `chat_summaries` table for session-level summaries
+
 ### Added - 2025-12-07
 
 #### RAG Architecture Refactoring - Mega-Prompt with XML Citations

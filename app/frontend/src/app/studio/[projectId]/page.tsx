@@ -131,9 +131,6 @@ export default function StudioPage() {
           
           {/* RIGHT: Canvas (Konva-powered or Legacy) */}
           {useKonva ? <CanvasPanelKonva /> : <CanvasPanel />}
-          
-          {/* Thinking Path Generator (WebSocket connection + status indicator) */}
-          <ThinkingPathGenerator />
         </Box>
       </GlobalLayout>
     </StudioProvider>

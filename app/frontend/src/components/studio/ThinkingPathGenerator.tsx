@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Chip, IconButton, Tooltip, CircularProgress } from '@mui/material';
+import { Box, Chip, IconButton, Tooltip, CircularProgress, SxProps, Theme } from '@mui/material';
 import { Brain, RefreshCw, Link2, X, Layout, Trash2 } from 'lucide-react';
 import { useStudio } from '@/contexts/StudioContext';
 import useCanvasWebSocket from '@/hooks/useCanvasWebSocket';
@@ -22,6 +22,7 @@ import { layoutThinkingPath } from '@/lib/layout';
 
 interface ThinkingPathGeneratorProps {
   onStatusChange?: (status: 'idle' | 'analyzing' | 'error') => void;
+  sx?: SxProps<Theme>;
 }
 
 // Pending node state (for optimistic UI)
@@ -34,6 +35,7 @@ interface PendingNode {
 
 export default function ThinkingPathGenerator({
   onStatusChange,
+  sx,
 }: ThinkingPathGeneratorProps) {
   const {
     projectId,
@@ -345,13 +347,14 @@ export default function ThinkingPathGenerator({
   return (
     <Box
       sx={{
-        position: 'fixed',
+        position: 'absolute',
         bottom: 16,
         right: 16,
         display: 'flex',
         alignItems: 'center',
         gap: 1,
         zIndex: 1000,
+        ...sx,
       }}
     >
       {/* Connection status */}

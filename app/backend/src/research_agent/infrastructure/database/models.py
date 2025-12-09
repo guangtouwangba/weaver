@@ -49,6 +49,12 @@ class ProjectModel(Base):
     chat_messages: Mapped[List["ChatMessageModel"]] = relationship(
         "ChatMessageModel", back_populates="project", cascade="all, delete-orphan"
     )
+    chat_memories: Mapped[List["ChatMemoryModel"]] = relationship(
+        "ChatMemoryModel", back_populates="project", cascade="all, delete-orphan"
+    )
+    chat_summary: Mapped[Optional["ChatSummaryModel"]] = relationship(
+        "ChatSummaryModel", back_populates="project", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class DocumentModel(Base):
@@ -172,6 +178,69 @@ class ChatMessageModel(Base):
 
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_messages")
+
+
+class ChatMemoryModel(Base):
+    """
+    Chat memory ORM model for storing vectorized conversation memories.
+
+    This enables semantic retrieval of past conversations (Long-Term Episodic Memory).
+    Each memory represents a Q&A interaction that can be retrieved by similarity search.
+    """
+
+    __tablename__ = "chat_memories"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # The content stores the formatted Q&A pair: "User: <question>\nAssistant: <answer>"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    # Vector embedding for semantic search (1536 dimensions for OpenAI embeddings)
+    embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
+    # Metadata for filtering and context (named memory_metadata to avoid SQLAlchemy reserved name)
+    memory_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True, default=dict
+    )
+    # Timestamp for temporal ordering and decay
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_memories")
+
+
+class ChatSummaryModel(Base):
+    """
+    Chat summary ORM model for storing session summaries (Short-Term Working Memory).
+
+    This stores the summarized version of older conversation turns to maintain
+    context while staying within token limits.
+    """
+
+    __tablename__ = "chat_summaries"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,  # One summary per project
+        index=True,
+    )
+    # The summarized content of older conversation turns
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Number of messages that have been summarized
+    summarized_message_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Timestamp of last update
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_summary")
 
 
 class TaskQueueModel(Base):

@@ -15,6 +15,7 @@ import {
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
 import { CanvasNode } from '@/lib/api';
+import ThinkingPathGenerator from './ThinkingPathGenerator';
 
 export default function CanvasPanel() {
   const { 
@@ -174,7 +175,7 @@ export default function CanvasPanel() {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
       <Box sx={{ height: 48, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 3, justifyContent: 'space-between', bgcolor: '#FAFAFA', flexShrink: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Layout size={14} className="text-gray-500" />
@@ -382,6 +383,7 @@ export default function CanvasPanel() {
           ))}
         </Box>
       </Box>
+      <ThinkingPathGenerator />
     </Box>
   );
 }

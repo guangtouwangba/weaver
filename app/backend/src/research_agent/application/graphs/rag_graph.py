@@ -209,6 +209,9 @@ class GraphState(TypedDict):
     document_selection: dict[str, Any]  # Document selection result
     citations: list[dict[str, Any]]  # Parsed citations from generation
     rag_mode: str  # "traditional" | "long_context" | "hybrid"
+    # Memory fields (Short-term + Long-term)
+    session_summary: str  # Summarized conversation history (sliding window)
+    retrieved_memories: list[dict[str, Any]]  # Semantically retrieved past discussions
 
 
 # --- Grading Schema ---
@@ -414,6 +417,132 @@ NOT: "如何通过配置文件定义图谱模式的Node对象？" ✗"""
     except Exception as e:
         logger.error(f"Rewrite failed: {e}")
         return {"rewritten_question": question, "question": question}
+
+
+async def retrieve_memory(
+    state: GraphState,
+    session: Any,  # AsyncSession
+    embedding_service: Any,  # EmbeddingService
+    project_id: Any,  # UUID
+    limit: int = 5,
+    min_similarity: float = 0.6,
+) -> GraphState:
+    """
+    Retrieve relevant memories (past discussions) for the current query.
+
+    This enables semantic history retrieval - finding similar past Q&A interactions
+    that may be relevant to the current question.
+
+    Args:
+        state: Graph state containing question
+        session: Database session
+        embedding_service: Service for generating embeddings
+        project_id: Project UUID
+        limit: Max number of memories to retrieve
+        min_similarity: Minimum similarity threshold
+
+    Returns:
+        Updated state with retrieved_memories
+    """
+    from research_agent.domain.services.memory_service import MemoryService
+
+    question = state.get("rewritten_question", state["question"])
+
+    try:
+        memory_service = MemoryService(
+            session=session,
+            embedding_service=embedding_service,
+        )
+
+        # Retrieve relevant memories
+        memories = await memory_service.retrieve_relevant_memories(
+            project_id=project_id,
+            query=question,
+            limit=limit,
+            min_similarity=min_similarity,
+        )
+
+        # Convert to dict format for state
+        retrieved_memories = [
+            {
+                "id": str(m.id),
+                "content": m.content,
+                "similarity": m.similarity,
+                "metadata": m.metadata,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in memories
+        ]
+
+        logger.info(f"[Memory] Retrieved {len(retrieved_memories)} relevant memories")
+        return {"retrieved_memories": retrieved_memories}
+
+    except Exception as e:
+        logger.error(f"[Memory] Failed to retrieve memories: {e}")
+        return {"retrieved_memories": []}
+
+
+async def get_session_summary(
+    state: GraphState,
+    session: Any,  # AsyncSession
+    embedding_service: Any,  # EmbeddingService
+    project_id: Any,  # UUID
+) -> GraphState:
+    """
+    Get the session summary (summarized older conversation) for context.
+
+    Args:
+        state: Graph state
+        session: Database session
+        embedding_service: Service for generating embeddings
+        project_id: Project UUID
+
+    Returns:
+        Updated state with session_summary
+    """
+    from research_agent.domain.services.memory_service import MemoryService
+
+    try:
+        memory_service = MemoryService(
+            session=session,
+            embedding_service=embedding_service,
+        )
+
+        summary = await memory_service.get_session_summary(project_id)
+        logger.info(f"[Memory] Retrieved session summary: {len(summary)} chars")
+        return {"session_summary": summary}
+
+    except Exception as e:
+        logger.error(f"[Memory] Failed to get session summary: {e}")
+        return {"session_summary": ""}
+
+
+def format_memory_for_context(state: GraphState) -> str:
+    """
+    Format memory information for inclusion in generation context.
+
+    Args:
+        state: Graph state with session_summary and retrieved_memories
+
+    Returns:
+        Formatted string for context injection
+    """
+    parts = []
+
+    # Add session summary if available
+    session_summary = state.get("session_summary", "")
+    if session_summary:
+        parts.append(f"## Conversation Summary\n{session_summary}")
+
+    # Add relevant memories if available
+    retrieved_memories = state.get("retrieved_memories", [])
+    if retrieved_memories:
+        memories_text = "\n\n".join(
+            f"[Relevance: {m['similarity']:.2f}]\n{m['content']}" for m in retrieved_memories
+        )
+        parts.append(f"## Relevant Past Discussions\n{memories_text}")
+
+    return "\n\n".join(parts) if parts else ""
 
 
 async def classify_intent(
@@ -1120,17 +1249,34 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
         }
 
     # Build context from documents
-    context = "\n\n".join([doc.page_content for doc in documents])
-    logger.debug(f"[Generate] Context length: {len(context)} chars")
+    doc_context = "\n\n".join([doc.page_content for doc in documents])
+
+    # Build memory context (session summary + relevant past discussions)
+    memory_context = format_memory_for_context(state)
+
+    # Combine document context with memory context
+    if memory_context:
+        context = f"{memory_context}\n\n## Retrieved Documents\n{doc_context}"
+        logger.info(f"[Generate] Including memory context: {len(memory_context)} chars")
+    else:
+        context = doc_context
+
+    logger.debug(f"[Generate] Total context length: {len(context)} chars")
 
     # Use intent-specific system prompt if available
     if generation_strategy and "system_prompt" in generation_strategy:
         system_prompt = generation_strategy["system_prompt"]
         logger.info(f"[Generate] Using intent-specific prompt for {state.get('intent_type')}")
     else:
-        # Default prompt
+        # Default prompt with memory awareness
         system_prompt = """You are an assistant for question-answering tasks.
         Use the following pieces of retrieved context to answer the question.
+        The context may include:
+        - Conversation Summary: A summary of earlier parts of the conversation
+        - Relevant Past Discussions: Similar questions and answers from previous sessions
+        - Retrieved Documents: Information from the knowledge base
+        
+        Use all available context to provide the most helpful answer.
         If you don't know the answer, just say that you don't know.
         Use three sentences maximum and keep the answer concise."""
 
@@ -1327,6 +1473,39 @@ async def stream_rag_response(
         state.update(rewrite_result)  # Merge instead of replace
     else:
         state["rewritten_question"] = question
+
+    # Step 1.5: Memory retrieval (semantic history) - if session and embedding_service available
+    if session and embedding_service and project_id:
+        logger.info("[Stream] Retrieving relevant memories...")
+        try:
+            # Get session summary (short-term working memory)
+            summary_result = await get_session_summary(
+                state,
+                session=session,
+                embedding_service=embedding_service,
+                project_id=project_id,
+            )
+            state.update(summary_result)
+
+            # Retrieve relevant past discussions (long-term episodic memory)
+            memory_result = await retrieve_memory(
+                state,
+                session=session,
+                embedding_service=embedding_service,
+                project_id=project_id,
+                limit=5,
+                min_similarity=0.6,
+            )
+            state.update(memory_result)
+
+            logger.info(
+                f"[Stream] Memory context: summary={len(state.get('session_summary', ''))} chars, "
+                f"memories={len(state.get('retrieved_memories', []))}"
+            )
+        except Exception as e:
+            logger.warning(f"[Stream] Memory retrieval failed: {e}")
+            state["session_summary"] = ""
+            state["retrieved_memories"] = []
 
     # Step 2: Intent classification (optional)
     if use_intent_classification:
@@ -1610,8 +1789,22 @@ async def stream_rag_response(
                 yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
     else:
         # Use traditional generation
-        context = "\n\n".join([doc.page_content for doc in documents])
-        logger.info(f"[Stream] Generating response with {len(context)} chars context")
+        doc_context = "\n\n".join([doc.page_content for doc in documents])
+
+        # Build memory context (session summary + relevant past discussions)
+        memory_context = format_memory_for_context(state)
+
+        # Combine document context with memory context
+        if memory_context:
+            context = f"{memory_context}\n\n## Retrieved Documents\n{doc_context}"
+            logger.info(
+                f"[Stream] Including memory context: {len(memory_context)} chars, "
+                f"doc context: {len(doc_context)} chars"
+            )
+        else:
+            context = doc_context
+
+        logger.info(f"[Stream] Generating response with {len(context)} chars total context")
 
         # Use intent-specific system prompt if available
         generation_strategy = state.get("generation_strategy", {})
@@ -1621,6 +1814,12 @@ async def stream_rag_response(
         else:
             system_prompt = """You are an assistant for question-answering tasks.
             Use the following pieces of retrieved context to answer the question.
+            The context may include:
+            - Conversation Summary: A summary of earlier parts of the conversation
+            - Relevant Past Discussions: Similar questions and answers from previous sessions
+            - Retrieved Documents: Information from the knowledge base
+            
+            Use all available context to provide the most helpful answer.
             If you don't know the answer, just say that you don't know.
             Use three sentences maximum and keep the answer concise."""
 
