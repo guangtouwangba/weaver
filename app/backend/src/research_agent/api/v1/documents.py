@@ -2,12 +2,12 @@
 
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db, get_embedding_service
@@ -37,6 +37,9 @@ from research_agent.infrastructure.database.repositories.sqlalchemy_chunk_repo i
 )
 from research_agent.infrastructure.database.repositories.sqlalchemy_document_repo import (
     SQLAlchemyDocumentRepository,
+)
+from research_agent.infrastructure.database.repositories.sqlalchemy_highlight_repo import (
+    SQLAlchemyHighlightRepository,
 )
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
@@ -77,6 +80,49 @@ class ConfirmUploadRequest(BaseModel):
     filename: str
     file_size: int
     content_type: Optional[str] = "application/pdf"
+
+
+class HighlightCreateRequest(BaseModel):
+    """Request to create a highlight."""
+
+    pageNumber: int = Field(..., alias="pageNumber")
+    startOffset: int = Field(..., alias="startOffset")
+    endOffset: int = Field(..., alias="endOffset")
+    color: str  # yellow, green, blue, pink
+    note: Optional[str] = None
+    rects: Optional[List[Dict[str, float]]] = None
+
+    class Config:
+        """Pydantic config."""
+
+        populate_by_name = True
+
+
+class HighlightUpdateRequest(BaseModel):
+    """Request to update a highlight."""
+
+    color: Optional[str] = None
+    note: Optional[str] = None
+
+
+class HighlightResponse(BaseModel):
+    """Response model for highlight."""
+
+    id: str
+    documentId: str
+    pageNumber: int
+    startOffset: int
+    endOffset: int
+    color: str
+    note: Optional[str] = None
+    rects: Optional[List[Dict[str, float]]] = None
+    createdAt: str
+    updatedAt: str
+
+    class Config:
+        """Pydantic config."""
+
+        populate_by_name = True
 
 
 # ============== Helper Functions ==============
@@ -507,3 +553,189 @@ async def delete_document(
         await use_case.execute(DeleteDocumentInput(document_id=document_id))
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message)
+
+
+# ============== Highlight Endpoints ==============
+
+
+def get_highlight_repo(session: AsyncSession = Depends(get_db)) -> SQLAlchemyHighlightRepository:
+    """Get highlight repository."""
+    return SQLAlchemyHighlightRepository(session)
+
+
+@router.get("/documents/{document_id}/highlights", response_model=List[HighlightResponse])
+async def list_highlights(
+    document_id: UUID,
+    session: AsyncSession = Depends(get_db),
+    highlight_repo: SQLAlchemyHighlightRepository = Depends(get_highlight_repo),
+) -> List[HighlightResponse]:
+    """List all highlights for a document."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    highlights = await highlight_repo.find_by_document(document_id)
+    return [
+        HighlightResponse(
+            id=str(h.id),
+            documentId=str(h.document_id),
+            pageNumber=h.page_number,
+            startOffset=h.start_offset,
+            endOffset=h.end_offset,
+            color=h.color,
+            note=h.note,
+            rects=h.rects.get("rects") if h.rects and isinstance(h.rects, dict) else None,
+            createdAt=h.created_at.isoformat(),
+            updatedAt=h.updated_at.isoformat(),
+        )
+        for h in highlights
+    ]
+
+
+@router.post("/documents/{document_id}/highlights", response_model=HighlightResponse, status_code=201)
+async def create_highlight(
+    document_id: UUID,
+    request: HighlightCreateRequest,
+    session: AsyncSession = Depends(get_db),
+    highlight_repo: SQLAlchemyHighlightRepository = Depends(get_highlight_repo),
+) -> HighlightResponse:
+    """Create a new highlight."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Validate color
+    valid_colors = ["yellow", "green", "blue", "pink"]
+    if request.color not in valid_colors:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid color. Must be one of: {', '.join(valid_colors)}"
+        )
+
+    # Convert rects list to dict format for JSONB storage
+    rects_dict = None
+    if request.rects:
+        rects_dict = {"rects": request.rects}
+
+    try:
+        highlight = await highlight_repo.create(
+            document_id=document_id,
+            page_number=request.pageNumber,
+            start_offset=request.startOffset,
+            end_offset=request.endOffset,
+            color=request.color,
+            note=request.note,
+            rects=rects_dict,
+        )
+
+        # Extract rects from JSONB format
+        rects_list = None
+        if highlight.rects and isinstance(highlight.rects, dict):
+            rects_list = highlight.rects.get("rects")
+
+        return HighlightResponse(
+            id=str(highlight.id),
+            documentId=str(highlight.document_id),
+            pageNumber=highlight.page_number,
+            startOffset=highlight.start_offset,
+            endOffset=highlight.end_offset,
+            color=highlight.color,
+            note=highlight.note,
+            rects=rects_list,
+            createdAt=highlight.created_at.isoformat(),
+            updatedAt=highlight.updated_at.isoformat(),
+        )
+    except HTTPException:
+        # Re-raise HTTPException as-is
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to create highlight: document_id={document_id}, "
+            f"error_type={type(e).__name__}, error={str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to create highlight: {str(e)}")
+
+
+@router.put("/documents/{document_id}/highlights/{highlight_id}", response_model=HighlightResponse)
+async def update_highlight(
+    document_id: UUID,
+    highlight_id: UUID,
+    request: HighlightUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+    highlight_repo: SQLAlchemyHighlightRepository = Depends(get_highlight_repo),
+) -> HighlightResponse:
+    """Update a highlight."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Validate color if provided
+    if request.color:
+        valid_colors = ["yellow", "green", "blue", "pink"]
+        if request.color not in valid_colors:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid color. Must be one of: {', '.join(valid_colors)}"
+            )
+
+    highlight = await highlight_repo.update(
+        highlight_id=highlight_id,
+        color=request.color,
+        note=request.note,
+    )
+
+    if not highlight:
+        raise HTTPException(status_code=404, detail=f"Highlight {highlight_id} not found")
+
+    if highlight.document_id != document_id:
+        raise HTTPException(
+            status_code=400, detail=f"Highlight {highlight_id} does not belong to document {document_id}"
+        )
+
+    await session.commit()
+
+    return HighlightResponse(
+        id=str(highlight.id),
+        documentId=str(highlight.document_id),
+        pageNumber=highlight.page_number,
+        startOffset=highlight.start_offset,
+        endOffset=highlight.end_offset,
+        color=highlight.color,
+        note=highlight.note,
+        rects=highlight.rects.get("rects") if highlight.rects and isinstance(highlight.rects, dict) else None,
+        createdAt=highlight.created_at.isoformat(),
+        updatedAt=highlight.updated_at.isoformat(),
+    )
+
+
+@router.delete("/documents/{document_id}/highlights/{highlight_id}", status_code=204)
+async def delete_highlight(
+    document_id: UUID,
+    highlight_id: UUID,
+    session: AsyncSession = Depends(get_db),
+    highlight_repo: SQLAlchemyHighlightRepository = Depends(get_highlight_repo),
+) -> None:
+    """Delete a highlight."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Verify highlight exists and belongs to document
+    highlight = await highlight_repo.find_by_id(highlight_id)
+    if not highlight:
+        raise HTTPException(status_code=404, detail=f"Highlight {highlight_id} not found")
+
+    if highlight.document_id != document_id:
+        raise HTTPException(
+            status_code=400, detail=f"Highlight {highlight_id} does not belong to document {document_id}"
+        )
+
+    await highlight_repo.delete(highlight_id)
+    await session.commit()

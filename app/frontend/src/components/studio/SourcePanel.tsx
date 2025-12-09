@@ -50,6 +50,7 @@ import { documentsApi, ProjectDocument } from '@/lib/api';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
+import PDFViewer from './PDFViewer';
 
 // Set worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -926,23 +927,30 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             </Box>
           </Box>
           
-          <Box 
-            ref={pageRef}
-            sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#f5f5f5', display: 'flex', justifyContent: 'center', p: 2 }}
-          >
-            <Document
-              file={fileUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              loading={<Typography variant="body2" sx={{ mt: 4 }}>Loading PDF...</Typography>}
-              error={<Typography variant="body2" color="error" sx={{ mt: 4 }}>Failed to load PDF</Typography>}
-            >
-              <Page 
-                pageNumber={pageNumber} 
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-                width={width - 40}
-              />
-            </Document>
+          <Box sx={{ flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <PDFViewer
+              documentId={activeDocument.id}
+              content={
+                <Box 
+                  ref={pageRef}
+                  sx={{ bgcolor: '#f5f5f5', display: 'flex', justifyContent: 'center', p: 2 }}
+                >
+                  <Document
+                    file={fileUrl}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    loading={<Typography variant="body2" sx={{ mt: 4 }}>Loading PDF...</Typography>}
+                    error={<Typography variant="body2" color="error" sx={{ mt: 4 }}>Failed to load PDF</Typography>}
+                  >
+                    <Page 
+                      pageNumber={pageNumber} 
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      width={width - 40}
+                    />
+                  </Document>
+                </Box>
+              }
+            />
           </Box>
         </Box>
       )}

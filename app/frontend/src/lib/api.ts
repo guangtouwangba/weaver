@@ -715,3 +715,68 @@ export const settingsApi = {
     }),
 };
 
+// Highlight Types
+export interface HighlightCreateRequest {
+  pageNumber: number;
+  startOffset: number;
+  endOffset: number;
+  color: 'yellow' | 'green' | 'blue' | 'pink';
+  note?: string;
+  rects?: Array<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    right: number;
+    bottom: number;
+  }>;
+}
+
+export interface HighlightUpdateRequest {
+  color?: 'yellow' | 'green' | 'blue' | 'pink';
+  note?: string;
+}
+
+export interface HighlightResponse {
+  id: string;
+  documentId: string;
+  pageNumber: number;
+  startOffset: number;
+  endOffset: number;
+  color: 'yellow' | 'green' | 'blue' | 'pink';
+  note?: string;
+  rects?: Array<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    right: number;
+    bottom: number;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Highlights API
+export const highlightsApi = {
+  list: (documentId: string) =>
+    fetchApi<HighlightResponse[]>(`/api/v1/documents/${documentId}/highlights`),
+
+  create: (documentId: string, data: HighlightCreateRequest) =>
+    fetchApi<HighlightResponse>(`/api/v1/documents/${documentId}/highlights`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (documentId: string, highlightId: string, data: HighlightUpdateRequest) =>
+    fetchApi<HighlightResponse>(`/api/v1/documents/${documentId}/highlights/${highlightId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (documentId: string, highlightId: string) =>
+    fetchApi<void>(`/api/v1/documents/${documentId}/highlights/${highlightId}`, {
+      method: 'DELETE',
+    }),
+};
+

@@ -101,6 +101,9 @@ class DocumentModel(Base):
     chunks: Mapped[List["DocumentChunkModel"]] = relationship(
         "DocumentChunkModel", back_populates="document", cascade="all, delete-orphan"
     )
+    highlights: Mapped[List["HighlightModel"]] = relationship(
+        "HighlightModel", back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 class DocumentChunkModel(Base):
@@ -139,6 +142,34 @@ class DocumentChunkModel(Base):
 
     # Relationships
     document: Mapped["DocumentModel"] = relationship("DocumentModel", back_populates="chunks")
+
+
+class HighlightModel(Base):
+    """Highlight ORM model for PDF annotations."""
+
+    __tablename__ = "highlights"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    document_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+    )
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
+    color: Mapped[str] = mapped_column(String(20), nullable=False, default="yellow")  # yellow, green, blue, pink
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rects: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True
+    )  # Store rect positions for rendering
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    document: Mapped["DocumentModel"] = relationship("DocumentModel", back_populates="highlights")
 
 
 class CanvasModel(Base):
