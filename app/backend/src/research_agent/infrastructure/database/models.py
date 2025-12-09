@@ -46,6 +46,9 @@ class ProjectModel(Base):
     canvas: Mapped[Optional["CanvasModel"]] = relationship(
         "CanvasModel", back_populates="project", uselist=False, cascade="all, delete-orphan"
     )
+    chat_sessions: Mapped[List["ChatSessionModel"]] = relationship(
+        "ChatSessionModel", back_populates="project", cascade="all, delete-orphan"
+    )
     chat_messages: Mapped[List["ChatMessageModel"]] = relationship(
         "ChatMessageModel", back_populates="project", cascade="all, delete-orphan"
     )
@@ -162,6 +165,44 @@ class CanvasModel(Base):
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="canvas")
 
 
+class ChatSessionModel(Base):
+    """
+    Chat session ORM model for managing multiple conversations per project.
+
+    Supports both shared sessions (visible to all devices) and private sessions
+    (visible only to the user/device that created them).
+    """
+
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # NULL = shared session, has value = private session for that user/device
+    user_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default="New Conversation")
+    # Redundant field for easier querying: True = shared, False = private
+    is_shared: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Timestamp of last message for sorting sessions
+    last_message_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_sessions")
+    messages: Mapped[List["ChatMessageModel"]] = relationship(
+        "ChatMessageModel", back_populates="session", cascade="all, delete-orphan"
+    )
+
+
 class ChatMessageModel(Base):
     """Chat message ORM model for storing conversation history."""
 
@@ -171,6 +212,12 @@ class ChatMessageModel(Base):
     project_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
+    session_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("chat_sessions.id", ondelete="CASCADE"),
+        nullable=True,  # Nullable for backward compatibility during migration
+        index=True,
+    )
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # 'user' or 'ai'
     content: Mapped[str] = mapped_column(Text, nullable=False)
     sources: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=True)
@@ -178,6 +225,9 @@ class ChatMessageModel(Base):
 
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_messages")
+    session: Mapped[Optional["ChatSessionModel"]] = relationship(
+        "ChatSessionModel", back_populates="messages"
+    )
 
 
 class ChatMemoryModel(Base):

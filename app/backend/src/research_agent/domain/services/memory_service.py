@@ -97,7 +97,7 @@ class MemoryService:
         # Generate embedding for the Q&A pair
         # We embed the question primarily since that's what we'll search against
         try:
-            embedding = await self._embedding_service.embed_query(question)
+            embedding = await self._embedding_service.embed(question)
         except Exception as e:
             logger.error(f"[Memory] Failed to generate embedding: {e}")
             return
@@ -135,7 +135,7 @@ class MemoryService:
         """
         try:
             # Generate embedding for the query
-            query_embedding = await self._embedding_service.embed_query(query)
+            query_embedding = await self._embedding_service.embed(query)
 
             # Search memories
             memories = await self._memory_repo.search_memories(
@@ -344,4 +344,3 @@ class MemoryService:
             parts.append(f"## Recent Conversation\n{recent_text}")
 
         return "\n\n".join(parts)
-

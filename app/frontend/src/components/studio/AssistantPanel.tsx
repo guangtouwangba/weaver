@@ -13,6 +13,19 @@ import {
   Button,
   Collapse,
   Chip,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Menu,
+  MenuItem,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { 
   Bot,
@@ -25,9 +38,20 @@ import {
   GripHorizontal,
   Brain,
   ExternalLink,
+  Plus,
+  Cloud,
+  Lock,
+  MessageSquare,
+  MoreVertical,
+  Trash2,
+  Edit2,
+  ChevronLeft,
+  ChevronRight,
+  List as ListIcon,
+  History,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
-import { chatApi, Citation } from '@/lib/api';
+import { chatApi, Citation, ChatSession } from '@/lib/api';
 
 // Helper function to parse XML cite tags and render with clickable citations
 function renderContentWithCitations(
@@ -143,11 +167,33 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     canvasNodes,
     navigateToNode,
     highlightedMessageId,
+    // Session management
+    chatSessions,
+    activeSessionId,
+    sessionsLoading,
+    createChatSession,
+    switchChatSession,
+    updateChatSessionTitle,
+    deleteChatSession,
   } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // View state: 'chat' or 'history' (instead of collapsible sidebar)
+  const [activeView, setActiveView] = useState<'chat' | 'history'>('chat');
+  
+  // Session menu state
+  const [sessionMenuAnchor, setSessionMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedSessionForMenu, setSelectedSessionForMenu] = useState<string | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  
+  // Get active session object
+  const activeSession = chatSessions.find(s => s.id === activeSessionId);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToBottom, [chatMessages]);
@@ -216,8 +262,12 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
           }]);
         });
 
-        // Stream response
-        for await (const chunk of chatApi.stream(projectId, { message: userInput, document_id: activeDocumentId || undefined })) {
+        // Stream response with session_id
+        for await (const chunk of chatApi.stream(projectId, { 
+          message: userInput, 
+          document_id: activeDocumentId || undefined,
+          session_id: activeSessionId || undefined,
+        })) {
             if (chunk.type === 'token' && chunk.content) {
                 // Use flushSync to force immediate DOM update for real-time rendering
                 flushSync(() => {
@@ -309,285 +359,544 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     );
   }
 
+  // Session management handlers
+  const handleCreateSession = async (isShared: boolean) => {
+    try {
+      await createChatSession('New Conversation', isShared);
+      setActiveView('chat'); // Switch to chat view
+    } catch (error) {
+      console.error('Failed to create session:', error);
+    }
+  };
+
+  const handleSessionMenuOpen = (event: React.MouseEvent<HTMLElement>, sessionId: string) => {
+    event.stopPropagation();
+    setSessionMenuAnchor(event.currentTarget);
+    setSelectedSessionForMenu(sessionId);
+  };
+
+  const handleSessionMenuClose = () => {
+    setSessionMenuAnchor(null);
+    setSelectedSessionForMenu(null);
+  };
+
+  const handleStartEditSession = () => {
+    const session = chatSessions.find(s => s.id === selectedSessionForMenu);
+    if (session) {
+      setEditingSessionId(session.id);
+      setEditingTitle(session.title);
+    }
+    handleSessionMenuClose();
+  };
+
+  const handleSaveSessionTitle = async () => {
+    if (editingSessionId && editingTitle.trim()) {
+      try {
+        await updateChatSessionTitle(editingSessionId, editingTitle.trim());
+      } catch (error) {
+        console.error('Failed to update session title:', error);
+      }
+    }
+    setEditingSessionId(null);
+    setEditingTitle('');
+  };
+
+  const handleDeleteSessionConfirm = () => {
+    setSessionToDelete(selectedSessionForMenu);
+    setDeleteDialogOpen(true);
+    handleSessionMenuClose();
+  };
+
+  const handleDeleteSession = async () => {
+    if (sessionToDelete) {
+      try {
+        await deleteChatSession(sessionToDelete);
+      } catch (error) {
+        console.error('Failed to delete session:', error);
+      }
+    }
+    setDeleteDialogOpen(false);
+    setSessionToDelete(null);
+  };
+
+  // Format relative time
+  const formatRelativeTime = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const handleSwitchSession = (id: string) => {
+    switchChatSession(id);
+    setActiveView('chat');
+  };
+
   return (
     <Box sx={{ width, height: '100vh', flexShrink: 1, minWidth: 280, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', bgcolor: '#FAFAFA', overflow: 'hidden' }}>
-      {/* Header */}
-      <Box 
-        sx={{ 
-            height: 48, 
-            borderBottom: '1px solid', borderColor: 'divider', 
-            display: 'flex', alignItems: 'center', px: 3, justifyContent: 'space-between',
-            flexShrink: 0
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#10B981' }} />
-          <Typography variant="subtitle2" color="text.secondary">Assistant</Typography>
-        </Box>
-        <Tooltip title="Collapse (⌘.)"><IconButton size="small" onClick={onToggle}><PanelRightClose size={14} /></IconButton></Tooltip>
-      </Box>
       
-      {/* Messages */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {chatMessages.map((msg) => {
-          const isHighlighted = highlightedMessageId === msg.id;
-          const linkedNode = findLinkedNode(msg.id);
-          
-          return (
-            <Box 
-              key={msg.id} 
-              id={`message-${msg.id}`}
-              sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}
-            >
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
-                  borderRadius: 2, 
-                  bgcolor: msg.role === 'user' ? '#EBF5FF' : '#fff',
-                  border: msg.role === 'ai' ? '1px solid #E5E7EB' : 'none',
-                  color: msg.role === 'user' ? '#1E40AF' : 'text.primary',
-                  // Highlight effect when navigating from node
-                  ...(isHighlighted && {
-                    boxShadow: '0 0 0 2px #3B82F6',
-                    animation: 'highlightPulse 1.5s ease-in-out',
-                    '@keyframes highlightPulse': {
-                      '0%': { boxShadow: '0 0 0 2px #3B82F6' },
-                      '50%': { boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.5)' },
-                      '100%': { boxShadow: '0 0 0 2px #3B82F6' },
-                    },
-                  }),
-                }}
-              >
-              {msg.role === 'ai' && msg.content ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main' }}>
-                    <Bot size={14} />
-                    <Typography variant="caption" fontWeight="bold">
-                      AI Assistant
-                    </Typography>
-                  </Box>
-                  {/* Drag handle - only this area is draggable to keep text selection intact */}
-                  <Tooltip title="Drag answer to Canvas">
-                    <IconButton
-                      size="small"
-                      sx={{ 
-                        cursor: 'grab', 
-                        color: 'text.secondary',
-                        '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
-                      }}
-                      draggable
-                      onDragStart={(e) => {
-                        const selection = window.getSelection();
-                        const selectedText = selection && selection.toString().trim().length > 0 
-                          ? selection.toString()
-                          : undefined;
-                        const content = selectedText || msg.content;
+      {/* Header with Tabs and Actions */}
+      <Box sx={{ 
+        height: 48, 
+        borderBottom: '1px solid', 
+        borderColor: 'divider', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        bgcolor: '#fff',
+        pl: 0.5,
+        pr: 1
+      }}>
+        <Tabs 
+          value={activeView} 
+          onChange={(_, v) => setActiveView(v)}
+          sx={{ 
+            minHeight: 48,
+            '& .MuiTabs-indicator': { 
+              backgroundColor: 'primary.main',
+              height: 2,
+              borderRadius: '2px 2px 0 0' 
+            },
+            '& .MuiTab-root': { 
+              minHeight: 48, 
+              fontSize: '0.8rem', 
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 2,
+              color: 'text.secondary',
+              '&.Mui-selected': { color: 'primary.main' }
+            }
+          }}
+        >
+          <Tab 
+            value="chat" 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <MessageSquare size={15} />
+                <span>Chat</span>
+              </Box>
+            } 
+          />
+          <Tab 
+            value="history" 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <History size={15} />
+                <span>History</span>
+              </Box>
+            } 
+          />
+        </Tabs>
+        
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+           <Tooltip title="New Chat">
+             <IconButton size="small" onClick={() => handleCreateSession(false)}>
+               <Plus size={18} />
+             </IconButton>
+           </Tooltip>
+           <Tooltip title="Collapse (⌘.)">
+             <IconButton size="small" onClick={onToggle}><PanelRightClose size={18} /></IconButton>
+           </Tooltip>
+        </Box>
+      </Box>
 
-                        // Cache content for drag preview
-                        dragContentRef.current = content;
-                        setDragPreview({ x: 0, y: 0, content });
-
-                        const payload = {
-                          type: 'ai_response',
-                          content,
-                          source: {
-                            type: 'chat',
-                            messageId: msg.id,
-                            timestamp: msg.timestamp.toISOString(),
-                            query: msg.query || '',
-                          },
-                        };
-
-                        e.dataTransfer.effectAllowed = 'copy';
-                        e.dataTransfer.setData('application/json', JSON.stringify(payload));
-                        e.dataTransfer.setData('text/plain', content);
-                      }}
-                      onDragEnd={() => {
-                        dragContentRef.current = null;
-                        setDragPreview(null);
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                    >
-                      <GripHorizontal size={14} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              ) : null}
-
-              {msg.role === 'ai' && !msg.content && isLoading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={12} />
-                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                    Thinking...
-                  </Typography>
-                </Box>
-              ) : (
-                <Typography variant="body2" component="div" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '1.5em' }}>
-                  {msg.role === 'ai' && msg.content 
-                    ? renderContentWithCitations(
-                        msg.content, 
-                        msg.citations,
-                        (citation) => {
-                          // Navigate to the document and page when citation is clicked
-                          if (citation.document_id && citation.page_number) {
-                            navigateToSource(citation.document_id, citation.page_number, citation.quote);
-                          }
-                        }
-                      )
-                    : (msg.content || (msg.role === 'ai' ? '...' : ''))
-                  }
-                </Typography>
-              )}
-              
-              {/* Sources - Collapsible */}
-              {msg.sources && msg.sources.length > 0 && (
-                <Box sx={{ mt: 1.5 }}>
-                  <Button
-                    size="small"
-                    onClick={() => toggleSources(msg.id)}
-                    startIcon={<LinkIcon size={12} />}
-                    endIcon={expandedSources.has(msg.id) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    sx={{
-                      textTransform: 'none',
-                      fontSize: '0.7rem',
-                      color: 'text.secondary',
-                      minWidth: 'auto',
-                      px: 1,
-                      py: 0.25,
-                      borderRadius: 1,
-                      '&:hover': {
-                        bgcolor: 'action.hover',
-                      },
-                    }}
-                  >
-                    {msg.sources.length} {msg.sources.length === 1 ? 'source' : 'sources'}
-                  </Button>
-                  
-                  <Collapse in={expandedSources.has(msg.id)}>
-                    <Box sx={{ mt: 1, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                      {msg.sources.map((source, idx) => (
-                        <Box
-                          key={idx}
-                          onClick={() => navigateToSource(source.document_id, source.page_number, source.snippet)}
-                          sx={{
-                            display: 'flex',
-                            gap: 1.5,
-                            mb: 1.5,
-                            p: 1.5,
-                            bgcolor: '#F9FAFB',
-                            borderRadius: 1.5,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            transition: 'all 0.2s',
-                            cursor: 'pointer',
-                            '&:hover': {
-                              bgcolor: '#F3F4F6',
-                              borderColor: 'primary.light',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                            },
-                            '&:last-child': {
-                              mb: 0,
-                            },
-                          }}
+      {/* Main Content Area */}
+      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        
+        {/* VIEW: HISTORY (SESSIONS) */}
+        {activeView === 'history' && (
+           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff', animation: 'fadeIn 0.2s' }}>
+             <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+               {sessionsLoading ? (
+                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                   <CircularProgress size={20} />
+                 </Box>
+               ) : (
+                 <List dense sx={{ py: 0 }}>
+                   {chatSessions.map((session) => (
+                     <ListItem
+                       key={session.id}
+                       disablePadding
+                       secondaryAction={
+                         <IconButton
+                           edge="end"
+                           size="small"
+                           onClick={(e) => handleSessionMenuOpen(e, session.id)}
+                           sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
+                         >
+                           <MoreVertical size={14} />
+                         </IconButton>
+                       }
+                       sx={{
+                         borderBottom: '1px solid',
+                         borderColor: 'divider',
+                         '&:last-child': { borderBottom: 'none' },
+                         bgcolor: session.id === activeSessionId ? 'primary.50' : 'transparent',
+                         '&:hover': { bgcolor: session.id === activeSessionId ? 'primary.100' : 'action.hover' },
+                       }}
+                     >
+                       <ListItemButton
+                         onClick={() => handleSwitchSession(session.id)}
+                         sx={{ py: 1.5, pr: 4 }}
+                       >
+                         <ListItemIcon sx={{ minWidth: 32 }}>
+                           {session.is_shared ? (
+                             <Cloud size={16} className="text-blue-500" />
+                           ) : (
+                             <Lock size={16} className="text-gray-500" />
+                           )}
+                         </ListItemIcon>
+                         {editingSessionId === session.id ? (
+                           <TextField
+                             size="small"
+                             value={editingTitle}
+                             onChange={(e) => setEditingTitle(e.target.value)}
+                             onBlur={handleSaveSessionTitle}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter') handleSaveSessionTitle();
+                               if (e.key === 'Escape') {
+                                 setEditingSessionId(null);
+                                 setEditingTitle('');
+                               }
+                             }}
+                             autoFocus
+                             sx={{ '& input': { fontSize: '0.85rem', py: 0.5 } }}
+                           />
+                         ) : (
+                           <ListItemText
+                             primary={session.title}
+                             secondary={formatRelativeTime(session.last_message_at)}
+                             primaryTypographyProps={{ 
+                               variant: 'body2', 
+                               fontWeight: session.id === activeSessionId ? 600 : 400,
+                               noWrap: true,
+                               sx: { fontSize: '0.85rem' }
+                             }}
+                             secondaryTypographyProps={{ variant: 'caption', fontSize: '0.7rem' }}
+                           />
+                         )}
+                       </ListItemButton>
+                     </ListItem>
+                   ))}
+                   {chatSessions.length === 0 && (
+                      <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+                        <MessageSquare size={32} style={{ opacity: 0.2, marginBottom: 8 }} />
+                        <Typography variant="body2">No conversations yet</Typography>
+                        <Button 
+                          variant="outlined" 
+                          size="small" 
+                          startIcon={<Plus size={14} />} 
+                          sx={{ mt: 2, textTransform: 'none' }}
+                          onClick={() => handleCreateSession(false)}
                         >
-                          <LinkIcon size={14} className="text-gray-400 flex-shrink-0 mt-0.5" />
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{
-                                lineHeight: 1.6,
-                                display: 'block',
-                                wordBreak: 'break-word',
-                                fontSize: '0.75rem',
+                          Start Chat
+                        </Button>
+                      </Box>
+                   )}
+                 </List>
+               )}
+             </Box>
+             
+             {/* Legend */}
+             <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#F9FAFB' }}>
+               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                 <Cloud size={12} className="text-blue-500" />
+                 <Typography variant="caption" color="text.secondary">
+                   Shared - synced across devices
+                 </Typography>
+               </Box>
+               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                 <Lock size={12} className="text-gray-500" />
+                 <Typography variant="caption" color="text.secondary">
+                   Private - this device only
+                 </Typography>
+               </Box>
+             </Box>
+           </Box>
+        )}
+
+        {/* VIEW: CHAT */}
+        {activeView === 'chat' && (
+           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s' }}>
+             
+             {/* Messages */}
+             <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {chatMessages.length === 0 && (
+                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+                     <Bot size={48} strokeWidth={1} style={{ marginBottom: 16 }} />
+                     <Typography variant="body2" color="text.secondary">
+                       Ask me anything about your documents
+                     </Typography>
+                  </Box>
+                )}
+
+                {chatMessages.map((msg) => {
+                  const isHighlighted = highlightedMessageId === msg.id;
+                  const linkedNode = findLinkedNode(msg.id);
+                  
+                  return (
+                    <Box 
+                      key={msg.id} 
+                      id={`message-${msg.id}`}
+                      sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}
+                    >
+                      <Paper 
+                        elevation={0} 
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2, 
+                          bgcolor: msg.role === 'user' ? '#EBF5FF' : '#fff',
+                          border: msg.role === 'ai' ? '1px solid #E5E7EB' : 'none',
+                          color: msg.role === 'user' ? '#1E40AF' : 'text.primary',
+                          ...(isHighlighted && {
+                            boxShadow: '0 0 0 2px #3B82F6',
+                            animation: 'highlightPulse 1.5s ease-in-out',
+                            '@keyframes highlightPulse': {
+                              '0%': { boxShadow: '0 0 0 2px #3B82F6' },
+                              '50%': { boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.5)' },
+                              '100%': { boxShadow: '0 0 0 2px #3B82F6' },
+                            },
+                          }),
+                        }}
+                      >
+                      {msg.role === 'ai' && msg.content ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'primary.main' }}>
+                            <Bot size={14} />
+                            <Typography variant="caption" fontWeight="bold">
+                              AI Assistant
+                            </Typography>
+                          </Box>
+                          <Tooltip title="Drag answer to Canvas">
+                            <IconButton
+                              size="small"
+                              sx={{ 
+                                cursor: 'grab', 
+                                color: 'text.secondary',
+                                '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+                              }}
+                              draggable
+                              onDragStart={(e) => {
+                                const selection = window.getSelection();
+                                const selectedText = selection && selection.toString().trim().length > 0 
+                                  ? selection.toString()
+                                  : undefined;
+                                const content = selectedText || msg.content;
+                                dragContentRef.current = content;
+                                setDragPreview({ x: 0, y: 0, content });
+                                const payload = {
+                                  type: 'ai_response',
+                                  content,
+                                  source: {
+                                    type: 'chat',
+                                    messageId: msg.id,
+                                    timestamp: msg.timestamp.toISOString(),
+                                    query: msg.query || '',
+                                  },
+                                };
+                                e.dataTransfer.effectAllowed = 'copy';
+                                e.dataTransfer.setData('application/json', JSON.stringify(payload));
+                                e.dataTransfer.setData('text/plain', content);
+                              }}
+                              onDragEnd={() => {
+                                dragContentRef.current = null;
+                                setDragPreview(null);
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
                               }}
                             >
-                              {source.snippet}
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
-                              <Chip
-                                label={`Page ${source.page_number}`}
-                                size="small"
-                                sx={{
-                                  height: 20,
-                                  fontSize: '0.65rem',
-                                  bgcolor: 'primary.50',
-                                  color: 'primary.main',
-                                  fontWeight: 500,
-                                }}
-                              />
-                              {source.similarity !== undefined && (
-                                <Chip
-                                  label={`${(source.similarity * 100).toFixed(0)}% match`}
-                                  size="small"
-                                  sx={{
-                                    height: 20,
-                                    fontSize: '0.65rem',
-                                    bgcolor: 'grey.100',
-                                    color: 'text.secondary',
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          </Box>
+                              <GripHorizontal size={14} />
+                            </IconButton>
+                          </Tooltip>
                         </Box>
-                      ))}
-                    </Box>
-                  </Collapse>
-                </Box>
-              )}
+                      ) : null}
 
-              {/* View in Thinking Path - shows when a linked node exists (auto-generated) */}
-              {msg.role === 'ai' && linkedNode && (
-                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button 
-                      size="small" 
-                      startIcon={<Brain size={12} />} 
-                      onClick={() => handleViewInThinkingPath(msg.id)}
-                      sx={{ 
-                        fontSize: 10, 
-                        textTransform: 'none', 
-                        color: 'primary.main',
-                        bgcolor: 'primary.50',
-                        '&:hover': {
-                          bgcolor: 'primary.100',
-                        },
-                      }}
-                    >
-                      View Node
-                    </Button>
-                  </Box>
-              )}
-              </Paper>
-            </Box>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </Box>
+                      {msg.role === 'ai' && !msg.content && isLoading ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CircularProgress size={12} />
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            Thinking...
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" component="div" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '1.5em' }}>
+                          {msg.role === 'ai' && msg.content 
+                            ? renderContentWithCitations(
+                                msg.content, 
+                                msg.citations,
+                                (citation) => {
+                                  if (citation.document_id && citation.page_number) {
+                                    navigateToSource(citation.document_id, citation.page_number, citation.quote);
+                                  }
+                                }
+                              )
+                            : (msg.content || (msg.role === 'ai' ? '...' : ''))
+                          }
+                        </Typography>
+                      )}
+                      
+                      {/* Sources - Styled as small chips/cards instead of generic collapsible */}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <Box sx={{ mt: 1.5 }}>
+                          <Button
+                            size="small"
+                            onClick={() => toggleSources(msg.id)}
+                            startIcon={<LinkIcon size={12} />}
+                            endIcon={expandedSources.has(msg.id) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            sx={{
+                              textTransform: 'none',
+                              fontSize: '0.7rem',
+                              color: 'text.secondary',
+                              minWidth: 'auto',
+                              px: 1,
+                              py: 0.25,
+                              borderRadius: 1,
+                              bgcolor: expandedSources.has(msg.id) ? 'action.selected' : 'transparent',
+                            }}
+                          >
+                            {msg.sources.length} {msg.sources.length === 1 ? 'source' : 'sources'}
+                          </Button>
+                          
+                          <Collapse in={expandedSources.has(msg.id)}>
+                            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              {msg.sources.map((source, idx) => (
+                                <Box
+                                  key={idx}
+                                  onClick={() => navigateToSource(source.document_id, source.page_number, source.snippet)}
+                                  sx={{
+                                    p: 1.5,
+                                    bgcolor: '#F9FAFB',
+                                    borderRadius: 1.5,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    '&:hover': {
+                                      bgcolor: '#fff',
+                                      borderColor: 'primary.light',
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                    }
+                                  }}
+                                >
+                                  <Box sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
+                                    <LinkIcon size={12} className="text-gray-400 mt-0.5" />
+                                    <Typography variant="caption" color="text.primary" fontWeight={500}>
+                                        Document {source.document_id.replace('doc_', '')}
+                                    </Typography>
+                                    <Box sx={{ flex: 1 }} />
+                                    <Chip label={`p. ${source.page_number}`} size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                                  </Box>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{
+                                      lineHeight: 1.5,
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 3,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      fontSize: '0.75rem',
+                                    }}
+                                  >
+                                    "{source.snippet}"
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </Box>
+                          </Collapse>
+                        </Box>
+                      )}
+
+                      {/* View in Thinking Path */}
+                      {msg.role === 'ai' && linkedNode && (
+                          <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button 
+                              size="small" 
+                              startIcon={<Brain size={12} />} 
+                              onClick={() => handleViewInThinkingPath(msg.id)}
+                              sx={{ 
+                                fontSize: 10, 
+                                textTransform: 'none', 
+                                color: 'primary.main',
+                                bgcolor: 'primary.50',
+                                '&:hover': { bgcolor: 'primary.100' },
+                              }}
+                            >
+                              View Node
+                            </Button>
+                          </Box>
+                      )}
+                      </Paper>
+                    </Box>
+                  );
+                })}
+                  <div ref={messagesEndRef} />
+             </Box>
       
-      {/* Input */}
-      <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', bgcolor: '#F3F4F6', borderRadius: 2, px: 2, py: 1 }}>
-          <TextField 
-            fullWidth 
-            placeholder="Ask about this document..." 
-            variant="standard" 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isLoading}
-            InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} 
-          />
-          {isLoading ? (
-            <CircularProgress size={16} />
-          ) : (
-            <IconButton size="small" color="primary" onClick={handleSend} disabled={!input.trim()}><Send size={16} /></IconButton>
-          )}
-        </Box>
+             {/* Input */}
+             <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
+               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', bgcolor: '#F3F4F6', borderRadius: 2, px: 2, py: 1 }}>
+                 <TextField 
+                   fullWidth 
+                   placeholder="Ask about this document..." 
+                   variant="standard" 
+                   value={input}
+                   onChange={(e) => setInput(e.target.value)}
+                   onKeyDown={handleKeyDown}
+                   disabled={isLoading}
+                   InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} 
+                 />
+                 {isLoading ? (
+                   <CircularProgress size={16} />
+                 ) : (
+                   <IconButton size="small" color="primary" onClick={handleSend} disabled={!input.trim()}><Send size={16} /></IconButton>
+                 )}
+               </Box>
+             </Box>
+           </Box>
+        )}
       </Box>
+
+      {/* Session Menu & Dialogs (Keep active globally) */}
+      <Menu
+        anchorEl={sessionMenuAnchor}
+        open={Boolean(sessionMenuAnchor)}
+        onClose={handleSessionMenuClose}
+      >
+        <MenuItem onClick={handleStartEditSession}>
+          <Edit2 size={14} style={{ marginRight: 8 }} />
+          Rename
+        </MenuItem>
+        <MenuItem onClick={handleDeleteSessionConfirm} sx={{ color: 'error.main' }}>
+          <Trash2 size={14} style={{ marginRight: 8 }} />
+          Delete
+        </MenuItem>
+      </Menu>
+
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Conversation?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            This will permanently delete this conversation and all its messages. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteSession} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    
     </Box>
   );
 }

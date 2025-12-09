@@ -48,6 +48,7 @@ class StreamMessageInput:
     project_id: UUID
     message: str
     document_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None  # Chat session ID
     top_k: int = field(default_factory=_get_default_top_k)
     use_hybrid_search: bool = False  # Enable hybrid search (vector + keyword)
     use_rewrite: bool = True  # Enable query rewriting with chat history
@@ -105,9 +106,20 @@ class StreamMessageUseCase:
 
         repo = SQLAlchemyChatRepository(self._session)
 
+        # Get or create default session if not provided
+        session_id = input.session_id
+        if session_id is None:
+            default_session = await repo.get_or_create_default_session(input.project_id)
+            session_id = default_session.id
+
         # Save User Message
         await repo.save(
-            ChatMessage(project_id=input.project_id, role="user", content=input.message)
+            ChatMessage(
+                project_id=input.project_id,
+                session_id=session_id,
+                role="user",
+                content=input.message,
+            )
         )
 
         full_response = ""
@@ -118,7 +130,11 @@ class StreamMessageUseCase:
         try:
             # Get chat history for query rewriting and thinking path
             chat_history = []
-            messages = await repo.get_history(input.project_id, limit=10)
+            messages = await repo.get_history(
+                project_id=input.project_id,
+                session_id=session_id,
+                limit=10,
+            )
             if input.use_rewrite:
                 # Convert to (human, ai) tuples
                 chat_history = [
@@ -212,6 +228,7 @@ class StreamMessageUseCase:
             if full_response:
                 ai_message = ChatMessage(
                     project_id=input.project_id,
+                    session_id=session_id,
                     role="ai",
                     content=full_response,
                     sources=response_sources,
