@@ -1,58 +1,52 @@
-"""Prompts for thinking path extraction."""
+"""Prompts for thinking path extraction.
+
+This module extracts conversation structure to visualize the user's exploration journey:
+- User questions become Question nodes
+- AI responses become Answer nodes (summarized) + Insight nodes (key points)
+"""
 
 THINKING_PATH_EXTRACTION_SYSTEM_PROMPT = """
-You are an expert at analyzing logical structures and thought processes. 
-Your task is to deconstruct an AI response into a structured "Thinking Path" graph that visualizes the reasoning process.
+You are an expert at summarizing AI responses and extracting key insights.
 
-The goal is to show HOW the conclusion was reached, demonstrating divergence (exploring options) and convergence (summarizing findings).
+Your task is to analyze an AI response and extract:
+1. A concise summary of the answer (1-2 sentences)
+2. Key insights or takeaways from the response (3-5 bullet points)
 
-### Node Types
-- **root**: The starting point (usually the user's question or the core topic).
-- **diverge**: Represents brainstorming, multiple hypotheses, or exploring different aspects (Divergent Thinking).
-- **process**: Represents analysis, reasoning, fact-checking, or step-by-step processing.
-- **converge**: Represents synthesizing information, filtering options, or summarizing specific branches (Convergent Thinking).
-- **conclusion**: The final answer or key takeaway.
-
-### Edge Types
-- **next**: Sequential flow.
-- **supports**: Evidence supporting a claim.
-- **questions**: A doubt or question raised.
+This will be used to build a visual "Thinking Path" that shows the user's exploration journey through their conversation.
 
 ### Output Format
-Return a valid JSON object with `nodes` and `edges`.
-Each node must have:
-- `id`: A unique string ID (e.g., "n1", "n2").
-- `type`: One of the node types above.
-- `label`: A very short, punchy summary (max 5-8 words) for the graph node.
-- `detail`: The full content/explanation for this step.
+Return a valid JSON object with `summary` and `insights`.
 
-Example JSON structure:
+```json
 {
-  "nodes": [
-    {"id": "n1", "type": "root", "label": "Analysis of X", "detail": "Starting analysis of X..."},
-    {"id": "n2", "type": "diverge", "label": "Hypothesis A", "detail": "Maybe it is caused by A because..."},
-    {"id": "n3", "type": "diverge", "label": "Hypothesis B", "detail": "Alternatively, B could be the driver..."},
-    {"id": "n4", "type": "process", "label": "Checking Data", "detail": "Looking at the dataset, we see..."},
-    {"id": "n5", "type": "conclusion", "label": "Conclusion: It's A", "detail": "Therefore, A is the most likely cause."}
-  ],
-  "edges": [
-    {"source": "n1", "target": "n2", "type": "next"},
-    {"source": "n1", "target": "n3", "type": "next"},
-    {"source": "n2", "target": "n4", "type": "next"},
-    {"source": "n4", "target": "n5", "type": "next"}
+  "summary": "A 1-2 sentence summary of the AI's answer.",
+  "insights": [
+    {
+      "id": "i1",
+      "title": "Short Title (3-6 words)",
+      "content": "A brief explanation of this key point (1-2 sentences)."
+    },
+    {
+      "id": "i2", 
+      "title": "Another Key Point",
+      "content": "Explanation of this insight."
+    }
   ]
 }
+```
 
 ### Rules
-1. Keep `label` EXTREMELY concise.
-2. Ensure the graph is connected (no isolated nodes).
-3. Use "diverge" nodes to show when multiple possibilities are considered.
-4. Use "converge" or "conclusion" nodes to show how the thinking wraps up.
-5. STRICTLY output valid JSON only. No markdown fencing if possible, or handle it gracefully.
+1. The `summary` should capture the essence of the AI's answer in 1-2 sentences.
+2. Extract 3-5 `insights` - the most important takeaways from the response.
+3. Each insight `title` should be SHORT (3-6 words max) - this will be displayed as a node label.
+4. Each insight `content` should be a brief explanation (1-2 sentences max).
+5. Focus on WHAT the AI said, not HOW it reasoned.
+6. If the response is very short or simple, you can return fewer insights (minimum 1).
+7. STRICTLY output valid JSON only. No markdown fencing.
 """
 
 THINKING_PATH_EXTRACTION_USER_PROMPT = """
-Analyze the following AI response and extract its thinking path.
+Analyze the following AI response and extract a summary and key insights.
 
 User Question: {question}
 

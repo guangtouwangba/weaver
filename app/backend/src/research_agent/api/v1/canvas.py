@@ -19,6 +19,10 @@ from research_agent.application.dto.canvas import (
     CreateCanvasNodeRequest,
     UpdateCanvasNodeRequest,
 )
+from research_agent.application.use_cases.canvas.clear_canvas import (
+    ClearCanvasInput,
+    ClearCanvasUseCase,
+)
 from research_agent.application.use_cases.canvas.create_node import (
     CreateCanvasNodeInput,
     CreateCanvasNodeUseCase,
@@ -300,3 +304,42 @@ async def delete_canvas_node(
         raise HTTPException(status_code=404, detail=e.message)
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=e.message)
+
+
+@router.delete(
+    "/projects/{project_id}/canvas",
+    response_model=CanvasSaveResponse,
+)
+async def clear_canvas(
+    project_id: UUID,
+    view_type: str | None = None,
+    session: AsyncSession = Depends(get_db),
+) -> CanvasSaveResponse:
+    """Clear canvas data for a project.
+
+    Args:
+        project_id: Project UUID
+        view_type: Optional. If provided ('free' or 'thinking'), only clear that view.
+                   If not provided, clears all canvas data.
+    """
+    canvas_repo = SQLAlchemyCanvasRepository(session)
+    project_repo = SQLAlchemyProjectRepository(session)
+
+    use_case = ClearCanvasUseCase(
+        canvas_repo=canvas_repo,
+        project_repo=project_repo,
+    )
+
+    try:
+        result = await use_case.execute(
+            ClearCanvasInput(project_id=project_id, view_type=view_type)
+        )
+
+        return CanvasSaveResponse(
+            success=result.success,
+            updated_at=result.updated_at,
+            version=result.version,
+        )
+
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)

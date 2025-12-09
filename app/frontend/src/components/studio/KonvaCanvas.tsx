@@ -64,19 +64,35 @@ const getNodeStyle = (type: string) => {
     icon: string;
     topBarColor: string;
   }> = {
+    // === Thinking Path Node Types (User Conversation Visualization) ===
+    question: {
+      borderColor: '#3B82F6',  // Blue
+      borderStyle: 'dashed',
+      bgColor: '#EFF6FF',      // Light blue
+      icon: '❓',              // Question mark
+      topBarColor: '#3B82F6',
+    },
+    answer: {
+      borderColor: '#10B981',  // Green
+      borderStyle: 'solid',
+      bgColor: '#F0FDF4',      // Light green
+      icon: '💬',              // Chat bubble
+      topBarColor: '#10B981',
+    },
+    insight: {
+      borderColor: '#F59E0B',  // Yellow/Gold
+      borderStyle: 'solid',
+      bgColor: '#FFFBEB',      // Light yellow
+      icon: '💡',              // Lightbulb
+      topBarColor: '#F59E0B',
+    },
+    // === Other Node Types ===
     knowledge: {
       borderColor: '#E5E7EB',
       borderStyle: 'solid',
       bgColor: '#FFFFFF',
       icon: '📄',
       topBarColor: '#E5E7EB',
-    },
-    insight: {
-      borderColor: '#3B82F6',
-      borderStyle: 'solid',
-      bgColor: '#EFF6FF',
-      icon: '💡',
-      topBarColor: '#3B82F6',
     },
     manual: {
       borderColor: '#E5E7EB',
@@ -85,26 +101,12 @@ const getNodeStyle = (type: string) => {
       icon: '✏️',
       topBarColor: '#9CA3AF',
     },
-    question: {
-      borderColor: '#3B82F6',
-      borderStyle: 'dashed',
-      bgColor: '#EFF6FF',
-      icon: '🤔',
-      topBarColor: '#3B82F6',
-    },
-    answer: {
-      borderColor: '#10B981',
-      borderStyle: 'dashed',
-      bgColor: '#F0FDF4',
-      icon: '💭',
-      topBarColor: '#10B981',
-    },
     conclusion: {
-      borderColor: '#F59E0B',
-      borderStyle: 'dashed',
-      bgColor: '#FFFBEB',
+      borderColor: '#8B5CF6',  // Purple
+      borderStyle: 'solid',
+      bgColor: '#F5F3FF',      // Light purple
       icon: '✨',
-      topBarColor: '#F59E0B',
+      topBarColor: '#8B5CF6',
     },
   };
   

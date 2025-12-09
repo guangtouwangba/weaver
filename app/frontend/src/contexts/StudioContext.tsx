@@ -59,6 +59,7 @@ interface StudioContextType {
   promoteNode: (nodeId: string) => void;
   deleteSection: (sectionId: string) => void;
   saveCanvas: () => Promise<void>;
+  clearCanvas: (viewType?: 'free' | 'thinking') => Promise<void>;
   
   // Navigation
   navigateToSource: (documentId: string, pageNumber: number, searchText?: string) => void;
@@ -224,6 +225,40 @@ export function StudioProvider({
     console.log('Saving canvas...');
   }, []);
 
+  const clearCanvas = useCallback(async (viewType?: 'free' | 'thinking') => {
+    // Capture the view type at the moment of calling to handle tab switching edge case
+    const targetViewType = viewType;
+    
+    try {
+      await canvasApi.clear(projectId, targetViewType);
+      
+      // Clear local state based on the captured view type
+      if (targetViewType) {
+        // Only clear nodes/edges/sections for the specific view type
+        setCanvasNodes(prev => prev.filter(n => n.viewType !== targetViewType));
+        setCanvasEdges(prev => {
+          // Get IDs of nodes being removed
+          const nodesToRemove = new Set(
+            canvasNodes.filter(n => n.viewType === targetViewType).map(n => n.id)
+          );
+          // Remove edges connected to removed nodes
+          return prev.filter(e => !nodesToRemove.has(e.source) && !nodesToRemove.has(e.target));
+        });
+        setCanvasSections(prev => prev.filter(s => s.viewType !== targetViewType));
+        console.log(`Canvas view '${targetViewType}' cleared successfully`);
+      } else {
+        // Clear all
+        setCanvasNodes([]);
+        setCanvasEdges([]);
+        setCanvasSections([]);
+        console.log('All canvas cleared successfully');
+      }
+    } catch (error) {
+      console.error('Failed to clear canvas:', error);
+      throw error;
+    }
+  }, [projectId, canvasNodes]);
+
   const navigateToSource = useCallback((documentId: string, pageNumber: number, searchText?: string) => {
     setActiveDocumentId(documentId);
     setSourceNavigation({ documentId, pageNumber, searchText });
@@ -347,6 +382,7 @@ export function StudioProvider({
     promoteNode,
     deleteSection,
     saveCanvas,
+    clearCanvas,
     navigateToSource,
     sourceNavigation,
     dragPreview,

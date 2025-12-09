@@ -483,6 +483,14 @@ export const canvasApi = {
         body: JSON.stringify(data),
       }
     ),
+
+  clear: (projectId: string, viewType?: 'free' | 'thinking') =>
+    fetchApi<{ success: boolean; updated_at: string; version: number }>(
+      `/api/v1/projects/${projectId}/canvas${viewType ? `?view_type=${viewType}` : ''}`,
+      {
+        method: 'DELETE',
+      }
+    ),
 };
 
 // Health check

@@ -321,3 +321,46 @@ class Canvas:
             viewport=viewport,
             view_states=view_states,
         )
+
+    @classmethod
+    def create_empty(cls, project_id: UUID) -> "Canvas":
+        """Create an empty canvas for a project."""
+        return cls(
+            project_id=project_id,
+            nodes=[],
+            edges=[],
+            sections=[],
+            viewport=CanvasViewport(),
+            view_states={},
+        )
+
+    def clear(self) -> None:
+        """Clear all nodes, edges, and sections from the canvas."""
+        self.nodes = []
+        self.edges = []
+        self.sections = []
+        self.updated_at = datetime.utcnow()
+
+    def clear_view(self, view_type: str) -> None:
+        """Clear only nodes, edges, and sections for a specific view type.
+
+        Args:
+            view_type: 'free' or 'thinking'
+        """
+        # Get IDs of nodes to remove
+        nodes_to_remove = {n.id for n in self.nodes if n.view_type == view_type}
+
+        # Remove nodes of the specified view type
+        self.nodes = [n for n in self.nodes if n.view_type != view_type]
+
+        # Remove edges that connect to removed nodes
+        self.edges = [
+            e
+            for e in self.edges
+            if e.source not in nodes_to_remove and e.target not in nodes_to_remove
+        ]
+
+        # Remove sections of the specified view type
+        self.sections = [s for s in self.sections if s.view_type != view_type]
+
+        self.updated_at = datetime.utcnow()

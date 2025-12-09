@@ -14,10 +14,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Chip, IconButton, Tooltip, CircularProgress } from '@mui/material';
-import { Brain, RefreshCw, Link2, X } from 'lucide-react';
+import { Brain, RefreshCw, Link2, X, Layout, Trash2 } from 'lucide-react';
 import { useStudio } from '@/contexts/StudioContext';
 import useCanvasWebSocket from '@/hooks/useCanvasWebSocket';
 import { CanvasNode, CanvasEdge, CanvasSection, thinkingPathApi } from '@/lib/api';
+import { layoutThinkingPath } from '@/lib/layout';
 
 interface ThinkingPathGeneratorProps {
   onStatusChange?: (status: 'idle' | 'analyzing' | 'error') => void;
@@ -45,6 +46,8 @@ export default function ThinkingPathGenerator({
     setCanvasSections,
     switchView,
     autoThinkingPathEnabled,
+    clearCanvas,
+    currentView,
   } = useStudio();
 
   const [pendingNodes, setPendingNodes] = useState<Map<string, PendingNode>>(new Map());
@@ -184,7 +187,25 @@ export default function ThinkingPathGenerator({
         setCanvasNodes((prev) => {
           const existingIds = new Set(prev.map((n) => n.id));
           const newNodes = nodes.filter((n) => !existingIds.has(n.id));
-          return [...prev, ...newNodes];
+          const allNodes = [...prev, ...newNodes];
+
+          // Apply auto-layout to thinking path nodes
+          const thinkingNodes = allNodes.filter(
+            (n) => n.viewType === 'thinking' || n.tags?.includes('#thinking-path')
+          );
+          const otherNodes = allNodes.filter(
+            (n) => n.viewType !== 'thinking' && !n.tags?.includes('#thinking-path')
+          );
+
+          if (thinkingNodes.length > 0) {
+            // Merge current edges with new edges for layout calculation
+            // Note: using canvasEdges from closure, might be slightly stale but sufficient for layout
+            const allEdges = [...canvasEdges, ...edges];
+            const layoutedNodes = layoutThinkingPath(thinkingNodes, allEdges);
+            return [...otherNodes, ...layoutedNodes];
+          }
+
+          return allNodes;
         });
       }
 
@@ -200,7 +221,7 @@ export default function ThinkingPathGenerator({
       // Update last processed message
       setLastProcessedMessageId(messageId);
     },
-    [setCanvasNodes, setCanvasEdges, onStatusChange]
+    [setCanvasNodes, setCanvasEdges, onStatusChange, canvasEdges]
   );
 
   // Handle thinking path error
@@ -237,7 +258,10 @@ export default function ThinkingPathGenerator({
         const nonThinkingNodes = prev.filter(
           (n) => n.viewType !== 'thinking' && !n.tags?.includes('#thinking-path')
         );
-        return [...nonThinkingNodes, ...nodes];
+        
+        // Run auto-layout
+        const layoutedNodes = layoutThinkingPath(nodes, edges);
+        return [...nonThinkingNodes, ...layoutedNodes];
       });
 
       // Replace edges for thinking path
@@ -374,6 +398,57 @@ export default function ThinkingPathGenerator({
           disabled={isAnalyzing}
         >
           <Link2 size={16} />
+        </IconButton>
+      </Tooltip>
+
+      {/* Re-layout trigger */}
+      <Tooltip title="Re-organize Layout">
+        <IconButton
+          size="small"
+          onClick={() => {
+            setCanvasNodes((prev) => {
+              const thinkingNodes = prev.filter(
+                (n) => n.viewType === 'thinking' || n.tags?.includes('#thinking-path')
+              );
+              const otherNodes = prev.filter(
+                (n) => n.viewType !== 'thinking' && !n.tags?.includes('#thinking-path')
+              );
+              
+              if (thinkingNodes.length > 0) {
+                const layoutedNodes = layoutThinkingPath(thinkingNodes, canvasEdges);
+                return [...otherNodes, ...layoutedNodes];
+              }
+              return prev;
+            });
+          }}
+        >
+          <Layout size={16} />
+        </IconButton>
+      </Tooltip>
+
+      {/* Clear Canvas button */}
+      <Tooltip title={`Clear ${currentView === 'thinking' ? 'Thinking Path' : 'Free Canvas'}`}>
+        <IconButton
+          size="small"
+          onClick={async () => {
+            // Capture current view at click time to handle tab switching edge case
+            const viewToClear = currentView;
+            const viewName = viewToClear === 'thinking' ? 'Thinking Path' : 'Free Canvas';
+            
+            const confirmed = window.confirm(
+              `Are you sure you want to clear all nodes from the ${viewName}? This action cannot be undone.`
+            );
+            if (confirmed) {
+              try {
+                await clearCanvas(viewToClear);
+              } catch (error) {
+                console.error('Failed to clear canvas:', error);
+              }
+            }
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <Trash2 size={16} />
         </IconButton>
       </Tooltip>
     </Box>

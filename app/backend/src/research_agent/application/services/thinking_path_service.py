@@ -1,11 +1,13 @@
 """
-Thinking Path Service - Automatically generates thinking path nodes from chat conversations.
+Thinking Path Service - Visualizes the user's conversation journey.
 
-This service:
-1. Analyzes chat messages to extract conversation structure
-2. Detects duplicate/similar questions using embeddings
-3. Creates canvas nodes and edges for the thinking path
-4. Broadcasts updates via WebSocket for multi-client sync
+This service creates a visual "Thinking Path" that shows:
+1. User questions (Question nodes)
+2. AI answer summaries (Answer nodes)
+3. Key insights extracted from AI responses (Insight nodes)
+
+The goal is to help users visualize their exploration journey through the chat,
+not to show the AI's internal reasoning process.
 """
 
 import asyncio
@@ -42,9 +44,9 @@ MAX_MESSAGES_PER_ANALYSIS = 20
 # Node layout constants
 NODE_WIDTH = 280
 NODE_HEIGHT = 200
-NODE_SPACING_X = 320  # Width + gap
-NODE_SPACING_Y = 250  # Height + gap
-NODES_PER_ROW = 3
+NODE_SPACING_X = 380  # Width + gap (horizontal between levels)
+NODE_SPACING_Y = 60  # Height + gap (vertical within level, for insights)
+INSIGHT_SPACING_Y = 220  # Spacing between insight nodes
 
 
 @dataclass
@@ -52,7 +54,7 @@ class ThinkingPathNode:
     """Represents a node in the thinking path."""
 
     id: str
-    type: str  # "question" | "answer" | "conclusion" | "insight"
+    type: str  # "question" | "answer" | "insight"
     title: str
     content: str
     message_ids: List[str] = field(default_factory=list)
@@ -117,11 +119,12 @@ class ThinkingPathService:
     """
     Service for generating thinking path visualizations from chat conversations.
 
-    Supports:
-    - Real-time node generation as messages are sent
-    - Duplicate question detection using embeddings
-    - Multi-client synchronization via WebSocket
-    - Incremental analysis for long conversations
+    Creates a visual map of:
+    - User questions (Question nodes - blue dashed)
+    - AI answer summaries (Answer nodes - green solid)
+    - Key insights from answers (Insight nodes - yellow/gold)
+
+    Structure: Question -> Answer -> [Insight, Insight, Insight, ...]
     """
 
     def __init__(
@@ -137,6 +140,9 @@ class ThinkingPathService:
 
         # Cache for existing question nodes (project_id -> {content_hash -> node_id})
         self._question_node_cache: Dict[str, Dict[str, str]] = {}
+
+        # Track the last question node ID for connecting answers
+        self._last_question_node_id: Dict[str, str] = {}  # project_id -> node_id
 
     async def process_new_message(
         self,
@@ -184,7 +190,7 @@ class ThinkingPathService:
                         f"[ThinkingPath] Duplicate detected: message {message.id} -> node {duplicate_node_id}"
                     )
 
-            # Step 3: Create nodes for this message (may extract multiple nodes for AI response)
+            # Step 3: Create nodes for this message
             new_nodes, new_internal_edges = await self._create_nodes_for_message(
                 message=message,
                 existing_nodes=existing_nodes,
@@ -197,17 +203,22 @@ class ThinkingPathService:
                 result.nodes.extend(new_nodes)
                 result.edges.extend(new_internal_edges)
 
-            # Step 4: Create edges (connect to previous message if applicable)
-            if new_nodes and existing_messages:
-                # Use the first node (root) as the connection point
-                root_node = new_nodes[0]
-                edges = self._create_edges_for_node(
-                    node=root_node,
-                    existing_messages=existing_messages,
-                    existing_nodes=existing_nodes,
-                    new_nodes=result.nodes,
-                )
-                result.edges.extend(edges)
+            # Step 4: Connect to previous node in conversation flow
+            if new_nodes and message.role == "user":
+                # Store the question node ID for later connecting the answer
+                self._last_question_node_id[project_id] = new_nodes[0].id
+            elif new_nodes and message.role != "user":
+                # Connect answer to the previous question
+                last_q_id = self._last_question_node_id.get(project_id)
+                if last_q_id:
+                    edge_id = f"edge-{last_q_id}-{new_nodes[0].id}"
+                    result.edges.append(
+                        {
+                            "id": edge_id,
+                            "source": last_q_id,
+                            "target": new_nodes[0].id,
+                        }
+                    )
 
             # Step 5: Broadcast result to all clients
             await canvas_notification_service.notify_thinking_path_analyzed(
@@ -255,14 +266,9 @@ class ThinkingPathService:
         if not existing_nodes:
             return None
 
-        # Get existing question nodes
+        # Get existing question nodes only
         question_nodes = [
-            n
-            for n in existing_nodes
-            if n.type in ("question", "answer")
-            and n.role_type == "user"
-            or n.tags
-            and "#thinking-path" in n.tags
+            n for n in existing_nodes if n.type == "question" and n.view_type == "thinking"
         ]
 
         if not question_nodes:
@@ -278,10 +284,6 @@ class ThinkingPathService:
             most_similar_node_id = None
 
             for node in question_nodes:
-                # Skip non-question nodes
-                if node.type not in ("question",) and "user" not in node.title.lower():
-                    continue
-
                 # Get or compute embedding for existing node
                 node_embedding = self._embedding_cache.get(node.id)
                 if not node_embedding:
@@ -334,26 +336,33 @@ class ThinkingPathService:
         """
         Create thinking path node(s) for a chat message.
 
-        If it's an AI message and LLM service is available, it extracts a structured graph.
-        Otherwise, it falls back to creating a single node.
+        For user messages: Creates a single "question" node
+        For AI messages: Creates one "answer" node + multiple "insight" nodes
         """
         nodes: List[ThinkingPathNode] = []
         edges: List[Dict[str, str]] = []
 
+        # Calculate base position
+        base_x, base_y = self._calculate_node_position(existing_nodes)
+
         # 1. User Message: Single "Question" Node
         if message.role == "user":
-            x, y = self._calculate_node_position(existing_nodes)
-            node_id = f"tp-node-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
+            node_id = f"tp-q-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
+
+            # Truncate long questions but keep them readable
+            content = message.content
+            if len(content) > 300:
+                content = content[:297] + "..."
 
             node = ThinkingPathNode(
                 id=node_id,
                 type="question",
-                title="Your Question",
-                content=message.content[:500] if len(message.content) > 500 else message.content,
+                title="User Question",
+                content=content,
                 message_ids=[str(message.id)],
-                x=x,
-                y=y,
-                color="green",
+                x=base_x,
+                y=base_y,
+                color="blue",
                 analysis_status="analyzed",
                 is_duplicate=duplicate_of is not None,
                 duplicate_of=duplicate_of,
@@ -361,7 +370,7 @@ class ThinkingPathService:
             nodes.append(node)
             return nodes, edges
 
-        # 2. AI Message: Try Structured Extraction
+        # 2. AI Message: Try to extract summary + insights
         if self._llm_service and message.role != "user":
             try:
                 # Find the user question for context
@@ -373,41 +382,45 @@ class ThinkingPathService:
                     if last_user_msg:
                         user_question = last_user_msg.content
 
-                extracted_data = await self._extract_thinking_structure(
+                extracted_data = await self._extract_answer_and_insights(
                     user_question, message.content
                 )
 
-                if extracted_data and extracted_data.get("nodes"):
-                    return self._convert_extracted_data_to_nodes(
-                        extracted_data, message, existing_nodes
+                if extracted_data:
+                    return self._convert_to_answer_insight_nodes(
+                        extracted_data, message, existing_nodes, base_x, base_y
                     )
             except Exception as e:
                 logger.warning(
-                    f"[ThinkingPath] Structure extraction failed, falling back to simple node: {e}"
+                    f"[ThinkingPath] Extraction failed, falling back to simple node: {e}"
                 )
 
-        # 3. Fallback: Single "Answer" Node
-        x, y = self._calculate_node_position(existing_nodes)
-        node_id = f"tp-node-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
+        # 3. Fallback: Single "Answer" Node (if LLM extraction fails)
+        node_id = f"tp-a-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
+
+        # Truncate long responses
+        content = message.content
+        if len(content) > 500:
+            content = content[:497] + "..."
 
         node = ThinkingPathNode(
             id=node_id,
             type="answer",
             title="AI Response",
-            content=message.content[:500] if len(message.content) > 500 else message.content,
+            content=content,
             message_ids=[str(message.id)],
-            x=x,
-            y=y,
-            color="blue",
+            x=base_x,
+            y=base_y,
+            color="green",
             analysis_status="analyzed",
         )
         nodes.append(node)
         return nodes, edges
 
-    async def _extract_thinking_structure(
+    async def _extract_answer_and_insights(
         self, question: str, response: str
     ) -> Optional[Dict[str, Any]]:
-        """Call LLM to extract thinking path structure."""
+        """Call LLM to extract answer summary and key insights."""
         if not self._llm_service:
             return None
 
@@ -427,115 +440,106 @@ class ThinkingPathService:
 
             # Remove markdown code blocks if present
             if content.startswith("```"):
-                content = content.split("\n", 1)[1]
+                # Find the end of the first line (language identifier)
+                first_newline = content.find("\n")
+                if first_newline != -1:
+                    content = content[first_newline + 1 :]
                 if content.endswith("```"):
-                    content = content.rsplit("\n", 1)[0]
+                    content = content[:-3].strip()
+                elif "```" in content:
+                    content = content[: content.rfind("```")].strip()
 
             # Parse JSON
             return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"[ThinkingPath] JSON parse error: {e}, content: {content[:200]}")
+            return None
         except Exception as e:
             logger.error(f"[ThinkingPath] LLM extraction error: {e}")
-            raise e
+            return None
 
-    def _convert_extracted_data_to_nodes(
-        self, data: Dict[str, Any], message: ChatMessage, existing_nodes: List[CanvasNode]
+    def _convert_to_answer_insight_nodes(
+        self,
+        data: Dict[str, Any],
+        message: ChatMessage,
+        existing_nodes: List[CanvasNode],
+        base_x: float,
+        base_y: float,
     ) -> Tuple[List[ThinkingPathNode], List[Dict[str, str]]]:
-        """Convert extracted JSON data to ThinkingPathNodes and Edges with layout."""
+        """
+        Convert extracted summary/insights to Answer + Insight nodes.
 
-        extracted_nodes = data.get("nodes", [])
-        extracted_edges = data.get("edges", [])
+        Layout:
+        - Answer node at (base_x, base_y)
+        - Insight nodes fanned out to the right of Answer
+        """
+        nodes: List[ThinkingPathNode] = []
+        edges: List[Dict[str, str]] = []
 
-        if not extracted_nodes:
-            return [], []
+        summary = data.get("summary", "AI Response")
+        insights = data.get("insights", [])
 
-        final_nodes: List[ThinkingPathNode] = []
-        final_edges: List[Dict[str, str]] = []
+        # 1. Create Answer Node
+        answer_id = f"tp-a-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
 
-        # Calculate base position (start of the new cluster)
-        base_x, base_y = self._calculate_node_position(existing_nodes)
+        answer_node = ThinkingPathNode(
+            id=answer_id,
+            type="answer",
+            title="AI Answer",
+            content=summary[:400] if len(summary) > 400 else summary,
+            message_ids=[str(message.id)],
+            x=base_x,
+            y=base_y,
+            color="green",
+            analysis_status="analyzed",
+        )
+        nodes.append(answer_node)
 
-        # Simple Hierarchical Layout
-        # Group nodes by type to determine rank/level
-        # root -> diverge -> process -> converge -> conclusion
-        type_rank = {"root": 0, "diverge": 1, "process": 2, "converge": 3, "conclusion": 4}
+        # 2. Create Insight Nodes (fanned out to the right)
+        if insights:
+            num_insights = len(insights)
+            # Center the insights vertically around the answer node
+            total_height = (num_insights - 1) * INSIGHT_SPACING_Y
+            start_y = base_y - (total_height / 2)
 
-        # Map node_id -> rank
-        node_ranks = {}
-        for n in extracted_nodes:
-            n_type = n.get("type", "process")
-            node_ranks[n["id"]] = type_rank.get(n_type, 2)
+            for i, insight in enumerate(insights):
+                insight_id = (
+                    f"tp-i-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}-{i}"
+                )
 
-        # Group by rank
-        nodes_by_rank: Dict[int, List[Dict]] = {}
-        for n in extracted_nodes:
-            rank = node_ranks[n["id"]]
-            if rank not in nodes_by_rank:
-                nodes_by_rank[rank] = []
-            nodes_by_rank[rank].append(n)
+                insight_title = insight.get("title", f"Insight {i + 1}")
+                insight_content = insight.get("content", "")
 
-        # Assign coordinates
-        # X spreads horizontally by rank (level)
-        # Y spreads vertically within rank
+                # Truncate if needed
+                if len(insight_title) > 40:
+                    insight_title = insight_title[:37] + "..."
+                if len(insight_content) > 200:
+                    insight_content = insight_content[:197] + "..."
 
-        # We need a mapping from extracted ID (e.g., "n1") to real UUID
-        id_mapping = {}
-
-        for rank in sorted(nodes_by_rank.keys()):
-            rank_nodes = nodes_by_rank[rank]
-            level_height = len(rank_nodes) * NODE_SPACING_Y
-            start_y = base_y - (level_height / 2) + (NODE_SPACING_Y / 2)
-
-            for i, n_data in enumerate(rank_nodes):
-                # Calculate pos
-                # Shift X right by rank
-                # Use base_x as start, then add horizontal spacing
-                node_x = base_x + (rank * NODE_SPACING_X)
-                node_y = start_y + (i * NODE_SPACING_Y)
-
-                # Create Node
-                real_id = f"tp-node-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
-                id_mapping[n_data["id"]] = real_id
-
-                # Determine color based on type
-                color = "blue"
-                if n_data.get("type") == "root":
-                    color = "purple"
-                elif n_data.get("type") == "diverge":
-                    color = "orange"
-                elif n_data.get("type") == "conclusion":
-                    color = "red"
-                elif n_data.get("type") == "converge":
-                    color = "teal"
-
-                node = ThinkingPathNode(
-                    id=real_id,
-                    type=n_data.get("type", "process"),
-                    title=n_data.get("label", "Node")[:30],
-                    content=n_data.get("detail", "") or n_data.get("label", ""),
+                insight_node = ThinkingPathNode(
+                    id=insight_id,
+                    type="insight",
+                    title=insight_title,
+                    content=insight_content,
                     message_ids=[str(message.id)],
-                    x=node_x,
-                    y=node_y,
-                    color=color,
+                    x=base_x + NODE_SPACING_X,  # To the right of answer
+                    y=start_y + (i * INSIGHT_SPACING_Y),
+                    color="yellow",
                     analysis_status="analyzed",
                 )
-                final_nodes.append(node)
+                nodes.append(insight_node)
 
-        # Convert edges
-        for edge in extracted_edges:
-            source = edge.get("source")
-            target = edge.get("target")
-
-            if source in id_mapping and target in id_mapping:
-                final_edges.append(
+                # Create edge from answer to insight
+                edge_id = f"edge-{answer_id}-{insight_id}"
+                edges.append(
                     {
-                        "id": f"edge-{uuid4().hex[:8]}",
-                        "source": id_mapping[source],
-                        "target": id_mapping[target],
-                        "label": edge.get("type", "next"),
+                        "id": edge_id,
+                        "source": answer_id,
+                        "target": insight_id,
                     }
                 )
 
-        return final_nodes, final_edges
+        return nodes, edges
 
     def _calculate_node_position(
         self,
@@ -543,7 +547,10 @@ class ThinkingPathService:
     ) -> Tuple[float, float]:
         """
         Calculate position for a new node.
-        Uses a simple grid layout.
+
+        Uses a left-to-right flow layout:
+        - Each Q&A pair forms a column
+        - New pairs are placed to the right of existing ones
         """
         # Filter to thinking path nodes only
         tp_nodes = [
@@ -552,56 +559,22 @@ class ThinkingPathService:
             if n.view_type == "thinking" or (n.tags and "#thinking-path" in n.tags)
         ]
 
-        node_count = len(tp_nodes)
+        if not tp_nodes:
+            # First node starts at origin
+            return 100, 300
 
-        # Grid layout
-        row = node_count // NODES_PER_ROW
-        col = node_count % NODES_PER_ROW
+        # Find the rightmost node
+        max_x = max(n.x for n in tp_nodes)
 
-        x = 100 + col * NODE_SPACING_X
-        y = 100 + row * NODE_SPACING_Y
+        # Count question nodes to determine column
+        question_count = len([n for n in tp_nodes if n.type == "question"])
+
+        # Place new question nodes in a new column to the right
+        # Place answer nodes at the same X as the last question
+        x = 100 + (question_count * NODE_SPACING_X * 2)  # 2x spacing for Q->A->I structure
+        y = 300  # Centered vertically
 
         return x, y
-
-    def _create_edges_for_node(
-        self,
-        node: ThinkingPathNode,
-        existing_messages: List[ChatMessage],
-        existing_nodes: List[CanvasNode],
-        new_nodes: List[ThinkingPathNode],
-    ) -> List[Dict[str, str]]:
-        """
-        Create edges connecting the new node to relevant existing nodes.
-        """
-        edges = []
-
-        # Find the previous message's node and connect
-        if len(existing_messages) >= 2:
-            prev_message = existing_messages[-2]  # Second to last message
-
-            # Find existing node for previous message
-            # This is simplified - in production you'd have a message_id -> node_id mapping
-            prev_node_id = None
-
-            # Check in existing nodes
-            for existing_node in existing_nodes:
-                if existing_node.view_type == "thinking":
-                    # Simple heuristic: match by content similarity
-                    if prev_message.content[:100] in existing_node.content:
-                        prev_node_id = existing_node.id
-                        break
-
-            if prev_node_id:
-                edge_id = f"edge-{prev_node_id}-{node.id}"
-                edges.append(
-                    {
-                        "id": edge_id,
-                        "source": prev_node_id,
-                        "target": node.id,
-                    }
-                )
-
-        return edges
 
     async def analyze_conversation_batch(
         self,
@@ -648,7 +621,7 @@ class ThinkingPathService:
 
         result.section = {
             "id": section_id,
-            "title": f"Thinking: {question_preview}...",
+            "title": f"Exploration: {question_preview}...",
             "viewType": "thinking",
             "isCollapsed": False,
             "nodeIds": [],
@@ -659,56 +632,70 @@ class ThinkingPathService:
             "updatedAt": datetime.utcnow().isoformat(),
         }
 
-        # Process each message
-        prev_nodes: List[ThinkingPathNode] = []
+        # Process messages in pairs (user question + AI answer)
+        all_nodes: List[ThinkingPathNode] = []
+        column_index = 0
+        last_question_node: Optional[ThinkingPathNode] = None
 
         for i, message in enumerate(messages_to_process):
-            # Create nodes (pass project_id for context if needed)
+            # Calculate position based on column
+            if message.role == "user":
+                base_x = 100 + (column_index * NODE_SPACING_X * 2)
+                base_y = 300
+            else:
+                # AI answer goes in the same column as the question
+                base_x = 100 + (column_index * NODE_SPACING_X * 2) + NODE_SPACING_X
+                base_y = 300
+
+            # Create nodes
             new_nodes, new_internal_edges = await self._create_nodes_for_message(
                 message=message,
-                existing_nodes=[],  # Simplified for batch
+                existing_nodes=[n.to_canvas_node() for n in all_nodes],
                 existing_messages=messages_to_process[:i],
                 duplicate_of=None,
                 project_id=project_id,
             )
 
             if new_nodes:
-                # Recalculate position for batch layout is tricky with sub-graphs.
-                # _create_nodes_for_message already assigns positions based on existing_nodes count
-                # (which we passed as empty list [], so they all start at base position).
-                # We need to shift them manually based on row/col index.
+                # Override positions for batch layout
+                if message.role == "user":
+                    new_nodes[0].x = base_x
+                    new_nodes[0].y = base_y
+                    last_question_node = new_nodes[0]
+                else:
+                    # Position answer and insights
+                    new_nodes[0].x = base_x
+                    new_nodes[0].y = base_y
 
-                # Calculate shift offset
-                row = i // NODES_PER_ROW
-                col = i % NODES_PER_ROW
-                offset_x = (100 + col * NODE_SPACING_X) - new_nodes[0].x
-                offset_y = (100 + row * NODE_SPACING_Y) - new_nodes[0].y
+                    # Reposition insight nodes
+                    insights = [n for n in new_nodes if n.type == "insight"]
+                    if insights:
+                        total_height = (len(insights) - 1) * INSIGHT_SPACING_Y
+                        start_y = base_y - (total_height / 2)
+                        for j, insight in enumerate(insights):
+                            insight.x = base_x + NODE_SPACING_X
+                            insight.y = start_y + (j * INSIGHT_SPACING_Y)
 
-                # Apply offset to all new nodes
+                    # Connect question to answer
+                    if last_question_node:
+                        edge_id = f"edge-{last_question_node.id}-{new_nodes[0].id}"
+                        result.edges.append(
+                            {
+                                "id": edge_id,
+                                "source": last_question_node.id,
+                                "target": new_nodes[0].id,
+                            }
+                        )
+
+                    # Move to next column after Q&A pair
+                    column_index += 1
+
+                # Add nodes to result
                 for n in new_nodes:
-                    n.x += offset_x
-                    n.y += offset_y
                     result.section["nodeIds"].append(n.id)
-
+                all_nodes.extend(new_nodes)
                 result.nodes.extend(new_nodes)
                 result.edges.extend(new_internal_edges)
-
-                # Create edge to previous message's last node
-                if prev_nodes:
-                    prev_last_node = prev_nodes[-1]
-                    curr_first_node = new_nodes[0]
-
-                    edge_id = f"edge-{prev_last_node.id}-{curr_first_node.id}"
-                    result.edges.append(
-                        {
-                            "id": edge_id,
-                            "source": prev_last_node.id,
-                            "target": curr_first_node.id,
-                            "label": "next",
-                        }
-                    )
-
-                prev_nodes = new_nodes
 
         # Broadcast batch result
         await canvas_notification_service.notify_batch_update(
@@ -740,9 +727,13 @@ class ThinkingPathService:
 
             if project_id in self._question_node_cache:
                 del self._question_node_cache[project_id]
+
+            if project_id in self._last_question_node_id:
+                del self._last_question_node_id[project_id]
         else:
             # Clear all cache
             self._embedding_cache.clear()
             self._question_node_cache.clear()
+            self._last_question_node_id.clear()
 
         logger.info(f"[ThinkingPath] Cache cleared for project: {project_id or 'all'}")
