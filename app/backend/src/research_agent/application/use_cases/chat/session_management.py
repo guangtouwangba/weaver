@@ -274,3 +274,4 @@ def _session_to_dto(session: ChatSession, message_count: int) -> SessionDTO:
         updated_at=session.updated_at.isoformat(),
         last_message_at=session.last_message_at.isoformat() if session.last_message_at else None,
     )
+

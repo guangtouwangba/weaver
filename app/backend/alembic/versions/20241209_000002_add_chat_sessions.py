@@ -160,3 +160,4 @@ def downgrade() -> None:
 
     # 5. Drop chat_sessions table (if exists)
     op.execute(sa.text("DROP TABLE IF EXISTS chat_sessions"))
+

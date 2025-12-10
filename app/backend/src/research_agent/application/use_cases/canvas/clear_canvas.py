@@ -82,3 +82,4 @@ class ClearCanvasUseCase:
             cleared_view=input.view_type,
         )
 
+

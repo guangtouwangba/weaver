@@ -1,5 +1,6 @@
 """Document processor task - orchestrates the full document processing pipeline."""
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -16,7 +17,7 @@ from research_agent.infrastructure.database.session import get_async_session
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.llm.base import ChatMessage
 from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
-from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
+from research_agent.infrastructure.parser.factory import ParserFactory
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
 from research_agent.infrastructure.websocket.notification_service import (
@@ -86,16 +87,42 @@ class DocumentProcessorTask(BaseTask):
             local_path = await self._get_file_locally(file_path, document_id, project_id)
             logger.info(f"✅ Step 1 completed: File available at {local_path}")
 
-            # Step 2: Extract text from PDF
-            logger.info(f"📄 Step 2: Extracting text from PDF - local_path={local_path}")
+            # Step 2: Extract text from document using appropriate parser
+            logger.info(f"📄 Step 2: Extracting text from document - local_path={local_path}")
             try:
-                pdf_parser = PyMuPDFParser()
-                pages = await pdf_parser.extract_text(local_path)
-                page_count = len(pages)
-                logger.info(f"✅ Step 2 completed: Extracted {page_count} pages from PDF")
+                # Get document MIME type from database
+                doc_result = await session.execute(
+                    select(DocumentModel).where(DocumentModel.id == document_id)
+                )
+                doc = doc_result.scalar_one()
+                mime_type = doc.mime_type
+                file_extension = Path(local_path).suffix.lower()
+
+                # Get appropriate parser using factory
+                parser = ParserFactory.get_parser(mime_type=mime_type, extension=file_extension)
+                logger.info(f"Using parser: {parser.parser_name} for mime_type={mime_type}")
+
+                # Parse the document
+                parse_result = await parser.parse(local_path)
+                pages = parse_result.pages
+                page_count = parse_result.page_count
+                has_ocr = parse_result.has_ocr
+
+                logger.info(
+                    f"✅ Step 2 completed: Extracted {page_count} pages using {parser.parser_name}"
+                    f"{' (OCR applied)' if has_ocr else ''}"
+                )
+
+                # Store parsing metadata for later use
+                parsing_info = {
+                    "parser_name": parse_result.parser_name,
+                    "document_type": parse_result.document_type.value,
+                    "has_ocr": has_ocr,
+                    **parse_result.metadata,
+                }
             except Exception as e:
                 logger.error(
-                    f"❌ Step 2 failed: PDF extraction error - document_id={document_id}, "
+                    f"❌ Step 2 failed: Document extraction error - document_id={document_id}, "
                     f"local_path={local_path}: {e}",
                     exc_info=True,
                 )
@@ -276,12 +303,13 @@ class DocumentProcessorTask(BaseTask):
                 token_estimator = TokenEstimator()
                 token_count = token_estimator.estimate_tokens(full_content)
 
-                # Prepare parsing metadata
+                # Prepare parsing metadata (merge with parser info from Step 2)
                 parsing_metadata = {
                     "layout_type": "single_column",
                     "page_count": page_count,
                     "total_chunks": len(chunk_data),
                     "page_map": page_map,  # From Step 2.5
+                    **parsing_info,  # Include parser metadata from Step 2
                 }
 
                 # Update document with full content and metadata
@@ -588,6 +616,9 @@ class DocumentProcessorTask(BaseTask):
 
         If file is in Supabase Storage, download it.
         """
+        # Preserve original file extension
+        original_extension = Path(file_path).suffix or ".bin"
+
         # Check if it's a Supabase Storage path
         if file_path.startswith("projects/") and settings.supabase_url:
             # Download from Supabase
@@ -602,9 +633,9 @@ class DocumentProcessorTask(BaseTask):
             try:
                 content = await supabase_storage.download_file(file_path)
 
-                # Save locally for processing
+                # Save locally for processing with correct extension
                 local_storage = LocalStorageService(settings.upload_dir)
-                local_path = f"temp/{project_id}/{document_id}.pdf"
+                local_path = f"temp/{project_id}/{document_id}{original_extension}"
 
                 import io
 

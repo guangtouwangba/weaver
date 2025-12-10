@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added - 2025-12-09
 
+#### Multi-Format Document Parser Architecture
+
+**Backend:**
+- **Extensible Parser Interface** (`infrastructure/parser/base.py`):
+  - `DocumentParser` abstract base class for all format-specific parsers
+  - `ParsedPage` dataclass with support for text, OCR metadata, timestamps, and speaker IDs
+  - `ParseResult` for document-level metadata including page count, OCR status, and duration
+  - `DocumentType` enum: PDF, DOCX, PPTX, AUDIO, VIDEO, UNKNOWN
+
+- **Docling Parser** (`infrastructure/parser/docling_parser.py`):
+  - Handles PDF, DOCX, PPTX files with OCR support
+  - Advanced layout analysis for multi-column and table content
+  - Automatic page extraction and structure preservation
+
+- **Parser Factory** (`infrastructure/parser/factory.py`):
+  - Registry pattern for pluggable parser architecture
+  - `ParserFactory.get_parser()` for MIME type or extension-based parser selection
+  - Easy extension for future formats (WhisperX for Audio/Video)
+
+- **Document Entity Updates** (`domain/entities/document.py`):
+  - `DocumentType` enum with `from_mime_type()` class method
+  - Helper properties: `has_ocr`, `is_audio_video`, `duration_seconds`, `document_type`
+  - Full support for `parsing_metadata` JSONB field
+
+- **Worker Refactoring** (`worker/tasks/document_processor.py`):
+  - Replaced `PyMuPDFParser` with `ParserFactory` for dynamic parser selection
+  - Generic processing pipeline supporting any `ParsedPage`-compatible output
+  - Parser metadata integration in document processing
+
+**Infrastructure:**
+- Added `docling>=2.0.0` dependency (already present in pyproject.toml)
+- Retained `pymupdf>=1.24.0` as fallback option
+
+**Technical Details:**
+- **Author**: aqiu
+- **Implementation**: Multi-format parser architecture as per multi-format_document_support plan
+- **Scope**: PDF processing migration to Docling, foundation for Word/PPT/Audio/Video support
+
+### Added - 2025-12-09
+
 #### RAG Memory Optimization - Short-term and Long-term Memory
 
 **Backend:**

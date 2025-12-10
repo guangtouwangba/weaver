@@ -28,8 +28,9 @@ dependencies = [
     "langchain-community>=0.3.0",
     "langchain-text-splitters>=0.3.0",
     
-    # PDF Processing
-    "pymupdf>=1.24.0",
+    # Document Processing
+    "pymupdf>=1.24.0",  # Legacy PDF parser (kept for fallback)
+    "docling>=2.0.0",   # Multi-format parser with OCR (PDF/Word/PPT)
     
     # Utilities
     "httpx[socks]>=0.28.0",  # 包含 SOCKS 代理支持

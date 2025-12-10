@@ -5,13 +5,14 @@
  * Provides the bridge between StudioContext and KonvaCanvas
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
 import KonvaCanvas from './KonvaCanvas';
 import CanvasSidebar from './CanvasSidebar';
 import ThinkingPathGenerator from './ThinkingPathGenerator';
+import CanvasToolbar, { ToolMode } from './CanvasToolbar';
 
 export default function CanvasPanelKonva() {
   const { 
@@ -31,6 +32,8 @@ export default function CanvasPanelKonva() {
     navigateToMessage,
   } = useStudio();
 
+  const [toolMode, setToolMode] = useState<ToolMode>('select');
+
   // Auto-save on change (debounced)
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -47,6 +50,23 @@ export default function CanvasPanelKonva() {
     }, 2000);
     return () => clearTimeout(timeout);
   }, [canvasNodes, canvasEdges, canvasSections, canvasViewport, viewStates, projectId, saveCanvas]);
+
+  // Keyboard shortcuts for tools (V for Select, H for Hand)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+      if (e.key.toLowerCase() === 'v') {
+        setToolMode('select');
+      } else if (e.key.toLowerCase() === 'h') {
+        setToolMode('hand');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, overflow: 'hidden', position: 'relative' }}>
@@ -66,10 +86,14 @@ export default function CanvasPanelKonva() {
             navigateToMessage(node.messageIds[0]);
           }
         }}
+        toolMode={toolMode}
       />
+      
+      {/* Canvas Tool Toolbar Overlay */}
+      <CanvasToolbar activeTool={toolMode} onChange={setToolMode} />
+
       <CanvasSidebar />
       <ThinkingPathGenerator />
     </Box>
   );
 }
-

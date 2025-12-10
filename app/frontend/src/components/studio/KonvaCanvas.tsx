@@ -6,11 +6,12 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Stage, Layer, Group, Rect, Text, Line, Arrow } from 'react-konva';
+import { Stage, Layer, Group, Rect, Text, Line } from 'react-konva';
 import Konva from 'konva';
 import { Box, Typography, Menu, MenuItem } from '@mui/material';
 import { Layout, ArrowUp } from 'lucide-react';
 import { useStudio } from '@/contexts/StudioContext';
+import { ToolMode } from './CanvasToolbar';
 
 interface CanvasNode {
   id: string;
@@ -53,6 +54,7 @@ interface KonvaCanvasProps {
   onNodeAdd?: (node: Partial<CanvasNode>) => void;
   highlightedNodeId?: string | null;  // Node to highlight (for navigation from chat)
   onNodeClick?: (node: CanvasNode) => void;  // Callback when node is clicked
+  toolMode?: ToolMode; // New prop
 }
 
 // Node style configuration based on type
@@ -122,15 +124,17 @@ const KnowledgeNode = ({
   onSelect,
   onClick,
   onDragStart,
+  onDragMove,
   onDragEnd,
   onContextMenu,
 }: {
   node: CanvasNode;
   isSelected: boolean;
   isHighlighted?: boolean;
-  onSelect: () => void;
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   onClick?: () => void;
-  onDragStart: () => void;
+  onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onContextMenu?: (e: Konva.KonvaEventObject<PointerEvent>) => void;
 }) => {
@@ -144,18 +148,20 @@ const KnowledgeNode = ({
 
   return (
     <Group
+      id={`node-${node.id}`} // Assign ID for finding during bulk drag
       x={node.x}
       y={node.y}
       draggable
-      onClick={() => {
-        onSelect();
+      onClick={(e) => {
+        onSelect(e);
         onClick?.();
       }}
-      onTap={() => {
-        onSelect();
+      onTap={(e) => {
+        onSelect(e);
         onClick?.();
       }}
       onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onContextMenu={onContextMenu}
     >
@@ -234,7 +240,7 @@ const KnowledgeNode = ({
             text={node.tags[0]}
             fontSize={10}
             fill="#6B7280"
-          />
+            />
         </>
       )}
 
@@ -264,15 +270,27 @@ export default function KonvaCanvas({
   onNodeAdd,
   highlightedNodeId,
   onNodeClick,
+  toolMode = 'select', // Default to select
 }: KonvaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  
+  // Selection State
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  const [selectionRect, setSelectionRect] = useState<{
+    startX: number; startY: number; x: number; y: number; width: number; height: number 
+  } | null>(null);
+
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; sectionId?: string } | null>(null);
+  
+  // Refs for Drag/Pan
   const lastPosRef = useRef({ x: 0, y: 0 });
+  const draggedNodeRef = useRef<string | null>(null);
+  const lastDragPosRef = useRef<{x: number, y: number} | null>(null);
+
   const { 
     dragPreview, 
     setDragPreview, 
@@ -315,15 +333,35 @@ export default function KonvaCanvas({
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Handle keyboard shortcuts (Space for panning)
+  // Handle keyboard shortcuts (Space for panning, Delete for deletion, Cmd+A for Select All)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       
-      if (e.code === 'Space' && !e.repeat && !isInput) {
+      if (isInput) return;
+
+      // Space for Pan
+      if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         setIsSpacePressed(true);
+      }
+
+      // Delete / Backspace
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeIds.size > 0) {
+          e.preventDefault();
+          onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
+          setSelectedNodeIds(new Set());
+        }
+      }
+
+      // Cmd+A / Ctrl+A for Select All
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        // Select all VISIBLE nodes
+        const allVisibleIds = visibleNodes.map(n => n.id);
+        setSelectedNodeIds(new Set(allVisibleIds));
       }
     };
 
@@ -340,27 +378,119 @@ export default function KonvaCanvas({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [selectedNodeIds, nodes, visibleNodes, onNodesChange]);
 
-  // Handle node drag
-  const handleNodeDragStart = useCallback(
-    (nodeId: string) => () => {
-      setSelectedNodeId(nodeId);
-    },
-    []
-  );
+  // Handle Node Selection Logic
+  const handleNodeSelect = useCallback((nodeId: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    e.cancelBubble = true; // Prevent stage click
+    
+    // In Hand mode, do not select on click (unless we want to allow selection even in Hand mode? usually Hand mode disables selection to focus on panning)
+    // Actually, usually in Hand mode you can still click things but dragging pans. 
+    // Let's stick to standard: Hand mode prevents interaction that conflicts with panning. 
+    // If we want to move nodes, we switch to Select.
+    // However, clicking to *select* might be fine, but dragging will Pan.
+    
+    // Decision: In Hand mode, disable node dragging and selection to be safe? 
+    // Or allow selection but not dragging?
+    // Let's allow selection if toolMode is select. If hand, maybe just do nothing?
+    
+    if (toolMode === 'hand') return; 
 
-  const handleNodeDragEnd = useCallback(
-    (nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
-      const updatedNodes = nodes.map((n) =>
-        n.id === nodeId
-          ? { ...n, x: e.target.x(), y: e.target.y() }
-          : n
-      );
-      onNodesChange(updatedNodes);
-    },
-    [nodes, onNodesChange]
-  );
+    const isShift = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+    const isSelected = selectedNodeIds.has(nodeId);
+
+    if (isShift) {
+      // Toggle selection
+      const newSet = new Set(selectedNodeIds);
+      if (isSelected) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      setSelectedNodeIds(newSet);
+    } else {
+      if (!isSelected) {
+        setSelectedNodeIds(new Set([nodeId]));
+      }
+    }
+  }, [selectedNodeIds, toolMode]);
+
+  // Handle Bulk Drag
+  const handleNodeDragStart = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+    // Prevent drag if in hand mode (though draggable prop should control this)
+    if (toolMode === 'hand') {
+        e.target.stopDrag();
+        return;
+    }
+
+    e.cancelBubble = true;
+    draggedNodeRef.current = nodeId;
+    lastDragPosRef.current = e.target.position();
+
+    // Ensure dragging node is selected
+    if (!selectedNodeIds.has(nodeId)) {
+        if (!e.evt.shiftKey) {
+            setSelectedNodeIds(new Set([nodeId]));
+        } else {
+            setSelectedNodeIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(nodeId);
+                return newSet;
+            });
+        }
+    }
+  }, [selectedNodeIds, toolMode]);
+
+  const handleNodeDragMove = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    if (!lastDragPosRef.current) return;
+    
+    const newPos = e.target.position();
+    const dx = newPos.x - lastDragPosRef.current.x;
+    const dy = newPos.y - lastDragPosRef.current.y;
+    
+    lastDragPosRef.current = newPos;
+
+    // Move other selected nodes
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    selectedNodeIds.forEach(id => {
+        if (id === nodeId) return; // Skip self
+        const node = stage.findOne(`#node-${id}`);
+        if (node) {
+            node.x(node.x() + dx);
+            node.y(node.y() + dy);
+        }
+    });
+  }, [selectedNodeIds]);
+
+  const handleNodeDragEnd = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    draggedNodeRef.current = null;
+    lastDragPosRef.current = null;
+
+    // Sync all selected nodes positions to state
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const updatedNodes = nodes.map(n => {
+        if (selectedNodeIds.has(n.id)) {
+            // If it's the dragged node, use event target
+            if (n.id === nodeId) {
+                return { ...n, x: e.target.x(), y: e.target.y() };
+            }
+            // For others, look up by ID
+            const nodeNode = stage.findOne(`#node-${n.id}`);
+            if (nodeNode) {
+                return { ...n, x: nodeNode.x(), y: nodeNode.y() };
+            }
+        }
+        return n;
+    });
+    
+    onNodesChange(updatedNodes);
+  }, [nodes, selectedNodeIds, onNodesChange]);
 
   // Handle wheel zoom
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -389,42 +519,122 @@ export default function KonvaCanvas({
     });
   };
 
-  // Handle manual panning
+  // Handle Stage Interaction (Pan vs Box Select)
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Only pan when clicking on empty space (Stage or background)
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.getClassName() === 'Rect';
     
     if (clickedOnEmpty) {
-      // Left click on empty space = pan, or middle mouse button
-      if (e.evt.button === 0 || e.evt.button === 1 || isSpacePressed) {
-        setIsPanning(true);
-        lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+      // Left click
+      if (e.evt.button === 0) {
+          // Pan if Space pressed OR Tool is Hand
+          if (isSpacePressed || toolMode === 'hand') {
+              // Pan mode
+              setIsPanning(true);
+              lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+          } else {
+              // Box Selection mode
+              const stage = e.target.getStage();
+              const pointer = stage?.getPointerPosition();
+              if (pointer) {
+                  const x = (pointer.x - viewport.x) / viewport.scale;
+                  const y = (pointer.y - viewport.y) / viewport.scale;
+                  setSelectionRect({
+                      startX: x, startY: y,
+                      x, y, width: 0, height: 0
+                  });
+              }
+              // Clear selection if not Shift
+              if (!e.evt.shiftKey) {
+                  setSelectedNodeIds(new Set());
+              }
+          }
+      } else if (e.evt.button === 1) {
+          // Middle click pan
+          setIsPanning(true);
+          lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
       }
-      // Also deselect when clicking on empty space
-      setSelectedNodeId(null);
     }
   };
 
   const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!isPanning) return;
+    // Handle Pan
+    if (isPanning) {
+        const dx = e.evt.clientX - lastPosRef.current.x;
+        const dy = e.evt.clientY - lastPosRef.current.y;
 
-    const dx = e.evt.clientX - lastPosRef.current.x;
-    const dy = e.evt.clientY - lastPosRef.current.y;
+        onViewportChange({
+            ...viewport,
+            x: viewport.x + dx,
+            y: viewport.y + dy,
+        });
 
-    onViewportChange({
-      ...viewport,
-      x: viewport.x + dx,
-      y: viewport.y + dy,
-    });
+        lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+        return;
+    }
 
-    lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+    // Handle Box Selection
+    if (selectionRect) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+            const currentX = (pointer.x - viewport.x) / viewport.scale;
+            const currentY = (pointer.y - viewport.y) / viewport.scale;
+            
+            const startX = selectionRect.startX;
+            const startY = selectionRect.startY;
+
+            setSelectionRect({
+                ...selectionRect,
+                x: Math.min(startX, currentX),
+                y: Math.min(startY, currentY),
+                width: Math.abs(currentX - startX),
+                height: Math.abs(currentY - startY)
+            });
+        }
+    }
   };
 
   const handleStageMouseUp = () => {
-    setIsPanning(false);
+    if (isPanning) {
+        setIsPanning(false);
+    }
+    
+    if (selectionRect) {
+        // Calculate Intersection
+        const box = selectionRect;
+        // Optimization: only check intersection if box has size
+        if (box.width > 0 || box.height > 0) {
+            const newSelection = new Set(selectedNodeIds);
+            
+            visibleNodes.forEach(node => {
+                const nodeWidth = node.width || 280;
+                const nodeHeight = node.height || 200;
+                
+                // Simple AABB intersection
+                if (
+                    box.x < node.x + nodeWidth &&
+                    box.x + box.width > node.x &&
+                    box.y < node.y + nodeHeight &&
+                    box.y + box.height > node.y
+                ) {
+                    newSelection.add(node.id);
+                }
+            });
+            setSelectedNodeIds(newSelection);
+        }
+        setSelectionRect(null);
+    }
   };
 
-  // Draw connections (only for visible nodes)
+  // Determine Cursor Style
+  const getCursorStyle = () => {
+    if (isPanning) return 'grabbing';
+    if (toolMode === 'hand' || isSpacePressed) return 'grab';
+    if (selectionRect) return 'crosshair';
+    return 'default';
+  };
+
+  // Draw connections
   const renderEdges = () => {
     return edges.map((edge, index) => {
       const source = visibleNodes.find((n) => n.id === edge.source);
@@ -482,6 +692,7 @@ export default function KonvaCanvas({
         </Box>
         <Typography variant="caption" color="text.disabled">
           Auto-saved • {visibleNodes.length} nodes ({currentView === 'free' ? '自由画布' : '思考路径'})
+          {selectedNodeIds.size > 0 && ` • Selected: ${selectedNodeIds.size}`}
         </Typography>
       </Box>
 
@@ -497,45 +708,32 @@ export default function KonvaCanvas({
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'copy';
-
-          // Update drag preview position while dragging AI response
           if (dragContentRef.current && containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();
             const screenX = e.clientX - rect.left;
             const screenY = e.clientY - rect.top;
             const canvasX = (screenX - viewport.x) / viewport.scale;
             const canvasY = (screenY - viewport.y) / viewport.scale;
-
-            setDragPreview({
-              x: canvasX,
-              y: canvasY,
-              content: dragContentRef.current,
-            });
+            setDragPreview({ x: canvasX, y: canvasY, content: dragContentRef.current });
           }
         }}
-        onDragLeave={() => {
-          setDragPreview(null);
-        }}
+        onDragLeave={() => setDragPreview(null)}
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
-
           if (!containerRef.current) return;
-
           const rect = containerRef.current.getBoundingClientRect();
           const screenX = e.clientX - rect.left;
           const screenY = e.clientY - rect.top;
           const canvasX = (screenX - viewport.x) / viewport.scale;
           const canvasY = (screenY - viewport.y) / viewport.scale;
-
-          // Center the card on mouse position (card width: 280, height: 200)
+          
           const cardWidth = 280;
           const cardHeight = 200;
           const centeredX = canvasX - cardWidth / 2;
           const centeredY = canvasY - cardHeight / 2;
 
           let handled = false;
-
           const jsonData = e.dataTransfer.getData('application/json');
           if (jsonData && onNodeAdd) {
             try {
@@ -554,9 +752,7 @@ export default function KonvaCanvas({
                 });
                 handled = true;
               }
-            } catch {
-              // ignore JSON parse errors
-            }
+            } catch {}
           }
 
           if (!handled && onNodeAdd) {
@@ -575,7 +771,6 @@ export default function KonvaCanvas({
               });
             }
           }
-
           setDragPreview(null);
         }}
       >
@@ -585,16 +780,12 @@ export default function KonvaCanvas({
             open={Boolean(contextMenu)}
             onClose={() => setContextMenu(null)}
             anchorReference="anchorPosition"
-            anchorPosition={
-              contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined
-            }
+            anchorPosition={contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined}
           >
             {contextMenu.nodeId && studioCurrentView === 'thinking' && (
               <MenuItem
                 onClick={() => {
-                  if (contextMenu.nodeId) {
-                    promoteNode(contextMenu.nodeId);
-                  }
+                  if (contextMenu.nodeId) promoteNode(contextMenu.nodeId);
                   setContextMenu(null);
                 }}
                 sx={{ fontSize: 14 }}
@@ -607,13 +798,20 @@ export default function KonvaCanvas({
               <MenuItem
                 onClick={() => {
                   if (contextMenu.nodeId) {
-                    onNodesChange(nodes.filter(n => n.id !== contextMenu.nodeId));
+                      // If the right-clicked node is in selection, delete all selected
+                      // If not, delete only this one
+                      if (selectedNodeIds.has(contextMenu.nodeId)) {
+                          onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
+                          setSelectedNodeIds(new Set());
+                      } else {
+                          onNodesChange(nodes.filter(n => n.id !== contextMenu.nodeId));
+                      }
                   }
                   setContextMenu(null);
                 }}
                 sx={{ fontSize: 14, color: 'error.main' }}
               >
-                删除节点
+                删除节点 {selectedNodeIds.size > 1 && selectedNodeIds.has(contextMenu.nodeId!) ? `(${selectedNodeIds.size})` : ''}
               </MenuItem>
             )}
             {contextMenu.sectionId && (
@@ -621,13 +819,8 @@ export default function KonvaCanvas({
                 <MenuItem
                   onClick={() => {
                     if (contextMenu.sectionId) {
-                      // Toggle collapse
                       setCanvasSections(prev =>
-                        prev.map(s =>
-                          s.id === contextMenu.sectionId
-                            ? { ...s, isCollapsed: !s.isCollapsed }
-                            : s
-                        )
+                        prev.map(s => s.id === contextMenu.sectionId ? { ...s, isCollapsed: !s.isCollapsed } : s)
                       );
                     }
                     setContextMenu(null);
@@ -638,9 +831,7 @@ export default function KonvaCanvas({
                 </MenuItem>
                 <MenuItem
                   onClick={() => {
-                    if (contextMenu.sectionId) {
-                      deleteSection(contextMenu.sectionId);
-                    }
+                    if (contextMenu.sectionId) deleteSection(contextMenu.sectionId);
                     setContextMenu(null);
                   }}
                   sx={{ fontSize: 14, color: 'error.main' }}
@@ -665,9 +856,9 @@ export default function KonvaCanvas({
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
           onMouseLeave={handleStageMouseUp}
-          style={{ cursor: isPanning ? 'grabbing' : 'default' }}
+          style={{ cursor: getCursorStyle() }}
         >
-          {/* Background Layer with Grid */}
+          {/* Background Layer */}
           <Layer>
             <Rect
               x={-viewport.x / viewport.scale - 5000}
@@ -680,11 +871,9 @@ export default function KonvaCanvas({
 
           {/* Content Layer */}
           <Layer>
-            {/* Sections (render before nodes for proper layering) */}
+            {/* Sections */}
             {visibleSections.map((section) => {
               const sectionNodes = visibleNodes.filter(n => n.sectionId === section.id);
-              
-              // Calculate section bounds
               if (sectionNodes.length === 0) return null;
               
               let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -708,14 +897,9 @@ export default function KonvaCanvas({
                   y={section.y || minY - padding - headerHeight}
                   onContextMenu={(e) => {
                     e.evt.preventDefault();
-                    setContextMenu({
-                      x: e.evt.clientX,
-                      y: e.evt.clientY,
-                      sectionId: section.id,
-                    });
+                    setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, sectionId: section.id });
                   }}
                 >
-                  {/* Section Background */}
                   <Rect
                     width={contentWidth}
                     height={totalHeight}
@@ -728,8 +912,6 @@ export default function KonvaCanvas({
                     shadowOpacity={0.08}
                     shadowOffsetY={2}
                   />
-
-                  {/* Header */}
                   <Rect
                     width={contentWidth}
                     height={headerHeight}
@@ -737,17 +919,11 @@ export default function KonvaCanvas({
                     cornerRadius={[12, 12, 0, 0]}
                     onClick={() => {
                       setCanvasSections(prev =>
-                        prev.map(s =>
-                          s.id === section.id ? { ...s, isCollapsed: !s.isCollapsed } : s
-                        )
+                        prev.map(s => s.id === section.id ? { ...s, isCollapsed: !s.isCollapsed } : s)
                       );
                     }}
                   />
-
-                  {/* Icon */}
                   <Text x={16} y={16} text="🌱" fontSize={18} />
-
-                  {/* Title */}
                   <Text
                     x={48}
                     y={18}
@@ -758,8 +934,6 @@ export default function KonvaCanvas({
                     fill="#1F2937"
                     ellipsis
                   />
-
-                  {/* Collapse icon */}
                   <Text
                     x={contentWidth - 40}
                     y={18}
@@ -774,9 +948,8 @@ export default function KonvaCanvas({
             {/* Edges */}
             {renderEdges()}
 
-            {/* Nodes (filtered by current view, excluding ones in sections when collapsed) */}
+            {/* Nodes */}
             {visibleNodes.map((node) => {
-              // Skip nodes in collapsed sections
               if (node.sectionId) {
                 const section = visibleSections.find(s => s.id === node.sectionId);
                 if (section?.isCollapsed) return null;
@@ -786,25 +959,36 @@ export default function KonvaCanvas({
               <KnowledgeNode
                 key={node.id}
                 node={node}
-                isSelected={selectedNodeId === node.id}
+                isSelected={selectedNodeIds.has(node.id)}
                 isHighlighted={highlightedNodeId === node.id}
-                onSelect={() => setSelectedNodeId(node.id)}
+                onSelect={(e) => handleNodeSelect(node.id, e)}
                 onClick={() => onNodeClick?.(node)}
                 onDragStart={handleNodeDragStart(node.id)}
+                onDragMove={handleNodeDragMove(node.id)}
                 onDragEnd={handleNodeDragEnd(node.id)}
                 onContextMenu={(e) => {
                   e.evt.preventDefault();
-                  setContextMenu({
-                    x: e.evt.clientX,
-                    y: e.evt.clientY,
-                    nodeId: node.id,
-                  });
+                  setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: node.id });
                 }}
               />
             );
             })}
 
-            {/* Drag Preview for AI Insight */}
+            {/* Selection Box */}
+            {selectionRect && (
+                <Rect
+                    x={selectionRect.x}
+                    y={selectionRect.y}
+                    width={selectionRect.width}
+                    height={selectionRect.height}
+                    fill="rgba(59, 130, 246, 0.1)"
+                    stroke="#3B82F6"
+                    strokeWidth={1}
+                    listening={false}
+                />
+            )}
+
+            {/* Drag Preview */}
             {dragPreview && (
               <Group
                 x={dragPreview.x - 140}
@@ -825,33 +1009,9 @@ export default function KonvaCanvas({
                   shadowOpacity={0.15}
                   shadowOffsetY={4}
                 />
-                <Rect
-                  y={0}
-                  width={280}
-                  height={4}
-                  fill="#3B82F6"
-                  cornerRadius={[12, 12, 0, 0]}
-                />
-                <Text
-                  x={16}
-                  y={16}
-                  width={280 - 32}
-                  text="AI Insight"
-                  fontSize={12}
-                  fontStyle="bold"
-                  fill="#1F2937"
-                />
-                <Text
-                  x={16}
-                  y={40}
-                  width={280 - 32}
-                  height={130}
-                  text={dragPreview.content}
-                  fontSize={12}
-                  fill="#6B7280"
-                  wrap="word"
-                  ellipsis
-                />
+                <Rect y={0} width={280} height={4} fill="#3B82F6" cornerRadius={[12, 12, 0, 0]} />
+                <Text x={16} y={16} width={280 - 32} text="AI Insight" fontSize={12} fontStyle="bold" fill="#1F2937" />
+                <Text x={16} y={40} width={280 - 32} height={130} text={dragPreview.content} fontSize={12} fill="#6B7280" wrap="word" ellipsis />
               </Group>
             )}
           </Layer>
@@ -860,4 +1020,3 @@ export default function KonvaCanvas({
     </Box>
   );
 }
-
