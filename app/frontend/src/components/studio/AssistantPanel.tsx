@@ -54,7 +54,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { useStudio } from '@/contexts/StudioContext';
-import { chatApi, Citation, ChatSession } from '@/lib/api';
+import { chatApi, Citation, ChatSession, ProjectDocument } from '@/lib/api';
 
 // Helper function to clean up content before rendering
 function cleanContent(content: string): string {
@@ -71,18 +71,28 @@ interface CitationRendererProps {
   quote: string;
   children: React.ReactNode;
   citations: Citation[] | undefined;
+  documents: ProjectDocument[];
   onCitationClick: (citation: Citation) => void;
 }
 
-function CitationRenderer({ docId, quote, children, citations, onCitationClick }: CitationRendererProps) {
-  const citationData = citations?.find(c => c.doc_id === docId && c.quote === quote);
+function CitationRenderer({ docId, quote, children, citations, documents, onCitationClick }: CitationRendererProps) {
+  // Improved matching: try exact match first, then fallback to doc_id only
+  let citationData = citations?.find(c => c.doc_id === docId && c.quote === quote);
+  if (!citationData) {
+    citationData = citations?.find(c => c.doc_id === docId);
+  }
+  
+  // Get filename: from citation, or fallback to documents list
+  const filename = citationData?.filename 
+    || documents.find(d => d.id === citationData?.document_id)?.filename
+    || docId;
   
   return (
     <Tooltip 
       title={
         <Box sx={{ maxWidth: 300 }}>
           <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-            Source: {citationData?.filename || docId}
+            Source: {filename}
             {citationData?.page_number && ` (Page ${citationData.page_number})`}
           </Typography>
           <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block' }}>
@@ -98,7 +108,7 @@ function CitationRenderer({ docId, quote, children, citations, onCitationClick }
           const payload = {
             sourceType: 'citation',
             content: `"${quote}"`,
-            sourceTitle: citationData?.filename || docId,
+            sourceTitle: filename,
             sourceId: citationData?.document_id,
             pageNumber: citationData?.page_number,
             tags: ['#citation']
@@ -140,10 +150,11 @@ function CitationRenderer({ docId, quote, children, citations, onCitationClick }
 interface MarkdownContentProps {
   content: string;
   citations?: Citation[];
+  documents: ProjectDocument[];
   onCitationClick: (citation: Citation) => void;
 }
 
-function MarkdownContent({ content, citations, onCitationClick }: MarkdownContentProps) {
+function MarkdownContent({ content, citations, documents, onCitationClick }: MarkdownContentProps) {
   const cleaned = cleanContent(content);
   
   return (
@@ -160,6 +171,7 @@ function MarkdownContent({ content, citations, onCitationClick }: MarkdownConten
               docId={docId}
               quote={quote}
               citations={citations}
+              documents={documents}
               onCitationClick={onCitationClick}
             >
               {props.children}
@@ -286,6 +298,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     chatMessages, 
     setChatMessages, 
     activeDocumentId, 
+    documents,
     switchView,
     navigateToSource, 
     setDragPreview, 
@@ -855,16 +868,17 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                         </Box>
                       ) : (
                         <Box sx={{ lineHeight: 1.6, minHeight: '1.5em', '& > *:first-of-type': { mt: 0 } }}>
-                          {msg.role === 'ai' && msg.content 
+                          {msg.role === 'ai' && msg.content
                             ? (
                               <MarkdownContent
                                 content={msg.content}
                                 citations={msg.citations}
+                                documents={documents}
                                 onCitationClick={(citation) => {
                                   if (citation.document_id) {
                                     const searchText = citation.quote?.slice(0, 30) || '';
                                     navigateToSource(
-                                      citation.document_id, 
+                                      citation.document_id,
                                       citation.page_number || 1,
                                       searchText
                                     );

@@ -7,7 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-11
+
+#### Async Canvas Clear with Generation System
+
+**Backend:**
+- **Generation-based Canvas Clearing** (`domain/entities/canvas.py`):
+  - Added `generation` field to `CanvasNode`, `CanvasEdge`, `CanvasSection` entities
+  - Added `current_generation` field to `Canvas` entity
+  - `clear()` and `clear_view()` now increment generation instead of deleting items (O(1) operation)
+  - Added `get_visible_nodes/edges/sections()` methods for current generation filtering
+  - Added `to_visible_dict()` method for API responses with filtered items
+  - Added `remove_old_items()` for background cleanup
+
+- **New TaskType** (`domain/entities/task.py`):
+  - Added `CLEANUP_CANVAS` task type for async cleanup
+
+- **Clear Canvas Use Case** (`application/use_cases/canvas/clear_canvas.py`):
+  - Refactored to use generation-based clearing
+  - Schedules background cleanup task automatically
+  - Returns cleanup task ID and pending item count
+
+- **Canvas Cleanup Task** (`worker/tasks/canvas_cleanup.py`):
+  - New background task to physically remove old generation items
+  - Runs asynchronously after clear operation
+  - Logs cleanup progress and results
+
+- **API Updates** (`api/v1/canvas.py`):
+  - `get_canvas` now returns only current generation items
+  - `clear_canvas` uses TaskQueueService for async cleanup
+
+**Frontend:**
+- Added `generation` field to `CanvasNode`, `CanvasEdge`, `CanvasSection` types (`lib/api.ts`)
+
+**Benefits:**
+- Clear operation is instant (O(1) - just increment a number)
+- Users can immediately add new nodes after clearing
+- No blocking while deleting large numbers of nodes
+- Background cleanup happens asynchronously
+
+**Technical Details:**
+- **Author**: aqiu
+- **Implementation**: Generation ID pattern for async canvas operations
+- **Scope**: Canvas clear operation, background cleanup
+
 ### Fixed - 2025-12-11
+
+#### Citation Filename Display
+
+**Frontend:**
+- **Citation Matching Improvement** (`components/studio/AssistantPanel.tsx`):
+  - Fixed citation tooltip showing `doc_01` instead of actual filename
+  - Improved matching logic: tries exact match (doc_id + quote) first, then fallback to doc_id only
+  - Added documents list fallback for filename lookup when citation doesn't have filename
+  - `CitationRenderer` and `MarkdownContent` now receive `documents` prop for robust filename resolution
+
+**Technical Details:**
+- **Author**: aqiu
+- **Implementation**: Multi-level fallback for filename: citation.filename -> documents[document_id].filename -> docId
+- **Scope**: AssistantPanel citation rendering
 
 #### Markdown Rendering in AI Responses
 

@@ -7,6 +7,7 @@ from research_agent.api.v1 import (
     chat,
     curriculum,
     documents,
+    maintenance,
     projects,
     settings,
     thinking_path,
@@ -24,4 +25,5 @@ api_router.include_router(
 )
 api_router.include_router(settings.router, tags=["settings"])
 api_router.include_router(thinking_path.router, tags=["thinking-path"])
+api_router.include_router(maintenance.router, tags=["maintenance"])
 # Note: websocket router is mounted at root level in main.py (not under /api/v1)

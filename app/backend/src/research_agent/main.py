@@ -20,7 +20,13 @@ from research_agent.infrastructure.database.session import (
 )
 from research_agent.shared.utils.logger import logger
 from research_agent.worker.dispatcher import TaskDispatcher
-from research_agent.worker.tasks import CanvasSyncerTask, DocumentProcessorTask, GraphExtractorTask
+from research_agent.worker.tasks import (
+    CanvasCleanupTask,
+    CanvasSyncerTask,
+    DocumentProcessorTask,
+    GraphExtractorTask,
+)
+from research_agent.worker.tasks.file_cleanup import FileCleanupTask
 from research_agent.worker.worker import BackgroundWorker
 
 settings = get_settings()
@@ -37,6 +43,8 @@ def create_task_dispatcher() -> TaskDispatcher:
     dispatcher.register(TaskType.PROCESS_DOCUMENT, DocumentProcessorTask)
     dispatcher.register(TaskType.EXTRACT_GRAPH, GraphExtractorTask)
     dispatcher.register(TaskType.SYNC_CANVAS, CanvasSyncerTask)
+    dispatcher.register(TaskType.CLEANUP_CANVAS, CanvasCleanupTask)
+    dispatcher.register(TaskType.FILE_CLEANUP, FileCleanupTask)
 
     return dispatcher
 

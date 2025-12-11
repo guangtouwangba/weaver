@@ -23,6 +23,8 @@ class TaskType(str, Enum):
     PROCESS_DOCUMENT = "process_document"
     EXTRACT_GRAPH = "extract_graph"
     SYNC_CANVAS = "sync_canvas"
+    CLEANUP_CANVAS = "cleanup_canvas"  # Async cleanup of old generation canvas items
+    FILE_CLEANUP = "file_cleanup"  # Async cleanup of orphan files from storage
 
 
 @dataclass
@@ -60,7 +62,7 @@ class Task:
         """Mark task as failed."""
         self.error_message = error_message
         self.updated_at = datetime.utcnow()
-        
+
         if self.attempts >= self.max_attempts:
             self.status = TaskStatus.FAILED
         else:
@@ -81,4 +83,3 @@ class Task:
     def is_terminal(self) -> bool:
         """Check if task is in a terminal state."""
         return self.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED)
-

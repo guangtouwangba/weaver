@@ -315,19 +315,28 @@ async def clear_canvas(
     view_type: str | None = None,
     session: AsyncSession = Depends(get_db),
 ) -> CanvasSaveResponse:
-    """Clear canvas data for a project.
+    """Clear canvas data for a project (async-friendly).
+
+    Uses generation-based clearing:
+    - Old items become invisible instantly
+    - A background task cleans up old items asynchronously
+    - Users can immediately add new items without waiting
 
     Args:
         project_id: Project UUID
         view_type: Optional. If provided ('free' or 'thinking'), only clear that view.
                    If not provided, clears all canvas data.
     """
+    from research_agent.worker.service import TaskQueueService
+
     canvas_repo = SQLAlchemyCanvasRepository(session)
     project_repo = SQLAlchemyProjectRepository(session)
+    task_queue_service = TaskQueueService(session)
 
     use_case = ClearCanvasUseCase(
         canvas_repo=canvas_repo,
         project_repo=project_repo,
+        task_queue_service=task_queue_service,
     )
 
     try:

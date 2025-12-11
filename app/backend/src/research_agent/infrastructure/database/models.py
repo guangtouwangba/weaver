@@ -577,3 +577,44 @@ class UserSettingModel(Base):
 
     # Unique constraint: each user can have only one setting per key
     __table_args__ = (UniqueConstraint("user_id", "key", name="uq_user_settings_user_key"),)
+
+
+# =============================================================================
+# Async File Cleanup Models
+# =============================================================================
+
+
+class PendingCleanupModel(Base):
+    """
+    Pending cleanup ORM model for tracking files that need async deletion.
+
+    When a document is deleted, its physical files (local + remote storage) are
+    cleaned up asynchronously. This table serves as a fallback queue to ensure
+    files are eventually deleted even if the initial async cleanup fails.
+
+    Design: Fire-and-Forget + Scheduled Cleanup
+    - On document delete: Record pending cleanup, then fire async task
+    - Async task: Delete files, then remove from pending_cleanups
+    - Scheduled job: Periodically retry failed cleanups
+    """
+
+    __tablename__ = "pending_cleanups"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    # File path in storage (e.g., "projects/{project_id}/{uuid}.pdf")
+    file_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    # Storage type: "local", "supabase", or "both"
+    storage_type: Mapped[str] = mapped_column(String(50), nullable=False, default="both")
+    # Number of cleanup attempts
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Maximum retry attempts before giving up
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    # Last error message if cleanup failed
+    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # When this cleanup was scheduled
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # When the last attempt was made
+    last_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Optional: reference to original document (for debugging)
+    document_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    project_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)

@@ -35,8 +35,10 @@ class GetCanvasUseCase:
         canvas = await self._canvas_repo.find_by_project(input.project_id)
 
         if canvas:
+            # Use to_visible_dict() to only return current generation items
+            # Old items (from previous clears) are excluded
             return GetCanvasOutput(
-                data=canvas.to_dict(),
+                data=canvas.to_visible_dict(),
                 updated_at=canvas.updated_at,
                 version=canvas.version,
             )
@@ -47,8 +49,8 @@ class GetCanvasUseCase:
                 "nodes": [],
                 "edges": [],
                 "viewport": {"x": 0, "y": 0, "scale": 1},
+                "currentGeneration": 1,
             },
             updated_at=None,
             version=0,
         )
-

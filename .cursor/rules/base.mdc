@@ -13,6 +13,7 @@ alwaysApply: true
 - 在完成一个fix或者action之后禁止创建说明文档（md文件）
 - 在完成一个原型调整后检测更新产品需求文档
 - 修改一个大的feature自动更新CHANGELOG.md, 获取git username 和改动内容
+- 在完整一个新的方案实现之后，如果是多个方案的trade off，将不同方案的优劣梳理到文档当中
 
 ## 目录结构注意
 - app/frontend 是开发目录

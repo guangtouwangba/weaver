@@ -172,6 +172,7 @@ export interface CanvasNode {
   viewType: 'free' | 'thinking';
   sectionId?: string;
   promotedFrom?: string;
+  generation?: number;  // Generation ID for async clear support
   createdAt?: string;
   updatedAt?: string;
   // New fields for thinking path / message linking
@@ -194,6 +195,7 @@ export interface CanvasEdge {
   id?: string;
   source: string;
   target: string;
+  generation?: number;  // Generation ID for async clear support
   // Phase 2: Semantic Edge Labels (The Thread)
   label?: string;  // User-defined or AI-suggested label
   relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
@@ -207,6 +209,7 @@ export interface CanvasSection {
   nodeIds: string[];
   x: number;
   y: number;
+  generation?: number;  // Generation ID for async clear support
   width?: number;
   height?: number;
   conversationId?: string;

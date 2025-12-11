@@ -50,7 +50,7 @@ class CreateCanvasNodeUseCase:
         # Get or create canvas
         canvas = await self._canvas_repo.find_by_project(input.project_id)
         current_version = canvas.version if canvas else 0
-        
+
         if not canvas:
             # Create empty canvas
             canvas = Canvas(
@@ -70,6 +70,7 @@ class CreateCanvasNodeUseCase:
             raise ConflictError("Node", node_id, f"Node with ID {node_id} already exists")
 
         # Create node from data
+        # Note: generation is set automatically by canvas.add_node()
         node = CanvasNode(
             id=node_id,
             type=input.node_data.get("type", "card"),
@@ -83,6 +84,8 @@ class CreateCanvasNodeUseCase:
             tags=input.node_data.get("tags", []),
             source_id=input.node_data.get("sourceId"),
             source_page=input.node_data.get("sourcePage"),
+            view_type=input.node_data.get("viewType", "free"),
+            section_id=input.node_data.get("sectionId"),
         )
 
         # Add node to canvas
@@ -116,4 +119,3 @@ class CreateCanvasNodeUseCase:
             updated_at=saved_canvas.updated_at,
             version=saved_canvas.version,
         )
-
