@@ -98,18 +98,26 @@ class DocumentProcessorTask(BaseTask):
                 mime_type = doc.mime_type
                 file_extension = Path(local_path).suffix.lower()
 
-                # Get appropriate parser using factory
-                parser = ParserFactory.get_parser(mime_type=mime_type, extension=file_extension)
-                logger.info(f"Using parser: {parser.parser_name} for mime_type={mime_type}")
-
-                # Parse the document
-                parse_result = await parser.parse(local_path)
+                # Parse document with appropriate method based on ocr_mode
+                if settings.ocr_mode == "auto":
+                    # Smart OCR: try Docling first, auto-switch to Gemini for scanned PDFs
+                    logger.info(f"Using smart OCR (auto mode) for mime_type={mime_type}")
+                    parse_result = await ParserFactory.parse_with_auto_ocr(
+                        file_path=local_path,
+                        mime_type=mime_type,
+                        extension=file_extension,
+                    )
+                else:
+                    # Direct parser selection based on ocr_mode (docling or gemini)
+                    parser = ParserFactory.get_parser(mime_type=mime_type, extension=file_extension)
+                    logger.info(f"Using parser: {parser.parser_name} for mime_type={mime_type}")
+                    parse_result = await parser.parse(local_path)
                 pages = parse_result.pages
                 page_count = parse_result.page_count
                 has_ocr = parse_result.has_ocr
 
                 logger.info(
-                    f"✅ Step 2 completed: Extracted {page_count} pages using {parser.parser_name}"
+                    f"✅ Step 2 completed: Extracted {page_count} pages using {parse_result.parser_name}"
                     f"{' (OCR applied)' if has_ocr else ''}"
                 )
 

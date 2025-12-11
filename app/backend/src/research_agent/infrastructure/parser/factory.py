@@ -3,12 +3,13 @@
 This module provides a factory for creating document parsers based on MIME type
 or file extension. New parsers can be registered to extend format support.
 
-The factory also supports switching OCR providers via the `ocr_provider` setting:
-- "docling": Uses Docling for document parsing (default)
-- "gemini": Uses Google Gemini Vision for PDF OCR
+The factory supports three OCR modes via the `ocr_mode` setting:
+- "auto": Smart mode - uses Docling first, auto-switches to Gemini OCR for scanned PDFs
+- "docling": Uses Docling for document parsing (text extraction)
+- "gemini": Always uses Google Gemini Vision for PDF OCR
 """
 
-from typing import Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Dict, List, Optional, Type
 
 from research_agent.config import get_settings
 from research_agent.infrastructure.parser.base import (
@@ -17,6 +18,9 @@ from research_agent.infrastructure.parser.base import (
 )
 from research_agent.infrastructure.parser.docling_parser import DoclingParser
 from research_agent.shared.utils.logger import logger
+
+if TYPE_CHECKING:
+    from research_agent.infrastructure.parser.base import ParseResult
 
 # Lazy import for GeminiParser to avoid loading google-generativeai if not needed
 _gemini_parser_instance: Optional[DocumentParser] = None
@@ -182,9 +186,11 @@ class ParserFactory:
         """
         Get a parser for the given MIME type or extension.
 
-        The parser selection considers the `ocr_provider` setting:
-        - If ocr_provider is "gemini" and format is PDF, returns GeminiParser.
+        The parser selection considers the `ocr_mode` setting:
+        - If ocr_mode is "gemini" and format is PDF, returns GeminiParser.
         - Otherwise, returns the default parser from the registry (Docling).
+
+        Note: For "auto" mode, use `parse_with_auto_ocr()` instead.
 
         Args:
             mime_type: MIME type string (e.g., "application/pdf").
@@ -199,10 +205,10 @@ class ParserFactory:
         settings = get_settings()
 
         # Check if we should use Gemini for PDF OCR
-        if settings.ocr_provider == "gemini" and _is_pdf_format(mime_type, extension):
+        if settings.ocr_mode == "gemini" and _is_pdf_format(mime_type, extension):
             if not settings.google_api_key:
                 logger.warning(
-                    "ocr_provider is 'gemini' but GOOGLE_API_KEY is not set. "
+                    "ocr_mode is 'gemini' but GOOGLE_API_KEY is not set. "
                     "Falling back to Docling parser."
                 )
             else:
@@ -217,6 +223,72 @@ class ParserFactory:
                 f"Supported MIME types: {_registry.supported_mime_types()}"
             )
         return parser
+
+    @staticmethod
+    async def parse_with_auto_ocr(
+        file_path: str,
+        mime_type: Optional[str] = None,
+        extension: Optional[str] = None,
+    ) -> "ParseResult":
+        """
+        Smart parsing with automatic OCR fallback for scanned PDFs.
+
+        This method first attempts to parse with Docling. If the result
+        indicates a scanned PDF (too few characters or too much garbage),
+        it automatically retries with Gemini Vision OCR.
+
+        Args:
+            file_path: Path to the document file.
+            mime_type: MIME type string (e.g., "application/pdf").
+            extension: File extension (e.g., ".pdf" or "pdf").
+
+        Returns:
+            ParseResult from the appropriate parser.
+
+        Raises:
+            DocumentParsingError: If parsing fails with all methods.
+        """
+        from research_agent.infrastructure.parser.utils import is_scanned_pdf
+
+        settings = get_settings()
+
+        # Step 1: Try Docling first (fast, free)
+        logger.info(f"[SmartOCR] Starting auto-detection for: {file_path}")
+        docling_parser = DoclingParser()
+
+        try:
+            result = await docling_parser.parse(file_path)
+        except Exception as e:
+            logger.warning(f"[SmartOCR] Docling parsing failed: {e}")
+            # If Docling fails completely, try Gemini if available
+            if _is_pdf_format(mime_type, extension) and settings.google_api_key:
+                logger.info("[SmartOCR] Falling back to Gemini OCR due to Docling failure")
+                gemini_parser = _get_gemini_parser()
+                return await gemini_parser.parse(file_path)
+            raise
+
+        # Step 2: For PDFs, check if it's scanned and needs OCR
+        if _is_pdf_format(mime_type, extension):
+            needs_ocr = is_scanned_pdf(
+                result,
+                min_chars_per_page=settings.ocr_min_chars_per_page,
+                max_garbage_ratio=settings.ocr_max_garbage_ratio,
+            )
+
+            if needs_ocr:
+                if not settings.google_api_key:
+                    logger.warning(
+                        "[SmartOCR] Scanned PDF detected but GOOGLE_API_KEY not set. "
+                        "Using Docling result (may be low quality)."
+                    )
+                    return result
+
+                logger.info("[SmartOCR] Scanned PDF detected, switching to Gemini OCR")
+                gemini_parser = _get_gemini_parser()
+                result = await gemini_parser.parse(file_path)
+                logger.info("[SmartOCR] Gemini OCR completed successfully")
+
+        return result
 
     @staticmethod
     def is_supported(mime_type: Optional[str] = None, extension: Optional[str] = None) -> bool:

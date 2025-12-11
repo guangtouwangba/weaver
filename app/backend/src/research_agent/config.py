@@ -100,8 +100,12 @@ class Settings(BaseSettings):
     google_api_key: str = ""
 
     # OCR Provider Configuration
-    ocr_provider: str = "docling"  # docling | gemini
+    ocr_mode: str = "auto"  # auto | docling | gemini
     gemini_ocr_concurrency: int = 5  # Number of parallel Gemini API calls for OCR
+
+    # Smart OCR Detection Thresholds (for auto mode)
+    ocr_min_chars_per_page: int = 100  # Minimum characters per page to consider as text PDF
+    ocr_max_garbage_ratio: float = 0.3  # Maximum ratio of garbage characters before triggering OCR
 
     # Storage
     upload_dir: str = "./data/uploads"
