@@ -3,9 +3,12 @@
 This module provides a factory for creating document parsers based on MIME type
 or file extension. New parsers can be registered to extend format support.
 
+Default parsers:
+- PDF: PyMuPDF (lightweight, no system deps)
+- DOCX/PPTX: Unstructured (no [pdf] extra to avoid cv2/libGL)
+
 The factory supports multiple OCR modes via the `ocr_mode` setting:
-- "auto": Smart mode - uses Unstructured first, auto-switches to Gemini OCR for scanned PDFs
-- "unstructured": Uses Unstructured for document parsing (default, lightweight)
+- "auto": Smart mode - uses PyMuPDF first, auto-switches to Gemini OCR for scanned PDFs
 - "docling": Uses Docling for document parsing (requires PyTorch, optional install)
 - "gemini": Always uses Google Gemini Vision for PDF OCR
 """
@@ -17,6 +20,7 @@ from research_agent.infrastructure.parser.base import (
     DocumentParser,
     DocumentParsingError,
 )
+from research_agent.infrastructure.parser.pymupdf_parser import PyMuPDFDocumentParser
 from research_agent.infrastructure.parser.unstructured_parser import UnstructuredParser
 from research_agent.shared.utils.logger import logger
 
@@ -185,9 +189,11 @@ _registry = ParserRegistry()
 
 def _initialize_default_parsers():
     """Register default parsers."""
-    # Register Unstructured parser for PDF/Word/PPT (lightweight, no PyTorch)
+    # Register PyMuPDF for PDF (lightweight, no system deps like libGL)
+    _registry.register(PyMuPDFDocumentParser)
+    # Register Unstructured for Word/PPT (no [pdf] extra to avoid cv2/libGL)
     _registry.register(UnstructuredParser)
-    logger.info("Default document parsers registered (Unstructured)")
+    logger.info("Default document parsers registered (PyMuPDF for PDF, Unstructured for DOCX/PPTX)")
 
 
 # Initialize on module load
@@ -279,24 +285,33 @@ class ParserFactory:
         from research_agent.infrastructure.parser.utils import is_scanned_pdf
 
         settings = get_settings()
+        is_pdf = _is_pdf_format(mime_type, extension)
 
-        # Step 1: Try Unstructured first (fast, lightweight)
         logger.info(f"[SmartOCR] Starting auto-detection for: {file_path}")
-        default_parser = UnstructuredParser()
+
+        # Step 1: Choose parser based on file type
+        # - PDF: Use PyMuPDF (lightweight, no system deps)
+        # - DOCX/PPTX: Use Unstructured
+        if is_pdf:
+            default_parser = PyMuPDFDocumentParser()
+            logger.debug("[SmartOCR] Using PyMuPDF for PDF")
+        else:
+            default_parser = UnstructuredParser()
+            logger.debug("[SmartOCR] Using Unstructured for non-PDF")
 
         try:
             result = await default_parser.parse(file_path)
         except Exception as e:
-            logger.warning(f"[SmartOCR] Unstructured parsing failed: {e}")
-            # If Unstructured fails completely, try Gemini if available
-            if _is_pdf_format(mime_type, extension) and settings.google_api_key:
+            logger.warning(f"[SmartOCR] Primary parser failed: {e}")
+            # If primary parser fails, try Gemini for PDFs if available
+            if is_pdf and settings.google_api_key:
                 logger.info("[SmartOCR] Falling back to Gemini OCR due to parsing failure")
                 gemini_parser = _get_gemini_parser()
                 return await gemini_parser.parse(file_path)
             raise
 
         # Step 2: For PDFs, check if it's scanned and needs OCR
-        if _is_pdf_format(mime_type, extension):
+        if is_pdf:
             needs_ocr = is_scanned_pdf(
                 result,
                 min_chars_per_page=settings.ocr_min_chars_per_page,
@@ -307,7 +322,7 @@ class ParserFactory:
                 if not settings.google_api_key:
                     logger.warning(
                         "[SmartOCR] Scanned PDF detected but GOOGLE_API_KEY not set. "
-                        "Using Unstructured result (may be low quality)."
+                        "Using PyMuPDF result (may be low quality)."
                     )
                     return result
 

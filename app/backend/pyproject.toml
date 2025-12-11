@@ -28,9 +28,9 @@ dependencies = [
     "langchain-community>=0.3.0",
     "langchain-text-splitters>=0.3.0",
     
-    # Document Processing (lightweight - no PyTorch)
-    "unstructured[pdf]>=0.16.0",  # Default parser for PDF/DOCX/PPTX (lightweight)
-    "pymupdf>=1.24.0",  # Legacy PDF parser (lightweight, ~30MB, used by old upload API)
+    # Document Processing (lightweight - no PyTorch, no system deps)
+    "unstructured>=0.16.0",  # For DOCX/PPTX parsing (no [pdf] extra to avoid cv2/libGL)
+    "pymupdf>=1.24.0",  # PDF parser (lightweight, ~30MB, no system deps)
     
     # Utilities
     "httpx[socks]>=0.28.0",  # 包含 SOCKS 代理支持

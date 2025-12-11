@@ -1,7 +1,7 @@
 """Unstructured-based document parser implementation.
 
-This parser uses the Unstructured library to process PDF, Word, and PowerPoint files.
-It's a lightweight alternative to Docling that doesn't require PyTorch.
+This parser uses the Unstructured library to process Word and PowerPoint files.
+PDF is NOT supported here - use PyMuPDF for PDF to avoid libGL/cv2 dependencies.
 """
 
 import asyncio
@@ -20,32 +20,30 @@ from research_agent.shared.utils.logger import logger
 
 class UnstructuredParser(DocumentParser):
     """
-    Unstructured-based document parser supporting PDF, DOCX, and PPTX files.
+    Unstructured-based document parser supporting DOCX and PPTX files.
 
-    This is a lightweight parser that doesn't require PyTorch or other heavy
-    ML dependencies. Good for fast document processing.
+    NOTE: PDF is NOT supported - use PyMuPDFDocumentParser for PDF
+    to avoid libGL/cv2 system dependencies.
 
     Features:
-    - Fast PDF text extraction
     - Word and PowerPoint support
     - Table extraction (basic)
     - No PyTorch dependency
+    - No system deps (no libGL)
     """
 
-    # MIME types this parser supports
+    # MIME types this parser supports (NO PDF - use PyMuPDF for PDF to avoid libGL dependency)
     SUPPORTED_MIME_TYPES = [
-        "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # DOCX
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # PPTX
         "application/msword",  # DOC (legacy)
         "application/vnd.ms-powerpoint",  # PPT (legacy)
     ]
 
-    SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".pptx", ".doc", ".ppt"]
+    SUPPORTED_EXTENSIONS = [".docx", ".pptx", ".doc", ".ppt"]
 
     # Map MIME types to DocumentType
     MIME_TO_DOCTYPE = {
-        "application/pdf": DocumentType.PDF,
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": DocumentType.DOCX,
         "application/vnd.openxmlformats-officedocument.presentationml.presentation": DocumentType.PPTX,
         "application/msword": DocumentType.DOCX,
@@ -57,13 +55,12 @@ class UnstructuredParser(DocumentParser):
         self._partition_func = None
 
     def _get_partition_func(self, file_extension: str):
-        """Get the appropriate partition function for the file type."""
-        try:
-            if file_extension in [".pdf"]:
-                from unstructured.partition.pdf import partition_pdf
+        """Get the appropriate partition function for the file type.
 
-                return partition_pdf
-            elif file_extension in [".docx", ".doc"]:
+        Note: PDF is NOT supported here - use PyMuPDF for PDF to avoid libGL dependency.
+        """
+        try:
+            if file_extension in [".docx", ".doc"]:
                 from unstructured.partition.docx import partition_docx
 
                 return partition_docx
@@ -79,7 +76,7 @@ class UnstructuredParser(DocumentParser):
         except ImportError as e:
             raise DocumentParsingError(
                 "Unstructured library not installed. Please install it with: "
-                "pip install 'unstructured[pdf]'",
+                "pip install unstructured",
                 cause=e,
             )
 
