@@ -4,12 +4,14 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.domain.entities.canvas import Canvas
 from research_agent.domain.repositories.canvas_repo import CanvasRepository
 from research_agent.infrastructure.database.models import CanvasModel
 from research_agent.shared.exceptions import ConflictError
+from research_agent.shared.utils.logger import logger
 
 
 class SQLAlchemyCanvasRepository(CanvasRepository):
@@ -49,14 +51,30 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         self, canvas: Canvas, expected_version: Optional[int] = None
     ) -> Canvas:
         """Save canvas data with version check (optimistic locking)."""
-        # Use SELECT FOR UPDATE to lock the row
+        # Use SELECT FOR UPDATE NOWAIT to lock the row without waiting
+        # NOWAIT will raise an error immediately if the row is already locked,
+        # instead of waiting indefinitely (which could cause 30+ second delays)
         stmt = (
             select(CanvasModel)
             .where(CanvasModel.project_id == canvas.project_id)
-            .with_for_update()
+            .with_for_update(nowait=True)
         )
-        result = await self._session.execute(stmt)
-        existing = result.scalar_one_or_none()
+        try:
+            result = await self._session.execute(stmt)
+            existing = result.scalar_one_or_none()
+        except OperationalError as e:
+            # PostgreSQL error code 55P03: lock_not_available
+            if "could not obtain lock" in str(e) or "55P03" in str(e):
+                logger.warning(
+                    f"[Canvas] Lock conflict for project {canvas.project_id}, "
+                    "another transaction is modifying this canvas"
+                )
+                raise ConflictError(
+                    "Canvas",
+                    str(canvas.project_id),
+                    "Canvas is being modified by another request, please retry",
+                )
+            raise
 
         if existing:
             # Check version if provided
@@ -119,4 +137,3 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
             return True
 
         return False
-
