@@ -15,6 +15,7 @@ from research_agent.domain.entities.chat import ChatMessage
 from research_agent.infrastructure.database.repositories.sqlalchemy_chat_repo import (
     SQLAlchemyChatRepository,
 )
+from research_agent.infrastructure.database.session import get_async_session
 from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.infrastructure.evaluation.evaluation_logger import EvaluationLogger
 from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
@@ -94,10 +95,8 @@ class StreamMessageUseCase:
 
         if self._evaluation_enabled:
             logger.info(
-                "[Auto-Eval] Evaluation enabled with sample rate: {settings.evaluation_sample_rate}"
+                f"[Auto-Eval] Evaluation enabled with sample rate: {settings.evaluation_sample_rate}"
             )
-            # Initialize Ragas service (will be created per request to use same LLM)
-            self._evaluation_logger = EvaluationLogger(session)
 
     async def execute(self, input: StreamMessageInput) -> AsyncIterator[StreamEvent]:
         """Execute the use case with streaming using LangGraph."""
@@ -319,6 +318,7 @@ class StreamMessageUseCase:
         Auto-evaluate RAG quality in background.
 
         This runs asynchronously and doesn't block the user response.
+        Uses its own database session to avoid connection leak issues.
         """
         try:
             logger.info(f"[Auto-Eval] Starting evaluation for: {question[:50]}...")
@@ -339,21 +339,24 @@ class StreamMessageUseCase:
             if metrics:
                 logger.info(f"[Auto-Eval] Metrics: {metrics}")
 
-                # Log to database and Loki
-                await self._evaluation_logger.log_evaluation(
-                    question=question,
-                    answer=answer,
-                    contexts=contexts,
-                    metrics=metrics,
-                    project_id=project_id,
-                    chunking_strategy=chunking_strategy,
-                    retrieval_mode=retrieval_mode,
-                    evaluation_type="realtime",
-                )
+                # Log to database and Loki using a NEW session
+                # (the request session may be closed by the time this background task runs)
+                async with get_async_session() as eval_session:
+                    evaluation_logger = EvaluationLogger(eval_session)
+                    await evaluation_logger.log_evaluation(
+                        question=question,
+                        answer=answer,
+                        contexts=contexts,
+                        metrics=metrics,
+                        project_id=project_id,
+                        chunking_strategy=chunking_strategy,
+                        retrieval_mode=retrieval_mode,
+                        evaluation_type="realtime",
+                    )
 
-                logger.info(f"[Auto-Eval] Evaluation logged successfully")
+                logger.info("[Auto-Eval] Evaluation logged successfully")
             else:
-                logger.warning(f"[Auto-Eval] No metrics returned")
+                logger.warning("[Auto-Eval] No metrics returned")
 
         except Exception as e:
             logger.error(f"[Auto-Eval] Failed: {e}", exc_info=True)
@@ -420,28 +423,32 @@ class StreamMessageUseCase:
         This runs asynchronously and doesn't block the user response.
         Enables long-term episodic memory - the system can recall similar
         past discussions when handling new queries.
+        Uses its own database session to avoid connection leak issues.
         """
         try:
             from research_agent.domain.services.memory_service import MemoryService
 
             logger.info(f"[Memory] Storing memory for: {question[:50]}...")
 
-            memory_service = MemoryService(
-                session=self._session,
-                embedding_service=self._embedding_service,
-            )
+            # Use a NEW session for background task
+            # (the request session may be closed by the time this runs)
+            async with get_async_session() as memory_session:
+                memory_service = MemoryService(
+                    session=memory_session,
+                    embedding_service=self._embedding_service,
+                )
 
-            await memory_service.store_memory(
-                project_id=project_id,
-                question=question,
-                answer=answer,
-                metadata={
-                    "source": "chat",
-                    "model": self._model,
-                },
-            )
+                await memory_service.store_memory(
+                    project_id=project_id,
+                    question=question,
+                    answer=answer,
+                    metadata={
+                        "source": "chat",
+                        "model": self._model,
+                    },
+                )
 
-            logger.info(f"[Memory] Memory stored successfully")
+            logger.info("[Memory] Memory stored successfully")
 
         except Exception as e:
             logger.error(f"[Memory] Failed to store memory: {e}", exc_info=True)
