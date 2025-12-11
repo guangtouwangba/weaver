@@ -41,7 +41,7 @@ def _get_gemini_parser() -> DocumentParser:
 
 def _get_docling_parser() -> DocumentParser:
     """Get or create a DoclingParser instance (lazy loading).
-    
+
     Note: Docling requires PyTorch and is ~2-5GB. Only use if explicitly configured.
     """
     global _docling_parser_instance

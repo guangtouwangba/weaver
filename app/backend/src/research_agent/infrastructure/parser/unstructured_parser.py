@@ -61,16 +61,20 @@ class UnstructuredParser(DocumentParser):
         try:
             if file_extension in [".pdf"]:
                 from unstructured.partition.pdf import partition_pdf
+
                 return partition_pdf
             elif file_extension in [".docx", ".doc"]:
                 from unstructured.partition.docx import partition_docx
+
                 return partition_docx
             elif file_extension in [".pptx", ".ppt"]:
                 from unstructured.partition.pptx import partition_pptx
+
                 return partition_pptx
             else:
                 # Generic partition for unknown types
                 from unstructured.partition.auto import partition
+
                 return partition
         except ImportError as e:
             raise DocumentParsingError(
