@@ -59,6 +59,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Start script: run migrations then start server
 COPY scripts/start-prod.sh /app/start-prod.sh
+COPY scripts/fix-migration-auto.py /app/fix-migration-auto.py
 RUN chmod +x /app/start-prod.sh
 
 CMD ["/app/start-prod.sh"]

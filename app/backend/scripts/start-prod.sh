@@ -66,8 +66,9 @@ else
                     fi
                 else
                     echo "⚠️  Auto-fix script failed, trying fallback method..."
-                    # Fallback: try to get last revision from alembic history
-                    LAST_REVISION=$(alembic history 2>/dev/null | grep -E "^[0-9]+_[0-9]+" | tail -1 | awk '{print $1}' || echo "")
+                    # Fallback: try to get head revision from alembic history
+                    # Note: alembic history outputs from head to base, so head -1 gets the newest
+                    LAST_REVISION=$(alembic history 2>/dev/null | grep -E "^[0-9]+_[0-9]+" | head -1 | awk '{print $1}' || echo "")
                     
                     if [ -n "$LAST_REVISION" ]; then
                         echo "   Found last available revision: $LAST_REVISION"
@@ -84,7 +85,8 @@ else
             else
                 echo "⚠️  Auto-fix script not found: $FIX_SCRIPT"
                 echo "   Trying fallback method..."
-                LAST_REVISION=$(alembic history 2>/dev/null | grep -E "^[0-9]+_[0-9]+" | tail -1 | awk '{print $1}' || echo "")
+                # Note: alembic history outputs from head to base, so head -1 gets the newest
+                LAST_REVISION=$(alembic history 2>/dev/null | grep -E "^[0-9]+_[0-9]+" | head -1 | awk '{print $1}' || echo "")
                 
                 if [ -n "$LAST_REVISION" ]; then
                     echo "   Found last available revision: $LAST_REVISION"
