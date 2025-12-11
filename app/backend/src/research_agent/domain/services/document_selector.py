@@ -122,17 +122,10 @@ class DocumentSelectorService:
 
         # Select documents up to max_tokens
         selected_docs = []
+        small_docs = []  # Documents below min_tokens threshold
         total_tokens = 0
 
         for doc, similarity, token_count in doc_scores:
-            # Skip documents that are too small (use traditional mode for them)
-            if token_count < min_tokens:
-                logger.debug(
-                    f"[DocumentSelector] Skipping document {doc.id} "
-                    f"(too small: {token_count} < {min_tokens})"
-                )
-                continue
-
             # Check if adding this document would exceed max_tokens
             if total_tokens + token_count > max_tokens:
                 logger.debug(
@@ -141,13 +134,29 @@ class DocumentSelectorService:
                 )
                 break
 
+            # Track small documents separately
+            if token_count < min_tokens:
+                small_docs.append((doc, token_count))
+                logger.debug(
+                    f"[DocumentSelector] Document {doc.id} is small "
+                    f"({token_count} < {min_tokens} tokens)"
+                )
+            
+            # Always include documents if they fit
             selected_docs.append(doc)
             total_tokens += token_count
 
         # Determine strategy
+        # Key fix: If ALL documents are small but we have documents, still use long_context
+        # This ensures small documents can still be queried effectively
         if not selected_docs:
             strategy = "traditional"
-            reason = "No suitable documents for long context mode"
+            reason = "No documents available"
+        elif len(small_docs) == len(selected_docs):
+            # All selected docs are small - still use long_context for them
+            # because traditional mode may not have embeddings (fast_upload_mode)
+            strategy = "long_context"
+            reason = f"All {len(selected_docs)} documents are small ({total_tokens} tokens) but using long context for reliability"
         elif len(selected_docs) == len(documents):
             strategy = "long_context"
             reason = f"All {len(documents)} documents fit in context ({total_tokens} tokens)"
