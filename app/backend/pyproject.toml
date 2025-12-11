@@ -28,9 +28,8 @@ dependencies = [
     "langchain-community>=0.3.0",
     "langchain-text-splitters>=0.3.0",
     
-    # Document Processing
-    "pymupdf>=1.24.0",  # Legacy PDF parser (kept for fallback)
-    "docling>=2.0.0",   # Multi-format parser with OCR (PDF/Word/PPT)
+    # Document Processing (lightweight - no PyTorch)
+    "unstructured[pdf]>=0.16.0",  # Default parser for PDF/DOCX/PPTX (lightweight)
     
     # Utilities
     "httpx[socks]>=0.28.0",  # 包含 SOCKS 代理支持
@@ -52,6 +51,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Heavy OCR dependencies (includes PyTorch ~2-5GB) - only install if needed
+ocr = [
+    "docling>=2.0.0",   # Multi-format parser with OCR (PDF/Word/PPT) - requires PyTorch
+]
+# Gemini Vision OCR (lightweight alternative to docling)
+gemini = [
+    "google-generativeai>=0.8.0",  # Gemini API for Vision OCR
+    "pdf2image>=1.17.0",           # PDF to image conversion for Gemini
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",

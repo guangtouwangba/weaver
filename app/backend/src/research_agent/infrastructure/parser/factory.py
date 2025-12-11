@@ -3,9 +3,10 @@
 This module provides a factory for creating document parsers based on MIME type
 or file extension. New parsers can be registered to extend format support.
 
-The factory supports three OCR modes via the `ocr_mode` setting:
-- "auto": Smart mode - uses Docling first, auto-switches to Gemini OCR for scanned PDFs
-- "docling": Uses Docling for document parsing (text extraction)
+The factory supports multiple OCR modes via the `ocr_mode` setting:
+- "auto": Smart mode - uses Unstructured first, auto-switches to Gemini OCR for scanned PDFs
+- "unstructured": Uses Unstructured for document parsing (default, lightweight)
+- "docling": Uses Docling for document parsing (requires PyTorch, optional install)
 - "gemini": Always uses Google Gemini Vision for PDF OCR
 """
 
@@ -16,14 +17,15 @@ from research_agent.infrastructure.parser.base import (
     DocumentParser,
     DocumentParsingError,
 )
-from research_agent.infrastructure.parser.docling_parser import DoclingParser
+from research_agent.infrastructure.parser.unstructured_parser import UnstructuredParser
 from research_agent.shared.utils.logger import logger
 
 if TYPE_CHECKING:
     from research_agent.infrastructure.parser.base import ParseResult
 
-# Lazy import for GeminiParser to avoid loading google-generativeai if not needed
+# Lazy imports for optional parsers to avoid loading heavy dependencies
 _gemini_parser_instance: Optional[DocumentParser] = None
+_docling_parser_instance: Optional[DocumentParser] = None
 
 
 def _get_gemini_parser() -> DocumentParser:
@@ -35,6 +37,26 @@ def _get_gemini_parser() -> DocumentParser:
         _gemini_parser_instance = GeminiParser()
         logger.info("GeminiParser initialized for OCR")
     return _gemini_parser_instance
+
+
+def _get_docling_parser() -> DocumentParser:
+    """Get or create a DoclingParser instance (lazy loading).
+    
+    Note: Docling requires PyTorch and is ~2-5GB. Only use if explicitly configured.
+    """
+    global _docling_parser_instance
+    if _docling_parser_instance is None:
+        try:
+            from research_agent.infrastructure.parser.docling_parser import DoclingParser
+
+            _docling_parser_instance = DoclingParser()
+            logger.info("DoclingParser initialized (with PyTorch)")
+        except ImportError as e:
+            raise DocumentParsingError(
+                "Docling not installed. Install with: pip install 'research-agent-rag[ocr]'",
+                cause=e,
+            )
+    return _docling_parser_instance
 
 
 def _is_pdf_format(mime_type: Optional[str], extension: Optional[str]) -> bool:
@@ -163,9 +185,9 @@ _registry = ParserRegistry()
 
 def _initialize_default_parsers():
     """Register default parsers."""
-    # Register Docling parser for PDF/Word/PPT
-    _registry.register(DoclingParser)
-    logger.info("Default document parsers registered")
+    # Register Unstructured parser for PDF/Word/PPT (lightweight, no PyTorch)
+    _registry.register(UnstructuredParser)
+    logger.info("Default document parsers registered (Unstructured)")
 
 
 # Initialize on module load
@@ -188,7 +210,8 @@ class ParserFactory:
 
         The parser selection considers the `ocr_mode` setting:
         - If ocr_mode is "gemini" and format is PDF, returns GeminiParser.
-        - Otherwise, returns the default parser from the registry (Docling).
+        - If ocr_mode is "docling", returns DoclingParser (requires PyTorch).
+        - Otherwise, returns the default parser from the registry (Unstructured).
 
         Note: For "auto" mode, use `parse_with_auto_ocr()` instead.
 
@@ -209,13 +232,18 @@ class ParserFactory:
             if not settings.google_api_key:
                 logger.warning(
                     "ocr_mode is 'gemini' but GOOGLE_API_KEY is not set. "
-                    "Falling back to Docling parser."
+                    "Falling back to default parser."
                 )
             else:
                 logger.debug("Using GeminiParser for PDF OCR")
                 return _get_gemini_parser()
 
-        # Use default registry-based parser
+        # Check if we should use Docling (heavy, with PyTorch)
+        if settings.ocr_mode == "docling":
+            logger.debug("Using DoclingParser (with PyTorch)")
+            return _get_docling_parser()
+
+        # Use default registry-based parser (Unstructured - lightweight)
         parser = _registry.get_parser(mime_type, extension)
         if parser is None:
             raise DocumentParsingError(
@@ -233,9 +261,9 @@ class ParserFactory:
         """
         Smart parsing with automatic OCR fallback for scanned PDFs.
 
-        This method first attempts to parse with Docling. If the result
-        indicates a scanned PDF (too few characters or too much garbage),
-        it automatically retries with Gemini Vision OCR.
+        This method first attempts to parse with Unstructured (lightweight).
+        If the result indicates a scanned PDF (too few characters or too much
+        garbage), it automatically retries with Gemini Vision OCR.
 
         Args:
             file_path: Path to the document file.
@@ -252,17 +280,17 @@ class ParserFactory:
 
         settings = get_settings()
 
-        # Step 1: Try Docling first (fast, free)
+        # Step 1: Try Unstructured first (fast, lightweight)
         logger.info(f"[SmartOCR] Starting auto-detection for: {file_path}")
-        docling_parser = DoclingParser()
+        default_parser = UnstructuredParser()
 
         try:
-            result = await docling_parser.parse(file_path)
+            result = await default_parser.parse(file_path)
         except Exception as e:
-            logger.warning(f"[SmartOCR] Docling parsing failed: {e}")
-            # If Docling fails completely, try Gemini if available
+            logger.warning(f"[SmartOCR] Unstructured parsing failed: {e}")
+            # If Unstructured fails completely, try Gemini if available
             if _is_pdf_format(mime_type, extension) and settings.google_api_key:
-                logger.info("[SmartOCR] Falling back to Gemini OCR due to Docling failure")
+                logger.info("[SmartOCR] Falling back to Gemini OCR due to parsing failure")
                 gemini_parser = _get_gemini_parser()
                 return await gemini_parser.parse(file_path)
             raise
@@ -279,7 +307,7 @@ class ParserFactory:
                 if not settings.google_api_key:
                     logger.warning(
                         "[SmartOCR] Scanned PDF detected but GOOGLE_API_KEY not set. "
-                        "Using Docling result (may be low quality)."
+                        "Using Unstructured result (may be low quality)."
                     )
                     return result
 

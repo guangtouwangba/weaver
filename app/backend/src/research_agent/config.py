@@ -100,7 +100,11 @@ class Settings(BaseSettings):
     google_api_key: str = ""
 
     # OCR Provider Configuration
-    ocr_mode: str = "auto"  # auto | docling | gemini
+    # auto: Unstructured first, auto-switch to Gemini for scanned PDFs
+    # unstructured: Lightweight parser (default, no PyTorch)
+    # docling: Heavy parser with PyTorch (optional install)
+    # gemini: Google Gemini Vision OCR
+    ocr_mode: str = "auto"  # auto | unstructured | docling | gemini
     gemini_ocr_concurrency: int = 5  # Number of parallel Gemini API calls for OCR
 
     # Smart OCR Detection Thresholds (for auto mode)
