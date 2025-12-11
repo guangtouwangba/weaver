@@ -50,130 +50,228 @@ import {
   List as ListIcon,
   History,
 } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { useStudio } from '@/contexts/StudioContext';
 import { chatApi, Citation, ChatSession } from '@/lib/api';
 
-// Helper function to parse XML cite tags and render with clickable citations
-function renderContentWithCitations(
-  content: string,
-  citations: Citation[] | undefined,
-  onCitationClick: (citation: Citation) => void
-): React.ReactNode {
-  // If no content, return empty
-  if (!content) return null;
-
-  // Clean up any residual XML document tags and metadata
-  let cleanedContent = content
+// Helper function to clean up content before rendering
+function cleanContent(content: string): string {
+  if (!content) return '';
+  return content
     .replace(/<document[^>]*>/g, '')
     .replace(/<\/document>/g, '')
     .replace(/document id:\s*[a-f0-9-]+/gi, '');
+}
 
-  // Pattern to match <cite doc_id="doc_XX" quote="...">conclusion</cite>
-  const citePattern = /<cite\s+doc_id="(doc_\d+)"\s+quote="([^"]+)">([^<]+)<\/cite>/g;
+// Citation component for use with ReactMarkdown
+interface CitationRendererProps {
+  docId: string;
+  quote: string;
+  children: React.ReactNode;
+  citations: Citation[] | undefined;
+  onCitationClick: (citation: Citation) => void;
+}
+
+function CitationRenderer({ docId, quote, children, citations, onCitationClick }: CitationRendererProps) {
+  const citationData = citations?.find(c => c.doc_id === docId && c.quote === quote);
   
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
-  let keyIndex = 0;
-
-  while ((match = citePattern.exec(cleanedContent)) !== null) {
-    // Add text before the citation
-    if (match.index > lastIndex) {
-      parts.push(
-        <span key={`text-${keyIndex++}`}>
-          {cleanedContent.slice(lastIndex, match.index)}
-        </span>
-      );
-    }
-
-    const docId = match[1];  // doc_01
-    const quote = match[2];  // Original quote
-    const conclusion = match[3];  // LLM conclusion
-
-    // Find the matching citation with location info
-    const citationData = citations?.find(c => c.doc_id === docId && c.quote === quote);
-
-    // Render as clickable and draggable citation
-    parts.push(
-      <Tooltip 
-        key={`cite-${keyIndex++}`}
-        title={
-          <Box sx={{ maxWidth: 300 }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-              Source: {citationData?.filename || docId}
-              {citationData?.page_number && ` (Page ${citationData.page_number})`}
-            </Typography>
-            <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block' }}>
-              "{quote.length > 100 ? quote.slice(0, 100) + '...' : quote}"
-            </Typography>
-          </Box>
-        }
-      >
-        <Box
-          component="span"
-          draggable
-          onDragStart={(e) => {
-            // Build drag payload with citation data
-            const payload = {
-              sourceType: 'citation',
-              content: `"${quote}"`,
-              sourceTitle: citationData?.filename || docId,
-              sourceId: citationData?.document_id,
-              pageNumber: citationData?.page_number,
-              tags: ['#citation']
-            };
-            
-            e.dataTransfer.effectAllowed = 'copy';
-            e.dataTransfer.setData('application/json', JSON.stringify(payload));
-            e.dataTransfer.setData('text/plain', quote);
-            
-            // Prevent triggering parent message drag
-            e.stopPropagation();
-          }}
-          onClick={() => {
-            if (citationData) {
-              onCitationClick(citationData);
-            }
-          }}
-          sx={{
-            color: 'primary.main',
-            cursor: 'grab',
-            textDecoration: 'underline',
-            textDecorationStyle: 'dotted',
-            textUnderlineOffset: '2px',
-            '&:hover': {
-              color: 'primary.dark',
-              bgcolor: 'primary.50',
-              borderRadius: '2px',
-            },
-            '&:active': {
-              cursor: 'grabbing',
-            },
-          }}
-        >
-          {conclusion}
+  return (
+    <Tooltip 
+      title={
+        <Box sx={{ maxWidth: 300 }}>
+          <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
+            Source: {citationData?.filename || docId}
+            {citationData?.page_number && ` (Page ${citationData.page_number})`}
+          </Typography>
+          <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block' }}>
+            &ldquo;{quote.length > 100 ? quote.slice(0, 100) + '...' : quote}&rdquo;
+          </Typography>
         </Box>
-      </Tooltip>
-    );
+      }
+    >
+      <Box
+        component="span"
+        draggable
+        onDragStart={(e) => {
+          const payload = {
+            sourceType: 'citation',
+            content: `"${quote}"`,
+            sourceTitle: citationData?.filename || docId,
+            sourceId: citationData?.document_id,
+            pageNumber: citationData?.page_number,
+            tags: ['#citation']
+          };
+          
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData('application/json', JSON.stringify(payload));
+          e.dataTransfer.setData('text/plain', quote);
+          e.stopPropagation();
+        }}
+        onClick={() => {
+          if (citationData) {
+            onCitationClick(citationData);
+          }
+        }}
+        sx={{
+          color: 'primary.main',
+          cursor: 'grab',
+          textDecoration: 'underline',
+          textDecorationStyle: 'dotted',
+          textUnderlineOffset: '2px',
+          '&:hover': {
+            color: 'primary.dark',
+            bgcolor: 'primary.50',
+            borderRadius: '2px',
+          },
+          '&:active': {
+            cursor: 'grabbing',
+          },
+        }}
+      >
+        {children}
+      </Box>
+    </Tooltip>
+  );
+}
 
-    lastIndex = match.index + match[0].length;
-  }
+// Markdown content renderer with citation support
+interface MarkdownContentProps {
+  content: string;
+  citations?: Citation[];
+  onCitationClick: (citation: Citation) => void;
+}
 
-  // Add remaining text
-  if (lastIndex < cleanedContent.length) {
-    parts.push(
-      <span key={`text-${keyIndex++}`}>
-        {cleanedContent.slice(lastIndex)}
-      </span>
-    );
-  }
-
-  // If no citations found, return cleaned content
-  if (parts.length === 0) {
-    return cleanedContent;
-  }
-
-  return <>{parts}</>;
+function MarkdownContent({ content, citations, onCitationClick }: MarkdownContentProps) {
+  const cleaned = cleanContent(content);
+  
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw]}
+      components={{
+        // Custom citation renderer
+        cite: ({ node, ...props }) => {
+          const docId = (node?.properties?.docId as string) || (node?.properties?.doc_id as string) || '';
+          const quote = (node?.properties?.quote as string) || '';
+          return (
+            <CitationRenderer
+              docId={docId}
+              quote={quote}
+              citations={citations}
+              onCitationClick={onCitationClick}
+            >
+              {props.children}
+            </CitationRenderer>
+          );
+        },
+        // Style paragraphs
+        p: ({ children }) => (
+          <Typography variant="body2" component="p" sx={{ mb: 1, '&:last-child': { mb: 0 } }}>
+            {children}
+          </Typography>
+        ),
+        // Style lists
+        ul: ({ children }) => (
+          <Box component="ul" sx={{ pl: 2, mb: 1, '& li': { mb: 0.5 } }}>
+            {children}
+          </Box>
+        ),
+        ol: ({ children }) => (
+          <Box component="ol" sx={{ pl: 2, mb: 1, '& li': { mb: 0.5 } }}>
+            {children}
+          </Box>
+        ),
+        li: ({ children }) => (
+          <Typography variant="body2" component="li">
+            {children}
+          </Typography>
+        ),
+        // Style code blocks
+        code: ({ className, children, ...props }) => {
+          const isInline = !className;
+          if (isInline) {
+            return (
+              <Box
+                component="code"
+                sx={{
+                  bgcolor: 'grey.100',
+                  px: 0.5,
+                  py: 0.25,
+                  borderRadius: 0.5,
+                  fontSize: '0.85em',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {children}
+              </Box>
+            );
+          }
+          return (
+            <Box
+              component="pre"
+              sx={{
+                bgcolor: 'grey.100',
+                p: 1.5,
+                borderRadius: 1,
+                overflow: 'auto',
+                fontSize: '0.85em',
+                fontFamily: 'monospace',
+                mb: 1,
+              }}
+            >
+              <code className={className} {...props}>
+                {children}
+              </code>
+            </Box>
+          );
+        },
+        // Style headings
+        h1: ({ children }) => <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>{children}</Typography>,
+        h2: ({ children }) => <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{children}</Typography>,
+        h3: ({ children }) => <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>{children}</Typography>,
+        // Style blockquotes
+        blockquote: ({ children }) => (
+          <Box
+            sx={{
+              borderLeft: '3px solid',
+              borderColor: 'grey.300',
+              pl: 2,
+              py: 0.5,
+              my: 1,
+              color: 'text.secondary',
+              fontStyle: 'italic',
+            }}
+          >
+            {children}
+          </Box>
+        ),
+        // Style strong/bold
+        strong: ({ children }) => <strong>{children}</strong>,
+        // Style emphasis/italic
+        em: ({ children }) => <em>{children}</em>,
+        // Style links
+        a: ({ href, children }) => (
+          <Box
+            component="a"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              color: 'primary.main',
+              textDecoration: 'underline',
+              '&:hover': { color: 'primary.dark' },
+            }}
+          >
+            {children}
+          </Box>
+        ),
+      }}
+    >
+      {cleaned}
+    </ReactMarkdown>
+  );
 }
 
 interface AssistantPanelProps {
@@ -756,26 +854,31 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                           </Typography>
                         </Box>
                       ) : (
-                        <Typography variant="body2" component="div" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, minHeight: '1.5em' }}>
+                        <Box sx={{ lineHeight: 1.6, minHeight: '1.5em', '& > *:first-of-type': { mt: 0 } }}>
                           {msg.role === 'ai' && msg.content 
-                            ? renderContentWithCitations(
-                                msg.content, 
-                                msg.citations,
-                                (citation) => {
+                            ? (
+                              <MarkdownContent
+                                content={msg.content}
+                                citations={msg.citations}
+                                onCitationClick={(citation) => {
                                   if (citation.document_id) {
-                                    // Use first 30 characters of quote as search text for better matching
                                     const searchText = citation.quote?.slice(0, 30) || '';
                                     navigateToSource(
                                       citation.document_id, 
-                                      citation.page_number || 1,  // Fallback to page 1 if not found
+                                      citation.page_number || 1,
                                       searchText
                                     );
                                   }
-                                }
-                              )
-                            : (msg.content || (msg.role === 'ai' ? '...' : ''))
+                                }}
+                              />
+                            )
+                            : (
+                              <Typography variant="body2" component="div" sx={{ whiteSpace: 'pre-wrap' }}>
+                                {msg.content || (msg.role === 'ai' ? '...' : '')}
+                              </Typography>
+                            )
                           }
-                        </Typography>
+                        </Box>
                       )}
                       
                       {/* Sources - Styled as small chips/cards instead of generic collapsible */}

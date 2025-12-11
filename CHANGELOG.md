@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2025-12-11
+
+#### Markdown Rendering in AI Responses
+
+**Frontend:**
+- **Markdown Support** (`components/studio/AssistantPanel.tsx`):
+  - Added `react-markdown`, `remark-gfm`, and `rehype-raw` dependencies for proper markdown rendering
+  - AI responses now render with full markdown formatting (bold, lists, headers, code blocks, blockquotes, etc.)
+  - Custom `MarkdownContent` component with MUI-styled typography
+  - `CitationRenderer` component for interactive citation tags with drag-and-drop support
+  - GitHub Flavored Markdown (GFM) support including tables and task lists
+
+**Technical Details:**
+- **Author**: aqiu
+- **Implementation**: Replaced manual regex-based citation parsing with ReactMarkdown + rehype-raw for HTML/XML tag support
+- **Scope**: AssistantPanel chat responses
+
 ### Added - 2025-12-09
 
 #### Multi-Format Document Parser Architecture
