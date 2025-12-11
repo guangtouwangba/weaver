@@ -2,8 +2,7 @@
 
 import { Box, Paper, IconButton, Tooltip } from '@mui/material';
 import { Copy, X, FileText } from 'lucide-react';
-
-export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink';
+import { HighlightColor } from './types';
 
 interface SelectionToolbarProps {
   position: { x: number; y: number };
@@ -21,7 +20,7 @@ const colorOptions: { color: HighlightColor; label: string; bgColor: string; hov
   { color: 'pink', label: '粉色高亮', bgColor: '#E91E63', hoverColor: '#C2185B' },
 ];
 
-export default function SelectionToolbar({
+export function SelectionToolbar({
   position,
   selectedText,
   onColorSelect,
@@ -161,4 +160,3 @@ export default function SelectionToolbar({
     </Paper>
   );
 }
-

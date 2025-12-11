@@ -1031,6 +1031,7 @@ def parse_xml_citations(
         doc_info = doc_contents.get(actual_doc_id, {})
         full_content = doc_info.get("full_content", "")
         page_map = doc_info.get("page_map", [])
+        filename = doc_info.get("filename", "")
 
         # Locate quote in original document
         location = locator.locate(full_content, citation.quote, page_map)
@@ -1039,11 +1040,12 @@ def parse_xml_citations(
             {
                 "doc_id": citation.doc_id,
                 "document_id": actual_doc_id,
+                "filename": filename,
                 "quote": citation.quote,
                 "conclusion": citation.conclusion,
                 "char_start": location.char_start,
                 "char_end": location.char_end,
-                "page_number": location.page_number,
+                "page_number": location.page_number if location.page_number is not None else 1,
                 "match_score": location.match_score,
                 "match_type": location.match_type,
             }
@@ -1120,6 +1122,7 @@ class StreamingCitationParser:
             doc_info = self.doc_contents.get(actual_doc_id, {})
             full_content = doc_info.get("full_content", "")
             page_map = doc_info.get("page_map", [])
+            filename = doc_info.get("filename", "")
 
             # Locate quote
             location = locator.locate(full_content, citation.quote, page_map)
@@ -1128,11 +1131,12 @@ class StreamingCitationParser:
                 {
                     "doc_id": citation.doc_id,
                     "document_id": actual_doc_id,
+                    "filename": filename,
                     "quote": citation.quote,
                     "conclusion": citation.conclusion,
                     "char_start": location.char_start,
                     "char_end": location.char_end,
-                    "page_number": location.page_number,
+                    "page_number": location.page_number if location.page_number is not None else 1,
                     "match_score": location.match_score,
                 }
             )
@@ -1671,6 +1675,7 @@ async def stream_rag_response(
                 "page_map": doc.parsing_metadata.get("page_map", [])
                 if doc.parsing_metadata
                 else [],
+                "filename": doc.filename,
             }
 
         # Choose prompt format based on citation mode

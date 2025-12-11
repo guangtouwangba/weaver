@@ -150,6 +150,24 @@ export default function CanvasPanel() {
                 });
                 return;
             }
+            
+            // Handle citation drop from AI responses
+            if (data.sourceType === 'citation' && data.content) {
+                addNodeToCanvas({
+                    type: 'card',
+                    title: data.sourceTitle || 'Citation',
+                    content: data.content,
+                    x: x - 140,
+                    y: y - 100,
+                    width: 280,
+                    height: 200,
+                    color: 'white',
+                    tags: data.tags || ['#citation'],
+                    sourceId: data.sourceId,
+                    sourcePage: data.pageNumber
+                });
+                return;
+            }
         } catch (e) {
             console.error("Failed to parse drop data", e);
         }

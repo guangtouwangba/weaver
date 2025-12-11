@@ -96,6 +96,13 @@ class Settings(BaseSettings):
     # Optional: OpenAI API key (fallback, not required if using OpenRouter)
     openai_api_key: str = ""
 
+    # Google Gemini API (for Vision OCR)
+    google_api_key: str = ""
+
+    # OCR Provider Configuration
+    ocr_provider: str = "docling"  # docling | gemini
+    gemini_ocr_concurrency: int = 5  # Number of parallel Gemini API calls for OCR
+
     # Storage
     upload_dir: str = "./data/uploads"
 

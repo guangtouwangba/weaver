@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { 
   Box, 
   Typography, 
@@ -11,11 +12,6 @@ import {
   Collapse,
   Chip,
   LinearProgress,
-  Alert,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -34,26 +30,25 @@ import {
   PanelLeftOpen,
   LayoutGrid,
   List as ListIcon,
-  Upload,
   CloudUpload,
   CheckCircle,
   AlertCircle,
   Trash2,
-  MoreVertical,
   Network,
   Share2,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument } from '@/lib/api';
 
-// PDF Viewer
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
-import PDFViewer from './PDFViewer';
+// Dynamically import PDFViewer with SSR disabled to avoid "document is not defined" error
+// from pdfjs-dist/web/pdf_viewer which accesses document at module evaluation time
+const PDFViewer = dynamic(
+  () => import('@/components/pdf/PDFViewer').then(mod => mod.PDFViewer),
+  { ssr: false }
+);
 
-// Set worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Import createDragHandler separately since it doesn't access document at module level
+import { createDragHandler } from '@/components/pdf/DragHandler';
 
 interface SourcePanelProps {
   visible: boolean;
@@ -80,8 +75,6 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   
   // Delete state
-  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [menuDocId, setMenuDocId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<ProjectDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -90,7 +83,6 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [splitRatio, setSplitRatio] = useState(0.4);
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pageRef = useRef<HTMLDivElement>(null);
 
   const activeDocument = documents.find(d => d.id === activeDocumentId);
 
@@ -109,96 +101,6 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       setPageNumber(sourceNavigation.pageNumber);
     }
   }, [sourceNavigation, activeDocumentId]);
-
-  // Highlight text in PDF when searchText is provided
-  useEffect(() => {
-    if (!sourceNavigation?.searchText || !pageRef.current || pageNumber !== sourceNavigation.pageNumber) return;
-    
-    // Wait for PDF text layer to render
-    const highlightText = () => {
-      const textLayer = pageRef.current?.querySelector('.react-pdf__Page__textContent');
-      if (!textLayer) {
-        // Retry after a short delay if text layer not ready
-        setTimeout(highlightText, 100);
-        return;
-      }
-
-      // Remove previous highlights
-      const previousHighlights = textLayer.querySelectorAll('span[data-highlighted="true"]');
-      previousHighlights.forEach(el => {
-        el.removeAttribute('data-highlighted');
-        el.style.backgroundColor = '';
-        el.style.borderRadius = '';
-        el.style.padding = '';
-      });
-
-      // Extract search text (remove quotes, ellipsis, etc.)
-      let searchText = sourceNavigation.searchText || '';
-      searchText = searchText.replace(/^["'"]+|["'"]+$/g, '').replace(/\.\.\./g, '').trim();
-      if (!searchText || searchText.length < 3) return;
-
-      // Get all text spans and build full text
-      const textSpans = Array.from(textLayer.querySelectorAll('span'));
-      const fullText = textSpans.map(span => span.textContent || '').join('');
-      const searchLower = searchText.toLowerCase();
-      const fullTextLower = fullText.toLowerCase();
-      
-      // Find position of search text in full text
-      const searchIndex = fullTextLower.indexOf(searchLower);
-      if (searchIndex === -1) {
-        // Try to find partial match (first 20 chars)
-        const partialSearch = searchText.substring(0, 20).toLowerCase();
-        const partialIndex = fullTextLower.indexOf(partialSearch);
-        if (partialIndex === -1) return;
-        
-        // Highlight spans around partial match
-        let charCount = 0;
-        textSpans.forEach(span => {
-          const spanText = span.textContent || '';
-          const spanStart = charCount;
-          const spanEnd = charCount + spanText.length;
-          
-          if (spanStart <= partialIndex + partialSearch.length && spanEnd >= partialIndex) {
-            span.setAttribute('data-highlighted', 'true');
-            span.style.backgroundColor = '#FFEB3B';
-            span.style.borderRadius = '2px';
-            span.style.padding = '1px 2px';
-          }
-          
-          charCount = spanEnd;
-        });
-      } else {
-        // Highlight spans containing the search text
-        let charCount = 0;
-        textSpans.forEach(span => {
-          const spanText = span.textContent || '';
-          const spanStart = charCount;
-          const spanEnd = charCount + spanText.length;
-          
-          if (spanStart <= searchIndex + searchText.length && spanEnd >= searchIndex) {
-            span.setAttribute('data-highlighted', 'true');
-            span.style.backgroundColor = '#FFEB3B';
-            span.style.borderRadius = '2px';
-            span.style.padding = '1px 2px';
-          }
-          
-          charCount = spanEnd;
-        });
-      }
-
-      // Scroll to first highlight if found
-      const firstHighlight = textLayer.querySelector('span[data-highlighted="true"]');
-      if (firstHighlight) {
-        setTimeout(() => {
-          firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        }, 100);
-      }
-    };
-
-    // Delay to ensure PDF is rendered
-    const timeoutId = setTimeout(highlightText, 500);
-    return () => clearTimeout(timeoutId);
-  }, [sourceNavigation, pageNumber, activeDocumentId]);
 
   // Poll for document status updates (for pending/processing documents)
   useEffect(() => {
@@ -240,14 +142,19 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       const selection = window.getSelection();
       // Only inject metadata if there is a selection and an active document
       if (selection && selection.toString() && activeDocument) {
-        const metadata = {
-            sourceId: activeDocument.id,
-            sourceType: 'pdf',
-            sourceTitle: activeDocument.filename,
-            pageNumber: pageNumber,
-            content: selection.toString()
-        };
-        e.dataTransfer?.setData('application/json', JSON.stringify(metadata));
+        // Check if the selection is inside the PDF viewer to avoid interfering with other drags
+        const isInsidePdf = (e.target as HTMLElement)?.closest('.pdf-viewer-container');
+        if (!isInsidePdf) return;
+
+        // Use custom drag handler for preview and data
+        const handler = createDragHandler(activeDocument.id, activeDocument.filename);
+        
+        // We need to cast e to any or compatible type because DragHandler expects React.DragEvent
+        // but the API it uses (dataTransfer) is the same.
+        handler.handleDragStart(e as unknown as React.DragEvent, {
+            text: selection.toString(),
+            pageNumber: pageNumber
+        });
       }
     };
 
@@ -288,7 +195,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     }
   }, [isVerticalDragging]);
 
-  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+  const onDocumentLoadSuccess = (numPages: number) => {
     setNumPages(numPages);
   };
 
@@ -370,23 +277,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     setPageNumber(prev => Math.min(prev + 1, numPages));
   };
 
-  // Menu handlers
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, docId: string) => {
-    event.stopPropagation();
-    setMenuAnchorEl(event.currentTarget);
-    setMenuDocId(docId);
-  };
-
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    setMenuDocId(null);
-  };
-
   // Delete handlers
   const handleDeleteClick = (doc: ProjectDocument) => {
     setDocToDelete(doc);
     setDeleteDialogOpen(true);
-    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {
@@ -930,26 +824,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           <Box sx={{ flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <PDFViewer
               documentId={activeDocument.id}
-              content={
-                <Box 
-                  ref={pageRef}
-                  sx={{ bgcolor: '#f5f5f5', display: 'flex', justifyContent: 'center', p: 2 }}
-                >
-                  <Document
-                    file={fileUrl}
-                    onLoadSuccess={onDocumentLoadSuccess}
-                    loading={<Typography variant="body2" sx={{ mt: 4 }}>Loading PDF...</Typography>}
-                    error={<Typography variant="body2" color="error" sx={{ mt: 4 }}>Failed to load PDF</Typography>}
-                  >
-                    <Page 
-                      pageNumber={pageNumber} 
-                      renderTextLayer={true}
-                      renderAnnotationLayer={true}
-                      width={width - 40}
-                    />
-                  </Document>
-                </Box>
-              }
+              fileUrl={fileUrl}
+              pageNumber={pageNumber}
+              onPageChange={setPageNumber}
+              onDocumentLoad={onDocumentLoadSuccess}
+              highlightText={sourceNavigation?.searchText}
             />
           </Box>
         </Box>

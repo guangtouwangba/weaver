@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool, Pool
+from sqlalchemy.pool import AsyncAdaptedQueuePool, Pool
 
 from research_agent.config import get_settings
 from research_agent.shared.utils.logger import logger
@@ -161,10 +161,20 @@ engine_kwargs: dict = {
     "connect_args": connect_args,
 }
 
-# ✅ CRITICAL FIX: Always use NullPool to avoid connection close timeout issues
-# NullPool doesn't maintain a connection pool, so no connection close timeouts
-engine_kwargs["poolclass"] = NullPool
-logger.info("🔧 Using NullPool (no connection pooling - fixes close timeout issues)")
+# ✅ FIXED: Use AsyncAdaptedQueuePool with appropriate settings for concurrent operations
+# NullPool was causing TimeoutError during heavy concurrent operations (like Gemini OCR)
+# because every request created a new connection, overwhelming the system.
+# Note: For async engines, we must use AsyncAdaptedQueuePool, not QueuePool
+engine_kwargs["poolclass"] = AsyncAdaptedQueuePool
+engine_kwargs["pool_size"] = 5  # Base number of persistent connections
+engine_kwargs["max_overflow"] = 10  # Allow up to 15 total connections (5 + 10)
+engine_kwargs["pool_timeout"] = 60  # Wait up to 60s to get a connection from pool
+engine_kwargs["pool_recycle"] = 1800  # Recycle connections after 30 minutes
+engine_kwargs["pool_pre_ping"] = True  # Verify connections before use (handles stale connections)
+logger.info(
+    f"🔧 Using AsyncAdaptedQueuePool (pool_size={engine_kwargs['pool_size']}, "
+    f"max_overflow={engine_kwargs['max_overflow']}, pool_pre_ping=True)"
+)
 
 engine = create_async_engine(
     settings.async_database_url,
@@ -249,6 +259,8 @@ async def close_db() -> None:
 
 
 # ✅ Improved: Session factory with proper tracking
+# Note: Connection validation is handled by pool_pre_ping=True at the pool level,
+# so we don't need to test connections here (which would start unwanted transactions)
 @asynccontextmanager
 async def get_async_session():
     """
@@ -305,6 +317,7 @@ def get_active_session_count() -> int:
 
 
 # ✅ FastAPI dependency for session injection
+# Note: Connection validation is handled by pool_pre_ping=True at the pool level
 async def get_session():
     """
     FastAPI dependency that yields a database session.

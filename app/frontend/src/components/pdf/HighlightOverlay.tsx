@@ -1,31 +1,16 @@
-'use client';
-
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Paper, Typography } from '@mui/material';
 import { FileText } from 'lucide-react';
-
-export interface HighlightPosition {
-  pageNumber: number;
-  startOffset: number;
-  endOffset: number;
-  rects: DOMRect[]; // 用于渲染
-}
-
-export interface Highlight {
-  id: string;
-  documentId: string;
-  pageNumber: number;
-  startOffset: number;
-  endOffset: number;
-  color: 'yellow' | 'green' | 'blue' | 'pink';
-  note?: string; // 批注内容
-  createdAt: string;
-  updatedAt: string;
-  rects?: DOMRect[]; // 客户端计算的位置信息
-}
+import { TextSelection, Highlight } from './types';
 
 interface HighlightOverlayProps {
-  highlights: Highlight[];
+  highlights?: Highlight[];
+  selection: TextSelection | null;
+  searchHighlight?: {
+    text: string;
+    pageNumber: number;
+    rects: DOMRect[]; // We will assume search computes rects or we handle it
+  } | null;
   containerRef: React.RefObject<HTMLElement>;
   onHighlightClick?: (highlight: Highlight, event?: React.MouseEvent | MouseEvent) => void;
 }
@@ -37,38 +22,90 @@ const colorMap: Record<string, string> = {
   pink: '#E91E6340',
 };
 
-// containerRef 目前未在组件内部直接使用，但保留参数以便未来扩展（例如按页裁剪高亮）
-export default function HighlightOverlay({
-  highlights,
-  // containerRef 保留以兼容调用方，但当前未在组件内部直接使用
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function HighlightOverlay({
+  highlights = [],
+  selection,
+  searchHighlight,
   containerRef,
   onHighlightClick,
 }: HighlightOverlayProps) {
-  // 过滤出有 rects 的高亮
-  const highlightsWithRects = highlights.filter((h) => h.rects && h.rects.length > 0);
-
+  const [highlightRects, setHighlightRects] = useState<DOMRect[]>([]);
   const [hoveredHighlightId, setHoveredHighlightId] = useState<string | null>(null);
 
+  // Calculate selection highlight position
+  useEffect(() => {
+    if (!selection || !containerRef.current) {
+      setHighlightRects([]);
+      return;
+    }
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const scrollLeft = containerRef.current.scrollLeft;
+    const scrollTop = containerRef.current.scrollTop;
+
+    // The rects in TextSelection (from SelectionManager) are likely client rects (viewport relative)
+    // We need to convert them to be relative to the container *content* (including scroll) if the overlay is inside the scrollable area.
+    // However, usually the overlay is position:absolute inside a relative container.
+    // If the container scrolls, and the overlay is inside, we just need coords relative to the container's top-left.
+    
+    // SelectionManager returns client rects.
+    const adjustedRects = selection.rects.map(rect => {
+       // Convert client rect to offset relative to container
+       return new DOMRect(
+         rect.left - containerRect.left + scrollLeft,
+         rect.top - containerRect.top + scrollTop,
+         rect.width,
+         rect.height
+       );
+    });
+    setHighlightRects(adjustedRects);
+  }, [selection, containerRef]);
+
+
   return (
-    <>
-      {highlightsWithRects.map((highlight) => {
-        return highlight.rects!.map((rect, index) => {
-          const isFirstRect = index === 0;
-          const hasNote = highlight.note && highlight.note.trim().length > 0;
-          
-          return (
+    <Box
+      sx={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none', // Allow clicks to pass through to text layer unless hitting a pointer-events:auto element
+        zIndex: 10,
+      }}
+    >
+      {/* Current Selection Highlight (temporary) */}
+      {highlightRects.map((rect, index) => (
+        <Box
+          key={`selection-${index}`}
+          sx={{
+            position: 'absolute',
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+            bgcolor: 'rgba(59, 130, 246, 0.3)', // Blueish for selection
+            borderRadius: '2px',
+          }}
+        />
+      ))}
+
+      {/* Saved Highlights */}
+      {highlights.map((highlight) => {
+        if (!highlight.rects || highlight.rects.length === 0) return null;
+        
+        return highlight.rects.map((rect, index) => {
+           const isFirstRect = index === 0;
+           const hasNote = highlight.note && highlight.note.trim().length > 0;
+           
+           return (
             <Box
               key={`${highlight.id}-${index}`}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                // 传递原生事件对象
+                // We need pointerEvents: auto on the highlight box to capture clicks
                 onHighlightClick?.(highlight, e.nativeEvent);
-              }}
-              onMouseDown={(e) => {
-                // 阻止文本选择
-                e.stopPropagation();
               }}
               onMouseEnter={() => {
                 if (hasNote) {
@@ -80,24 +117,21 @@ export default function HighlightOverlay({
               }}
               sx={{
                 position: 'absolute',
-                // rect 本身是相对于容器内容（包含滚动偏移）的坐标，
-                // 在滚动容器中使用 position:absolute 直接使用该坐标即可，
-                // 元素会随内容一起滚动，而不是固定在视口上。
-                left: `${rect.left}px`,
-                top: `${rect.top}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
                 backgroundColor: colorMap[highlight.color] || colorMap.yellow,
-                pointerEvents: 'auto',
+                borderRadius: '2px',
+                pointerEvents: 'auto', // Important for click handling
                 cursor: 'pointer',
                 transition: 'background-color 0.2s',
-                zIndex: 10,
                 '&:hover': {
                   backgroundColor: colorMap[highlight.color]?.replace('40', '60') || colorMap.yellow.replace('40', '60'),
                 },
               }}
             >
-              {/* 批注图标：只在第一个rect上显示，位于右上角 */}
+              {/* Note Icon */}
               {isFirstRect && hasNote && (
                 <Box
                   sx={{
@@ -122,12 +156,12 @@ export default function HighlightOverlay({
                 </Box>
               )}
             </Box>
-          );
+           );
         });
       })}
-      
-      {/* 批注预览卡片：悬停时显示 */}
-      {highlightsWithRects.map((highlight) => {
+
+       {/* Note Preview Cards */}
+      {highlights.map((highlight) => {
         const hasNote = highlight.note && highlight.note.trim().length > 0;
         const isHovered = hoveredHighlightId === highlight.id;
         
@@ -145,12 +179,8 @@ export default function HighlightOverlay({
           <Paper
             key={`note-${highlight.id}`}
             elevation={0}
-            onMouseEnter={() => {
-              setHoveredHighlightId(highlight.id);
-            }}
-            onMouseLeave={() => {
-              setHoveredHighlightId(null);
-            }}
+            onMouseEnter={() => setHoveredHighlightId(highlight.id)}
+            onMouseLeave={() => setHoveredHighlightId(null)}
             sx={{
               position: 'absolute',
               left: `${firstRect.left + firstRect.width + 8}px`,
@@ -167,8 +197,8 @@ export default function HighlightOverlay({
               cursor: 'default',
             }}
             onClick={(e) => {
-              e.stopPropagation();
-              onHighlightClick?.(highlight, e.nativeEvent);
+                e.stopPropagation();
+                onHighlightClick?.(highlight, e.nativeEvent);
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
@@ -189,7 +219,24 @@ export default function HighlightOverlay({
           </Paper>
         );
       })}
-    </>
+
+      {/* Search Highlight */}
+      {searchHighlight && searchHighlight.rects && searchHighlight.rects.map((rect, index) => (
+          <Box
+            key={`search-${index}`}
+            className="search-highlight" // Use CSS animation defined in global css
+            sx={{
+                position: 'absolute',
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+                bgcolor: 'rgba(255, 235, 59, 0.4)',
+                borderRadius: '2px',
+                pointerEvents: 'none',
+            }}
+          />
+      ))}
+    </Box>
   );
 }
-

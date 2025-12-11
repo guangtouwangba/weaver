@@ -95,6 +95,7 @@ export interface ProjectDocument {
 export interface Citation {
   doc_id: string;        // Mega-prompt doc ID (doc_01, doc_02, etc.)
   document_id: string;   // Actual document UUID
+  filename?: string;     // Document filename
   quote: string;         // Original text quoted from document
   conclusion?: string;   // LLM's conclusion/statement
   char_start?: number;   // Character start position in original document

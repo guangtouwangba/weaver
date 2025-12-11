@@ -87,3 +87,8 @@ def downgrade() -> None:
     op.drop_table("chat_memories")
 
 
+
+
+
+
+

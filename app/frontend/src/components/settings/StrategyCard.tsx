@@ -132,3 +132,8 @@ export default function StrategyCard({ option, selected, onClick }: StrategyCard
 
 
 
+
+
+
+
+

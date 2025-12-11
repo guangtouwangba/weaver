@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend run-backend run-frontend run dev clean venv
+.PHONY: help install install-backend install-frontend install-system-deps run-backend run-frontend run dev clean venv
 
 # Variables
 VENV_DIR = venv
@@ -14,6 +14,7 @@ help:
 	@echo "  make install           - Install all dependencies (backend + frontend)"
 	@echo "  make install-backend   - Install backend dependencies only"
 	@echo "  make install-frontend  - Install frontend dependencies only"
+	@echo "  make install-system-deps - Install system dependencies (poppler for PDF)"
 	@echo "  make venv              - Create Python virtual environment"
 	@echo ""
 	@echo "Running:"
@@ -41,8 +42,31 @@ venv:
 		echo "✅ Virtual environment already exists"; \
 	fi
 
+# Install system dependencies (poppler for pdf2image, required by Gemini OCR)
+install-system-deps:
+	@echo "📦 Installing system dependencies..."
+	@if command -v brew >/dev/null 2>&1; then \
+		echo "🍺 Detected Homebrew (macOS)"; \
+		brew install poppler || echo "⚠️  poppler may already be installed"; \
+	elif command -v apt-get >/dev/null 2>&1; then \
+		echo "🐧 Detected apt-get (Debian/Ubuntu)"; \
+		sudo apt-get update && sudo apt-get install -y poppler-utils; \
+	elif command -v dnf >/dev/null 2>&1; then \
+		echo "🎩 Detected dnf (Fedora/RHEL)"; \
+		sudo dnf install -y poppler-utils; \
+	elif command -v pacman >/dev/null 2>&1; then \
+		echo "🏴 Detected pacman (Arch)"; \
+		sudo pacman -S --noconfirm poppler; \
+	else \
+		echo "⚠️  Could not detect package manager. Please install poppler-utils manually."; \
+		echo "   - macOS: brew install poppler"; \
+		echo "   - Debian/Ubuntu: apt-get install poppler-utils"; \
+		echo "   - Fedora/RHEL: dnf install poppler-utils"; \
+	fi
+	@echo "✅ System dependencies installed!"
+
 # Install all dependencies
-install: venv install-backend install-frontend
+install: venv install-system-deps install-backend install-frontend
 	@echo "✅ All dependencies installed successfully!"
 	@echo ""
 	@echo "💡 To activate the virtual environment manually:"
@@ -139,6 +163,13 @@ check-env:
 	@echo ""
 	@echo "npm version:"
 	@npm --version || echo "❌ npm not found"
+	@echo ""
+	@echo "Poppler (for Gemini PDF OCR):"
+	@if command -v pdftoppm >/dev/null 2>&1; then \
+		echo "✅ poppler-utils installed (pdftoppm found)"; \
+	else \
+		echo "⚠️  poppler-utils not found (required for Gemini OCR, run 'make install-system-deps')"; \
+	fi
 	@echo ""
 	@echo "Environment file:"
 	@if [ -f .env ]; then echo "✅ .env file exists"; else echo "⚠️  .env file not found (copy from env.example)"; fi

@@ -234,25 +234,27 @@ class DocumentProcessorTask(BaseTask):
                     return None
 
             async def perform_chunking():
-                """Perform text chunking."""
-                # Get document metadata for strategy selection
-                doc_result = await session.execute(
-                    select(DocumentModel).where(DocumentModel.id == document_id)
-                )
-                doc = doc_result.scalar_one()
-                logger.debug(
-                    f"Document metadata - mime_type={doc.mime_type}, "
-                    f"filename={doc.original_filename}"
-                )
+                """Perform text chunking using fresh session to avoid connection timeout."""
+                # ✅ Use fresh session - original session may have timed out during long OCR
+                async with get_async_session() as chunking_session:
+                    # Get document metadata for strategy selection
+                    doc_result = await chunking_session.execute(
+                        select(DocumentModel).where(DocumentModel.id == document_id)
+                    )
+                    doc = doc_result.scalar_one()
+                    logger.debug(
+                        f"Document metadata - mime_type={doc.mime_type}, "
+                        f"filename={doc.original_filename}"
+                    )
 
-                chunking_service = ChunkingService()
-                chunk_data_result = chunking_service.chunk_pages(
-                    pages=pages,
-                    mime_type=doc.mime_type,
-                    filename=doc.original_filename,
-                )
-                logger.info(f"✅ Chunking completed: Created {len(chunk_data_result)} chunks")
-                return chunk_data_result
+                    chunking_service = ChunkingService()
+                    chunk_data_result = chunking_service.chunk_pages(
+                        pages=pages,
+                        mime_type=doc.mime_type,
+                        filename=doc.original_filename,
+                    )
+                    logger.info(f"✅ Chunking completed: Created {len(chunk_data_result)} chunks")
+                    return chunk_data_result
 
             try:
                 # Parallel execution: page_map calculation, summary generation, and chunking
@@ -264,15 +266,16 @@ class DocumentProcessorTask(BaseTask):
                     perform_chunking(),
                 )
 
-                # Save summary if generated
+                # Save summary if generated - use fresh session to avoid connection timeout
                 if summary is not None:
-                    stmt = (
-                        update(DocumentModel)
-                        .where(DocumentModel.id == document_id)
-                        .values(summary=summary)
-                    )
-                    await session.execute(stmt)
-                    await session.commit()
+                    async with get_async_session() as summary_session:
+                        stmt = (
+                            update(DocumentModel)
+                            .where(DocumentModel.id == document_id)
+                            .values(summary=summary)
+                        )
+                        await summary_session.execute(stmt)
+                        await summary_session.commit()
 
             except Exception as e:
                 logger.warning(
@@ -286,15 +289,10 @@ class DocumentProcessorTask(BaseTask):
                     chunk_data = await perform_chunking()
 
             # Step 3b: Prepare full content and metadata for long context mode
+            # ✅ Use fresh session to avoid connection timeout after long OCR operation
             logger.info("📝 Step 3b: Preparing full content and metadata for long context mode")
             try:
                 from research_agent.domain.services.token_estimator import TokenEstimator
-
-                # Get document for updating
-                doc_result = await session.execute(
-                    select(DocumentModel).where(DocumentModel.id == document_id)
-                )
-                doc = doc_result.scalar_one()
 
                 # Combine all pages into full content
                 full_content = "\n\n".join([page.content for page in pages])
@@ -312,15 +310,20 @@ class DocumentProcessorTask(BaseTask):
                     **parsing_info,  # Include parser metadata from Step 2
                 }
 
-                # Update document with full content and metadata
-                doc.full_content = full_content
-                doc.content_token_count = token_count
-                doc.parsing_metadata = parsing_metadata
-                # summary is already updated in Step 2.5 if generated
+                # Update document with full content and metadata using fresh session
+                async with get_async_session() as content_session:
+                    stmt = (
+                        update(DocumentModel)
+                        .where(DocumentModel.id == document_id)
+                        .values(
+                            full_content=full_content,
+                            content_token_count=token_count,
+                            parsing_metadata=parsing_metadata,
+                        )
+                    )
+                    await content_session.execute(stmt)
+                    await content_session.commit()
 
-                await session.flush()
-                # Commit before long embedding operation to release the connection
-                await session.commit()
                 logger.info(
                     f"✅ Step 3b completed: Saved full content ({token_count} tokens) "
                     f"and metadata for document {document_id}"
@@ -331,12 +334,6 @@ class DocumentProcessorTask(BaseTask):
                     exc_info=True,
                 )
                 # Continue processing even if full content save fails
-            except Exception as e:
-                logger.error(
-                    f"❌ Step 3 failed: Chunking error - document_id={document_id}: {e}",
-                    exc_info=True,
-                )
-                raise
 
             # Step 4: Generate embeddings (optional for long_context mode)
             # ✅ CRITICAL: This step uses fresh sessions to avoid connection timeout
@@ -356,11 +353,12 @@ class DocumentProcessorTask(BaseTask):
                     )
                 elif user_rag_mode == "long_context":
                     # Check if document fits in context and we have full_content
-                    # Get document to check token count
-                    doc_result = await session.execute(
-                        select(DocumentModel).where(DocumentModel.id == document_id)
-                    )
-                    doc = doc_result.scalar_one()
+                    # ✅ Use fresh session to avoid connection timeout after long OCR
+                    async with get_async_session() as check_session:
+                        doc_result = await check_session.execute(
+                            select(DocumentModel).where(DocumentModel.id == document_id)
+                        )
+                        doc = doc_result.scalar_one()
 
                     if doc.full_content and doc.content_token_count:
                         from research_agent.infrastructure.llm.model_config import (

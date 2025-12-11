@@ -62,6 +62,12 @@ function renderContentWithCitations(
   // If no content, return empty
   if (!content) return null;
 
+  // Clean up any residual XML document tags and metadata
+  let cleanedContent = content
+    .replace(/<document[^>]*>/g, '')
+    .replace(/<\/document>/g, '')
+    .replace(/document id:\s*[a-f0-9-]+/gi, '');
+
   // Pattern to match <cite doc_id="doc_XX" quote="...">conclusion</cite>
   const citePattern = /<cite\s+doc_id="(doc_\d+)"\s+quote="([^"]+)">([^<]+)<\/cite>/g;
   
@@ -70,12 +76,12 @@ function renderContentWithCitations(
   let match;
   let keyIndex = 0;
 
-  while ((match = citePattern.exec(content)) !== null) {
+  while ((match = citePattern.exec(cleanedContent)) !== null) {
     // Add text before the citation
     if (match.index > lastIndex) {
       parts.push(
         <span key={`text-${keyIndex++}`}>
-          {content.slice(lastIndex, match.index)}
+          {cleanedContent.slice(lastIndex, match.index)}
         </span>
       );
     }
@@ -87,14 +93,14 @@ function renderContentWithCitations(
     // Find the matching citation with location info
     const citationData = citations?.find(c => c.doc_id === docId && c.quote === quote);
 
-    // Render as clickable citation
+    // Render as clickable and draggable citation
     parts.push(
       <Tooltip 
         key={`cite-${keyIndex++}`}
         title={
           <Box sx={{ maxWidth: 300 }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-              Source: {docId}
+              Source: {citationData?.filename || docId}
               {citationData?.page_number && ` (Page ${citationData.page_number})`}
             </Typography>
             <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block' }}>
@@ -105,6 +111,25 @@ function renderContentWithCitations(
       >
         <Box
           component="span"
+          draggable
+          onDragStart={(e) => {
+            // Build drag payload with citation data
+            const payload = {
+              sourceType: 'citation',
+              content: `"${quote}"`,
+              sourceTitle: citationData?.filename || docId,
+              sourceId: citationData?.document_id,
+              pageNumber: citationData?.page_number,
+              tags: ['#citation']
+            };
+            
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('application/json', JSON.stringify(payload));
+            e.dataTransfer.setData('text/plain', quote);
+            
+            // Prevent triggering parent message drag
+            e.stopPropagation();
+          }}
           onClick={() => {
             if (citationData) {
               onCitationClick(citationData);
@@ -112,7 +137,7 @@ function renderContentWithCitations(
           }}
           sx={{
             color: 'primary.main',
-            cursor: citationData ? 'pointer' : 'default',
+            cursor: 'grab',
             textDecoration: 'underline',
             textDecorationStyle: 'dotted',
             textUnderlineOffset: '2px',
@@ -120,6 +145,9 @@ function renderContentWithCitations(
               color: 'primary.dark',
               bgcolor: 'primary.50',
               borderRadius: '2px',
+            },
+            '&:active': {
+              cursor: 'grabbing',
             },
           }}
         >
@@ -132,17 +160,17 @@ function renderContentWithCitations(
   }
 
   // Add remaining text
-  if (lastIndex < content.length) {
+  if (lastIndex < cleanedContent.length) {
     parts.push(
       <span key={`text-${keyIndex++}`}>
-        {content.slice(lastIndex)}
+        {cleanedContent.slice(lastIndex)}
       </span>
     );
   }
 
-  // If no citations found, return original content
+  // If no citations found, return cleaned content
   if (parts.length === 0) {
-    return content;
+    return cleanedContent;
   }
 
   return <>{parts}</>;
@@ -734,8 +762,14 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                                 msg.content, 
                                 msg.citations,
                                 (citation) => {
-                                  if (citation.document_id && citation.page_number) {
-                                    navigateToSource(citation.document_id, citation.page_number, citation.quote);
+                                  if (citation.document_id) {
+                                    // Use first 30 characters of quote as search text for better matching
+                                    const searchText = citation.quote?.slice(0, 30) || '';
+                                    navigateToSource(
+                                      citation.document_id, 
+                                      citation.page_number || 1,  // Fallback to page 1 if not found
+                                      searchText
+                                    );
                                   }
                                 }
                               )

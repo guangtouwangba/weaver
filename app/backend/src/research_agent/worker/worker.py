@@ -190,57 +190,73 @@ class BackgroundWorker:
             f"attempts={task.attempts}/{task.max_attempts}, payload_keys={list(task.payload.keys())}"
         )
 
-        async with self._session_factory() as session:
-            service = TaskQueueService(session)
+        task_succeeded = False
+        error_message = None
 
-            try:
-                # Execute the task
+        # Execute the task with its own session
+        try:
+            async with self._session_factory() as session:
                 await self._dispatcher.dispatch(task, session)
+                # If we get here without exception, the task succeeded
+                task_succeeded = True
+        except Exception as e:
+            error_type = type(e).__name__
+            error_message = str(e)
 
-                # Mark as completed
-                await service.complete(task.id)
-                await session.commit()
+            logger.error(
+                f"❌ Task execution failed - task_id={task.id}, "
+                f"task_type={task.task_type.value}, error_type={error_type}, "
+                f"error={error_message}, attempts={task.attempts}/{task.max_attempts}, "
+                f"payload={task.payload}",
+                exc_info=True,
+            )
 
-                logger.info(
-                    f"✅ Task completed successfully - task_id={task.id}, "
-                    f"task_type={task.task_type.value}"
-                )
-
-            except Exception as e:
-                error_type = type(e).__name__
-                error_message = str(e)
-
+        # Use a FRESH session to update task status
+        # This prevents "connection closed" errors for long-running tasks
+        if task_succeeded:
+            try:
+                async with self._session_factory() as complete_session:
+                    complete_service = TaskQueueService(complete_session)
+                    await complete_service.complete(task.id)
+                    await complete_session.commit()
+                    logger.info(
+                        f"✅ Task completed successfully - task_id={task.id}, "
+                        f"task_type={task.task_type.value}"
+                    )
+            except Exception as complete_error:
                 logger.error(
-                    f"❌ Task execution failed - task_id={task.id}, "
-                    f"task_type={task.task_type.value}, error_type={error_type}, "
-                    f"error={error_message}, attempts={task.attempts}/{task.max_attempts}, "
-                    f"payload={task.payload}",
+                    f"❌ Failed to mark task as completed (but task execution succeeded) - "
+                    f"task_id={task.id}, error={complete_error}",
                     exc_info=True,
                 )
-
+                # Task actually succeeded, so we'll try to mark it as completed again
+                # with another fresh session
                 try:
-                    await session.rollback()
-                    logger.debug(f"✅ Session rolled back for task {task.id}")
-                except Exception as rollback_error:
+                    async with self._session_factory() as retry_session:
+                        retry_service = TaskQueueService(retry_session)
+                        await retry_service.complete(task.id)
+                        await retry_session.commit()
+                        logger.info(f"✅ Task marked as completed on retry - task_id={task.id}")
+                except Exception as retry_error:
                     logger.error(
-                        f"❌ Failed to rollback session - task_id={task.id}, "
-                        f"rollback_error={rollback_error}",
+                        f"❌ CRITICAL: Task succeeded but couldn't update status - "
+                        f"task_id={task.id}, error={retry_error}",
                         exc_info=True,
                     )
-
-                # Mark as failed
-                try:
-                    async with self._session_factory() as fail_session:
-                        fail_service = TaskQueueService(fail_session)
-                        await fail_service.fail(task.id, str(e))
-                        await fail_session.commit()
-                        logger.info(
-                            f"✅ Task marked as failed - task_id={task.id}, "
-                            f"error_message={error_message[:200]}"
-                        )
-                except Exception as fail_error:
-                    logger.error(
-                        f"❌ CRITICAL: Failed to mark task as failed - task_id={task.id}, "
-                        f"original_error={error_message}, fail_error={fail_error}",
-                        exc_info=True,
+        else:
+            # Mark as failed with a fresh session
+            try:
+                async with self._session_factory() as fail_session:
+                    fail_service = TaskQueueService(fail_session)
+                    await fail_service.fail(task.id, error_message or "Unknown error")
+                    await fail_session.commit()
+                    logger.info(
+                        f"✅ Task marked as failed - task_id={task.id}, "
+                        f"error_message={error_message[:200] if error_message else 'Unknown'}"
                     )
+            except Exception as fail_error:
+                logger.error(
+                    f"❌ CRITICAL: Failed to mark task as failed - task_id={task.id}, "
+                    f"original_error={error_message}, fail_error={fail_error}",
+                    exc_info=True,
+                )

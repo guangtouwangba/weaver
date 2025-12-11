@@ -91,6 +91,7 @@ class SQLAlchemyMemoryRepository:
         """
         # Use cosine similarity: 1 - cosine_distance
         # pgvector uses <=> for cosine distance
+        # Note: Use CAST() instead of :: to avoid conflict with SQLAlchemy named parameters
         query = text(
             """
             SELECT
@@ -98,12 +99,12 @@ class SQLAlchemyMemoryRepository:
                 content,
                 memory_metadata,
                 created_at,
-                1 - (embedding <=> :query_embedding::vector) as similarity
+                1 - (embedding <=> CAST(:query_embedding AS vector)) as similarity
             FROM chat_memories
             WHERE project_id = :project_id
                 AND embedding IS NOT NULL
-                AND 1 - (embedding <=> :query_embedding::vector) >= :min_similarity
-            ORDER BY embedding <=> :query_embedding::vector
+                AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :min_similarity
+            ORDER BY embedding <=> CAST(:query_embedding AS vector)
             LIMIT :limit
             """
         )
@@ -248,5 +249,3 @@ class SQLAlchemyMemoryRepository:
             logger.debug(f"[Memory] Cleared session summary for project {project_id}")
             return True
         return False
-
-

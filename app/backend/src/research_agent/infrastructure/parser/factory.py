@@ -2,16 +2,48 @@
 
 This module provides a factory for creating document parsers based on MIME type
 or file extension. New parsers can be registered to extend format support.
+
+The factory also supports switching OCR providers via the `ocr_provider` setting:
+- "docling": Uses Docling for document parsing (default)
+- "gemini": Uses Google Gemini Vision for PDF OCR
 """
 
 from typing import Dict, List, Optional, Type
 
+from research_agent.config import get_settings
 from research_agent.infrastructure.parser.base import (
     DocumentParser,
     DocumentParsingError,
 )
 from research_agent.infrastructure.parser.docling_parser import DoclingParser
 from research_agent.shared.utils.logger import logger
+
+# Lazy import for GeminiParser to avoid loading google-generativeai if not needed
+_gemini_parser_instance: Optional[DocumentParser] = None
+
+
+def _get_gemini_parser() -> DocumentParser:
+    """Get or create a GeminiParser instance (lazy loading)."""
+    global _gemini_parser_instance
+    if _gemini_parser_instance is None:
+        from research_agent.infrastructure.parser.gemini_parser import GeminiParser
+
+        _gemini_parser_instance = GeminiParser()
+        logger.info("GeminiParser initialized for OCR")
+    return _gemini_parser_instance
+
+
+def _is_pdf_format(mime_type: Optional[str], extension: Optional[str]) -> bool:
+    """Check if the format is PDF."""
+    if mime_type == "application/pdf":
+        return True
+    if extension:
+        ext = extension.lower()
+        if not ext.startswith("."):
+            ext = f".{ext}"
+        if ext == ".pdf":
+            return True
+    return False
 
 
 class ParserRegistry:
@@ -150,6 +182,10 @@ class ParserFactory:
         """
         Get a parser for the given MIME type or extension.
 
+        The parser selection considers the `ocr_provider` setting:
+        - If ocr_provider is "gemini" and format is PDF, returns GeminiParser.
+        - Otherwise, returns the default parser from the registry (Docling).
+
         Args:
             mime_type: MIME type string (e.g., "application/pdf").
             extension: File extension (e.g., ".pdf" or "pdf").
@@ -160,6 +196,20 @@ class ParserFactory:
         Raises:
             DocumentParsingError: If no parser found for the format.
         """
+        settings = get_settings()
+
+        # Check if we should use Gemini for PDF OCR
+        if settings.ocr_provider == "gemini" and _is_pdf_format(mime_type, extension):
+            if not settings.google_api_key:
+                logger.warning(
+                    "ocr_provider is 'gemini' but GOOGLE_API_KEY is not set. "
+                    "Falling back to Docling parser."
+                )
+            else:
+                logger.debug("Using GeminiParser for PDF OCR")
+                return _get_gemini_parser()
+
+        # Use default registry-based parser
         parser = _registry.get_parser(mime_type, extension)
         if parser is None:
             raise DocumentParsingError(
