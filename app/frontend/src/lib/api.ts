@@ -180,12 +180,23 @@ export interface CanvasNode {
   isDuplicate?: boolean;
   duplicateOf?: string;  // Node ID if this is a duplicate
   isUserModified?: boolean;  // True if user has manually edited this node
+  // Phase 1: Source Node support (The Portal)
+  subType?: 'source' | 'note' | 'insight';  // Distinguishes source files from regular notes
+  fileMetadata?: {
+    fileType: 'pdf' | 'markdown' | 'web' | 'text';
+    pageCount?: number;
+    author?: string;
+    lastModified?: string;
+  };
 }
 
 export interface CanvasEdge {
   id?: string;
   source: string;
   target: string;
+  // Phase 2: Semantic Edge Labels (The Thread)
+  label?: string;  // User-defined or AI-suggested label
+  relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
 }
 
 export interface CanvasSection {

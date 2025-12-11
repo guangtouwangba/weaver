@@ -8,8 +8,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Stage, Layer, Group, Rect, Text, Line } from 'react-konva';
 import Konva from 'konva';
-import { Box, Typography, Menu, MenuItem } from '@mui/material';
-import { Layout, ArrowUp } from 'lucide-react';
+import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
+import { Layout, ArrowUp, X, Check, Layers, Sparkles } from 'lucide-react';
 import { useStudio } from '@/contexts/StudioContext';
 import { ToolMode } from './CanvasToolbar';
 
@@ -29,12 +29,23 @@ interface CanvasNode {
   viewType: 'free' | 'thinking';
   sectionId?: string;
   messageIds?: string[];  // Linked chat message IDs
+  // Phase 1: Source Node support (The Portal)
+  subType?: 'source' | 'note' | 'insight';
+  fileMetadata?: {
+    fileType: 'pdf' | 'markdown' | 'web' | 'text';
+    pageCount?: number;
+    author?: string;
+    lastModified?: string;
+  };
 }
 
 interface CanvasEdge {
   id?: string;
   source: string;
   target: string;
+  // Phase 2: Semantic Edge Labels (The Thread)
+  label?: string;
+  relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
 }
 
 interface Viewport {
@@ -54,11 +65,13 @@ interface KonvaCanvasProps {
   onNodeAdd?: (node: Partial<CanvasNode>) => void;
   highlightedNodeId?: string | null;  // Node to highlight (for navigation from chat)
   onNodeClick?: (node: CanvasNode) => void;  // Callback when node is clicked
+  onNodeDoubleClick?: (node: CanvasNode) => void;  // Phase 1: Callback for drill-down (opening source)
+  onOpenSource?: (sourceId: string, pageNumber?: number) => void;  // Phase 1: Navigate to source document
   toolMode?: ToolMode; // New prop
 }
 
 // Node style configuration based on type
-const getNodeStyle = (type: string) => {
+const getNodeStyle = (type: string, subType?: string, fileType?: string) => {
   const styles: Record<string, { 
     borderColor: string; 
     borderStyle: 'solid' | 'dashed'; 
@@ -66,6 +79,35 @@ const getNodeStyle = (type: string) => {
     icon: string;
     topBarColor: string;
   }> = {
+    // === Source Node Types (The Portal) ===
+    source_pdf: {
+      borderColor: '#DC2626',  // Red - PDF documents
+      borderStyle: 'solid',
+      bgColor: '#FEF2F2',      // Light red
+      icon: '📕',              // Book/PDF icon
+      topBarColor: '#DC2626',
+    },
+    source_markdown: {
+      borderColor: '#2563EB',  // Blue - Markdown
+      borderStyle: 'solid',
+      bgColor: '#EFF6FF',      // Light blue
+      icon: '📝',              // Markdown/Note icon
+      topBarColor: '#2563EB',
+    },
+    source_web: {
+      borderColor: '#059669',  // Teal - Web pages
+      borderStyle: 'solid',
+      bgColor: '#ECFDF5',      // Light teal
+      icon: '🌐',              // Globe icon
+      topBarColor: '#059669',
+    },
+    source_text: {
+      borderColor: '#6B7280',  // Gray - Plain text
+      borderStyle: 'solid',
+      bgColor: '#F9FAFB',      // Light gray
+      icon: '📄',              // Document icon
+      topBarColor: '#6B7280',
+    },
     // === Thinking Path Node Types (User Conversation Visualization) ===
     question: {
       borderColor: '#3B82F6',  // Blue
@@ -112,6 +154,16 @@ const getNodeStyle = (type: string) => {
     },
   };
   
+  // Handle source nodes with specific file types
+  if (subType === 'source' && fileType) {
+    const sourceKey = `source_${fileType}`;
+    if (styles[sourceKey]) {
+      return styles[sourceKey];
+    }
+    // Fallback for unknown source types
+    return styles.source_text;
+  }
+  
   // Default to knowledge style for backward compatibility
   return styles[type] || styles.knowledge;
 };
@@ -121,30 +173,51 @@ const KnowledgeNode = ({
   node,
   isSelected,
   isHighlighted,
+  isHovered,
+  isConnecting,
+  isConnectTarget,
   onSelect,
   onClick,
+  onDoubleClick,
+  onLinkBack,
   onDragStart,
   onDragMove,
   onDragEnd,
   onContextMenu,
+  onConnectionStart,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   node: CanvasNode;
   isSelected: boolean;
   isHighlighted?: boolean;
+  isHovered?: boolean;              // Phase 2: Show connection handles
+  isConnecting?: boolean;           // Phase 2: Currently dragging a connection from this node
+  isConnectTarget?: boolean;        // Phase 2: Currently a potential connection target
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   onClick?: () => void;
+  onDoubleClick?: () => void;       // Phase 1: Drill-down
+  onLinkBack?: () => void;          // Phase 1: Navigate to source
   onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onContextMenu?: (e: Konva.KonvaEventObject<PointerEvent>) => void;
+  onConnectionStart?: () => void;   // Phase 2: Start dragging connection
+  onMouseEnter?: () => void;        // Phase 2: For hover state
+  onMouseLeave?: () => void;        // Phase 2: For hover state
 }) => {
   const width = node.width || 280;
   const height = node.height || 200;
-  const style = getNodeStyle(node.type);
+  const style = getNodeStyle(node.type, node.subType, node.fileMetadata?.fileType);
   
   // Highlight animation effect
   const highlightStrokeWidth = isHighlighted ? 3 : (isSelected ? 2 : 1);
   const highlightStrokeColor = isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor);
+
+  // Check if this is a source node (for visual distinction)
+  const isSourceNode = node.subType === 'source';
+  // Check if this node has a source reference (for link-back feature)
+  const hasSourceRef = !isSourceNode && node.sourceId;
 
   return (
     <Group
@@ -160,10 +233,14 @@ const KnowledgeNode = ({
         onSelect(e);
         onClick?.();
       }}
+      onDblClick={() => onDoubleClick?.()}
+      onDblTap={() => onDoubleClick?.()}
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
       onContextMenu={onContextMenu}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {/* Border/Background */}
       <Rect
@@ -180,11 +257,11 @@ const KnowledgeNode = ({
         shadowOffsetY={4}
       />
 
-      {/* Top Color Bar */}
+      {/* Top Color Bar - thicker for source nodes */}
       <Rect
         y={0}
         width={width}
-        height={4}
+        height={isSourceNode ? 6 : 4}
         fill={style.topBarColor}
         cornerRadius={[12, 12, 0, 0]}
       />
@@ -192,36 +269,99 @@ const KnowledgeNode = ({
       {/* Type Icon (top-left) */}
       <Text
         x={12}
-        y={12}
+        y={isSourceNode ? 14 : 12}
         text={style.icon}
-        fontSize={16}
+        fontSize={isSourceNode ? 18 : 16}
       />
 
       {/* Title (adjust for icon) */}
       <Text
         x={40}
-        y={14}
-        width={width - 56}
+        y={isSourceNode ? 16 : 14}
+        width={width - (hasSourceRef ? 80 : 56)}
         text={node.title}
-        fontSize={16}
+        fontSize={isSourceNode ? 15 : 16}
         fontStyle="bold"
         fill="#1F2937"
         wrap="word"
         ellipsis={true}
       />
 
+      {/* Source Node: File metadata badge */}
+      {isSourceNode && node.fileMetadata && (
+        <>
+          <Rect
+            x={width - 60}
+            y={14}
+            width={48}
+            height={18}
+            fill={style.topBarColor}
+            cornerRadius={4}
+            opacity={0.2}
+          />
+          <Text
+            x={width - 56}
+            y={17}
+            text={node.fileMetadata.fileType?.toUpperCase() || 'FILE'}
+            fontSize={10}
+            fontStyle="bold"
+            fill={style.topBarColor}
+          />
+        </>
+      )}
+
+      {/* Link-Back Icon (top-right) for nodes with source reference */}
+      {hasSourceRef && (
+        <Group
+          x={width - 32}
+          y={12}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onLinkBack?.();
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onLinkBack?.();
+          }}
+        >
+          <Rect
+            width={24}
+            height={24}
+            fill="#E0E7FF"
+            cornerRadius={6}
+          />
+          <Text
+            x={4}
+            y={4}
+            text="🔗"
+            fontSize={14}
+          />
+        </Group>
+      )}
+
       {/* Content */}
       <Text
         x={16}
-        y={48}
+        y={isSourceNode ? 50 : 48}
         width={width - 32}
-        height={95}
+        height={isSourceNode ? 85 : 95}
         text={node.content}
         fontSize={14}
         fill="#6B7280"
         wrap="word"
         ellipsis={true}
       />
+
+      {/* Source Node: Page count info */}
+      {isSourceNode && node.fileMetadata?.pageCount && (
+        <Text
+          x={16}
+          y={height - 50}
+          text={`${node.fileMetadata.pageCount} pages`}
+          fontSize={11}
+          fill="#9CA3AF"
+        />
+      )}
 
       {/* Tags (simplified - show first tag only) */}
       {node.tags && node.tags.length > 0 && (
@@ -244,16 +384,71 @@ const KnowledgeNode = ({
         </>
       )}
 
-      {/* Source info */}
-      {node.sourceId && (
+      {/* Source info (for non-source nodes that reference a source) */}
+      {hasSourceRef && (
         <Text
           x={16}
           y={height - 25}
           width={width - 32}
-          text={`📄 ${node.sourceId.substring(0, 8)}${node.sourcePage ? ` • p.${node.sourcePage}` : ''}`}
+          text={`📄 ${node.sourceId!.substring(0, 8)}${node.sourcePage ? ` • p.${node.sourcePage}` : ''}`}
           fontSize={11}
           fill="#9CA3AF"
         />
+      )}
+
+      {/* Double-click hint for source nodes */}
+      {isSourceNode && isSelected && (
+        <Text
+          x={16}
+          y={height - 18}
+          text="Double-click to open"
+          fontSize={10}
+          fill="#6B7280"
+          fontStyle="italic"
+        />
+      )}
+
+      {/* Phase 2: Connection Handle (Right side - output) */}
+      {(isHovered || isSelected || isConnecting) && (
+        <Group
+          x={width}
+          y={height / 2}
+          onMouseDown={(e) => {
+            e.cancelBubble = true;
+            onConnectionStart?.();
+          }}
+          onTouchStart={(e) => {
+            e.cancelBubble = true;
+            onConnectionStart?.();
+          }}
+        >
+          <Rect
+            x={-8}
+            y={-8}
+            width={16}
+            height={16}
+            fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
+            stroke="#3B82F6"
+            strokeWidth={2}
+            cornerRadius={8}
+          />
+        </Group>
+      )}
+
+      {/* Phase 2: Connection Target Handle (Left side - input) */}
+      {isConnectTarget && (
+        <Group x={0} y={height / 2}>
+          <Rect
+            x={-8}
+            y={-8}
+            width={16}
+            height={16}
+            fill="#10B981"
+            stroke="#059669"
+            strokeWidth={2}
+            cornerRadius={8}
+          />
+        </Group>
       )}
     </Group>
   );
@@ -270,6 +465,8 @@ export default function KonvaCanvas({
   onNodeAdd,
   highlightedNodeId,
   onNodeClick,
+  onNodeDoubleClick,
+  onOpenSource,
   toolMode = 'select', // Default to select
 }: KonvaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -286,6 +483,15 @@ export default function KonvaCanvas({
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; sectionId?: string } | null>(null);
   
+  // Phase 2: Manual Connection State
+  const [connectingFromNodeId, setConnectingFromNodeId] = useState<string | null>(null);
+  const [connectingLineEnd, setConnectingLineEnd] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [edgeLabelDialog, setEdgeLabelDialog] = useState<{ 
+    edge: CanvasEdge; 
+    position: { x: number; y: number };
+  } | null>(null);
+  
   // Refs for Drag/Pan
   const lastPosRef = useRef({ x: 0, y: 0 });
   const draggedNodeRef = useRef<string | null>(null);
@@ -297,6 +503,7 @@ export default function KonvaCanvas({
     dragContentRef, 
     promoteNode, 
     deleteSection,
+    addSection,
     canvasSections,
     setCanvasSections,
     currentView: studioCurrentView 
@@ -557,6 +764,18 @@ export default function KonvaCanvas({
   };
 
   const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Phase 2: Handle Connection Line dragging
+    if (connectingFromNodeId) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+            const canvasX = (pointer.x - viewport.x) / viewport.scale;
+            const canvasY = (pointer.y - viewport.y) / viewport.scale;
+            setConnectingLineEnd({ x: canvasX, y: canvasY });
+        }
+        return;
+    }
+
     // Handle Pan
     if (isPanning) {
         const dx = e.evt.clientX - lastPosRef.current.x;
@@ -594,7 +813,64 @@ export default function KonvaCanvas({
     }
   };
 
-  const handleStageMouseUp = () => {
+  const handleStageMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Phase 2: Handle Connection creation
+    if (connectingFromNodeId && connectingLineEnd) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+            const canvasX = (pointer.x - viewport.x) / viewport.scale;
+            const canvasY = (pointer.y - viewport.y) / viewport.scale;
+            
+            // Find target node under the mouse
+            const targetNode = visibleNodes.find(node => {
+                const nodeWidth = node.width || 280;
+                const nodeHeight = node.height || 200;
+                return (
+                    canvasX >= node.x &&
+                    canvasX <= node.x + nodeWidth &&
+                    canvasY >= node.y &&
+                    canvasY <= node.y + nodeHeight &&
+                    node.id !== connectingFromNodeId
+                );
+            });
+            
+            if (targetNode) {
+                // Check if edge already exists
+                const edgeExists = edges.some(
+                    e => (e.source === connectingFromNodeId && e.target === targetNode.id) ||
+                         (e.source === targetNode.id && e.target === connectingFromNodeId)
+                );
+                
+                if (!edgeExists) {
+                    // Create new edge with default label
+                    const newEdge: CanvasEdge = {
+                        id: `edge-${Date.now()}`,
+                        source: connectingFromNodeId,
+                        target: targetNode.id,
+                        label: '',
+                        relationType: 'related',
+                    };
+                    onEdgesChange([...edges, newEdge]);
+                    
+                    // Show label dialog
+                    const sourceNode = visibleNodes.find(n => n.id === connectingFromNodeId);
+                    if (sourceNode) {
+                        const midX = ((sourceNode.x + (sourceNode.width || 280)) + targetNode.x) / 2;
+                        const midY = ((sourceNode.y + (sourceNode.height || 200) / 2) + (targetNode.y + (targetNode.height || 200) / 2)) / 2;
+                        // Convert to screen coordinates
+                        const screenX = midX * viewport.scale + viewport.x;
+                        const screenY = midY * viewport.scale + viewport.y;
+                        setEdgeLabelDialog({ edge: newEdge, position: { x: screenX, y: screenY } });
+                    }
+                }
+            }
+        }
+        setConnectingFromNodeId(null);
+        setConnectingLineEnd(null);
+        return;
+    }
+
     if (isPanning) {
         setIsPanning(false);
     }
@@ -634,7 +910,20 @@ export default function KonvaCanvas({
     return 'default';
   };
 
-  // Draw connections
+  // Edge label colors based on relation type
+  const getEdgeLabelStyle = (relationType?: string) => {
+    const styles: Record<string, { color: string; bgColor: string }> = {
+      supports: { color: '#059669', bgColor: '#ECFDF5' },      // Green
+      contradicts: { color: '#DC2626', bgColor: '#FEF2F2' },   // Red
+      causes: { color: '#D97706', bgColor: '#FFFBEB' },        // Orange
+      belongs_to: { color: '#7C3AED', bgColor: '#F5F3FF' },    // Purple
+      related: { color: '#6B7280', bgColor: '#F3F4F6' },       // Gray
+      custom: { color: '#3B82F6', bgColor: '#EFF6FF' },        // Blue
+    };
+    return styles[relationType || 'related'] || styles.related;
+  };
+
+  // Draw connections with labels
   const renderEdges = () => {
     return edges.map((edge, index) => {
       const source = visibleNodes.find((n) => n.id === edge.source);
@@ -648,21 +937,53 @@ export default function KonvaCanvas({
       const y2 = target.y + ((target.height || 200) / 2);
 
       const controlOffset = Math.max(Math.abs(x2 - x1) * 0.4, 50);
+      
+      // Calculate midpoint for label placement
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      
+      const labelStyle = getEdgeLabelStyle(edge.relationType);
+      const hasLabel = edge.label && edge.label.trim().length > 0;
 
       return (
-        <Line
-          key={edge.id || `${edge.source}-${edge.target}-${index}`}
-          points={[
-            x1, y1,
-            x1 + controlOffset, y1,
-            x2 - controlOffset, y2,
-            x2, y2
-          ]}
-          stroke="#94A3B8"
-          strokeWidth={2}
-          tension={0.5}
-          bezier
-        />
+        <Group key={edge.id || `${edge.source}-${edge.target}-${index}`}>
+          <Line
+            points={[
+              x1, y1,
+              x1 + controlOffset, y1,
+              x2 - controlOffset, y2,
+              x2, y2
+            ]}
+            stroke={hasLabel ? labelStyle.color : "#94A3B8"}
+            strokeWidth={2}
+            tension={0.5}
+            bezier
+          />
+          
+          {/* Edge Label */}
+          {hasLabel && (
+            <Group x={midX} y={midY}>
+              <Rect
+                x={-edge.label!.length * 3.5 - 8}
+                y={-10}
+                width={edge.label!.length * 7 + 16}
+                height={20}
+                fill={labelStyle.bgColor}
+                stroke={labelStyle.color}
+                strokeWidth={1}
+                cornerRadius={4}
+              />
+              <Text
+                x={-edge.label!.length * 3.5}
+                y={-6}
+                text={edge.label}
+                fontSize={11}
+                fill={labelStyle.color}
+                fontStyle="600"
+              />
+            </Group>
+          )}
+        </Group>
       );
     });
   };
@@ -794,6 +1115,133 @@ export default function KonvaCanvas({
                 提升到自由画布
               </MenuItem>
             )}
+            {/* Phase 4: Extract Insights for Source Nodes */}
+            {contextMenu.nodeId && (() => {
+              const node = visibleNodes.find(n => n.id === contextMenu.nodeId);
+              return node?.subType === 'source';
+            })() && (
+              <MenuItem
+                onClick={() => {
+                  const sourceNode = visibleNodes.find(n => n.id === contextMenu.nodeId);
+                  if (!sourceNode) return;
+                  
+                  // Generate mock insights with radial layout
+                  const insights = [
+                    { title: '核心概念 1', content: `从 "${sourceNode.title}" 中提取的核心概念。这是一个自动生成的洞察点。` },
+                    { title: '核心概念 2', content: '另一个重要的知识点。代表文档中的关键论述或结论。' },
+                    { title: '关联主题', content: '与主题相关的延伸内容。可用于进一步探索。' },
+                    { title: '待验证观点', content: '需要进一步确认的内容。建议查阅更多资料。' },
+                    { title: '总结', content: `"${sourceNode.title}" 的主要贡献和价值总结。` },
+                  ];
+                  
+                  // Radial layout calculation
+                  const centerX = sourceNode.x + (sourceNode.width || 280) / 2;
+                  const centerY = sourceNode.y + (sourceNode.height || 200) / 2;
+                  const radius = 350; // Distance from center
+                  const angleStep = (2 * Math.PI) / insights.length;
+                  const startAngle = -Math.PI / 2; // Start from top
+                  
+                  const newNodes: typeof nodes = [];
+                  const newEdges: CanvasEdge[] = [];
+                  
+                  insights.forEach((insight, index) => {
+                    const angle = startAngle + angleStep * index;
+                    const nodeWidth = 240;
+                    const nodeHeight = 160;
+                    
+                    const nodeId = `insight-${Date.now()}-${index}`;
+                    const x = centerX + radius * Math.cos(angle) - nodeWidth / 2;
+                    const y = centerY + radius * Math.sin(angle) - nodeHeight / 2;
+                    
+                    newNodes.push({
+                      id: nodeId,
+                      type: 'insight',
+                      title: insight.title,
+                      content: insight.content,
+                      x,
+                      y,
+                      width: nodeWidth,
+                      height: nodeHeight,
+                      color: 'yellow',
+                      tags: ['#extracted'],
+                      sourceId: sourceNode.sourceId || sourceNode.id,
+                      viewType: currentView as 'free' | 'thinking',
+                    });
+                    
+                    // Create edge from source to this insight
+                    newEdges.push({
+                      id: `edge-${Date.now()}-${index}`,
+                      source: sourceNode.id,
+                      target: nodeId,
+                      label: index === insights.length - 1 ? '总结' : '',
+                      relationType: index === insights.length - 1 ? 'belongs_to' : 'related',
+                    });
+                  });
+                  
+                  // Add all new nodes and edges
+                  onNodesChange([...nodes, ...newNodes]);
+                  onEdgesChange([...edges, ...newEdges]);
+                  
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <Sparkles size={14} style={{ marginRight: 8 }} />
+                提取洞察 (Extract Insights)
+              </MenuItem>
+            )}
+            {/* Phase 3: Create Group from Selection */}
+            {selectedNodeIds.size >= 2 && contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId) && (
+              <MenuItem
+                onClick={() => {
+                  // Get all selected nodes
+                  const selectedNodes = visibleNodes.filter(n => selectedNodeIds.has(n.id));
+                  if (selectedNodes.length < 2) return;
+                  
+                  // Calculate bounding box
+                  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                  selectedNodes.forEach(node => {
+                    minX = Math.min(minX, node.x);
+                    minY = Math.min(minY, node.y);
+                    maxX = Math.max(maxX, node.x + (node.width || 280));
+                    maxY = Math.max(maxY, node.y + (node.height || 200));
+                  });
+                  
+                  const padding = 24;
+                  const headerHeight = 48;
+                  
+                  // Create new section
+                  const sectionId = `section-${Date.now()}`;
+                  const newSection = {
+                    id: sectionId,
+                    title: `组 (${selectedNodes.length} 个节点)`,
+                    viewType: currentView as 'free' | 'thinking',
+                    isCollapsed: false,
+                    nodeIds: Array.from(selectedNodeIds),
+                    x: minX - padding,
+                    y: minY - padding - headerHeight,
+                    width: maxX - minX + padding * 2,
+                    height: maxY - minY + padding * 2 + headerHeight,
+                  };
+                  
+                  addSection(newSection);
+                  
+                  // Update nodes with sectionId
+                  const updatedNodes = nodes.map(node => 
+                    selectedNodeIds.has(node.id) 
+                      ? { ...node, sectionId }
+                      : node
+                  );
+                  onNodesChange(updatedNodes);
+                  
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <Layers size={14} style={{ marginRight: 8 }} />
+                创建分组 ({selectedNodeIds.size})
+              </MenuItem>
+            )}
             {contextMenu.nodeId && (
               <MenuItem
                 onClick={() => {
@@ -842,6 +1290,88 @@ export default function KonvaCanvas({
             )}
           </Menu>
         )}
+
+        {/* Phase 2: Edge Label Dialog */}
+        {edgeLabelDialog && (
+          <Paper
+            elevation={4}
+            sx={{
+              position: 'absolute',
+              left: edgeLabelDialog.position.x,
+              top: edgeLabelDialog.position.y,
+              transform: 'translate(-50%, -50%)',
+              p: 2,
+              borderRadius: 2,
+              minWidth: 240,
+              zIndex: 1100,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                连接关系
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setEdgeLabelDialog(null)}
+              >
+                <X size={16} />
+              </IconButton>
+            </Box>
+            
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
+              {[
+                { type: 'supports', label: '支持', color: '#059669' },
+                { type: 'contradicts', label: '反对', color: '#DC2626' },
+                { type: 'causes', label: '导致', color: '#D97706' },
+                { type: 'belongs_to', label: '属于', color: '#7C3AED' },
+                { type: 'related', label: '相关', color: '#6B7280' },
+              ].map(({ type, label, color }) => (
+                <Chip
+                  key={type}
+                  label={label}
+                  size="small"
+                  onClick={() => {
+                    const updatedEdges = edges.map(e => 
+                      e.id === edgeLabelDialog.edge.id 
+                        ? { ...e, label, relationType: type as CanvasEdge['relationType'] }
+                        : e
+                    );
+                    onEdgesChange(updatedEdges);
+                    setEdgeLabelDialog(null);
+                  }}
+                  sx={{
+                    borderColor: color,
+                    color: color,
+                    '&:hover': { bgcolor: `${color}10` },
+                    cursor: 'pointer',
+                  }}
+                  variant="outlined"
+                />
+              ))}
+            </Stack>
+            
+            <TextField
+              size="small"
+              placeholder="自定义标签..."
+              fullWidth
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const value = (e.target as HTMLInputElement).value.trim();
+                  if (value) {
+                    const updatedEdges = edges.map(edge => 
+                      edge.id === edgeLabelDialog.edge.id 
+                        ? { ...edge, label: value, relationType: 'custom' as const }
+                        : edge
+                    );
+                    onEdgesChange(updatedEdges);
+                  }
+                  setEdgeLabelDialog(null);
+                }
+              }}
+              sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+            />
+          </Paper>
+        )}
         
         <Stage
           ref={stageRef}
@@ -855,7 +1385,12 @@ export default function KonvaCanvas({
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
-          onMouseLeave={handleStageMouseUp}
+          onMouseLeave={() => {
+            handleStageMouseUp({} as Konva.KonvaEventObject<MouseEvent>);
+            // Clear connection state on mouse leave
+            setConnectingFromNodeId(null);
+            setConnectingLineEnd(null);
+          }}
           style={{ cursor: getCursorStyle() }}
         >
           {/* Background Layer */}
@@ -948,6 +1483,30 @@ export default function KonvaCanvas({
             {/* Edges */}
             {renderEdges()}
 
+            {/* Phase 2: Temporary Connection Line */}
+            {connectingFromNodeId && connectingLineEnd && (() => {
+              const sourceNode = visibleNodes.find(n => n.id === connectingFromNodeId);
+              if (!sourceNode) return null;
+              
+              const x1 = sourceNode.x + (sourceNode.width || 280);
+              const y1 = sourceNode.y + ((sourceNode.height || 200) / 2);
+              const x2 = connectingLineEnd.x;
+              const y2 = connectingLineEnd.y;
+              const controlOffset = Math.max(Math.abs(x2 - x1) * 0.4, 50);
+
+              return (
+                <Line
+                  points={[x1, y1, x1 + controlOffset, y1, x2 - controlOffset, y2, x2, y2]}
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  tension={0.5}
+                  bezier
+                  dash={[8, 4]}
+                  listening={false}
+                />
+              );
+            })()}
+
             {/* Nodes */}
             {visibleNodes.map((node) => {
               if (node.sectionId) {
@@ -961,8 +1520,24 @@ export default function KonvaCanvas({
                 node={node}
                 isSelected={selectedNodeIds.has(node.id)}
                 isHighlighted={highlightedNodeId === node.id}
+                isHovered={hoveredNodeId === node.id}
+                isConnecting={connectingFromNodeId === node.id}
+                isConnectTarget={connectingFromNodeId !== null && connectingFromNodeId !== node.id}
                 onSelect={(e) => handleNodeSelect(node.id, e)}
                 onClick={() => onNodeClick?.(node)}
+                onDoubleClick={() => {
+                  // Phase 1: Handle double-click for source nodes (drill-down)
+                  if (node.subType === 'source' && node.sourceId) {
+                    onOpenSource?.(node.sourceId, node.sourcePage);
+                  }
+                  onNodeDoubleClick?.(node);
+                }}
+                onLinkBack={() => {
+                  // Phase 1: Navigate to source document
+                  if (node.sourceId) {
+                    onOpenSource?.(node.sourceId, node.sourcePage);
+                  }
+                }}
                 onDragStart={handleNodeDragStart(node.id)}
                 onDragMove={handleNodeDragMove(node.id)}
                 onDragEnd={handleNodeDragEnd(node.id)}
@@ -970,6 +1545,12 @@ export default function KonvaCanvas({
                   e.evt.preventDefault();
                   setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: node.id });
                 }}
+                onConnectionStart={() => {
+                  // Phase 2: Start connection drag
+                  setConnectingFromNodeId(node.id);
+                }}
+                onMouseEnter={() => setHoveredNodeId(node.id)}
+                onMouseLeave={() => setHoveredNodeId(null)}
               />
             );
             })}

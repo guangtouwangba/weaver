@@ -141,7 +141,7 @@ class DocumentSelectorService:
                     f"[DocumentSelector] Document {doc.id} is small "
                     f"({token_count} < {min_tokens} tokens)"
                 )
-            
+
             # Always include documents if they fit
             selected_docs.append(doc)
             total_tokens += token_count

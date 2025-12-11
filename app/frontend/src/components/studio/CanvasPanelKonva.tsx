@@ -30,6 +30,7 @@ export default function CanvasPanelKonva() {
     addNodeToCanvas,
     highlightedNodeId,
     navigateToMessage,
+    navigateToSource,  // Phase 1: For opening source documents
   } = useStudio();
 
   const [toolMode, setToolMode] = useState<ToolMode>('select');
@@ -85,6 +86,10 @@ export default function CanvasPanelKonva() {
           if (node.messageIds?.length) {
             navigateToMessage(node.messageIds[0]);
           }
+        }}
+        onOpenSource={(sourceId, pageNumber) => {
+          // Phase 1: Open source document and navigate to page
+          navigateToSource(sourceId, pageNumber || 1);
         }}
         toolMode={toolMode}
       />
