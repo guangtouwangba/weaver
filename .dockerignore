@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv
+node_modules/
+.git/
+.DS_Store
+web/
+app/frontend/
+

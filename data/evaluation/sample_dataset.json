@@ -1,0 +1,84 @@
+{
+  "samples": [
+    {
+      "question": "What is machine learning?",
+      "answer": "Machine learning is a subset of artificial intelligence that enables systems to learn and improve from experience without being explicitly programmed. It focuses on developing algorithms that can access data and learn patterns from it.",
+      "contexts": [
+        "Machine learning (ML) is a field of inquiry devoted to understanding and building methods that 'learn', that is, methods that leverage data to improve performance on some set of tasks.",
+        "Machine learning algorithms build a model based on sample data, known as training data, in order to make predictions or decisions without being explicitly programmed to do so.",
+        "Machine learning is closely related to computational statistics, which focuses on making predictions using computers."
+      ],
+      "ground_truth": "Machine learning is a method of data analysis that automates analytical model building. It is a branch of artificial intelligence based on the idea that systems can learn from data, identify patterns and make decisions with minimal human intervention.",
+      "reference_contexts": null,
+      "metadata": {
+        "topic": "ml_basics",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "question": "How does deep learning differ from traditional machine learning?",
+      "answer": "Deep learning uses neural networks with multiple layers to automatically learn hierarchical representations of data. Unlike traditional machine learning which requires manual feature engineering, deep learning can automatically discover the representations needed for feature detection or classification from raw data.",
+      "contexts": [
+        "Deep learning is part of a broader family of machine learning methods based on artificial neural networks with representation learning.",
+        "Deep learning architectures such as deep neural networks have been applied to fields including computer vision, speech recognition, natural language processing, and more.",
+        "The key difference is that deep learning models can automatically learn features from data, while traditional ML often requires manual feature engineering."
+      ],
+      "ground_truth": "Deep learning differs from traditional machine learning primarily in its ability to automatically learn hierarchical feature representations from raw data through multiple layers of neural networks, eliminating the need for manual feature engineering that is typically required in traditional ML approaches.",
+      "reference_contexts": null,
+      "metadata": {
+        "topic": "deep_learning",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "question": "What is the difference between supervised and unsupervised learning?",
+      "answer": "Supervised learning uses labeled data where the correct output is known, training the model to predict outcomes. Unsupervised learning works with unlabeled data, finding hidden patterns and structures without predefined labels.",
+      "contexts": [
+        "Supervised learning is the machine learning task of learning a function that maps an input to an output based on example input-output pairs.",
+        "Unsupervised learning is a type of machine learning that looks for previously undetected patterns in a data set with no pre-existing labels.",
+        "In supervised learning, you have input variables (X) and output variables (Y) and use an algorithm to learn the mapping function from the input to the output.",
+        "Clustering and association are two types of unsupervised learning."
+      ],
+      "ground_truth": "Supervised learning requires labeled training data with known outputs to learn a mapping function, while unsupervised learning discovers patterns and structures in unlabeled data without predefined outputs.",
+      "reference_contexts": null,
+      "metadata": {
+        "topic": "ml_types",
+        "difficulty": "easy"
+      }
+    },
+    {
+      "question": "What is overfitting in machine learning?",
+      "answer": "Overfitting occurs when a model learns the training data too well, including its noise and outliers, resulting in poor performance on new, unseen data. The model becomes too complex and fails to generalize.",
+      "contexts": [
+        "Overfitting is a modeling error that occurs when a function is too closely fit to a limited set of data points.",
+        "Overfitting occurs when a model learns detail and noise in the training data to the extent that it negatively impacts the performance of the model on new data.",
+        "Signs of overfitting include high accuracy on training data but low accuracy on validation/test data."
+      ],
+      "ground_truth": "Overfitting is a phenomenon where a machine learning model performs well on training data but poorly on new, unseen data because it has learned the noise and specific details of the training set rather than general patterns.",
+      "reference_contexts": null,
+      "metadata": {
+        "topic": "model_evaluation",
+        "difficulty": "medium"
+      }
+    },
+    {
+      "question": "How do neural networks learn?",
+      "answer": "Neural networks learn through a process called backpropagation, where they adjust their internal weights based on the error between predicted and actual outputs. This iterative process minimizes the loss function using optimization algorithms like gradient descent.",
+      "contexts": [
+        "Neural networks learn by adjusting connection weights based on the error between predicted and actual output.",
+        "Backpropagation is the key algorithm used to train neural networks by computing gradients of the loss function.",
+        "The learning process involves forward propagation to make predictions, calculating error, and backward propagation to update weights.",
+        "Optimization algorithms like SGD, Adam, and RMSprop are used to update the network's weights efficiently."
+      ],
+      "ground_truth": "Neural networks learn through backpropagation, a method that calculates gradients of the loss function with respect to the network's weights and uses gradient descent to iteratively update these weights to minimize the prediction error.",
+      "reference_contexts": null,
+      "metadata": {
+        "topic": "neural_networks",
+        "difficulty": "medium"
+      }
+    }
+  ],
+  "name": "sample_ml_qa",
+  "description": "Sample Q&A dataset about machine learning",
+  "metadata": {}
+}

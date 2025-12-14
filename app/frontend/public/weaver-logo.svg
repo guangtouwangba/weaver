@@ -1,0 +1,36 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="weaver_gradient" x1="96" y1="128" x2="480" y2="384" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366F1" /> <!-- Indigo-500 -->
+      <stop offset="100%" stop-color="#14B8A6" /> <!-- Teal-500 -->
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background (Optional, helpful for dark mode preview, remove if you want transparent) -->
+  <!-- <rect width="512" height="512" rx="120" fill="#0F172A" /> -->
+
+  <!-- The Connection Lines (The Weave) -->
+  <path 
+    d="M96 128 L192 384 L288 192 L384 384 L480 128" 
+    stroke="url(#weaver_gradient)" 
+    stroke-width="48" 
+    stroke-linecap="round" 
+    stroke-linejoin="round"
+    filter="url(#glow)"
+  />
+
+  <!-- The Knowledge Nodes (Points) -->
+  <circle cx="96" cy="128" r="24" fill="#6366F1" />
+  <circle cx="192" cy="384" r="24" fill="#818CF8" />
+  <circle cx="288" cy="192" r="24" fill="#2DD4BF" />
+  <circle cx="384" cy="384" r="24" fill="#14B8A6" />
+  <circle cx="480" cy="128" r="24" fill="#0D9488" />
+
+</svg>

@@ -1,0 +1,88 @@
+{
+  "metadata": {
+    "name": "RAG Evaluation Test Dataset",
+    "description": "Test cases for evaluating different chunking strategies and retrieval modes",
+    "version": "1.0",
+    "created_at": "2024-12-02",
+    "project_id": null
+  },
+  "test_cases": [
+    {
+      "id": "tc_001",
+      "question": "What is the main innovation of the Transformer architecture?",
+      "ground_truth": "The main innovation of the Transformer architecture is the self-attention mechanism, which allows the model to weigh the importance of different words in a sequence when processing each word, eliminating the need for recurrent connections.",
+      "relevant_document_ids": ["doc_transformer_paper"],
+      "category": "architecture",
+      "difficulty": "medium",
+      "expected_context_keywords": ["attention", "self-attention", "transformer", "architecture"]
+    },
+    {
+      "id": "tc_002",
+      "question": "How does the attention mechanism work?",
+      "ground_truth": "The attention mechanism computes three vectors (Query, Key, Value) for each input token. It then calculates attention scores by taking the dot product of the Query with all Keys, applies softmax to get weights, and computes a weighted sum of the Values.",
+      "relevant_document_ids": ["doc_attention_explained"],
+      "category": "mechanism",
+      "difficulty": "hard",
+      "expected_context_keywords": ["query", "key", "value", "dot product", "softmax"]
+    },
+    {
+      "id": "tc_003",
+      "question": "What is BERT?",
+      "ground_truth": "BERT (Bidirectional Encoder Representations from Transformers) is a pre-training method that uses bidirectional context to learn deep representations by predicting masked tokens and next sentence relationships.",
+      "relevant_document_ids": ["doc_bert_paper"],
+      "category": "models",
+      "difficulty": "easy",
+      "expected_context_keywords": ["BERT", "bidirectional", "masked", "pre-training"]
+    }
+  ],
+  "evaluation_strategies": [
+    {
+      "name": "no_chunking",
+      "description": "No chunking - index full documents",
+      "config": {
+        "chunk_size": null
+      }
+    },
+    {
+      "name": "recursive_500",
+      "description": "Recursive character splitting with 500 char chunks",
+      "config": {
+        "chunk_size": 500,
+        "chunk_overlap": 50
+      }
+    },
+    {
+      "name": "recursive_1000",
+      "description": "Recursive character splitting with 1000 char chunks",
+      "config": {
+        "chunk_size": 1000,
+        "chunk_overlap": 100
+      }
+    },
+    {
+      "name": "markdown",
+      "description": "Markdown-aware chunking by headers",
+      "config": {
+        "chunk_by_headers": true
+      }
+    },
+    {
+      "name": "semantic",
+      "description": "Semantic chunking based on embeddings",
+      "config": {
+        "use_semantic": true
+      }
+    }
+  ],
+  "retrieval_modes": [
+    {
+      "name": "vector",
+      "description": "Pure vector similarity search"
+    },
+    {
+      "name": "hybrid",
+      "description": "Hybrid search (vector + keyword with RRF)"
+    }
+  ]
+}
+
