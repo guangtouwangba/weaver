@@ -1,0 +1,13 @@
+{
+  // 推荐安装的 VS Code/Cursor 扩展
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "mikestead.dotenv",
+    "tamasfe.even-better-toml"
+  ]
+}
+
+
+

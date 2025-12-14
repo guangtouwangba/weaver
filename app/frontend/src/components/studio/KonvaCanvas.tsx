@@ -1,0 +1,1603 @@
+'use client';
+
+/**
+ * High-performance Konva.js-powered Canvas
+ * Replaces DOM-based rendering with HTML5 Canvas for better performance
+ */
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Stage, Layer, Group, Rect, Text, Line } from 'react-konva';
+import Konva from 'konva';
+import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
+import { Layout, ArrowUp, X, Check, Layers, Sparkles } from 'lucide-react';
+import { useStudio } from '@/contexts/StudioContext';
+import { ToolMode } from './CanvasToolbar';
+
+interface CanvasNode {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  color?: string;
+  tags?: string[];
+  sourceId?: string;
+  sourcePage?: number;
+  viewType: 'free' | 'thinking';
+  sectionId?: string;
+  messageIds?: string[];  // Linked chat message IDs
+  // Phase 1: Source Node support (The Portal)
+  subType?: 'source' | 'note' | 'insight';
+  fileMetadata?: {
+    fileType: 'pdf' | 'markdown' | 'web' | 'text';
+    pageCount?: number;
+    author?: string;
+    lastModified?: string;
+  };
+}
+
+interface CanvasEdge {
+  id?: string;
+  source: string;
+  target: string;
+  // Phase 2: Semantic Edge Labels (The Thread)
+  label?: string;
+  relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
+}
+
+interface Viewport {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+interface KonvaCanvasProps {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  viewport: Viewport;
+  currentView: 'free' | 'thinking';
+  onNodesChange: (nodes: CanvasNode[]) => void;
+  onEdgesChange: (edges: CanvasEdge[]) => void;
+  onViewportChange: (viewport: Viewport) => void;
+  onNodeAdd?: (node: Partial<CanvasNode>) => void;
+  highlightedNodeId?: string | null;  // Node to highlight (for navigation from chat)
+  onNodeClick?: (node: CanvasNode) => void;  // Callback when node is clicked
+  onNodeDoubleClick?: (node: CanvasNode) => void;  // Phase 1: Callback for drill-down (opening source)
+  onOpenSource?: (sourceId: string, pageNumber?: number) => void;  // Phase 1: Navigate to source document
+  toolMode?: ToolMode; // New prop
+}
+
+// Node style configuration based on type
+const getNodeStyle = (type: string, subType?: string, fileType?: string) => {
+  const styles: Record<string, { 
+    borderColor: string; 
+    borderStyle: 'solid' | 'dashed'; 
+    bgColor: string; 
+    icon: string;
+    topBarColor: string;
+  }> = {
+    // === Source Node Types (The Portal) ===
+    source_pdf: {
+      borderColor: '#DC2626',  // Red - PDF documents
+      borderStyle: 'solid',
+      bgColor: '#FEF2F2',      // Light red
+      icon: '📕',              // Book/PDF icon
+      topBarColor: '#DC2626',
+    },
+    source_markdown: {
+      borderColor: '#2563EB',  // Blue - Markdown
+      borderStyle: 'solid',
+      bgColor: '#EFF6FF',      // Light blue
+      icon: '📝',              // Markdown/Note icon
+      topBarColor: '#2563EB',
+    },
+    source_web: {
+      borderColor: '#059669',  // Teal - Web pages
+      borderStyle: 'solid',
+      bgColor: '#ECFDF5',      // Light teal
+      icon: '🌐',              // Globe icon
+      topBarColor: '#059669',
+    },
+    source_text: {
+      borderColor: '#6B7280',  // Gray - Plain text
+      borderStyle: 'solid',
+      bgColor: '#F9FAFB',      // Light gray
+      icon: '📄',              // Document icon
+      topBarColor: '#6B7280',
+    },
+    // === Thinking Path Node Types (User Conversation Visualization) ===
+    question: {
+      borderColor: '#3B82F6',  // Blue
+      borderStyle: 'dashed',
+      bgColor: '#EFF6FF',      // Light blue
+      icon: '❓',              // Question mark
+      topBarColor: '#3B82F6',
+    },
+    answer: {
+      borderColor: '#10B981',  // Green
+      borderStyle: 'solid',
+      bgColor: '#F0FDF4',      // Light green
+      icon: '💬',              // Chat bubble
+      topBarColor: '#10B981',
+    },
+    insight: {
+      borderColor: '#F59E0B',  // Yellow/Gold
+      borderStyle: 'solid',
+      bgColor: '#FFFBEB',      // Light yellow
+      icon: '💡',              // Lightbulb
+      topBarColor: '#F59E0B',
+    },
+    // === Other Node Types ===
+    knowledge: {
+      borderColor: '#E5E7EB',
+      borderStyle: 'solid',
+      bgColor: '#FFFFFF',
+      icon: '📄',
+      topBarColor: '#E5E7EB',
+    },
+    manual: {
+      borderColor: '#E5E7EB',
+      borderStyle: 'solid',
+      bgColor: '#FFFFFF',
+      icon: '✏️',
+      topBarColor: '#9CA3AF',
+    },
+    conclusion: {
+      borderColor: '#8B5CF6',  // Purple
+      borderStyle: 'solid',
+      bgColor: '#F5F3FF',      // Light purple
+      icon: '✨',
+      topBarColor: '#8B5CF6',
+    },
+  };
+  
+  // Handle source nodes with specific file types
+  if (subType === 'source' && fileType) {
+    const sourceKey = `source_${fileType}`;
+    if (styles[sourceKey]) {
+      return styles[sourceKey];
+    }
+    // Fallback for unknown source types
+    return styles.source_text;
+  }
+  
+  // Default to knowledge style for backward compatibility
+  return styles[type] || styles.knowledge;
+};
+
+// Knowledge Node Component
+const KnowledgeNode = ({
+  node,
+  isSelected,
+  isHighlighted,
+  isHovered,
+  isConnecting,
+  isConnectTarget,
+  onSelect,
+  onClick,
+  onDoubleClick,
+  onLinkBack,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onContextMenu,
+  onConnectionStart,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  node: CanvasNode;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+  isHovered?: boolean;              // Phase 2: Show connection handles
+  isConnecting?: boolean;           // Phase 2: Currently dragging a connection from this node
+  isConnectTarget?: boolean;        // Phase 2: Currently a potential connection target
+  onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
+  onClick?: () => void;
+  onDoubleClick?: () => void;       // Phase 1: Drill-down
+  onLinkBack?: () => void;          // Phase 1: Navigate to source
+  onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onContextMenu?: (e: Konva.KonvaEventObject<PointerEvent>) => void;
+  onConnectionStart?: () => void;   // Phase 2: Start dragging connection
+  onMouseEnter?: () => void;        // Phase 2: For hover state
+  onMouseLeave?: () => void;        // Phase 2: For hover state
+}) => {
+  const width = node.width || 280;
+  const height = node.height || 200;
+  const style = getNodeStyle(node.type, node.subType, node.fileMetadata?.fileType);
+  
+  // Highlight animation effect
+  const highlightStrokeWidth = isHighlighted ? 3 : (isSelected ? 2 : 1);
+  const highlightStrokeColor = isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor);
+
+  // Check if this is a source node (for visual distinction)
+  const isSourceNode = node.subType === 'source';
+  // Check if this node has a source reference (for link-back feature)
+  const hasSourceRef = !isSourceNode && node.sourceId;
+
+  return (
+    <Group
+      id={`node-${node.id}`} // Assign ID for finding during bulk drag
+      x={node.x}
+      y={node.y}
+      draggable
+      onClick={(e) => {
+        onSelect(e);
+        onClick?.();
+      }}
+      onTap={(e) => {
+        onSelect(e);
+        onClick?.();
+      }}
+      onDblClick={() => onDoubleClick?.()}
+      onDblTap={() => onDoubleClick?.()}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
+      onContextMenu={onContextMenu}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {/* Border/Background */}
+      <Rect
+        width={width}
+        height={height}
+        fill={style.bgColor}
+        cornerRadius={12}
+        stroke={highlightStrokeColor}
+        strokeWidth={highlightStrokeWidth}
+        dash={style.borderStyle === 'dashed' ? [8, 4] : undefined}
+        shadowColor={isHighlighted ? '#3B82F6' : 'black'}
+        shadowBlur={isHighlighted ? 16 : (isSelected ? 12 : 8)}
+        shadowOpacity={isHighlighted ? 0.3 : (isSelected ? 0.15 : 0.08)}
+        shadowOffsetY={4}
+      />
+
+      {/* Top Color Bar - thicker for source nodes */}
+      <Rect
+        y={0}
+        width={width}
+        height={isSourceNode ? 6 : 4}
+        fill={style.topBarColor}
+        cornerRadius={[12, 12, 0, 0]}
+      />
+
+      {/* Type Icon (top-left) */}
+      <Text
+        x={12}
+        y={isSourceNode ? 14 : 12}
+        text={style.icon}
+        fontSize={isSourceNode ? 18 : 16}
+      />
+
+      {/* Title (adjust for icon) */}
+      <Text
+        x={40}
+        y={isSourceNode ? 16 : 14}
+        width={width - (hasSourceRef ? 80 : 56)}
+        text={node.title}
+        fontSize={isSourceNode ? 15 : 16}
+        fontStyle="bold"
+        fill="#1F2937"
+        wrap="word"
+        ellipsis={true}
+      />
+
+      {/* Source Node: File metadata badge */}
+      {isSourceNode && node.fileMetadata && (
+        <>
+          <Rect
+            x={width - 60}
+            y={14}
+            width={48}
+            height={18}
+            fill={style.topBarColor}
+            cornerRadius={4}
+            opacity={0.2}
+          />
+          <Text
+            x={width - 56}
+            y={17}
+            text={node.fileMetadata.fileType?.toUpperCase() || 'FILE'}
+            fontSize={10}
+            fontStyle="bold"
+            fill={style.topBarColor}
+          />
+        </>
+      )}
+
+      {/* Link-Back Icon (top-right) for nodes with source reference */}
+      {hasSourceRef && (
+        <Group
+          x={width - 32}
+          y={12}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onLinkBack?.();
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onLinkBack?.();
+          }}
+        >
+          <Rect
+            width={24}
+            height={24}
+            fill="#E0E7FF"
+            cornerRadius={6}
+          />
+          <Text
+            x={4}
+            y={4}
+            text="🔗"
+            fontSize={14}
+          />
+        </Group>
+      )}
+
+      {/* Content */}
+      <Text
+        x={16}
+        y={isSourceNode ? 50 : 48}
+        width={width - 32}
+        height={isSourceNode ? 85 : 95}
+        text={node.content}
+        fontSize={14}
+        fill="#6B7280"
+        wrap="word"
+        ellipsis={true}
+      />
+
+      {/* Source Node: Page count info */}
+      {isSourceNode && node.fileMetadata?.pageCount && (
+        <Text
+          x={16}
+          y={height - 50}
+          text={`${node.fileMetadata.pageCount} pages`}
+          fontSize={11}
+          fill="#9CA3AF"
+        />
+      )}
+
+      {/* Tags (simplified - show first tag only) */}
+      {node.tags && node.tags.length > 0 && (
+        <>
+          <Rect
+            x={16}
+            y={height - 35}
+            width={Math.min(node.tags[0].length * 7 + 16, width - 32)}
+            height={20}
+            fill="#F3F4F6"
+            cornerRadius={4}
+          />
+          <Text
+            x={24}
+            y={height - 32}
+            text={node.tags[0]}
+            fontSize={10}
+            fill="#6B7280"
+            />
+        </>
+      )}
+
+      {/* Source info (for non-source nodes that reference a source) */}
+      {hasSourceRef && (
+        <Text
+          x={16}
+          y={height - 25}
+          width={width - 32}
+          text={`📄 ${node.sourceId!.substring(0, 8)}${node.sourcePage ? ` • p.${node.sourcePage}` : ''}`}
+          fontSize={11}
+          fill="#9CA3AF"
+        />
+      )}
+
+      {/* Double-click hint for source nodes */}
+      {isSourceNode && isSelected && (
+        <Text
+          x={16}
+          y={height - 18}
+          text="Double-click to open"
+          fontSize={10}
+          fill="#6B7280"
+          fontStyle="italic"
+        />
+      )}
+
+      {/* Phase 2: Connection Handle (Right side - output) */}
+      {(isHovered || isSelected || isConnecting) && (
+        <Group
+          x={width}
+          y={height / 2}
+          onMouseDown={(e) => {
+            e.cancelBubble = true;
+            onConnectionStart?.();
+          }}
+          onTouchStart={(e) => {
+            e.cancelBubble = true;
+            onConnectionStart?.();
+          }}
+        >
+          <Rect
+            x={-8}
+            y={-8}
+            width={16}
+            height={16}
+            fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
+            stroke="#3B82F6"
+            strokeWidth={2}
+            cornerRadius={8}
+          />
+        </Group>
+      )}
+
+      {/* Phase 2: Connection Target Handle (Left side - input) */}
+      {isConnectTarget && (
+        <Group x={0} y={height / 2}>
+          <Rect
+            x={-8}
+            y={-8}
+            width={16}
+            height={16}
+            fill="#10B981"
+            stroke="#059669"
+            strokeWidth={2}
+            cornerRadius={8}
+          />
+        </Group>
+      )}
+    </Group>
+  );
+};
+
+export default function KonvaCanvas({
+  nodes,
+  edges,
+  viewport,
+  currentView,
+  onNodesChange,
+  onEdgesChange,
+  onViewportChange,
+  onNodeAdd,
+  highlightedNodeId,
+  onNodeClick,
+  onNodeDoubleClick,
+  onOpenSource,
+  toolMode = 'select', // Default to select
+}: KonvaCanvasProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  
+  // Selection State
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  const [selectionRect, setSelectionRect] = useState<{
+    startX: number; startY: number; x: number; y: number; width: number; height: number 
+  } | null>(null);
+
+  const [isPanning, setIsPanning] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; sectionId?: string } | null>(null);
+  
+  // Phase 2: Manual Connection State
+  const [connectingFromNodeId, setConnectingFromNodeId] = useState<string | null>(null);
+  const [connectingLineEnd, setConnectingLineEnd] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [edgeLabelDialog, setEdgeLabelDialog] = useState<{ 
+    edge: CanvasEdge; 
+    position: { x: number; y: number };
+  } | null>(null);
+  
+  // Refs for Drag/Pan
+  const lastPosRef = useRef({ x: 0, y: 0 });
+  const draggedNodeRef = useRef<string | null>(null);
+  const lastDragPosRef = useRef<{x: number, y: number} | null>(null);
+
+  const { 
+    dragPreview, 
+    setDragPreview, 
+    dragContentRef, 
+    promoteNode, 
+    deleteSection,
+    addSection,
+    canvasSections,
+    setCanvasSections,
+    currentView: studioCurrentView 
+  } = useStudio();
+
+  // Filter nodes and sections by current view
+  const visibleNodes = nodes.filter(node => node.viewType === currentView);
+  const visibleSections = canvasSections.filter(section => section.viewType === currentView);
+
+  // Update dimensions on resize
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Set initial dimensions (ensure minimum 1x1 to avoid canvas errors)
+    const initialWidth = containerRef.current.offsetWidth || 800;
+    const initialHeight = containerRef.current.offsetHeight || 600;
+    setDimensions({
+      width: Math.max(1, initialWidth),
+      height: Math.max(1, initialHeight),
+    });
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect) {
+          // Ensure minimum 1x1 dimensions to prevent drawImage errors
+          const width = Math.max(1, entry.contentRect.width);
+          const height = Math.max(1, entry.contentRect.height);
+          setDimensions({ width, height });
+        }
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Handle keyboard shortcuts (Space for panning, Delete for deletion, Cmd+A for Select All)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      if (isInput) return;
+
+      // Space for Pan
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      }
+
+      // Delete / Backspace
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeIds.size > 0) {
+          e.preventDefault();
+          onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
+          setSelectedNodeIds(new Set());
+        }
+      }
+
+      // Cmd+A / Ctrl+A for Select All
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        // Select all VISIBLE nodes
+        const allVisibleIds = visibleNodes.map(n => n.id);
+        setSelectedNodeIds(new Set(allVisibleIds));
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+        setIsPanning(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [selectedNodeIds, nodes, visibleNodes, onNodesChange]);
+
+  // Handle Node Selection Logic
+  const handleNodeSelect = useCallback((nodeId: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    e.cancelBubble = true; // Prevent stage click
+    
+    // In Hand mode, do not select on click (unless we want to allow selection even in Hand mode? usually Hand mode disables selection to focus on panning)
+    // Actually, usually in Hand mode you can still click things but dragging pans. 
+    // Let's stick to standard: Hand mode prevents interaction that conflicts with panning. 
+    // If we want to move nodes, we switch to Select.
+    // However, clicking to *select* might be fine, but dragging will Pan.
+    
+    // Decision: In Hand mode, disable node dragging and selection to be safe? 
+    // Or allow selection but not dragging?
+    // Let's allow selection if toolMode is select. If hand, maybe just do nothing?
+    
+    if (toolMode === 'hand') return; 
+
+    const isShift = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+    const isSelected = selectedNodeIds.has(nodeId);
+
+    if (isShift) {
+      // Toggle selection
+      const newSet = new Set(selectedNodeIds);
+      if (isSelected) {
+        newSet.delete(nodeId);
+      } else {
+        newSet.add(nodeId);
+      }
+      setSelectedNodeIds(newSet);
+    } else {
+      if (!isSelected) {
+        setSelectedNodeIds(new Set([nodeId]));
+      }
+    }
+  }, [selectedNodeIds, toolMode]);
+
+  // Handle Bulk Drag
+  const handleNodeDragStart = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+    // Prevent drag if in hand mode (though draggable prop should control this)
+    if (toolMode === 'hand') {
+        e.target.stopDrag();
+        return;
+    }
+
+    e.cancelBubble = true;
+    draggedNodeRef.current = nodeId;
+    lastDragPosRef.current = e.target.position();
+
+    // Ensure dragging node is selected
+    if (!selectedNodeIds.has(nodeId)) {
+        if (!e.evt.shiftKey) {
+            setSelectedNodeIds(new Set([nodeId]));
+        } else {
+            setSelectedNodeIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(nodeId);
+                return newSet;
+            });
+        }
+    }
+  }, [selectedNodeIds, toolMode]);
+
+  const handleNodeDragMove = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    if (!lastDragPosRef.current) return;
+    
+    const newPos = e.target.position();
+    const dx = newPos.x - lastDragPosRef.current.x;
+    const dy = newPos.y - lastDragPosRef.current.y;
+    
+    lastDragPosRef.current = newPos;
+
+    // Move other selected nodes
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    selectedNodeIds.forEach(id => {
+        if (id === nodeId) return; // Skip self
+        const node = stage.findOne(`#node-${id}`);
+        if (node) {
+            node.x(node.x() + dx);
+            node.y(node.y() + dy);
+        }
+    });
+  }, [selectedNodeIds]);
+
+  const handleNodeDragEnd = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+    e.cancelBubble = true;
+    draggedNodeRef.current = null;
+    lastDragPosRef.current = null;
+
+    // Sync all selected nodes positions to state
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const updatedNodes = nodes.map(n => {
+        if (selectedNodeIds.has(n.id)) {
+            // If it's the dragged node, use event target
+            if (n.id === nodeId) {
+                return { ...n, x: e.target.x(), y: e.target.y() };
+            }
+            // For others, look up by ID
+            const nodeNode = stage.findOne(`#node-${n.id}`);
+            if (nodeNode) {
+                return { ...n, x: nodeNode.x(), y: nodeNode.y() };
+            }
+        }
+        return n;
+    });
+    
+    onNodesChange(updatedNodes);
+  }, [nodes, selectedNodeIds, onNodesChange]);
+
+  // Handle wheel zoom
+  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const scaleBy = 1.1;
+    const oldScale = viewport.scale;
+    const pointer = stage.getPointerPosition();
+    
+    if (!pointer) return;
+
+    const mousePointTo = {
+      x: (pointer.x - viewport.x) / oldScale,
+      y: (pointer.y - viewport.y) / oldScale,
+    };
+
+    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+    const clampedScale = Math.max(0.1, Math.min(5, newScale));
+
+    onViewportChange({
+      scale: clampedScale,
+      x: pointer.x - mousePointTo.x * clampedScale,
+      y: pointer.y - mousePointTo.y * clampedScale,
+    });
+  };
+
+  // Handle Stage Interaction (Pan vs Box Select)
+  const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const clickedOnEmpty = e.target === e.target.getStage() || e.target.getClassName() === 'Rect';
+    
+    if (clickedOnEmpty) {
+      // Left click
+      if (e.evt.button === 0) {
+          // Pan if Space pressed OR Tool is Hand
+          if (isSpacePressed || toolMode === 'hand') {
+              // Pan mode
+              setIsPanning(true);
+              lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+          } else {
+              // Box Selection mode
+              const stage = e.target.getStage();
+              const pointer = stage?.getPointerPosition();
+              if (pointer) {
+                  const x = (pointer.x - viewport.x) / viewport.scale;
+                  const y = (pointer.y - viewport.y) / viewport.scale;
+                  setSelectionRect({
+                      startX: x, startY: y,
+                      x, y, width: 0, height: 0
+                  });
+              }
+              // Clear selection if not Shift
+              if (!e.evt.shiftKey) {
+                  setSelectedNodeIds(new Set());
+              }
+          }
+      } else if (e.evt.button === 1) {
+          // Middle click pan
+          setIsPanning(true);
+          lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+      }
+    }
+  };
+
+  const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Phase 2: Handle Connection Line dragging
+    if (connectingFromNodeId) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+            const canvasX = (pointer.x - viewport.x) / viewport.scale;
+            const canvasY = (pointer.y - viewport.y) / viewport.scale;
+            setConnectingLineEnd({ x: canvasX, y: canvasY });
+        }
+        return;
+    }
+
+    // Handle Pan
+    if (isPanning) {
+        const dx = e.evt.clientX - lastPosRef.current.x;
+        const dy = e.evt.clientY - lastPosRef.current.y;
+
+        onViewportChange({
+            ...viewport,
+            x: viewport.x + dx,
+            y: viewport.y + dy,
+        });
+
+        lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+        return;
+    }
+
+    // Handle Box Selection
+    if (selectionRect) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+            const currentX = (pointer.x - viewport.x) / viewport.scale;
+            const currentY = (pointer.y - viewport.y) / viewport.scale;
+            
+            const startX = selectionRect.startX;
+            const startY = selectionRect.startY;
+
+            setSelectionRect({
+                ...selectionRect,
+                x: Math.min(startX, currentX),
+                y: Math.min(startY, currentY),
+                width: Math.abs(currentX - startX),
+                height: Math.abs(currentY - startY)
+            });
+        }
+    }
+  };
+
+  const handleStageMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Phase 2: Handle Connection creation
+    if (connectingFromNodeId && connectingLineEnd) {
+        const stage = e.target.getStage();
+        const pointer = stage?.getPointerPosition();
+        if (pointer) {
+            const canvasX = (pointer.x - viewport.x) / viewport.scale;
+            const canvasY = (pointer.y - viewport.y) / viewport.scale;
+            
+            // Find target node under the mouse
+            const targetNode = visibleNodes.find(node => {
+                const nodeWidth = node.width || 280;
+                const nodeHeight = node.height || 200;
+                return (
+                    canvasX >= node.x &&
+                    canvasX <= node.x + nodeWidth &&
+                    canvasY >= node.y &&
+                    canvasY <= node.y + nodeHeight &&
+                    node.id !== connectingFromNodeId
+                );
+            });
+            
+            if (targetNode) {
+                // Check if edge already exists
+                const edgeExists = edges.some(
+                    e => (e.source === connectingFromNodeId && e.target === targetNode.id) ||
+                         (e.source === targetNode.id && e.target === connectingFromNodeId)
+                );
+                
+                if (!edgeExists) {
+                    // Create new edge with default label
+                    const newEdge: CanvasEdge = {
+                        id: `edge-${Date.now()}`,
+                        source: connectingFromNodeId,
+                        target: targetNode.id,
+                        label: '',
+                        relationType: 'related',
+                    };
+                    onEdgesChange([...edges, newEdge]);
+                    
+                    // Show label dialog
+                    const sourceNode = visibleNodes.find(n => n.id === connectingFromNodeId);
+                    if (sourceNode) {
+                        const midX = ((sourceNode.x + (sourceNode.width || 280)) + targetNode.x) / 2;
+                        const midY = ((sourceNode.y + (sourceNode.height || 200) / 2) + (targetNode.y + (targetNode.height || 200) / 2)) / 2;
+                        // Convert to screen coordinates
+                        const screenX = midX * viewport.scale + viewport.x;
+                        const screenY = midY * viewport.scale + viewport.y;
+                        setEdgeLabelDialog({ edge: newEdge, position: { x: screenX, y: screenY } });
+                    }
+                }
+            }
+        }
+        setConnectingFromNodeId(null);
+        setConnectingLineEnd(null);
+        return;
+    }
+
+    if (isPanning) {
+        setIsPanning(false);
+    }
+    
+    if (selectionRect) {
+        // Calculate Intersection
+        const box = selectionRect;
+        // Optimization: only check intersection if box has size
+        if (box.width > 0 || box.height > 0) {
+            const newSelection = new Set(selectedNodeIds);
+            
+            visibleNodes.forEach(node => {
+                const nodeWidth = node.width || 280;
+                const nodeHeight = node.height || 200;
+                
+                // Simple AABB intersection
+                if (
+                    box.x < node.x + nodeWidth &&
+                    box.x + box.width > node.x &&
+                    box.y < node.y + nodeHeight &&
+                    box.y + box.height > node.y
+                ) {
+                    newSelection.add(node.id);
+                }
+            });
+            setSelectedNodeIds(newSelection);
+        }
+        setSelectionRect(null);
+    }
+  };
+
+  // Determine Cursor Style
+  const getCursorStyle = () => {
+    if (isPanning) return 'grabbing';
+    if (toolMode === 'hand' || isSpacePressed) return 'grab';
+    if (selectionRect) return 'crosshair';
+    return 'default';
+  };
+
+  // Edge label colors based on relation type
+  const getEdgeLabelStyle = (relationType?: string) => {
+    const styles: Record<string, { color: string; bgColor: string }> = {
+      supports: { color: '#059669', bgColor: '#ECFDF5' },      // Green
+      contradicts: { color: '#DC2626', bgColor: '#FEF2F2' },   // Red
+      causes: { color: '#D97706', bgColor: '#FFFBEB' },        // Orange
+      belongs_to: { color: '#7C3AED', bgColor: '#F5F3FF' },    // Purple
+      related: { color: '#6B7280', bgColor: '#F3F4F6' },       // Gray
+      custom: { color: '#3B82F6', bgColor: '#EFF6FF' },        // Blue
+    };
+    return styles[relationType || 'related'] || styles.related;
+  };
+
+  // Draw connections with labels
+  const renderEdges = () => {
+    return edges.map((edge, index) => {
+      const source = visibleNodes.find((n) => n.id === edge.source);
+      const target = visibleNodes.find((n) => n.id === edge.target);
+      
+      if (!source || !target) return null;
+
+      const x1 = source.x + (source.width || 280);
+      const y1 = source.y + ((source.height || 200) / 2);
+      const x2 = target.x;
+      const y2 = target.y + ((target.height || 200) / 2);
+
+      const controlOffset = Math.max(Math.abs(x2 - x1) * 0.4, 50);
+      
+      // Calculate midpoint for label placement
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      
+      const labelStyle = getEdgeLabelStyle(edge.relationType);
+      const hasLabel = edge.label && edge.label.trim().length > 0;
+
+      return (
+        <Group key={edge.id || `${edge.source}-${edge.target}-${index}`}>
+          <Line
+            points={[
+              x1, y1,
+              x1 + controlOffset, y1,
+              x2 - controlOffset, y2,
+              x2, y2
+            ]}
+            stroke={hasLabel ? labelStyle.color : "#94A3B8"}
+            strokeWidth={2}
+            tension={0.5}
+            bezier
+          />
+          
+          {/* Edge Label */}
+          {hasLabel && (
+            <Group x={midX} y={midY}>
+              <Rect
+                x={-edge.label!.length * 3.5 - 8}
+                y={-10}
+                width={edge.label!.length * 7 + 16}
+                height={20}
+                fill={labelStyle.bgColor}
+                stroke={labelStyle.color}
+                strokeWidth={1}
+                cornerRadius={4}
+              />
+              <Text
+                x={-edge.label!.length * 3.5}
+                y={-6}
+                text={edge.label}
+                fontSize={11}
+                fill={labelStyle.color}
+                fontStyle="600"
+              />
+            </Group>
+          )}
+        </Group>
+      );
+    });
+  };
+
+  return (
+    <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
+      <Box 
+        sx={{ 
+          height: 48, 
+          borderBottom: '1px solid', 
+          borderColor: 'divider', 
+          display: 'flex', 
+          alignItems: 'center', 
+          px: 3, 
+          justifyContent: 'space-between', 
+          bgcolor: '#FAFAFA',
+          zIndex: 100,
+          flexShrink: 0
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Layout size={14} className="text-gray-500" />
+          <Typography variant="subtitle2" fontWeight="600">
+            Canvas
+          </Typography>
+        </Box>
+        <Typography variant="caption" color="text.disabled">
+          Auto-saved • {visibleNodes.length} nodes ({currentView === 'free' ? '自由画布' : '思考路径'})
+          {selectedNodeIds.size > 0 && ` • Selected: ${selectedNodeIds.size}`}
+        </Typography>
+      </Box>
+
+      {/* Canvas Container */}
+      <Box
+        ref={containerRef}
+        sx={{ 
+          flexGrow: 1, 
+          bgcolor: '#FAFAFA', 
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          if (dragContentRef.current && containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
+            const canvasX = (screenX - viewport.x) / viewport.scale;
+            const canvasY = (screenY - viewport.y) / viewport.scale;
+            setDragPreview({ x: canvasX, y: canvasY, content: dragContentRef.current });
+          }
+        }}
+        onDragLeave={() => setDragPreview(null)}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!containerRef.current) return;
+          const rect = containerRef.current.getBoundingClientRect();
+          const screenX = e.clientX - rect.left;
+          const screenY = e.clientY - rect.top;
+          const canvasX = (screenX - viewport.x) / viewport.scale;
+          const canvasY = (screenY - viewport.y) / viewport.scale;
+          
+          const cardWidth = 280;
+          const cardHeight = 200;
+          const centeredX = canvasX - cardWidth / 2;
+          const centeredY = canvasY - cardHeight / 2;
+
+          let handled = false;
+          const jsonData = e.dataTransfer.getData('application/json');
+          if (jsonData && onNodeAdd) {
+            try {
+              const data = JSON.parse(jsonData);
+              if (data.type === 'ai_response') {
+                onNodeAdd({
+                  type: 'ai_insight',
+                  title: data.source?.query || 'AI Insight',
+                  content: data.content,
+                  x: centeredX,
+                  y: centeredY,
+                  width: cardWidth,
+                  height: cardHeight,
+                  color: 'blue',
+                  tags: ['#ai'],
+                });
+                handled = true;
+              }
+            } catch {}
+          }
+
+          if (!handled && onNodeAdd) {
+            const text = e.dataTransfer.getData('text/plain');
+            if (text) {
+              onNodeAdd({
+                type: 'card',
+                title: 'New Insight',
+                content: text,
+                x: centeredX,
+                y: centeredY,
+                width: cardWidth,
+                height: cardHeight,
+                color: 'blue',
+                tags: ['#from-drag'],
+              });
+            }
+          }
+          setDragPreview(null);
+        }}
+      >
+        {/* Context Menu */}
+        {contextMenu && (
+          <Menu
+            open={Boolean(contextMenu)}
+            onClose={() => setContextMenu(null)}
+            anchorReference="anchorPosition"
+            anchorPosition={contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined}
+          >
+            {contextMenu.nodeId && studioCurrentView === 'thinking' && (
+              <MenuItem
+                onClick={() => {
+                  if (contextMenu.nodeId) promoteNode(contextMenu.nodeId);
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <ArrowUp size={14} style={{ marginRight: 8 }} />
+                提升到自由画布
+              </MenuItem>
+            )}
+            {/* Phase 4: Extract Insights for Source Nodes */}
+            {contextMenu.nodeId && (() => {
+              const node = visibleNodes.find(n => n.id === contextMenu.nodeId);
+              return node?.subType === 'source';
+            })() && (
+              <MenuItem
+                onClick={() => {
+                  const sourceNode = visibleNodes.find(n => n.id === contextMenu.nodeId);
+                  if (!sourceNode) return;
+                  
+                  // Generate mock insights with radial layout
+                  const insights = [
+                    { title: '核心概念 1', content: `从 "${sourceNode.title}" 中提取的核心概念。这是一个自动生成的洞察点。` },
+                    { title: '核心概念 2', content: '另一个重要的知识点。代表文档中的关键论述或结论。' },
+                    { title: '关联主题', content: '与主题相关的延伸内容。可用于进一步探索。' },
+                    { title: '待验证观点', content: '需要进一步确认的内容。建议查阅更多资料。' },
+                    { title: '总结', content: `"${sourceNode.title}" 的主要贡献和价值总结。` },
+                  ];
+                  
+                  // Radial layout calculation
+                  const centerX = sourceNode.x + (sourceNode.width || 280) / 2;
+                  const centerY = sourceNode.y + (sourceNode.height || 200) / 2;
+                  const radius = 350; // Distance from center
+                  const angleStep = (2 * Math.PI) / insights.length;
+                  const startAngle = -Math.PI / 2; // Start from top
+                  
+                  const newNodes: typeof nodes = [];
+                  const newEdges: CanvasEdge[] = [];
+                  
+                  insights.forEach((insight, index) => {
+                    const angle = startAngle + angleStep * index;
+                    const nodeWidth = 240;
+                    const nodeHeight = 160;
+                    
+                    const nodeId = `insight-${Date.now()}-${index}`;
+                    const x = centerX + radius * Math.cos(angle) - nodeWidth / 2;
+                    const y = centerY + radius * Math.sin(angle) - nodeHeight / 2;
+                    
+                    newNodes.push({
+                      id: nodeId,
+                      type: 'insight',
+                      title: insight.title,
+                      content: insight.content,
+                      x,
+                      y,
+                      width: nodeWidth,
+                      height: nodeHeight,
+                      color: 'yellow',
+                      tags: ['#extracted'],
+                      sourceId: sourceNode.sourceId || sourceNode.id,
+                      viewType: currentView as 'free' | 'thinking',
+                    });
+                    
+                    // Create edge from source to this insight
+                    newEdges.push({
+                      id: `edge-${Date.now()}-${index}`,
+                      source: sourceNode.id,
+                      target: nodeId,
+                      label: index === insights.length - 1 ? '总结' : '',
+                      relationType: index === insights.length - 1 ? 'belongs_to' : 'related',
+                    });
+                  });
+                  
+                  // Add all new nodes and edges
+                  onNodesChange([...nodes, ...newNodes]);
+                  onEdgesChange([...edges, ...newEdges]);
+                  
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <Sparkles size={14} style={{ marginRight: 8 }} />
+                提取洞察 (Extract Insights)
+              </MenuItem>
+            )}
+            {/* Phase 3: Create Group from Selection */}
+            {selectedNodeIds.size >= 2 && contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId) && (
+              <MenuItem
+                onClick={() => {
+                  // Get all selected nodes
+                  const selectedNodes = visibleNodes.filter(n => selectedNodeIds.has(n.id));
+                  if (selectedNodes.length < 2) return;
+                  
+                  // Calculate bounding box
+                  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                  selectedNodes.forEach(node => {
+                    minX = Math.min(minX, node.x);
+                    minY = Math.min(minY, node.y);
+                    maxX = Math.max(maxX, node.x + (node.width || 280));
+                    maxY = Math.max(maxY, node.y + (node.height || 200));
+                  });
+                  
+                  const padding = 24;
+                  const headerHeight = 48;
+                  
+                  // Create new section
+                  const sectionId = `section-${Date.now()}`;
+                  const newSection = {
+                    id: sectionId,
+                    title: `组 (${selectedNodes.length} 个节点)`,
+                    viewType: currentView as 'free' | 'thinking',
+                    isCollapsed: false,
+                    nodeIds: Array.from(selectedNodeIds),
+                    x: minX - padding,
+                    y: minY - padding - headerHeight,
+                    width: maxX - minX + padding * 2,
+                    height: maxY - minY + padding * 2 + headerHeight,
+                  };
+                  
+                  addSection(newSection);
+                  
+                  // Update nodes with sectionId
+                  const updatedNodes = nodes.map(node => 
+                    selectedNodeIds.has(node.id) 
+                      ? { ...node, sectionId }
+                      : node
+                  );
+                  onNodesChange(updatedNodes);
+                  
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <Layers size={14} style={{ marginRight: 8 }} />
+                创建分组 ({selectedNodeIds.size})
+              </MenuItem>
+            )}
+            {contextMenu.nodeId && (
+              <MenuItem
+                onClick={() => {
+                  if (contextMenu.nodeId) {
+                      // If the right-clicked node is in selection, delete all selected
+                      // If not, delete only this one
+                      if (selectedNodeIds.has(contextMenu.nodeId)) {
+                          onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
+                          setSelectedNodeIds(new Set());
+                      } else {
+                          onNodesChange(nodes.filter(n => n.id !== contextMenu.nodeId));
+                      }
+                  }
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14, color: 'error.main' }}
+              >
+                删除节点 {selectedNodeIds.size > 1 && selectedNodeIds.has(contextMenu.nodeId!) ? `(${selectedNodeIds.size})` : ''}
+              </MenuItem>
+            )}
+            {contextMenu.sectionId && (
+              <>
+                <MenuItem
+                  onClick={() => {
+                    if (contextMenu.sectionId) {
+                      setCanvasSections(prev =>
+                        prev.map(s => s.id === contextMenu.sectionId ? { ...s, isCollapsed: !s.isCollapsed } : s)
+                      );
+                    }
+                    setContextMenu(null);
+                  }}
+                  sx={{ fontSize: 14 }}
+                >
+                  折叠/展开Section
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    if (contextMenu.sectionId) deleteSection(contextMenu.sectionId);
+                    setContextMenu(null);
+                  }}
+                  sx={{ fontSize: 14, color: 'error.main' }}
+                >
+                  删除Section
+                </MenuItem>
+              </>
+            )}
+          </Menu>
+        )}
+
+        {/* Phase 2: Edge Label Dialog */}
+        {edgeLabelDialog && (
+          <Paper
+            elevation={4}
+            sx={{
+              position: 'absolute',
+              left: edgeLabelDialog.position.x,
+              top: edgeLabelDialog.position.y,
+              transform: 'translate(-50%, -50%)',
+              p: 2,
+              borderRadius: 2,
+              minWidth: 240,
+              zIndex: 1100,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                连接关系
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setEdgeLabelDialog(null)}
+              >
+                <X size={16} />
+              </IconButton>
+            </Box>
+            
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
+              {[
+                { type: 'supports', label: '支持', color: '#059669' },
+                { type: 'contradicts', label: '反对', color: '#DC2626' },
+                { type: 'causes', label: '导致', color: '#D97706' },
+                { type: 'belongs_to', label: '属于', color: '#7C3AED' },
+                { type: 'related', label: '相关', color: '#6B7280' },
+              ].map(({ type, label, color }) => (
+                <Chip
+                  key={type}
+                  label={label}
+                  size="small"
+                  onClick={() => {
+                    const updatedEdges = edges.map(e => 
+                      e.id === edgeLabelDialog.edge.id 
+                        ? { ...e, label, relationType: type as CanvasEdge['relationType'] }
+                        : e
+                    );
+                    onEdgesChange(updatedEdges);
+                    setEdgeLabelDialog(null);
+                  }}
+                  sx={{
+                    borderColor: color,
+                    color: color,
+                    '&:hover': { bgcolor: `${color}10` },
+                    cursor: 'pointer',
+                  }}
+                  variant="outlined"
+                />
+              ))}
+            </Stack>
+            
+            <TextField
+              size="small"
+              placeholder="自定义标签..."
+              fullWidth
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const value = (e.target as HTMLInputElement).value.trim();
+                  if (value) {
+                    const updatedEdges = edges.map(edge => 
+                      edge.id === edgeLabelDialog.edge.id 
+                        ? { ...edge, label: value, relationType: 'custom' as const }
+                        : edge
+                    );
+                    onEdgesChange(updatedEdges);
+                  }
+                  setEdgeLabelDialog(null);
+                }
+              }}
+              sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+            />
+          </Paper>
+        )}
+        
+        <Stage
+          ref={stageRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          x={viewport.x}
+          y={viewport.y}
+          scaleX={viewport.scale}
+          scaleY={viewport.scale}
+          onWheel={handleWheel}
+          onMouseDown={handleStageMouseDown}
+          onMouseMove={handleStageMouseMove}
+          onMouseUp={handleStageMouseUp}
+          onMouseLeave={() => {
+            handleStageMouseUp({} as Konva.KonvaEventObject<MouseEvent>);
+            // Clear connection state on mouse leave
+            setConnectingFromNodeId(null);
+            setConnectingLineEnd(null);
+          }}
+          style={{ cursor: getCursorStyle() }}
+        >
+          {/* Background Layer */}
+          <Layer>
+            <Rect
+              x={-viewport.x / viewport.scale - 5000}
+              y={-viewport.y / viewport.scale - 5000}
+              width={10000}
+              height={10000}
+              fill="#FAFAFA"
+            />
+          </Layer>
+
+          {/* Content Layer */}
+          <Layer>
+            {/* Sections */}
+            {visibleSections.map((section) => {
+              const sectionNodes = visibleNodes.filter(n => n.sectionId === section.id);
+              if (sectionNodes.length === 0) return null;
+              
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              sectionNodes.forEach(node => {
+                minX = Math.min(minX, node.x);
+                minY = Math.min(minY, node.y);
+                maxX = Math.max(maxX, node.x + (node.width || 280));
+                maxY = Math.max(maxY, node.y + (node.height || 200));
+              });
+              
+              const headerHeight = 48;
+              const padding = 16;
+              const contentWidth = maxX - minX + padding * 2;
+              const contentHeight = maxY - minY + padding * 2;
+              const totalHeight = headerHeight + (section.isCollapsed ? 0 : contentHeight);
+
+              return (
+                <Group
+                  key={section.id}
+                  x={section.x || minX - padding}
+                  y={section.y || minY - padding - headerHeight}
+                  onContextMenu={(e) => {
+                    e.evt.preventDefault();
+                    setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, sectionId: section.id });
+                  }}
+                >
+                  <Rect
+                    width={contentWidth}
+                    height={totalHeight}
+                    fill="#F3F4F6"
+                    cornerRadius={12}
+                    stroke="#E5E7EB"
+                    strokeWidth={1}
+                    shadowColor="black"
+                    shadowBlur={8}
+                    shadowOpacity={0.08}
+                    shadowOffsetY={2}
+                  />
+                  <Rect
+                    width={contentWidth}
+                    height={headerHeight}
+                    fill="#FFFFFF"
+                    cornerRadius={[12, 12, 0, 0]}
+                    onClick={() => {
+                      setCanvasSections(prev =>
+                        prev.map(s => s.id === section.id ? { ...s, isCollapsed: !s.isCollapsed } : s)
+                      );
+                    }}
+                  />
+                  <Text x={16} y={16} text="🌱" fontSize={18} />
+                  <Text
+                    x={48}
+                    y={18}
+                    width={contentWidth - 100}
+                    text={section.title}
+                    fontSize={14}
+                    fontStyle="bold"
+                    fill="#1F2937"
+                    ellipsis
+                  />
+                  <Text
+                    x={contentWidth - 40}
+                    y={18}
+                    text={section.isCollapsed ? '▶' : '▼'}
+                    fontSize={12}
+                    fill="#6B7280"
+                  />
+                </Group>
+              );
+            })}
+
+            {/* Edges */}
+            {renderEdges()}
+
+            {/* Phase 2: Temporary Connection Line */}
+            {connectingFromNodeId && connectingLineEnd && (() => {
+              const sourceNode = visibleNodes.find(n => n.id === connectingFromNodeId);
+              if (!sourceNode) return null;
+              
+              const x1 = sourceNode.x + (sourceNode.width || 280);
+              const y1 = sourceNode.y + ((sourceNode.height || 200) / 2);
+              const x2 = connectingLineEnd.x;
+              const y2 = connectingLineEnd.y;
+              const controlOffset = Math.max(Math.abs(x2 - x1) * 0.4, 50);
+
+              return (
+                <Line
+                  points={[x1, y1, x1 + controlOffset, y1, x2 - controlOffset, y2, x2, y2]}
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  tension={0.5}
+                  bezier
+                  dash={[8, 4]}
+                  listening={false}
+                />
+              );
+            })()}
+
+            {/* Nodes */}
+            {visibleNodes.map((node) => {
+              if (node.sectionId) {
+                const section = visibleSections.find(s => s.id === node.sectionId);
+                if (section?.isCollapsed) return null;
+              }
+              
+              return (
+              <KnowledgeNode
+                key={node.id}
+                node={node}
+                isSelected={selectedNodeIds.has(node.id)}
+                isHighlighted={highlightedNodeId === node.id}
+                isHovered={hoveredNodeId === node.id}
+                isConnecting={connectingFromNodeId === node.id}
+                isConnectTarget={connectingFromNodeId !== null && connectingFromNodeId !== node.id}
+                onSelect={(e) => handleNodeSelect(node.id, e)}
+                onClick={() => onNodeClick?.(node)}
+                onDoubleClick={() => {
+                  // Phase 1: Handle double-click for source nodes (drill-down)
+                  if (node.subType === 'source' && node.sourceId) {
+                    onOpenSource?.(node.sourceId, node.sourcePage);
+                  }
+                  onNodeDoubleClick?.(node);
+                }}
+                onLinkBack={() => {
+                  // Phase 1: Navigate to source document
+                  if (node.sourceId) {
+                    onOpenSource?.(node.sourceId, node.sourcePage);
+                  }
+                }}
+                onDragStart={handleNodeDragStart(node.id)}
+                onDragMove={handleNodeDragMove(node.id)}
+                onDragEnd={handleNodeDragEnd(node.id)}
+                onContextMenu={(e) => {
+                  e.evt.preventDefault();
+                  setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: node.id });
+                }}
+                onConnectionStart={() => {
+                  // Phase 2: Start connection drag
+                  setConnectingFromNodeId(node.id);
+                }}
+                onMouseEnter={() => setHoveredNodeId(node.id)}
+                onMouseLeave={() => setHoveredNodeId(null)}
+              />
+            );
+            })}
+
+            {/* Selection Box */}
+            {selectionRect && (
+                <Rect
+                    x={selectionRect.x}
+                    y={selectionRect.y}
+                    width={selectionRect.width}
+                    height={selectionRect.height}
+                    fill="rgba(59, 130, 246, 0.1)"
+                    stroke="#3B82F6"
+                    strokeWidth={1}
+                    listening={false}
+                />
+            )}
+
+            {/* Drag Preview */}
+            {dragPreview && (
+              <Group
+                x={dragPreview.x - 140}
+                y={dragPreview.y - 100}
+                opacity={0.7}
+                listening={false}
+              >
+                <Rect
+                  width={280}
+                  height={200}
+                  fill="white"
+                  cornerRadius={12}
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  dash={[6, 4]}
+                  shadowColor="black"
+                  shadowBlur={8}
+                  shadowOpacity={0.15}
+                  shadowOffsetY={4}
+                />
+                <Rect y={0} width={280} height={4} fill="#3B82F6" cornerRadius={[12, 12, 0, 0]} />
+                <Text x={16} y={16} width={280 - 32} text="AI Insight" fontSize={12} fontStyle="bold" fill="#1F2937" />
+                <Text x={16} y={40} width={280 - 32} height={130} text={dragPreview.content} fontSize={12} fill="#6B7280" wrap="word" ellipsis />
+              </Group>
+            )}
+          </Layer>
+        </Stage>
+      </Box>
+    </Box>
+  );
+}

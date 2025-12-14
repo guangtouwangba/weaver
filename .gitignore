@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Fly.io
+# 环境配置文件应该提交到仓库用于 CI/CD
+# 敏感信息通过 fly secrets 管理，不要放在配置文件中
+
+# Data uploads (user files)
+data/uploads/
+app/backend/data/uploads/
+
+# Next.js
+.next/
+out/
+
+# Logs
+*.log
+logs/

@@ -1,0 +1,143 @@
+{
+  "name": "Research Agent RAG",
+  "dockerComposeFile": "../docker-compose.yml",
+  
+  // 配置开发容器
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  
+  // 容器启动后运行的命令
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  
+  // 端口转发
+  "forwardPorts": [
+    8000,  // FastAPI
+    5432,  // PostgreSQL
+    6379,  // Redis
+    5173   // Vite (前端)
+  ],
+  
+  // 端口标签
+  "portsAttributes": {
+    "8000": {
+      "label": "FastAPI API",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "6379": {
+      "label": "Redis",
+      "onAutoForward": "silent"
+    },
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    }
+  },
+  
+  // VS Code 配置
+  "customizations": {
+    "vscode": {
+      // 推荐安装的扩展
+      "extensions": [
+        // Python
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "charliermarsh.ruff",
+        
+        // Docker
+        "ms-azuretools.vscode-docker",
+        
+        // Database
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        
+        // Git
+        "eamodio.gitlens",
+        
+        // TypeScript/React (前端)
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        
+        // 其他
+        "editorconfig.editorconfig",
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml"
+      ],
+      
+      // VS Code 设置
+      "settings": {
+        // Python
+        "python.defaultInterpreterPath": "/workspace/venv/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.linting.ruffEnabled": true,
+        "python.formatting.provider": "black",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.analysis.typeCheckingMode": "basic",
+        
+        // Editor
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": "explicit"
+        },
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/*.pyc": true,
+          "**/.pytest_cache": true,
+          "**/.ruff_cache": true,
+          "**/node_modules": true,
+          "**/.egg-info": true
+        },
+        
+        // Terminal
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash",
+            "args": ["-l"]
+          }
+        }
+      }
+    }
+  },
+  
+  // 容器特性
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  
+  // 挂载配置
+  "mounts": [
+    // 持久化 Python 包缓存
+    "source=research-agent-rag-pip-cache,target=/root/.cache/pip,type=volume",
+    // 持久化 uv 缓存
+    "source=research-agent-rag-uv-cache,target=/root/.cache/uv,type=volume",
+    // 持久化数据目录
+    "source=${localWorkspaceFolder}/data,target=/workspace/data,type=bind,consistency=cached"
+  ],
+  
+  // 环境变量
+  "remoteEnv": {
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  
+  // 容器运行参数
+  "runArgs": [
+    "--init"
+  ],
+  
+  // 远程用户
+  "remoteUser": "root"
+}
+

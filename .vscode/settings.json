@@ -1,0 +1,71 @@
+{
+  // Python 解释器配置
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  
+  // Python 语言服务器配置
+  // 让 Cursor 能识别和跳转到内部包
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/packages/rag-core",
+    "${workspaceFolder}/packages/shared-config",
+    "${workspaceFolder}/packages/domain-models",
+    "${workspaceFolder}/apps/api"
+  ],
+  
+  // 启用类型检查
+  "python.analysis.typeCheckingMode": "basic",
+  
+  // 自动导入
+  "python.analysis.autoImportCompletions": true,
+  
+  // 启用第三方包源码索引（重要！）
+  "python.analysis.indexing": true,
+  "python.analysis.packageIndexDepths": [
+    { "name": "", "depth": 2 },
+    { "name": "langchain", "depth": 3 },
+    { "name": "langchain_community", "depth": 3 },
+    { "name": "langchain_openai", "depth": 3 }
+  ],
+  
+  // 启用代码导航（Go to Definition）
+  "python.analysis.diagnosticMode": "workspace",
+  
+  // 启用类型存根（stub）文件
+  "python.analysis.stubPath": "${workspaceFolder}/.venv/lib/python3.12/site-packages",
+  
+  // 搜索排除目录
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/.mypy_cache": true,
+    "**/*.egg-info": true
+  },
+  
+  // 搜索包含目录
+  "search.exclude": {
+    "**/node_modules": true,
+    // 注意：不要排除 .venv，这样才能搜索第三方包源码
+    "**/venv": true,
+    "**/build": true,
+    "**/dist": true
+  },
+  
+  // Python 格式化
+  "python.formatting.provider": "none",
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
+  
+  // 文件关联
+  "files.associations": {
+    "*.env": "dotenv",
+    "pyproject.toml": "toml",
+    "uv.lock": "toml"
+  }
+}
+
