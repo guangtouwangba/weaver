@@ -37,6 +37,20 @@ interface CanvasNode {
     author?: string;
     lastModified?: string;
   };
+  // === Thinking Graph Fields (Dynamic Mind Map) ===
+  thinkingStepIndex?: number;
+  thinkingFields?: {
+    claim: string;
+    reason: string;
+    evidence: string;
+    uncertainty: string;
+    decision: string;
+  };
+  branchType?: 'alternative' | 'question' | 'counterargument';
+  depth?: number;
+  parentStepId?: string;
+  isDraft?: boolean;
+  topicId?: string;
 }
 
 interface CanvasEdge {
@@ -71,7 +85,7 @@ interface KonvaCanvasProps {
 }
 
 // Node style configuration based on type
-const getNodeStyle = (type: string, subType?: string, fileType?: string) => {
+const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft?: boolean, branchType?: string) => {
   const styles: Record<string, { 
     borderColor: string; 
     borderStyle: 'solid' | 'dashed'; 
@@ -130,6 +144,49 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string) => {
       icon: '💡',              // Lightbulb
       topBarColor: '#F59E0B',
     },
+    // === Thinking Graph Node Types (Dynamic Mind Map) ===
+    thinking_step: {
+      borderColor: '#3B82F6',  // Blue for finalized
+      borderStyle: 'solid',
+      bgColor: '#EFF6FF',      // Light blue
+      icon: '🧠',              // Brain icon
+      topBarColor: '#3B82F6',
+    },
+    thinking_step_draft: {
+      borderColor: '#8B5CF6',  // Purple for draft
+      borderStyle: 'dashed',
+      bgColor: '#F5F3FF',      // Light purple
+      icon: '⏳',              // Hourglass for pending
+      topBarColor: '#8B5CF6',
+    },
+    thinking_branch: {
+      borderColor: '#F59E0B',  // Yellow/Gold for branches
+      borderStyle: 'solid',
+      bgColor: '#FFFBEB',      // Light yellow
+      icon: '🔀',              // Branch icon
+      topBarColor: '#F59E0B',
+    },
+    thinking_branch_question: {
+      borderColor: '#3B82F6',  // Blue for question branches
+      borderStyle: 'dashed',
+      bgColor: '#EFF6FF',      // Light blue
+      icon: '❓',              // Question mark
+      topBarColor: '#3B82F6',
+    },
+    thinking_branch_alternative: {
+      borderColor: '#10B981',  // Green for alternative branches
+      borderStyle: 'solid',
+      bgColor: '#F0FDF4',      // Light green
+      icon: '🔄',              // Alternative icon
+      topBarColor: '#10B981',
+    },
+    thinking_branch_counterargument: {
+      borderColor: '#EF4444',  // Red for counterargument branches
+      borderStyle: 'solid',
+      bgColor: '#FEF2F2',      // Light red
+      icon: '⚡',              // Counterargument icon
+      topBarColor: '#EF4444',
+    },
     // === Other Node Types ===
     knowledge: {
       borderColor: '#E5E7EB',
@@ -164,6 +221,28 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string) => {
     return styles.source_text;
   }
   
+  // Handle thinking_step nodes with draft status
+  if (type === 'thinking_step') {
+    if (isDraft) {
+      return styles.thinking_step_draft;
+    }
+    return styles.thinking_step;
+  }
+  
+  // Handle thinking_branch nodes with branch type
+  if (type === 'thinking_branch') {
+    if (branchType === 'question') {
+      return styles.thinking_branch_question;
+    }
+    if (branchType === 'alternative') {
+      return styles.thinking_branch_alternative;
+    }
+    if (branchType === 'counterargument') {
+      return styles.thinking_branch_counterargument;
+    }
+    return styles.thinking_branch;
+  }
+  
   // Default to knowledge style for backward compatibility
   return styles[type] || styles.knowledge;
 };
@@ -176,6 +255,7 @@ const KnowledgeNode = ({
   isHovered,
   isConnecting,
   isConnectTarget,
+  isActiveThinking,
   onSelect,
   onClick,
   onDoubleClick,
@@ -194,6 +274,7 @@ const KnowledgeNode = ({
   isHovered?: boolean;              // Phase 2: Show connection handles
   isConnecting?: boolean;           // Phase 2: Currently dragging a connection from this node
   isConnectTarget?: boolean;        // Phase 2: Currently a potential connection target
+  isActiveThinking?: boolean;       // Thinking Graph: Is this the active thinking node (fork point)
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   onClick?: () => void;
   onDoubleClick?: () => void;       // Phase 1: Drill-down
@@ -208,11 +289,15 @@ const KnowledgeNode = ({
 }) => {
   const width = node.width || 280;
   const height = node.height || 200;
-  const style = getNodeStyle(node.type, node.subType, node.fileMetadata?.fileType);
+  const style = getNodeStyle(node.type, node.subType, node.fileMetadata?.fileType, node.isDraft, node.branchType);
+  
+  // Thinking Graph: Check if this is a thinking step or branch node
+  const isThinkingStep = node.type === 'thinking_step';
+  const isThinkingBranch = node.type === 'thinking_branch';
   
   // Highlight animation effect
-  const highlightStrokeWidth = isHighlighted ? 3 : (isSelected ? 2 : 1);
-  const highlightStrokeColor = isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor);
+  const highlightStrokeWidth = isActiveThinking ? 4 : (isHighlighted ? 3 : (isSelected ? 2 : 1));
+  const highlightStrokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor));
 
   // Check if this is a source node (for visual distinction)
   const isSourceNode = node.subType === 'source';
@@ -251,9 +336,9 @@ const KnowledgeNode = ({
         stroke={highlightStrokeColor}
         strokeWidth={highlightStrokeWidth}
         dash={style.borderStyle === 'dashed' ? [8, 4] : undefined}
-        shadowColor={isHighlighted ? '#3B82F6' : 'black'}
-        shadowBlur={isHighlighted ? 16 : (isSelected ? 12 : 8)}
-        shadowOpacity={isHighlighted ? 0.3 : (isSelected ? 0.15 : 0.08)}
+        shadowColor={isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : 'black')}
+        shadowBlur={isActiveThinking ? 20 : (isHighlighted ? 16 : (isSelected ? 12 : 8))}
+        shadowOpacity={isActiveThinking ? 0.4 : (isHighlighted ? 0.3 : (isSelected ? 0.15 : 0.08))}
         shadowOffsetY={4}
       />
 
@@ -278,7 +363,7 @@ const KnowledgeNode = ({
       <Text
         x={40}
         y={isSourceNode ? 16 : 14}
-        width={width - (hasSourceRef ? 80 : 56)}
+        width={width - (hasSourceRef ? 80 : 56) - (isThinkingStep ? 60 : 0)}
         text={node.title}
         fontSize={isSourceNode ? 15 : 16}
         fontStyle="bold"
@@ -286,6 +371,72 @@ const KnowledgeNode = ({
         wrap="word"
         ellipsis={true}
       />
+      
+      {/* Thinking Graph: Step Index Badge */}
+      {isThinkingStep && node.thinkingStepIndex && (
+        <>
+          <Rect
+            x={width - 45}
+            y={12}
+            width={36}
+            height={20}
+            fill={node.isDraft ? '#8B5CF6' : '#3B82F6'}
+            cornerRadius={10}
+          />
+          <Text
+            x={width - 42}
+            y={15}
+            text={`#${node.thinkingStepIndex}`}
+            fontSize={11}
+            fontStyle="bold"
+            fill="#FFFFFF"
+          />
+        </>
+      )}
+      
+      {/* Thinking Graph: Active Context Badge */}
+      {isActiveThinking && (
+        <>
+          <Rect
+            x={width - 52}
+            y={35}
+            width={44}
+            height={16}
+            fill="#F3E8FF"
+            cornerRadius={8}
+          />
+          <Text
+            x={width - 48}
+            y={37}
+            text="Active"
+            fontSize={9}
+            fontStyle="bold"
+            fill="#7C3AED"
+          />
+        </>
+      )}
+      
+      {/* Thinking Graph: Draft Badge */}
+      {node.isDraft && (
+        <>
+          <Rect
+            x={width - (isActiveThinking ? 100 : 52)}
+            y={35}
+            width={40}
+            height={16}
+            fill="#FEF3C7"
+            cornerRadius={8}
+          />
+          <Text
+            x={width - (isActiveThinking ? 96 : 48)}
+            y={37}
+            text="Draft"
+            fontSize={9}
+            fontStyle="bold"
+            fill="#D97706"
+          />
+        </>
+      )}
 
       {/* Source Node: File metadata badge */}
       {isSourceNode && node.fileMetadata && (
@@ -506,7 +657,10 @@ export default function KonvaCanvas({
     addSection,
     canvasSections,
     setCanvasSections,
-    currentView: studioCurrentView 
+    currentView: studioCurrentView,
+    activeThinkingId,
+    setActiveThinkingId,
+    setCrossBoundaryDragNode,
   } = useStudio();
 
   // Filter nodes and sections by current view
@@ -539,6 +693,33 @@ export default function KonvaCanvas({
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
+
+  // Pan to highlighted node when navigating from chat
+  useEffect(() => {
+    if (!highlightedNodeId) return;
+    
+    const node = nodes.find(n => n.id === highlightedNodeId);
+    if (!node) return;
+    
+    // Calculate center of the node
+    const nodeWidth = node.width || 280;
+    const nodeHeight = node.height || 200;
+    const nodeCenterX = node.x + nodeWidth / 2;
+    const nodeCenterY = node.y + nodeHeight / 2;
+    
+    // Calculate new viewport position to center the node on screen
+    const scale = viewport.scale;
+    const newX = dimensions.width / 2 - nodeCenterX * scale;
+    const newY = dimensions.height / 2 - nodeCenterY * scale;
+    
+    // Update viewport to center on the node
+    onViewportChange({
+      scale,
+      x: newX,
+      y: newY,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightedNodeId]); // Only trigger when highlightedNodeId changes
 
   // Handle keyboard shortcuts (Space for panning, Delete for deletion, Cmd+A for Select All)
   useEffect(() => {
@@ -646,7 +827,18 @@ export default function KonvaCanvas({
             });
         }
     }
-  }, [selectedNodeIds, toolMode]);
+    
+    // Set cross-boundary drag node for potential drop to chat input
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setCrossBoundaryDragNode({
+        id: node.id,
+        title: node.title,
+        content: node.content,
+        sourceMessageId: node.messageIds?.[0],
+      });
+    }
+  }, [selectedNodeIds, toolMode, nodes, setCrossBoundaryDragNode]);
 
   const handleNodeDragMove = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
@@ -677,8 +869,41 @@ export default function KonvaCanvas({
     draggedNodeRef.current = null;
     lastDragPosRef.current = null;
 
-    // Sync all selected nodes positions to state
+    // Check if mouse is outside the canvas container (cross-boundary drag)
+    const container = containerRef.current;
+    const mouseX = e.evt.clientX;
+    const mouseY = e.evt.clientY;
     const stage = stageRef.current;
+    
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      const isOutsideCanvas = mouseX < rect.left || mouseX > rect.right || 
+                              mouseY < rect.top || mouseY > rect.bottom;
+      
+      if (isOutsideCanvas) {
+        // Cross-boundary drag: Reset node position back to original (from state)
+        // This keeps the node visible in canvas while also adding it as context
+        if (stage) {
+          selectedNodeIds.forEach(id => {
+            const originalNode = nodes.find(n => n.id === id);
+            const konvaNode = stage.findOne(`#node-${id}`);
+            if (originalNode && konvaNode) {
+              konvaNode.x(originalNode.x);
+              konvaNode.y(originalNode.y);
+            }
+          });
+        }
+        
+        // Clear crossBoundaryDragNode after a short delay to allow AssistantPanel to detect it
+        setTimeout(() => setCrossBoundaryDragNode(null), 100);
+        return;
+      }
+    }
+    
+    // Clear cross-boundary drag state since we're dropping inside canvas
+    setCrossBoundaryDragNode(null);
+
+    // Sync all selected nodes positions to state
     if (!stage) return;
 
     const updatedNodes = nodes.map(n => {
@@ -697,7 +922,7 @@ export default function KonvaCanvas({
     });
     
     onNodesChange(updatedNodes);
-  }, [nodes, selectedNodeIds, onNodesChange]);
+  }, [nodes, selectedNodeIds, onNodesChange, setCrossBoundaryDragNode]);
 
   // Handle wheel zoom
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -910,8 +1135,8 @@ export default function KonvaCanvas({
     return 'default';
   };
 
-  // Edge label colors based on relation type
-  const getEdgeLabelStyle = (relationType?: string) => {
+  // Edge label colors based on relation type or edge type
+  const getEdgeLabelStyle = (relationType?: string, edgeType?: string) => {
     const styles: Record<string, { color: string; bgColor: string }> = {
       supports: { color: '#059669', bgColor: '#ECFDF5' },      // Green
       contradicts: { color: '#DC2626', bgColor: '#FEF2F2' },   // Red
@@ -919,7 +1144,14 @@ export default function KonvaCanvas({
       belongs_to: { color: '#7C3AED', bgColor: '#F5F3FF' },    // Purple
       related: { color: '#6B7280', bgColor: '#F3F4F6' },       // Gray
       custom: { color: '#3B82F6', bgColor: '#EFF6FF' },        // Blue
+      // Thinking Path edge types
+      branch: { color: '#F59E0B', bgColor: '#FFFBEB' },        // Amber - from insight
+      progression: { color: '#8B5CF6', bgColor: '#F5F3FF' },   // Violet - topic follow-up
     };
+    // Check edge type first (for thinking path edges), then relation type
+    if (edgeType && styles[edgeType]) {
+      return styles[edgeType];
+    }
     return styles[relationType || 'related'] || styles.related;
   };
 
@@ -942,8 +1174,10 @@ export default function KonvaCanvas({
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
       
-      const labelStyle = getEdgeLabelStyle(edge.relationType);
+      const labelStyle = getEdgeLabelStyle(edge.relationType, edge.type);
       const hasLabel = edge.label && edge.label.trim().length > 0;
+      // Use special styling for thinking path edges even without labels
+      const isThinkingPathEdge = edge.type === 'branch' || edge.type === 'progression';
 
       return (
         <Group key={edge.id || `${edge.source}-${edge.target}-${index}`}>
@@ -954,8 +1188,9 @@ export default function KonvaCanvas({
               x2 - controlOffset, y2,
               x2, y2
             ]}
-            stroke={hasLabel ? labelStyle.color : "#94A3B8"}
-            strokeWidth={2}
+            stroke={(hasLabel || isThinkingPathEdge) ? labelStyle.color : "#94A3B8"}
+            strokeWidth={isThinkingPathEdge ? 2.5 : 2}
+            dash={edge.type === 'progression' ? [8, 4] : undefined}
             tension={0.5}
             bezier
           />
@@ -1523,8 +1758,15 @@ export default function KonvaCanvas({
                 isHovered={hoveredNodeId === node.id}
                 isConnecting={connectingFromNodeId === node.id}
                 isConnectTarget={connectingFromNodeId !== null && connectingFromNodeId !== node.id}
+                isActiveThinking={activeThinkingId === node.id}
                 onSelect={(e) => handleNodeSelect(node.id, e)}
-                onClick={() => onNodeClick?.(node)}
+                onClick={() => {
+                  // Thinking Graph: Set as active thinking node when clicked
+                  if (node.type === 'thinking_step' || node.type === 'thinking_branch') {
+                    setActiveThinkingId(node.id);
+                  }
+                  onNodeClick?.(node);
+                }}
                 onDoubleClick={() => {
                   // Phase 1: Handle double-click for source nodes (drill-down)
                   if (node.subType === 'source' && node.sourceId) {

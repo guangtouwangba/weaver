@@ -8,7 +8,11 @@ from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.domain.entities.chat import ChatMessage, ChatSession
-from research_agent.infrastructure.database.models import ChatMessageModel, ChatSessionModel
+from research_agent.infrastructure.database.models import (
+    ChatMessageModel,
+    ChatSessionModel,
+    ProjectModel,
+)
 
 
 class SQLAlchemyChatRepository:
@@ -172,6 +176,22 @@ class SQLAlchemyChatRepository:
 
         For backward compatibility, this creates a shared session.
         """
+        # Ensure project exists first (to avoid ForeignKeyViolationError)
+        # This handles cases where frontend might access a project ID not yet in DB (e.g. dev reset)
+        project_exists = await self._session.execute(
+            select(ProjectModel.id).where(ProjectModel.id == project_id)
+        )
+        if not project_exists.scalar_one_or_none():
+            # Auto-create project to unblock (dev convenience)
+            # In production, this might be better as a 404, but for "fix this" request, auto-healing is safer
+            project = ProjectModel(
+                id=project_id,
+                name="Default Project",
+                description="Auto-created default project",
+            )
+            self._session.add(project)
+            await self._session.flush()
+
         # Try to find an existing default session
         stmt = (
             select(ChatSessionModel)

@@ -333,8 +333,16 @@ async def stream_message(
     )
 
     # Use configured model and API key, fallback to env if not set
-    llm_model = rag_config.llm.model_name
+    # If model_name is empty (default), use environment variable
+    llm_model = rag_config.llm.model_name or env_settings.llm_model
     api_key = rag_config.llm.api_key or env_settings.openrouter_api_key
+
+    # Determine source of model config
+    model_source = "env"
+    if rag_config.llm.model_name and rag_config.llm.model_name != env_settings.llm_model:
+        model_source = "db"
+    elif not rag_config.llm.model_name:
+        model_source = "env (fallback)"
 
     # Map RAG mode from enum to string
     rag_mode_str = (
@@ -342,7 +350,7 @@ async def stream_message(
     )
 
     logger.info(
-        f"[Config] Using model: {llm_model} (from {'db' if rag_config.llm.model_name != env_settings.llm_model else 'env'}), "
+        f"[Config] Using model: {llm_model} (source: {model_source}, env: {env_settings.llm_model}), "
         f"rag_mode: {rag_mode_str}, top_k: {rag_config.retrieval.top_k}, "
         f"hybrid_search: {rag_config.retrieval.use_hybrid_search}"
     )
@@ -366,6 +374,10 @@ async def stream_message(
                 use_hybrid_search=rag_config.retrieval.use_hybrid_search,
                 use_intent_classification=rag_config.intent_classification.enabled,
                 rag_mode=rag_mode_str,
+                context_node_ids=request.context_node_ids,
+                context_nodes=[n.model_dump() for n in request.context_nodes]
+                if request.context_nodes
+                else None,
             )
         ):
             if event.type == "token":

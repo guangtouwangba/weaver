@@ -10,12 +10,24 @@ from pydantic import BaseModel
 # =============================================================================
 
 
+class ContextNode(BaseModel):
+    """Context node from canvas."""
+
+    id: str
+    title: str
+    content: str
+
+
 class ChatMessageRequest(BaseModel):
     """Request DTO for sending a chat message."""
 
     message: str
     document_id: Optional[UUID] = None  # Optional: limit to specific document
     session_id: Optional[UUID] = None  # Optional: associate with a session
+    context_node_ids: Optional[List[str]] = (
+        None  # Optional: explicit context from canvas nodes (DB lookup)
+    )
+    context_nodes: Optional[List[ContextNode]] = None  # Optional: explicit context content (direct)
 
 
 class SourceReference(BaseModel):

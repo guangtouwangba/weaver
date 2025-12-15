@@ -82,7 +82,8 @@ import {
   X,
   Sparkles as SparklesIcon,
   AlertCircle,
-  Trash2
+  Trash2,
+  Route
 } from "lucide-react";
 
 // --- Helper Components ---
@@ -271,7 +272,7 @@ function StudioPageContent() {
   // --- Canvas State (moved before callbacks that use it) ---
   interface CanvasNode {
     id: string;
-    type: 'card' | 'group' | 'source' | 'concept' | 'application' | 'critique' | 'ai_insight';
+    type: 'card' | 'group' | 'source' | 'concept' | 'application' | 'critique' | 'ai_insight' | 'thinking_step' | 'thinking_branch';
     title: string;
     content?: string;
     x: number;
@@ -288,6 +289,19 @@ function StudioPageContent() {
     sourceQuery?: string;     // Original user query
     connections?: string[];   // Array of target node IDs
     isSimplified?: boolean;   // Flag to track if node has been simplified
+    // Thinking Path metadata
+    thinkingStepIndex?: number;
+    thinkingFields?: {
+      claim: string;
+      reason: string;
+      evidence: string;
+      uncertainty: string;
+      decision: string;
+    };
+    branchType?: 'alternative' | 'question' | 'counterargument';
+    parentStepId?: string;
+    isDraft?: boolean; // True while waiting for AI response
+    depth?: number;    // Tree depth for layout (0 for root, 1 for child, etc.)
   }
 
   // Generate many nodes for performance testing
@@ -351,6 +365,11 @@ function StudioPageContent() {
   };
 
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>(generateInitialNodes());
+
+  // --- Thinking Path State ---
+  const [thinkingPathEnabled, setThinkingPathEnabled] = useState(true);
+  const [thinkingStepCounter, setThinkingStepCounter] = useState(0);
+  const [activeThinkingId, setActiveThinkingId] = useState<string | null>(null);
 
   // Scroll chat to specific message (for chat-linked nodes)
   const scrollToChatMessage = useCallback((messageId: string) => {
@@ -1053,6 +1072,9 @@ function StudioPageContent() {
     setChatInput('');
     setIsTyping(true);
 
+    // Generate Thinking Path draft step from user message
+    const draftStepId = appendThinkingDraftStep(userMsg);
+
     // Simulate RAG Processing
     setTimeout(() => {
       const aiMsg: ChatMessage = {
@@ -1081,6 +1103,9 @@ function StudioPageContent() {
       };
       setChatMessages(prev => [...prev, aiMsg]);
       setIsTyping(false);
+      
+      // Finalize Thinking Path step with AI response
+      finalizeThinkingStepFromAi(aiMsg, draftStepId);
     }, 1500);
   };
 
@@ -1134,6 +1159,242 @@ function StudioPageContent() {
       }
     }
   };
+
+  // --- Thinking Path Generation Functions ---
+  
+  // Calculate position for new thinking nodes (right side of viewport)
+  const getThinkingNodePosition = useCallback((depth: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 2000, y: 100 };
+    
+    // Initial right position
+    const rightX = (-viewport.x + rect.width - 350) / viewport.scale;
+    const topY = (-viewport.y + 80) / viewport.scale;
+    
+    return {
+      x: rightX + depth * 320, // Horizontal offset based on depth
+      y: topY, // Default Y, will be adjusted by reorganize or auto-placement
+    };
+  }, [viewport]);
+
+  // Create a draft thinking step when user sends a message
+  const appendThinkingDraftStep = useCallback((userMsg: ChatMessage) => {
+    if (!thinkingPathEnabled) return;
+    
+    // Determine parent and depth
+    let parentNode = activeThinkingId 
+      ? canvasNodes.find(n => n.id === activeThinkingId) 
+      : null;
+      
+    // If no active node is selected, or the selected one isn't a thinking node,
+    // check if there's a recent thinking node to attach to (linear fallback)
+    // BUT per user request "New Topic", if activeThinkingId is null, we start a new root.
+    
+    const depth = parentNode?.depth !== undefined ? parentNode.depth + 1 : 0;
+    const newStepIndex = thinkingStepCounter + 1;
+    
+    // Calculate initial position - ensure it doesn't overlap perfectly
+    const basePos = getThinkingNodePosition(depth);
+    // Add some Y offset based on existing children to prevent immediate overlap before reorganize
+    const existingChildren = parentNode ? canvasNodes.filter(n => n.connections?.includes(parentNode!.id)) : [];
+    const yOffset = existingChildren.length * 250;
+    
+    const position = { 
+      x: basePos.x, 
+      y: basePos.y + yOffset + (depth === 0 ? canvasNodes.filter(n => n.type === 'thinking_step' && (n.depth === 0 || n.depth === undefined)).length * 250 : 0)
+    };
+    
+    // Extract claim from user message (first 80 chars)
+    const claim = userMsg.content.length > 80 
+      ? userMsg.content.substring(0, 80) + '...' 
+      : userMsg.content;
+    
+    const newStepId = `thinking-step-${Date.now()}`;
+    
+    const newNode: CanvasNode = {
+      id: newStepId,
+      type: 'thinking_step',
+      title: `Step ${newStepIndex}`,
+      content: claim,
+      x: position.x,
+      y: position.y,
+      color: 'purple',
+      tags: ['#thinking'],
+      sourceMessageId: userMsg.id,
+      sourceType: 'chat',
+      thinkingStepIndex: newStepIndex,
+      depth,
+      thinkingFields: {
+        claim: claim,
+        reason: '',
+        evidence: '',
+        uncertainty: '',
+        decision: '',
+      },
+      isDraft: true,
+      connections: parentNode ? [parentNode.id] : [],
+    };
+    
+    setCanvasNodes(prev => [...prev, newNode]);
+    setThinkingStepCounter(newStepIndex);
+    
+    // Auto-set the new node as active for subsequent turns (continuation)
+    setActiveThinkingId(newStepId);
+    
+    return newStepId;
+  }, [thinkingPathEnabled, thinkingStepCounter, canvasNodes, getThinkingNodePosition, activeThinkingId]);
+
+  // Finalize the thinking step when AI responds
+  const finalizeThinkingStepFromAi = useCallback((aiMsg: ChatMessage, draftStepId?: string) => {
+    if (!thinkingPathEnabled) return;
+    
+    // Find the draft step to update
+    const draftStep = draftStepId 
+      ? canvasNodes.find(n => n.id === draftStepId)
+      : canvasNodes.find(n => n.type === 'thinking_step' && n.isDraft);
+    
+    if (!draftStep) return;
+    
+    // Mock AI extraction: Extract structured fields from AI response
+    const sentences = aiMsg.content.split(/[.!?]+/).filter(s => s.trim());
+    const reason = sentences[0]?.trim() || 'Analysis based on available data';
+    const evidence = sentences[1]?.trim() || 'Referenced from source materials';
+    const uncertainty = sentences.length > 2 ? sentences[2]?.trim() : 'Further validation may be needed';
+    const decision = sentences[sentences.length - 1]?.trim() || 'Proceed with current understanding';
+    
+    // Update the draft step with AI-extracted fields
+    setCanvasNodes(prev => prev.map(node => {
+      if (node.id === draftStep.id) {
+        return {
+          ...node,
+          isDraft: false,
+          color: 'blue', // Change from draft purple to finalized blue
+          thinkingFields: {
+            claim: node.thinkingFields?.claim || '',
+            reason,
+            evidence,
+            uncertainty,
+            decision,
+          },
+        };
+      }
+      return node;
+    }));
+    
+    // Randomly decide whether to add branch nodes (mock AI decision)
+    const shouldAddBranch = Math.random() > 0.5;
+    if (shouldAddBranch && aiMsg.sources && aiMsg.sources.length > 0) {
+      // Add a question branch based on sources
+      const branchPosition = {
+        x: draftStep.x + 300,
+        y: draftStep.y + 60,
+      };
+      
+      const branchTypes: Array<'alternative' | 'question' | 'counterargument'> = ['alternative', 'question', 'counterargument'];
+      const branchType = branchTypes[Math.floor(Math.random() * branchTypes.length)];
+      
+      const branchContent = branchType === 'question' 
+        ? `How does this relate to ${aiMsg.sources[0].title}?`
+        : branchType === 'alternative'
+        ? `Could also explore: ${aiMsg.sources[0].snippet?.substring(0, 50)}...`
+        : `Consider: ${aiMsg.sources.length} sources may have conflicting views`;
+      
+      const branchNode: CanvasNode = {
+        id: `thinking-branch-${Date.now()}`,
+        type: 'thinking_branch',
+        title: branchType.charAt(0).toUpperCase() + branchType.slice(1),
+        content: branchContent,
+        x: branchPosition.x,
+        y: branchPosition.y,
+        color: branchType === 'alternative' ? 'orange' : branchType === 'question' ? 'cyan' : 'pink',
+        tags: ['#thinking', `#${branchType}`],
+        branchType,
+        parentStepId: draftStep.id,
+        connections: [draftStep.id],
+      };
+      
+      setCanvasNodes(prev => [...prev, branchNode]);
+    }
+  }, [thinkingPathEnabled, canvasNodes]);
+
+  // Reorganize thinking path nodes into a clean tree layout (Mind Map)
+  const reorganizeThinkingPath = useCallback(() => {
+    const thinkingNodes = canvasNodes.filter(n => n.type === 'thinking_step' || n.type === 'thinking_branch');
+    if (thinkingNodes.length === 0) return;
+
+    // Build tree structure
+    const roots = thinkingNodes.filter(n => 
+      // It's a root if it has no connections pointing TO it (parent is connection target in this codebase logic?)
+      // Wait, connections array in this code usually means "Outbound" connections. 
+      // My implementation of appendThinkingDraftStep set `connections: [parentNode.id]`.
+      // So connections points TO PARENT. 
+      // Roots are nodes where connections is empty or undefined.
+      !n.connections || n.connections.length === 0
+    );
+
+    // If my assumption about connections direction is wrong, I need to check.
+    // In appendThinkingDraftStep: connections: parentNode ? [parentNode.id] : []
+    // So Child -> Parent.
+    // This is "Backwards" from usual graph visualizers but fine for logic.
+    // Roots have empty connections array.
+
+    // Calculate layout
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const startX = rect ? (-viewport.x + rect.width - 350) / viewport.scale : 2000;
+    const startY = rect ? (-viewport.y + 80) / viewport.scale : 100;
+    const levelWidth = 350;
+    const nodeHeight = 250;
+
+    // Simple recursive layout
+    // Map of ParentID -> [ChildNodes]
+    const childMap = new Map<string, CanvasNode[]>();
+    thinkingNodes.forEach(n => {
+      if (n.connections && n.connections.length > 0) {
+        const parentId = n.connections[0];
+        if (!childMap.has(parentId)) childMap.set(parentId, []);
+        childMap.get(parentId)?.push(n);
+      }
+    });
+
+    const newPositions = new Map<string, {x: number, y: number}>();
+    let currentY = startY;
+
+    const layoutNode = (node: CanvasNode, level: number) => {
+      const children = childMap.get(node.id) || [];
+      
+      // Calculate Y based on children (center parent relative to children)
+      // or just stack top-down for now (Mind Map usually spreads vertically)
+      
+      const myY = currentY;
+      
+      if (children.length === 0) {
+        currentY += nodeHeight; // Leaf node takes space
+        newPositions.set(node.id, { x: startX + level * levelWidth, y: myY });
+      } else {
+        // Parent Y is average of children Y? Or top?
+        // Let's do simple pre-order traversal for Y spacing
+        const firstChildY = currentY;
+        children.forEach(child => layoutNode(child, level + 1));
+        // If we want to center parent:
+        // const lastChildY = currentY - nodeHeight;
+        // const parentY = (firstChildY + lastChildY) / 2;
+        // But for "Thinking Path", top-alignment or center alignment is fine.
+        // Let's stick to simple vertical stack for now to avoid overlap
+        
+        newPositions.set(node.id, { x: startX + level * levelWidth, y: firstChildY + (children.length - 1) * nodeHeight / 2 });
+      }
+    };
+
+    roots.forEach(root => layoutNode(root, 0));
+
+    // Update nodes
+    setCanvasNodes(prev => prev.map(node => {
+      if (newPositions.has(node.id)) {
+        return { ...node, ...newPositions.get(node.id) };
+      }
+      return node;
+    }));
+  }, [canvasNodes, viewport]);
 
   // Auto-layout function using force-directed layout
   const handleAutoLayout = useCallback(() => {
@@ -3451,6 +3712,129 @@ function StudioPageContent() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">{node.content}</Typography></Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
                     </Box>
+                  ) : node.type === 'thinking_step' ? (
+                    /* Thinking Step Node - Structured Display */
+                    <Box 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Click to set as active context (fork point)
+                        setActiveThinkingId(node.id);
+                        setSelectedNodeId(node.id);
+                      }}
+                      sx={{ 
+                        overflow: 'hidden', 
+                        borderRadius: 3,
+                        // Active Thinking Context Highlight
+                        boxShadow: activeThinkingId === node.id 
+                          ? '0 0 0 3px rgba(168, 85, 247, 0.4), 0 8px 16px rgba(0,0,0,0.1)' 
+                          : 'none',
+                        transition: 'box-shadow 0.2s ease'
+                      }}
+                    >
+                      <Box sx={{ 
+                        height: 6, 
+                        bgcolor: node.isDraft ? '#A855F7' : '#3B82F6',
+                        background: node.isDraft 
+                          ? 'linear-gradient(90deg, #A855F7, #EC4899)' 
+                          : 'linear-gradient(90deg, #3B82F6, #8B5CF6)'
+                      }} />
+                      <Box sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <Box sx={{ 
+                            width: 24, height: 24, borderRadius: '50%', 
+                            bgcolor: node.isDraft ? '#A855F7' : '#3B82F6',
+                            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 12, fontWeight: 600
+                          }}>
+                            {node.thinkingStepIndex || '?'}
+                          </Box>
+                          <Typography variant="subtitle2" fontWeight="bold" sx={{ flex: 1 }}>
+                            {node.title}
+                          </Typography>
+                          {activeThinkingId === node.id && (
+                            <Chip label="Active" size="small" sx={{ height: 18, fontSize: 10, bgcolor: '#F3E8FF', color: '#7C3AED' }} />
+                          )}
+                          {node.isDraft && (
+                            <Chip label="Draft" size="small" sx={{ height: 18, fontSize: 10, bgcolor: '#F3E8FF', color: '#7C3AED' }} />
+                          )}
+                        </Box>
+                        
+                        {/* Claim */}
+                        <Box sx={{ mb: 1.5 }}>
+                          <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ display: 'block', mb: 0.5 }}>
+                            CLAIM
+                          </Typography>
+                          <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
+                            {node.thinkingFields?.claim || node.content}
+                          </Typography>
+                        </Box>
+                        
+                        {/* Show other fields only if not draft */}
+                        {!node.isDraft && node.thinkingFields?.reason && (
+                          <>
+                            <Box sx={{ mb: 1, p: 1, bgcolor: '#F0FDF4', borderRadius: 1, border: '1px solid #BBF7D0' }}>
+                              <Typography variant="caption" color="success.dark" fontWeight="600" sx={{ display: 'block', mb: 0.25 }}>
+                                DECISION
+                              </Typography>
+                              <Typography variant="caption" color="success.dark" sx={{ lineHeight: 1.4 }}>
+                                {node.thinkingFields.decision}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                              <Chip label="Reason" size="small" sx={{ height: 18, fontSize: 9, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
+                              <Chip label="Evidence" size="small" sx={{ height: 18, fontSize: 9, bgcolor: '#FEF3C7', color: '#B45309' }} />
+                            </Box>
+                          </>
+                        )}
+                        
+                        {/* Click to scroll to chat */}
+                        {node.sourceMessageId && (
+                          <Box
+                            sx={{
+                              display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                              px: 1, py: 0.25, mt: 1.5, bgcolor: '#EEF2FF', borderRadius: 1,
+                              cursor: 'pointer', '&:hover': { bgcolor: '#E0E7FF' }
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (node.sourceMessageId) {
+                                scrollToChatMessage(node.sourceMessageId);
+                              }
+                            }}
+                          >
+                            <Bot size={10} />
+                            <Typography variant="caption" color="primary.main" fontSize={10}>
+                              View in chat
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  ) : node.type === 'thinking_branch' ? (
+                    /* Thinking Branch Node - Compact Display */
+                    <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
+                      <Box sx={{ 
+                        height: 4, 
+                        bgcolor: node.branchType === 'alternative' ? '#F59E0B' 
+                          : node.branchType === 'question' ? '#06B6D4' 
+                          : '#EC4899'
+                      }} />
+                      <Box sx={{ p: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <Typography variant="caption" fontWeight="bold" sx={{ 
+                            color: node.branchType === 'alternative' ? '#B45309' 
+                              : node.branchType === 'question' ? '#0891B2' 
+                              : '#BE185D',
+                            textTransform: 'uppercase', fontSize: 10
+                          }}>
+                            {node.branchType}
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5, fontSize: 12 }}>
+                          {node.content}
+                        </Typography>
+                      </Box>
+                    </Box>
                   ) : (
                     <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
                       <Box sx={{ height: 6, bgcolor: node.color === 'blue' ? '#3B82F6' : 'grey.300' }} />
@@ -3857,6 +4241,46 @@ function StudioPageContent() {
                         />
                       </>
                     )}
+                  </Box>
+
+                  {/* Thinking Path Section */}
+                  <Box sx={{ mb: 2, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>THINKING PATH</Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      <Chip 
+                        label={thinkingPathEnabled ? "Thinking Path ON" : "Thinking Path OFF"} 
+                        size="small" 
+                        onClick={() => { setThinkingPathEnabled(!thinkingPathEnabled); }}
+                        icon={<Route size={12} />}
+                        sx={{ 
+                          bgcolor: thinkingPathEnabled ? 'purple.50' : 'white', 
+                          border: '1px solid', 
+                          borderColor: thinkingPathEnabled ? 'purple.main' : 'divider', 
+                          cursor: 'pointer', 
+                          color: thinkingPathEnabled ? 'purple.main' : 'inherit',
+                          '&:hover': { bgcolor: thinkingPathEnabled ? 'purple.100' : 'primary.50', borderColor: thinkingPathEnabled ? 'purple.main' : 'primary.main' } 
+                        }} 
+                      />
+                      <Chip 
+                        label="New Topic" 
+                        size="small" 
+                        onClick={() => { setActiveThinkingId(null); setIsCanvasAiOpen(false); }}
+                        icon={<Plus size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'purple.50', borderColor: 'purple.main', color: 'purple.main' } }} 
+                      />
+                      <Chip 
+                        label="Reorganize Path" 
+                        size="small" 
+                        onClick={() => { reorganizeThinkingPath(); setIsCanvasAiOpen(false); }}
+                        icon={<Sparkles size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'purple.50', borderColor: 'purple.main', color: 'purple.main' } }} 
+                      />
+                      {canvasNodes.filter(n => n.type === 'thinking_step' || n.type === 'thinking_branch').length > 0 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ width: '100%', mt: 0.5 }}>
+                          {activeThinkingId ? "Follow-up Mode" : "New Topic Mode"}
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
 
                   {/* Learning Path Section */}

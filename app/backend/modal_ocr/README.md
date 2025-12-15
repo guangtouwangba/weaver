@@ -176,3 +176,4 @@ modal deploy modal_ocr/app.py
 - **Modal**: Commercial service with free tier. See [Modal Pricing](https://modal.com/pricing).
 
 
+

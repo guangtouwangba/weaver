@@ -1,5 +1,6 @@
 """Save canvas use case."""
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict
@@ -9,6 +10,7 @@ from research_agent.domain.entities.canvas import Canvas
 from research_agent.domain.repositories.canvas_repo import CanvasRepository
 from research_agent.domain.repositories.project_repo import ProjectRepository
 from research_agent.shared.exceptions import ConflictError, NotFoundError
+from research_agent.shared.utils.logger import logger
 
 
 @dataclass
@@ -56,22 +58,41 @@ class SaveCanvasUseCase:
             canvas.version = existing_canvas.version
 
         # Save canvas with version check (optimistic locking)
-        try:
-            saved_canvas = await self._canvas_repo.save_with_version(
-                canvas, expected_version=current_version
+        # Retry with exponential backoff on lock conflicts
+        max_retries = 3
+        base_delay = 0.1  # 100ms
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                saved_canvas = await self._canvas_repo.save_with_version(
+                    canvas, expected_version=current_version
+                )
+                break  # Success, exit retry loop
+            except ConflictError as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    # Wait with exponential backoff before retry
+                    delay = base_delay * (2**attempt)
+                    logger.debug(
+                        f"[Canvas] Lock conflict on attempt {attempt + 1}, retrying in {delay:.2f}s"
+                    )
+                    await asyncio.sleep(delay)
+                    # Reload to get latest version
+                    existing_canvas = await self._canvas_repo.find_by_project(input.project_id)
+                    current_version = existing_canvas.version if existing_canvas else 0
+                    if existing_canvas:
+                        canvas.version = existing_canvas.version
+        else:
+            # All retries exhausted
+            logger.warning(
+                f"[Canvas] Failed to save canvas after {max_retries} attempts "
+                f"for project {input.project_id}"
             )
-        except ConflictError:
-            # Retry: reload and save
-            existing_canvas = await self._canvas_repo.find_by_project(input.project_id)
-            if existing_canvas:
-                canvas.version = existing_canvas.version
-            saved_canvas = await self._canvas_repo.save_with_version(
-                canvas, expected_version=canvas.version if canvas.version > 0 else None
-            )
+            raise last_error
 
         return SaveCanvasOutput(
             success=True,
             updated_at=saved_canvas.updated_at,
             version=saved_canvas.version,
         )
-

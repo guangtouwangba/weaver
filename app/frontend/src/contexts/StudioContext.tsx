@@ -18,6 +18,12 @@ interface ChatMessage {
   timestamp: Date;
   // Optional: original user query that triggered this AI response
   query?: string;
+  // Optional: context nodes referenced by this message (for user messages)
+  contextNodes?: Array<{
+    id: string;
+    title: string;
+    content: string;
+  }>;
 }
 
 interface StudioContextType {
@@ -88,6 +94,10 @@ interface StudioContextType {
   setDragPreview: (preview: { x: number; y: number; content: string } | null) => void;
   dragContentRef: React.MutableRefObject<string | null>;
   
+  // Cross-boundary drag (for dragging Konva nodes to DOM elements like chat input)
+  crossBoundaryDragNode: { id: string; title: string; content: string; sourceMessageId?: string } | null;
+  setCrossBoundaryDragNode: (node: { id: string; title: string; content: string; sourceMessageId?: string } | null) => void;
+  
   // Auto Thinking Path
   autoThinkingPathEnabled: boolean;
   setAutoThinkingPathEnabled: (enabled: boolean) => void;
@@ -97,6 +107,19 @@ interface StudioContextType {
   highlightedMessageId: string | null;
   navigateToNode: (nodeId: string) => void;
   highlightedNodeId: string | null;
+  
+  // === Thinking Graph (Dynamic Mind Map) ===
+  activeThinkingId: string | null;  // Currently active thinking node (fork point)
+  setActiveThinkingId: (id: string | null) => void;
+  thinkingStepCounter: number;
+  appendThinkingDraftStep: (userMessage: ChatMessage) => string;  // Returns draft node ID
+  finalizeThinkingStep: (messageId: string, backendData: {
+    thinkingFields?: CanvasNode['thinkingFields'];
+    relatedConcepts?: string[];
+    suggestedBranches?: CanvasNode['suggestedBranches'];
+    topicId?: string;
+  }) => void;
+  startNewTopic: () => void;  // Clear activeThinkingId to start a new topic
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
@@ -156,6 +179,14 @@ export function StudioProvider({
   // Drag preview state
   const [dragPreview, setDragPreview] = useState<{ x: number; y: number; content: string } | null>(null);
   const dragContentRef = useRef<string | null>(null);
+  
+  // Cross-boundary drag state (for dragging Konva nodes to DOM elements)
+  const [crossBoundaryDragNode, setCrossBoundaryDragNode] = useState<{
+    id: string;
+    title: string;
+    content: string;
+    sourceMessageId?: string;
+  } | null>(null);
 
   // Auto Thinking Path state
   const [autoThinkingPathEnabled, setAutoThinkingPathEnabled] = useState(true);
@@ -163,6 +194,10 @@ export function StudioProvider({
   // Message <-> Node Navigation state
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+  
+  // === Thinking Graph (Dynamic Mind Map) State ===
+  const [activeThinkingId, setActiveThinkingId] = useState<string | null>(null);
+  const [thinkingStepCounter, setThinkingStepCounter] = useState(0);
 
   const navigateToMessage = useCallback((messageId: string) => {
     setHighlightedMessageId(messageId);
@@ -196,6 +231,148 @@ export function StudioProvider({
     // Auto-clear highlight after 3 seconds
     setTimeout(() => setHighlightedNodeId(null), 3000);
   }, [canvasNodes, currentView, switchView]);
+
+  // === Thinking Graph Methods ===
+  
+  /**
+   * Create an optimistic "draft" thinking step node when user sends a message.
+   * This provides immediate visual feedback before the backend responds.
+   * 
+   * @param userMessage - The user's chat message
+   * @returns The ID of the created draft node
+   */
+  const appendThinkingDraftStep = useCallback((userMessage: ChatMessage): string => {
+    const newStepIndex = thinkingStepCounter + 1;
+    setThinkingStepCounter(newStepIndex);
+    
+    const draftNodeId = `tp-draft-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Calculate position based on active thinking node
+    let x = 100;
+    let y = 300;
+    let depth = 0;
+    let parentStepId: string | undefined;
+    
+    if (activeThinkingId) {
+      // Find the active node to position relative to it
+      const activeNode = canvasNodes.find(n => n.id === activeThinkingId);
+      if (activeNode) {
+        parentStepId = activeThinkingId;
+        depth = (activeNode.depth || 0) + 1;
+        // Position to the right of the active node (horizontal tree layout)
+        x = activeNode.x + 400;
+        // Offset vertically based on siblings at same depth
+        const siblingsAtDepth = canvasNodes.filter(
+          n => n.parentStepId === activeThinkingId && n.viewType === 'thinking'
+        ).length;
+        y = activeNode.y + (siblingsAtDepth * 220);
+      }
+    } else {
+      // No active node - this is a new root topic
+      const thinkingNodes = canvasNodes.filter(n => n.viewType === 'thinking');
+      if (thinkingNodes.length > 0) {
+        // Find the bottom-most node and place below it
+        const maxY = Math.max(...thinkingNodes.map(n => n.y));
+        y = maxY + 300;
+      }
+    }
+    
+    // Create draft node
+    const draftNode: CanvasNode = {
+      id: draftNodeId,
+      type: 'thinking_step',
+      title: `Step ${newStepIndex}`,
+      content: userMessage.content.length > 100 
+        ? userMessage.content.substring(0, 100) + '...' 
+        : userMessage.content,
+      x,
+      y,
+      width: 320,
+      height: 200,
+      color: 'purple',  // Draft nodes are purple
+      tags: ['#thinking-path', '#draft'],
+      viewType: 'thinking',
+      messageIds: [userMessage.id],
+      analysisStatus: 'pending',
+      isDraft: true,
+      thinkingStepIndex: newStepIndex,
+      depth,
+      parentStepId,
+      thinkingFields: {
+        claim: userMessage.content.length > 100 
+          ? userMessage.content.substring(0, 100) + '...' 
+          : userMessage.content,
+        reason: '',
+        evidence: '',
+        uncertainty: '',
+        decision: '',
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    // Add the draft node
+    setCanvasNodes(prev => [...prev, draftNode]);
+    
+    // Create edge from parent if exists
+    if (parentStepId) {
+      const edgeId = `edge-${parentStepId}-${draftNodeId}`;
+      setCanvasEdges(prev => [...prev, {
+        id: edgeId,
+        source: parentStepId,
+        target: draftNodeId,
+      }]);
+    }
+    
+    // Set this as the new active thinking node
+    setActiveThinkingId(draftNodeId);
+    
+    return draftNodeId;
+  }, [activeThinkingId, canvasNodes, thinkingStepCounter]);
+  
+  /**
+   * Finalize a draft thinking step with data from the backend.
+   * This is called when the backend WebSocket sends the analysis result.
+   * 
+   * @param messageId - The message ID to match (from the draft node's messageIds)
+   * @param backendData - Data from the backend to update the node with
+   */
+  const finalizeThinkingStep = useCallback((
+    messageId: string,
+    backendData: {
+      thinkingFields?: CanvasNode['thinkingFields'];
+      relatedConcepts?: string[];
+      suggestedBranches?: CanvasNode['suggestedBranches'];
+      topicId?: string;
+    }
+  ) => {
+    setCanvasNodes(prev => prev.map(node => {
+      // Find the draft node that matches this message
+      if (node.isDraft && node.messageIds?.includes(messageId)) {
+        return {
+          ...node,
+          isDraft: false,
+          color: 'blue',  // Finalized nodes are blue
+          analysisStatus: 'analyzed' as const,
+          thinkingFields: backendData.thinkingFields || node.thinkingFields,
+          relatedConcepts: backendData.relatedConcepts,
+          suggestedBranches: backendData.suggestedBranches,
+          topicId: backendData.topicId,
+          tags: node.tags?.filter(t => t !== '#draft') || ['#thinking-path'],
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return node;
+    }));
+  }, []);
+  
+  /**
+   * Start a new topic by clearing the activeThinkingId.
+   * The next message will create a new root node in the thinking graph.
+   */
+  const startNewTopic = useCallback(() => {
+    setActiveThinkingId(null);
+  }, []);
 
   const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
     const newNode: CanvasNode = {
@@ -527,12 +704,21 @@ export function StudioProvider({
     dragPreview,
     setDragPreview,
     dragContentRef,
+    crossBoundaryDragNode,
+    setCrossBoundaryDragNode,
     autoThinkingPathEnabled,
     setAutoThinkingPathEnabled,
     navigateToMessage,
     highlightedMessageId,
     navigateToNode,
     highlightedNodeId,
+    // Thinking Graph
+    activeThinkingId,
+    setActiveThinkingId,
+    thinkingStepCounter,
+    appendThinkingDraftStep,
+    finalizeThinkingStep,
+    startNewTopic,
   };
 
   return (

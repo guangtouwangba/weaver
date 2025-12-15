@@ -330,9 +330,259 @@ export function layoutHierarchical(
   return newNodes;
 }
 
+/**
+ * Thinking Graph Layout Constants
+ */
+const THINKING_GRAPH_CONFIG = {
+  nodeWidth: 320,
+  nodeHeight: 200,
+  // Horizontal spacing between depth levels
+  levelSpacing: 400,
+  // Vertical spacing between siblings
+  siblingSpacing: 220,
+  // Starting position
+  startX: 100,
+  startY: 100,
+  // Branch node offset
+  branchOffset: 180,
+};
 
+/**
+ * Thinking Graph Layout Algorithm (Dynamic Mind Map)
+ * 
+ * Creates a horizontal tree structure where:
+ * - Root nodes start on the left
+ * - Children expand to the right
+ * - Siblings are stacked vertically
+ * 
+ * Visual representation:
+ * 
+ *   Root Topic A ──> Step 1 ──> Step 2
+ *                           ├──> Branch: Alternative
+ *                           └──> Branch: Question
+ *   
+ *   Root Topic B ──> Step 1 ──> Step 2 ──> Step 3
+ * 
+ * @param nodes - All thinking graph nodes (type: thinking_step or thinking_branch)
+ * @param edges - Edges connecting the nodes
+ * @param options - Layout customization options
+ * @returns Nodes with updated x, y positions
+ */
+export function layoutThinkingGraph(
+  nodes: CanvasNode[],
+  edges: CanvasEdge[],
+  options: {
+    nodeWidth?: number;
+    nodeHeight?: number;
+    levelSpacing?: number;
+    siblingSpacing?: number;
+    startX?: number;
+    startY?: number;
+  } = {}
+): CanvasNode[] {
+  if (nodes.length === 0) return [];
 
+  const config = { ...THINKING_GRAPH_CONFIG, ...options };
+  const { nodeWidth, levelSpacing, siblingSpacing, startX, startY, branchOffset } = config;
 
+  // Filter to thinking graph nodes only
+  const thinkingNodes = nodes.filter(n => 
+    n.viewType === 'thinking' && 
+    (n.type === 'thinking_step' || n.type === 'thinking_branch' || 
+     n.type === 'question' || n.type === 'answer' || n.type === 'insight')
+  );
+
+  if (thinkingNodes.length === 0) return nodes;
+
+  // Build adjacency maps
+  const children: Record<string, string[]> = {};
+  const parent: Record<string, string> = {};
+  
+  thinkingNodes.forEach(n => {
+    children[n.id] = [];
+    // Also check parentStepId for direct parent reference
+    if (n.parentStepId) {
+      parent[n.id] = n.parentStepId;
+    }
+  });
+
+  // Build from edges
+  edges.forEach(e => {
+    const sourceNode = thinkingNodes.find(n => n.id === e.source);
+    const targetNode = thinkingNodes.find(n => n.id === e.target);
+    
+    if (sourceNode && targetNode) {
+      if (!children[e.source]) children[e.source] = [];
+      children[e.source].push(e.target);
+      
+      if (!parent[e.target]) {
+        parent[e.target] = e.source;
+      }
+    }
+  });
+
+  // Find root nodes (nodes with no parent)
+  const roots = thinkingNodes.filter(n => !parent[n.id]);
+  
+  // If no explicit roots, use nodes with depth === 0 or the first node
+  const effectiveRoots = roots.length > 0 
+    ? roots 
+    : thinkingNodes.filter(n => n.depth === 0 || n.depth === undefined);
+
+  if (effectiveRoots.length === 0 && thinkingNodes.length > 0) {
+    effectiveRoots.push(thinkingNodes[0]);
+  }
+
+  // Sort roots by their step index or creation time
+  effectiveRoots.sort((a, b) => {
+    const indexA = a.thinkingStepIndex || 0;
+    const indexB = b.thinkingStepIndex || 0;
+    return indexA - indexB;
+  });
+
+  // Create a mutable copy for positioning
+  const nodeMap: Record<string, CanvasNode> = {};
+  nodes.forEach(n => { nodeMap[n.id] = { ...n }; });
+
+  // Recursive function to calculate subtree height
+  function calculateSubtreeHeight(nodeId: string): number {
+    const nodeChildren = children[nodeId] || [];
+    if (nodeChildren.length === 0) {
+      return config.nodeHeight;
+    }
+
+    let totalHeight = 0;
+    nodeChildren.forEach((childId, index) => {
+      totalHeight += calculateSubtreeHeight(childId);
+      if (index < nodeChildren.length - 1) {
+        totalHeight += siblingSpacing - config.nodeHeight; // Gap between siblings
+      }
+    });
+
+    return Math.max(totalHeight, config.nodeHeight);
+  }
+
+  // Recursive function to position a node and its children
+  function positionNode(
+    nodeId: string, 
+    x: number, 
+    yStart: number, 
+    depth: number
+  ): number {
+    const node = nodeMap[nodeId];
+    if (!node) return yStart;
+
+    const nodeChildren = children[nodeId] || [];
+    
+    // Calculate total height needed for children
+    const subtreeHeight = calculateSubtreeHeight(nodeId);
+    
+    // Position children first to center parent
+    let childY = yStart;
+    const childPositions: number[] = [];
+    
+    nodeChildren.forEach((childId, index) => {
+      const childNode = nodeMap[childId];
+      const isBranch = childNode?.type === 'thinking_branch';
+      
+      // Branch nodes get a smaller horizontal offset
+      const childX = isBranch 
+        ? x + nodeWidth + branchOffset
+        : x + nodeWidth + levelSpacing - nodeWidth;
+      
+      childPositions.push(childY);
+      childY = positionNode(childId, childX, childY, depth + 1);
+      
+      if (index < nodeChildren.length - 1) {
+        childY += siblingSpacing - config.nodeHeight;
+      }
+    });
+
+    // Calculate parent Y position (center among children or at yStart if no children)
+    let nodeY: number;
+    if (childPositions.length > 0) {
+      // Center parent vertically among its children
+      const firstChildY = childPositions[0];
+      const lastChildY = childPositions[childPositions.length - 1];
+      nodeY = (firstChildY + lastChildY) / 2;
+    } else {
+      nodeY = yStart;
+    }
+
+    // Update node position
+    nodeMap[nodeId].x = x;
+    nodeMap[nodeId].y = nodeY;
+    nodeMap[nodeId].depth = depth;
+
+    // Return the bottom of this subtree
+    return Math.max(nodeY + config.nodeHeight, childY);
+  }
+
+  // Position each root tree
+  let currentRootY = startY;
+  
+  effectiveRoots.forEach((root) => {
+    const treeHeight = positionNode(root.id, startX, currentRootY, 0);
+    currentRootY = treeHeight + siblingSpacing;
+  });
+
+  // Return all nodes with updated positions
+  return nodes.map(n => nodeMap[n.id] || n);
+}
+
+/**
+ * Auto-layout for a single new node in the thinking graph
+ * 
+ * This is used for optimistic UI when adding a new draft node.
+ * It calculates the position based on the parent node without
+ * reorganizing the entire graph.
+ * 
+ * @param parentNode - The parent node to attach to (or null for new root)
+ * @param existingSiblings - Other nodes that share the same parent
+ * @param options - Layout options
+ * @returns The calculated position { x, y, depth }
+ */
+export function calculateThinkingNodePosition(
+  parentNode: CanvasNode | null,
+  existingSiblings: CanvasNode[],
+  options: {
+    levelSpacing?: number;
+    siblingSpacing?: number;
+    isBranch?: boolean;
+  } = {}
+): { x: number; y: number; depth: number } {
+  const config = { ...THINKING_GRAPH_CONFIG, ...options };
+  const { levelSpacing, siblingSpacing, startX, startY, branchOffset, nodeHeight } = config;
+
+  if (!parentNode) {
+    // New root node
+    if (existingSiblings.length === 0) {
+      return { x: startX, y: startY, depth: 0 };
+    }
+    
+    // Find the bottom-most root sibling
+    const maxY = Math.max(...existingSiblings.map(n => n.y + nodeHeight));
+    return { x: startX, y: maxY + siblingSpacing, depth: 0 };
+  }
+
+  // Child of existing node
+  const parentDepth = parentNode.depth || 0;
+  const newDepth = parentDepth + 1;
+  
+  // Calculate X based on whether this is a branch
+  const xOffset = options.isBranch ? branchOffset : levelSpacing;
+  const newX = parentNode.x + THINKING_GRAPH_CONFIG.nodeWidth + xOffset - THINKING_GRAPH_CONFIG.nodeWidth;
+
+  // Calculate Y based on existing siblings
+  if (existingSiblings.length === 0) {
+    // First child - position at parent's Y
+    return { x: newX, y: parentNode.y, depth: newDepth };
+  }
+
+  // Find the bottom-most sibling
+  const maxSiblingY = Math.max(...existingSiblings.map(n => n.y + nodeHeight));
+  return { x: newX, y: maxSiblingY + siblingSpacing - nodeHeight, depth: newDepth };
+}
 
 
 

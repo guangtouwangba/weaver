@@ -51,3 +51,4 @@ def downgrade() -> None:
     op.drop_column("documents", "processing_stage")
 
 
+
