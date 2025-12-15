@@ -140,16 +140,17 @@ if is_using_pooler:
 
 # ✅ Key: Connection timeout configuration
 # Adjusted for cloud databases with potential network latency (e.g., Supabase from China)
-connect_args["timeout"] = 30  # Connection timeout: 30 seconds (increased for high latency networks)
-connect_args["command_timeout"] = 60  # Command execution timeout: 60 seconds
+# IMPORTANT: Large PDF processing (OCR) can take 5-15 minutes, so timeouts must be generous
+connect_args["timeout"] = 60  # Connection timeout: 60 seconds (for high latency networks)
+connect_args["command_timeout"] = 300  # Command execution timeout: 5 minutes (for long queries)
 connect_args["server_settings"] = {
     "application_name": "research_agent_backend",
-    "statement_timeout": "60000",  # 60 second statement timeout at PostgreSQL level
+    "statement_timeout": "300000",  # 5 minute statement timeout at PostgreSQL level
 }
 
 logger.info(
     f"asyncpg timeout configuration: timeout={connect_args['timeout']}s, "
-    f"command_timeout={connect_args['command_timeout']}s, statement_timeout=60s"
+    f"command_timeout={connect_args['command_timeout']}s, statement_timeout=300s"
 )
 
 # Create async engine (use async_database_url to ensure asyncpg driver)
@@ -167,11 +168,11 @@ engine_kwargs: dict = {
 # because every request created a new connection, overwhelming the system.
 # Note: For async engines, we must use AsyncAdaptedQueuePool, not QueuePool
 engine_kwargs["poolclass"] = AsyncAdaptedQueuePool
-engine_kwargs["pool_size"] = 20  # Base number of persistent connections (increased for OCR + API)
-engine_kwargs["max_overflow"] = 25  # Allow up to 45 total connections (20 + 25)
-engine_kwargs["pool_timeout"] = 45  # Wait up to 45s to get a connection from pool (increased)
+engine_kwargs["pool_size"] = 10  # Base number of persistent connections
+engine_kwargs["max_overflow"] = 20  # Allow up to 30 total connections (10 + 20)
+engine_kwargs["pool_timeout"] = 60  # Wait up to 60s to get a connection from pool
 engine_kwargs["pool_recycle"] = (
-    120  # Recycle connections after 2 minutes (more lenient for high latency)
+    600  # Recycle connections after 10 minutes (for long-running PDF processing)
 )
 engine_kwargs["pool_pre_ping"] = True  # Verify connections before use (handles stale connections)
 engine_kwargs["pool_reset_on_return"] = "rollback"  # Ensure clean state on return to pool
@@ -181,7 +182,7 @@ engine_kwargs["pool_use_lifo"] = (
 logger.info(
     f"🔧 Using AsyncAdaptedQueuePool (pool_size={engine_kwargs['pool_size']}, "
     f"max_overflow={engine_kwargs['max_overflow']}, pool_pre_ping=True, "
-    f"pool_recycle=120s, pool_timeout=45s, pool_use_lifo=True) [v7-high-concurrency]"
+    f"pool_recycle=600s, pool_timeout=60s, pool_use_lifo=True) [v8-long-processing]"
 )
 
 engine = create_async_engine(

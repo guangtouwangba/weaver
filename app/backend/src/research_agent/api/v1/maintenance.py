@@ -18,8 +18,8 @@ from research_agent.domain.entities.task import TaskStatus, TaskType
 from research_agent.infrastructure.database.repositories.sqlalchemy_pending_cleanup_repo import (
     SQLAlchemyPendingCleanupRepository,
 )
-from research_agent.worker.service import TaskQueueService
 from research_agent.shared.utils.logger import logger
+from research_agent.worker.service import TaskQueueService
 
 router = APIRouter(prefix="/maintenance", tags=["maintenance"])
 settings = get_settings()
@@ -168,24 +168,24 @@ async def get_task_queue_status(
 ) -> TaskQueueStatus:
     """
     Get the current status of the task queue.
-    
+
     This endpoint helps diagnose why documents might not be processing.
     Returns counts of tasks by status in the current environment.
     """
     task_service = TaskQueueService(session)
-    
+
     # Get counts for each status
     pending_tasks = await task_service.get_tasks_by_status(TaskStatus.PENDING, limit=1000)
     processing_tasks = await task_service.get_tasks_by_status(TaskStatus.PROCESSING, limit=1000)
     completed_tasks = await task_service.get_tasks_by_status(TaskStatus.COMPLETED, limit=100)
     failed_tasks = await task_service.get_tasks_by_status(TaskStatus.FAILED, limit=100)
-    
+
     pending_count = len(pending_tasks)
     processing_count = len(processing_tasks)
     completed_count = len(completed_tasks)
     failed_count = len(failed_tasks)
     total_count = pending_count + processing_count + completed_count + failed_count
-    
+
     message = f"Task queue status for environment '{settings.environment}': "
     if pending_count > 0:
         message += f"{pending_count} pending, "
@@ -194,10 +194,10 @@ async def get_task_queue_status(
     if failed_count > 0:
         message += f"{failed_count} failed, "
     message += f"{completed_count} completed (total: {total_count})"
-    
+
     if pending_count > 0 and processing_count == 0:
         message += ". ⚠️  Warning: Tasks are pending but none are processing. Check if BackgroundWorker is running."
-    
+
     return TaskQueueStatus(
         environment=settings.environment,
         pending_count=pending_count,
@@ -224,11 +224,11 @@ async def get_database_diagnostics(
 ) -> DatabaseDiagnostics:
     """
     Check database health and table existence.
-    
+
     Useful for diagnosing migration issues.
     """
     from sqlalchemy import text
-    
+
     # Get database URL prefix (hide credentials)
     db_url = settings.database_url or "not set"
     if "@" in db_url:
@@ -238,38 +238,40 @@ async def get_database_diagnostics(
         db_url_prefix = f"{prefix}:***@{parts[1][:50]}..."
     else:
         db_url_prefix = db_url[:50] + "..."
-    
+
     # Check which tables exist
     required_tables = [
-        "projects", "documents", "chunks", "task_queue", 
-        "entities", "relations", "canvases", "alembic_version"
+        "projects",
+        "documents",
+        "chunks",
+        "task_queue",
+        "entities",
+        "relations",
+        "canvases",
+        "alembic_version",
     ]
     tables_exist = {}
-    
+
     for table in required_tables:
         try:
-            result = await session.execute(
-                text(f"SELECT 1 FROM {table} LIMIT 1")
-            )
+            result = await session.execute(text(f"SELECT 1 FROM {table} LIMIT 1"))
             tables_exist[table] = True
         except Exception as e:
             if "does not exist" in str(e):
                 tables_exist[table] = False
             else:
                 tables_exist[table] = f"error: {str(e)[:50]}"
-    
+
     # Get alembic version
     alembic_version = None
     try:
-        result = await session.execute(
-            text("SELECT version_num FROM alembic_version LIMIT 1")
-        )
+        result = await session.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
         row = result.fetchone()
         if row:
             alembic_version = row[0]
     except Exception:
         pass
-    
+
     # Build message
     missing_tables = [t for t, exists in tables_exist.items() if exists is False]
     if missing_tables:
@@ -278,7 +280,7 @@ async def get_database_diagnostics(
         message = f"✅ All required tables exist. Alembic version: {alembic_version}"
     else:
         message = "✅ Tables exist but alembic_version not found"
-    
+
     return DatabaseDiagnostics(
         database_url_prefix=db_url_prefix,
         tables_exist=tables_exist,
