@@ -7,7 +7,8 @@ echo "=== Research Agent RAG API Starting ==="
 echo "Running database migrations..."
 
 # Capture migration output for error detection
-MIGRATION_OUTPUT=$(timeout 60 alembic upgrade head 2>&1) || MIGRATION_EXIT=$?
+# Increased timeout to 180s for new databases with many tables
+MIGRATION_OUTPUT=$(timeout 180 alembic upgrade head 2>&1) || MIGRATION_EXIT=$?
 
 if [ -z "$MIGRATION_EXIT" ]; then
     echo "✅ Migrations completed successfully"
