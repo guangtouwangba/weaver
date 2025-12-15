@@ -21,6 +21,10 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.application.prompts.thinking_path_extraction import (
+    EDGE_RELATION_CLASSIFICATION_SYSTEM_PROMPT,
+    EDGE_RELATION_CLASSIFICATION_USER_PROMPT,
+    EDGE_RELATION_DEFAULT_LABELS,
+    EDGE_RELATION_KEYWORDS,
     THINKING_GRAPH_EXTRACTION_SYSTEM_PROMPT,
     THINKING_GRAPH_EXTRACTION_USER_PROMPT,
     THINKING_GRAPH_INTENT_CLASSIFICATION_PROMPT,
@@ -30,6 +34,7 @@ from research_agent.application.prompts.thinking_path_extraction import (
 )
 from research_agent.domain.entities.canvas import Canvas, CanvasEdge, CanvasNode, CanvasSection
 from research_agent.domain.entities.chat import ChatMessage
+from research_agent.domain.entities.thinking_path import EdgeRelationType
 from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.infrastructure.llm.base import ChatMessage as LLMChatMessage
 from research_agent.infrastructure.llm.base import LLMService
@@ -311,20 +316,18 @@ class ThinkingPathService:
 
                             # If this question is related to a previous insight, create a branch edge
                             if related_insight_id:
-                                branch_edge_id = (
-                                    f"edge-branch-{related_insight_id}-{question_node.id}"
+                                # Use prompts_question relation for insight → question
+                                edge = self._create_edge_with_relation(
+                                    source_id=related_insight_id,
+                                    target_id=question_node.id,
+                                    relation_type=EdgeRelationType.PROMPTS_QUESTION.value,
+                                    label=EDGE_RELATION_DEFAULT_LABELS["prompts_question"],
+                                    edge_type="branch",  # Keep type for styling compatibility
                                 )
-                                result.edges.append(
-                                    {
-                                        "id": branch_edge_id,
-                                        "source": related_insight_id,
-                                        "target": question_node.id,
-                                        "type": "branch",  # Mark as branch edge for styling
-                                    }
-                                )
+                                result.edges.append(edge)
                                 logger.info(
                                     f"[ThinkingPath] Created branch edge from insight {related_insight_id} "
-                                    f"to question {question_node.id}"
+                                    f"to question {question_node.id} (relation: prompts_question)"
                                 )
 
                             # Check for topic progression (question following up on previous question)
@@ -334,20 +337,18 @@ class ThinkingPathService:
                                 exclude_node_id=question_node.id,
                             )
                             if related_question_id:
-                                progression_edge_id = (
-                                    f"edge-progression-{related_question_id}-{question_node.id}"
+                                # Use prompts_question for Q → Q' progression
+                                edge = self._create_edge_with_relation(
+                                    source_id=related_question_id,
+                                    target_id=question_node.id,
+                                    relation_type=EdgeRelationType.PROMPTS_QUESTION.value,
+                                    label=EDGE_RELATION_DEFAULT_LABELS["prompts_question"],
+                                    edge_type="progression",  # Keep type for styling
                                 )
-                                result.edges.append(
-                                    {
-                                        "id": progression_edge_id,
-                                        "source": related_question_id,
-                                        "target": question_node.id,
-                                        "type": "progression",  # Mark as topic progression edge
-                                    }
-                                )
+                                result.edges.append(edge)
                                 logger.info(
                                     f"[ThinkingPath] Created topic progression edge from question "
-                                    f"{related_question_id} to question {question_node.id}"
+                                    f"{related_question_id} to question {question_node.id} (relation: prompts_question)"
                                 )
 
             # Step 4: Create nodes for this message
@@ -371,16 +372,17 @@ class ThinkingPathService:
                 # Connect answer to the previous question
                 last_q_id = self._last_question_node_id.get(project_id)
                 if last_q_id:
-                    edge_id = f"edge-{last_q_id}-{new_nodes[0].id}"
-                    result.edges.append(
-                        {
-                            "id": edge_id,
-                            "source": last_q_id,
-                            "target": new_nodes[0].id,
-                        }
+                    # Use answers relation for Q → A
+                    edge = self._create_edge_with_relation(
+                        source_id=last_q_id,
+                        target_id=new_nodes[0].id,
+                        relation_type=EdgeRelationType.ANSWERS.value,
+                        label=EDGE_RELATION_DEFAULT_LABELS["answers"],
                     )
+                    result.edges.append(edge)
                     logger.info(
-                        f"[ThinkingPath] Created edge from question {last_q_id} to answer {new_nodes[0].id}"
+                        f"[ThinkingPath] Created edge from question {last_q_id} to answer {new_nodes[0].id} "
+                        f"(relation: answers)"
                     )
 
             # Step 6: Broadcast result to all clients
@@ -638,6 +640,203 @@ class ThinkingPathService:
             return 0.0
 
         return dot_product / (norm1 * norm2)
+
+    # =========================================================================
+    # EDGE RELATION CLASSIFICATION
+    # =========================================================================
+
+    async def _classify_edge_relation(
+        self,
+        source_node: ThinkingPathNode,
+        target_node: ThinkingPathNode,
+        context: str = "",
+    ) -> Tuple[str, str]:
+        """
+        Classify the semantic relationship between two nodes.
+
+        Uses a combination of:
+        1. Node type heuristics (fast path) - No LLM call needed
+        2. Keyword detection (medium path) - Pattern matching
+        3. LLM classification (slow path) - For ambiguous cases
+
+        Args:
+            source_node: The source node
+            target_node: The target node
+            context: Optional conversation context
+
+        Returns:
+            Tuple of (relation_type, label)
+        """
+        # === Fast Path: Node type heuristics ===
+        source_type = source_node.type
+        target_type = target_node.type
+
+        # Q → A = answers
+        if source_type == "question" and target_type == "answer":
+            return (EdgeRelationType.ANSWERS.value, EDGE_RELATION_DEFAULT_LABELS["answers"])
+
+        # A → Q = prompts_question (follow-up)
+        if source_type == "answer" and target_type == "question":
+            return (
+                EdgeRelationType.PROMPTS_QUESTION.value,
+                EDGE_RELATION_DEFAULT_LABELS["prompts_question"],
+            )
+
+        # A → Insight = derives
+        if source_type == "answer" and target_type == "insight":
+            return (EdgeRelationType.DERIVES.value, EDGE_RELATION_DEFAULT_LABELS["derives"])
+
+        # Insight → Q = prompts_question (branch from insight)
+        if source_type == "insight" and target_type == "question":
+            return (
+                EdgeRelationType.PROMPTS_QUESTION.value,
+                EDGE_RELATION_DEFAULT_LABELS["prompts_question"],
+            )
+
+        # === Medium Path: Keyword detection ===
+        combined_content = f"{source_node.content} {target_node.content}".lower()
+
+        # Check for causal relationship
+        if any(kw in combined_content for kw in EDGE_RELATION_KEYWORDS.get("causes", [])):
+            return (EdgeRelationType.CAUSES.value, EDGE_RELATION_DEFAULT_LABELS["causes"])
+
+        # Check for comparison
+        if any(kw in combined_content for kw in EDGE_RELATION_KEYWORDS.get("compares", [])):
+            return (EdgeRelationType.COMPARES.value, EDGE_RELATION_DEFAULT_LABELS["compares"])
+
+        # Check for revision
+        if any(kw in combined_content for kw in EDGE_RELATION_KEYWORDS.get("revises", [])):
+            return (EdgeRelationType.REVISES.value, EDGE_RELATION_DEFAULT_LABELS["revises"])
+
+        # Check for parking
+        if any(kw in combined_content for kw in EDGE_RELATION_KEYWORDS.get("parks", [])):
+            return (EdgeRelationType.PARKS.value, EDGE_RELATION_DEFAULT_LABELS["parks"])
+
+        # === Slow Path: LLM classification (if available) ===
+        if self._llm_service:
+            try:
+                result = await self._llm_classify_edge_relation(source_node, target_node, context)
+                if result:
+                    return result
+            except Exception as e:
+                logger.warning(f"[ThinkingPath] LLM edge classification failed: {e}")
+
+        # Default fallback
+        return (EdgeRelationType.CUSTOM.value, EDGE_RELATION_DEFAULT_LABELS["custom"])
+
+    async def _llm_classify_edge_relation(
+        self,
+        source_node: ThinkingPathNode,
+        target_node: ThinkingPathNode,
+        context: str = "",
+    ) -> Optional[Tuple[str, str]]:
+        """
+        Use LLM to classify edge relationship.
+
+        Args:
+            source_node: The source node
+            target_node: The target node
+            context: Optional conversation context
+
+        Returns:
+            Tuple of (relation_type, label) or None if classification fails
+        """
+        if not self._llm_service:
+            return None
+
+        user_prompt = EDGE_RELATION_CLASSIFICATION_USER_PROMPT.format(
+            source_type=source_node.type,
+            source_title=source_node.title,
+            source_content=source_node.content[:500],  # Truncate for token limit
+            target_type=target_node.type,
+            target_title=target_node.title,
+            target_content=target_node.content[:500],
+            context=context[:300] if context else "No additional context",
+        )
+
+        messages = [
+            LLMChatMessage(role="system", content=EDGE_RELATION_CLASSIFICATION_SYSTEM_PROMPT),
+            LLMChatMessage(role="user", content=user_prompt),
+        ]
+
+        try:
+            response = await self._llm_service.chat(messages)
+            content = response.content.strip()
+
+            # Remove markdown code blocks if present
+            if content.startswith("```"):
+                first_newline = content.find("\n")
+                if first_newline != -1:
+                    content = content[first_newline + 1 :]
+                if content.endswith("```"):
+                    content = content[:-3].strip()
+                elif "```" in content:
+                    content = content[: content.rfind("```")].strip()
+
+            # Parse JSON response
+            data = json.loads(content)
+            relation_type = data.get("relation_type", "custom")
+            label = data.get("label", EDGE_RELATION_DEFAULT_LABELS.get(relation_type, ""))
+
+            # Validate relation type
+            valid_types = [e.value for e in EdgeRelationType]
+            if relation_type not in valid_types:
+                logger.warning(f"[ThinkingPath] Invalid relation type from LLM: {relation_type}")
+                return None
+
+            logger.info(
+                f"[ThinkingPath] LLM classified edge: {relation_type} ({label}), "
+                f"confidence={data.get('confidence', 0):.2f}"
+            )
+            return (relation_type, label)
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"[ThinkingPath] Failed to parse LLM response: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] LLM edge classification error: {e}")
+            return None
+
+    def _create_edge_with_relation(
+        self,
+        source_id: str,
+        target_id: str,
+        relation_type: str,
+        label: str,
+        edge_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create an edge dictionary with relation metadata.
+
+        Args:
+            source_id: Source node ID
+            target_id: Target node ID
+            relation_type: The semantic relation type
+            label: Display label for the edge
+            edge_type: Optional edge type (branch, progression) for styling
+
+        Returns:
+            Edge dictionary with all metadata
+        """
+        edge_id = f"edge-{source_id}-{target_id}"
+
+        edge = {
+            "id": edge_id,
+            "source": source_id,
+            "target": target_id,
+            "relationType": relation_type,
+            "label": label,
+        }
+
+        # Add type if specified (for backward compatibility with branch/progression)
+        if edge_type:
+            edge["type"] = edge_type
+
+        # Add direction hint for bidirectional relations
+        if relation_type == EdgeRelationType.COMPARES.value:
+            edge["direction"] = "bidirectional"
+
+        return edge
 
     # =========================================================================
     # ENHANCED DUPLICATE DETECTION (Node-level, Path-level, Concept-level)
@@ -1139,15 +1338,14 @@ class ThinkingPathService:
                 )
                 nodes.append(insight_node)
 
-                # Create edge from answer to insight
-                edge_id = f"edge-{answer_id}-{insight_id}"
-                edges.append(
-                    {
-                        "id": edge_id,
-                        "source": answer_id,
-                        "target": insight_id,
-                    }
+                # Create edge from answer to insight (derives relation)
+                edge = self._create_edge_with_relation(
+                    source_id=answer_id,
+                    target_id=insight_id,
+                    relation_type=EdgeRelationType.DERIVES.value,
+                    label=EDGE_RELATION_DEFAULT_LABELS["derives"],
                 )
+                edges.append(edge)
 
         return nodes, edges
 

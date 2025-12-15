@@ -221,11 +221,37 @@ export interface CanvasEdge {
   source: string;
   target: string;
   generation?: number;  // Generation ID for async clear support
-  // Phase 2: Semantic Edge Labels (The Thread)
-  label?: string;  // User-defined or AI-suggested label
-  relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
-  // Thinking Path edge types
-  type?: 'branch' | 'progression';  // branch = from insight, progression = topic follow-up
+  
+  // Edge label (AI-generated or user-defined)
+  label?: string;
+  
+  // Semantic relationship type for Thinking Path
+  relationType?: 
+    // Core Q&A relationships
+    | 'answers'           // Q→A: Question gets answered
+    | 'prompts_question'  // A→Q': Answer leads to follow-up question
+    | 'derives'           // A→Insight: Answer derives insight
+    // Logical relationships
+    | 'causes'            // A→B: Causal relationship (因果)
+    | 'compares'          // A↔B: Comparison/contrast (对比)
+    | 'supports'          // Evidence supporting a claim
+    | 'contradicts'       // Evidence contradicting a claim
+    // Evolution relationships
+    | 'revises'           // A→A': Correction/update (修正)
+    | 'extends'           // Building on previous point
+    // Organization
+    | 'parks'             // Main→Parking: Temporarily set aside (暂存)
+    | 'groups'            // Grouping relationship
+    | 'belongs_to'        // Legacy: belongs to group
+    | 'related'           // Legacy: generic relation
+    // User-defined
+    | 'custom';
+  
+  // Edge direction hint (for bidirectional relations like 'compares')
+  direction?: 'forward' | 'backward' | 'bidirectional';
+  
+  // Thinking Path edge types (for styling compatibility)
+  type?: 'branch' | 'progression';
 }
 
 export interface CanvasSection {

@@ -169,3 +169,193 @@ Analyze this Q&A exchange and extract a summary that answers the question, plus 
 Remember: Your summary must use the same terminology as the user's question. Do not substitute words.
 Output valid JSON only.
 """
+
+# =============================================================================
+# EDGE RELATION CLASSIFICATION PROMPTS
+# =============================================================================
+
+EDGE_RELATION_CLASSIFICATION_SYSTEM_PROMPT = """
+You are an expert at analyzing conversation structure and classifying the semantic relationship between nodes in a thinking path.
+
+### Relationship Types:
+
+1. **answers** (问答 Q→A):
+   - A response that directly answers a question
+   - Direction: Question → Answer
+   - Example: "什么是X?" → "X是一种..."
+
+2. **prompts_question** (递进追问 A→Q'):
+   - An answer that leads to a follow-up question
+   - The new question is triggered by something in the previous answer
+   - Direction: Answer/Insight → New Question
+   - Keywords: 那么/所以说/这意味着什么/接下来/如果是这样
+   - Example: "X有三个特点" → "第一个特点具体是什么?"
+
+3. **derives** (支持/洞察 A→Insight):
+   - An insight or key point derived from an answer
+   - Direction: Answer → Insight
+   - Example: AI response → "关键要点：..."
+
+4. **causes** (因果 A→B):
+   - One thing causes or leads to another
+   - Direction: Cause → Effect
+   - Keywords (Chinese): 因为/所以/导致/结果是/由于/因此/引起/造成
+   - Keywords (English): because/therefore/leads to/results in/causes/due to
+   - Example: "为什么会这样?" → "因为A，所以B"
+
+5. **compares** (对比 A↔B):
+   - Comparing or contrasting two or more concepts
+   - Direction: Bidirectional
+   - Keywords (Chinese): 区别/不同/相比/对比/优劣/差异/versus/vs
+   - Keywords (English): difference/compare/contrast/versus/vs/pros and cons
+   - Example: "X和Y有什么区别?" → "X擅长...，而Y擅长..."
+
+6. **revises** (修正 A→A'):
+   - Correcting, updating, or refining a previous statement
+   - Direction: Original → Revised
+   - Keywords (Chinese): 其实/更准确地说/修正/补充/纠正/之前说的/实际上
+   - Keywords (English): actually/more precisely/correction/update/to clarify
+   - Example: "其实刚才说的不准确，应该是..."
+
+7. **parks** (暂存 Node→Parking):
+   - Temporarily setting aside a topic for later discussion
+   - Direction: Main Topic → Parking Area
+   - Keywords (Chinese): 先放一边/以后再说/暂时不管/回头再看/TODO/待办
+   - Keywords (English): set aside/later/TODO/parking/defer/table this
+   - Example: "这个问题我们先记下，以后再讨论"
+
+8. **supports** (支持证据):
+   - Evidence or data supporting a claim
+   - Direction: Evidence → Claim
+   - Keywords: 根据/研究表明/数据显示/证据表明
+
+9. **contradicts** (反驳):
+   - Evidence or argument against a claim
+   - Direction: Counter-evidence → Claim
+   - Keywords: 但是/然而/相反/有争议/不过
+
+10. **custom** (其他):
+    - Any relationship that doesn't fit the above categories
+    - Use this when uncertain
+
+### Output Format (JSON only, no markdown):
+{
+  "relation_type": "answers|prompts_question|derives|causes|compares|revises|parks|supports|contradicts|custom",
+  "confidence": 0.0-1.0,
+  "label": "A short label for the edge (2-4 characters in Chinese, e.g., '因果', '对比', '追问')",
+  "direction": "forward|backward|bidirectional",
+  "reasoning": "Brief explanation (1 sentence)"
+}
+
+### Rules:
+1. Prioritize the most specific relationship type that applies
+2. For `compares`, always set direction to "bidirectional"
+3. Label should be concise (2-4 Chinese characters or 1-2 English words)
+4. If multiple types could apply, choose the PRIMARY relationship
+5. Output valid JSON ONLY - no markdown fencing
+"""
+
+EDGE_RELATION_CLASSIFICATION_USER_PROMPT = """
+Classify the relationship between these two nodes in a thinking path.
+
+### Source Node:
+Type: {source_type}
+Title: {source_title}
+Content: {source_content}
+
+### Target Node:
+Type: {target_type}
+Title: {target_title}
+Content: {target_content}
+
+### Conversation Context (if available):
+{context}
+
+Output valid JSON only.
+"""
+
+# Relationship type to default label mapping (for fast path without LLM)
+EDGE_RELATION_DEFAULT_LABELS = {
+    "answers": "回答",
+    "prompts_question": "追问",
+    "derives": "洞察",
+    "causes": "因果",
+    "compares": "对比",
+    "revises": "修正",
+    "parks": "暂存",
+    "supports": "支持",
+    "contradicts": "反驳",
+    "custom": "",
+}
+
+# Keywords for fast-path relation detection (without LLM)
+EDGE_RELATION_KEYWORDS = {
+    "causes": [
+        "因为",
+        "所以",
+        "导致",
+        "结果是",
+        "由于",
+        "因此",
+        "引起",
+        "造成",
+        "because",
+        "therefore",
+        "leads to",
+        "results in",
+        "causes",
+        "due to",
+    ],
+    "compares": [
+        "区别",
+        "不同",
+        "相比",
+        "对比",
+        "优劣",
+        "差异",
+        "versus",
+        "vs",
+        "difference",
+        "compare",
+        "contrast",
+        "pros and cons",
+    ],
+    "revises": [
+        "其实",
+        "更准确地说",
+        "修正",
+        "补充",
+        "纠正",
+        "之前说的",
+        "实际上",
+        "actually",
+        "more precisely",
+        "correction",
+        "update",
+        "to clarify",
+    ],
+    "parks": [
+        "先放一边",
+        "以后再说",
+        "暂时不管",
+        "回头再看",
+        "TODO",
+        "待办",
+        "set aside",
+        "later",
+        "parking",
+        "defer",
+        "table this",
+    ],
+    "prompts_question": [
+        "那么",
+        "所以说",
+        "这意味着什么",
+        "接下来",
+        "如果是这样",
+        "then what",
+        "so what",
+        "what does this mean",
+        "next",
+    ],
+}

@@ -94,6 +94,37 @@ class CheckpointMethod(str, Enum):
     SESSION_END = "session_end"  # End of work session
 
 
+class EdgeRelationType(str, Enum):
+    """
+    Edge relationship types for thinking path visualization.
+
+    These types help AI classify the semantic relationship between nodes
+    and enable rich visual representation on the canvas.
+    """
+
+    # Core Q&A relationships
+    ANSWERS = "answers"  # Q→A: Question gets answered
+    PROMPTS_QUESTION = "prompts_question"  # A→Q': Answer leads to follow-up question
+    DERIVES = "derives"  # A→Insight: Answer derives insight
+
+    # Logical relationships
+    CAUSES = "causes"  # A→B: Causal relationship (因果)
+    COMPARES = "compares"  # A↔B: Comparison/contrast (对比)
+    SUPPORTS = "supports"  # Evidence supporting a claim
+    CONTRADICTS = "contradicts"  # Evidence contradicting a claim
+
+    # Evolution relationships
+    REVISES = "revises"  # A→A': Correction/update (修正)
+    EXTENDS = "extends"  # Building on previous point
+
+    # Organization
+    PARKS = "parks"  # Main→Parking: Temporarily set aside (暂存)
+    GROUPS = "groups"  # Grouping relationship
+
+    # User-defined
+    CUSTOM = "custom"  # User-defined relationship
+
+
 # =============================================================================
 # Source Anchor
 # =============================================================================
@@ -463,7 +494,3 @@ class ResumeModeSummary:
             "totalQuestions": self.total_questions,
             "totalConcepts": self.total_concepts,
         }
-
-
-
-

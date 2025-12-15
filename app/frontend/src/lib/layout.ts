@@ -584,6 +584,147 @@ export function calculateThinkingNodePosition(
   return { x: newX, y: maxSiblingY + siblingSpacing - nodeHeight, depth: newDepth };
 }
 
+// =============================================================================
+// PARKING SECTION LAYOUT
+// =============================================================================
 
+/**
+ * Parking Section Configuration
+ * 
+ * The Parking Section is a special area on the canvas where users can
+ * temporarily "park" nodes for later consideration. It's placed on the
+ * left side of the main canvas to keep it out of the way.
+ */
+export const PARKING_SECTION_CONFIG = {
+  // Position (left of main canvas)
+  x: -450,
+  y: 100,
+  // Size
+  width: 350,
+  minHeight: 400,
+  // Internal spacing
+  padding: 20,
+  nodeSpacing: 30,
+  // Visual
+  title: '暂存区 (Parking)',
+  backgroundColor: '#F9FAFB',  // Light gray
+  borderColor: '#E5E7EB',      // Border gray
+  headerHeight: 40,
+};
 
+/**
+ * Section interface for Parking
+ */
+export interface ParkingSection {
+  id: string;
+  title: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  nodeIds: string[];
+}
 
+/**
+ * Create or update the Parking Section
+ * 
+ * @param existingSection - Existing parking section (if any)
+ * @param parkedNodeIds - IDs of nodes to include in parking
+ * @returns Updated ParkingSection configuration
+ */
+export function createParkingSection(
+  existingSection: ParkingSection | null,
+  parkedNodeIds: string[]
+): ParkingSection {
+  const nodeCount = parkedNodeIds.length;
+  const calculatedHeight = Math.max(
+    PARKING_SECTION_CONFIG.minHeight,
+    PARKING_SECTION_CONFIG.headerHeight + 
+    PARKING_SECTION_CONFIG.padding * 2 + 
+    nodeCount * (LAYOUT_CONFIG.nodeHeight + PARKING_SECTION_CONFIG.nodeSpacing)
+  );
+
+  return {
+    id: existingSection?.id || `parking-section-${Date.now()}`,
+    title: PARKING_SECTION_CONFIG.title,
+    x: PARKING_SECTION_CONFIG.x,
+    y: PARKING_SECTION_CONFIG.y,
+    width: PARKING_SECTION_CONFIG.width,
+    height: calculatedHeight,
+    nodeIds: parkedNodeIds,
+  };
+}
+
+/**
+ * Layout nodes within the Parking Section
+ * 
+ * Arranges parked nodes in a vertical stack within the section bounds.
+ * 
+ * @param nodes - Nodes to layout (only parked nodes)
+ * @param section - The parking section
+ * @returns Nodes with updated positions
+ */
+export function layoutParkingNodes(
+  nodes: CanvasNode[],
+  section: ParkingSection
+): CanvasNode[] {
+  if (nodes.length === 0) return [];
+
+  const startX = section.x + PARKING_SECTION_CONFIG.padding;
+  const startY = section.y + PARKING_SECTION_CONFIG.headerHeight + PARKING_SECTION_CONFIG.padding;
+  
+  // Scale down nodes slightly to fit parking area
+  const scaledWidth = PARKING_SECTION_CONFIG.width - PARKING_SECTION_CONFIG.padding * 2;
+  const scaledHeight = 120; // Smaller height for parked nodes
+
+  return nodes.map((node, index) => ({
+    ...node,
+    x: startX,
+    y: startY + index * (scaledHeight + PARKING_SECTION_CONFIG.nodeSpacing),
+    width: scaledWidth,
+    height: scaledHeight,
+    // Mark as parked for styling
+    isParked: true,
+  }));
+}
+
+/**
+ * Check if a position is within the Parking Section
+ * 
+ * @param x - X coordinate
+ * @param y - Y coordinate
+ * @param section - The parking section
+ * @returns true if position is within the section
+ */
+export function isWithinParkingSection(
+  x: number,
+  y: number,
+  section: ParkingSection
+): boolean {
+  return (
+    x >= section.x &&
+    x <= section.x + section.width &&
+    y >= section.y &&
+    y <= section.y + section.height
+  );
+}
+
+/**
+ * Get the position for a node being dropped into Parking Section
+ * 
+ * @param section - The parking section
+ * @param existingParkedNodes - Nodes already in parking
+ * @returns Position { x, y } for the new parked node
+ */
+export function getDropPositionInParking(
+  section: ParkingSection,
+  existingParkedNodes: CanvasNode[]
+): { x: number; y: number } {
+  const startX = section.x + PARKING_SECTION_CONFIG.padding;
+  const startY = section.y + PARKING_SECTION_CONFIG.headerHeight + PARKING_SECTION_CONFIG.padding;
+  const scaledHeight = 120;
+
+  const y = startY + existingParkedNodes.length * (scaledHeight + PARKING_SECTION_CONFIG.nodeSpacing);
+
+  return { x: startX, y };
+}
