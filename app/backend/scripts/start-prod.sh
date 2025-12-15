@@ -31,8 +31,18 @@ else
         echo "❌ Migration failed with exit code $MIGRATION_EXIT"
         echo "$MIGRATION_OUTPUT" | tail -20  # Show last 20 lines of error
         
+        # Check for timeout errors
+        if echo "$MIGRATION_OUTPUT" | grep -q "TimeoutError\|timeout"; then
+            echo ""
+            echo "🔍 Detected timeout error during migration"
+            echo "   This usually means:"
+            echo "   1. Database connection is slow (cloud DB latency)"
+            echo "   2. Database is temporarily unavailable"
+            echo ""
+            echo "⚠️  Migration will be retried on next startup"
+            echo "   Application will start anyway - database operations will retry on demand"
         # Check for specific "Can't locate revision" error
-        if echo "$MIGRATION_OUTPUT" | grep -q "Can't locate revision"; then
+        elif echo "$MIGRATION_OUTPUT" | grep -q "Can't locate revision"; then
             echo ""
             echo "🔍 Detected 'Can't locate revision' error"
             echo "   This usually means:"
