@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2025-12-15
+
+#### Critical: Database Connection Startup Fix
+
+**Problem:** Production deployment crashed with `TimeoutError` during database connection initialization, causing continuous container restarts.
+
+**Root Cause:** `init_db()` raised exceptions on timeout, blocking application startup when database was temporarily slow/unavailable.
+
+**Solution:**
+- **Non-blocking startup** (`infrastructure/database/session.py`):
+  - `init_db()` no longer raises exceptions on failure
+  - Increased connection timeout from 10s to 30s for slow cloud DB
+  - Added `CancelledError` handling for graceful shutdown
+  - Application starts even if initial DB check fails
+  - Requests will retry DB connection on-demand
+
+- **Improved error handling** (`main.py`):
+  - Wrapped `init_db()` in try-catch
+  - Application continues startup even on DB init warning
+
+- **Enhanced logging** (`worker/worker.py`, `api/v1/documents.py`):
+  - Added detailed task scheduling logs with task_id and environment
+  - Better worker startup and task pop logging
+
+- **Diagnostic endpoint** (`api/v1/maintenance.py`):
+  - New `GET /api/v1/maintenance/tasks/status` endpoint
+  - Shows pending/processing/completed/failed task counts
+  - Helps diagnose document processing issues
+
+**Impact:** Production deployment stability improved - app no longer crashes on temporary DB connectivity issues.
+
 ### Added - 2025-12-15
 
 #### Thinking Path Edge Relation Classification System

@@ -305,50 +305,62 @@ async_session_maker = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Initialize database connection with retry logic."""
+    """
+    Initialize database connection with retry logic.
+    
+    Note: This function will NOT raise exceptions on failure.
+    The application will start even if the database is temporarily unavailable.
+    Individual requests will fail gracefully until the database is available.
+    """
     max_retries = 3
-    retry_delay = 2  # seconds
+    retry_delay = 3  # seconds
+    connection_timeout = 30  # seconds - increased for slow cloud DB connections
 
     for attempt in range(1, max_retries + 1):
         try:
             logger.info(f"Attempting database connection (attempt {attempt}/{max_retries})...")
-            async with asyncio.timeout(10):  # 10 second timeout for init check
+            async with asyncio.timeout(connection_timeout):
                 async with engine.begin() as conn:
                     await conn.run_sync(lambda _: None)
             logger.info("✅ Database connected successfully")
             return
         except asyncio.TimeoutError:
-            logger.error(f"❌ Database connection timeout on attempt {attempt}/{max_retries}")
+            logger.warning(f"⚠️  Database connection timeout on attempt {attempt}/{max_retries}")
             if attempt < max_retries:
                 logger.info(f"Retrying in {retry_delay} seconds...")
                 await asyncio.sleep(retry_delay)
             else:
-                logger.error("Database connection failed after all retries")
-                logger.error("Please check:")
-                logger.error("  1. Database server is running")
-                logger.error("  2. DATABASE_URL is correct")
-                logger.error("  3. Network connectivity to database")
-                logger.error(
-                    "For Supabase, use Transaction Mode (port 6543) for better concurrency"
+                logger.warning("⚠️  Database connection failed after all retries")
+                logger.warning("   Application will start anyway - requests will retry connection")
+                logger.warning("   Please check:")
+                logger.warning("     1. Database server is running")
+                logger.warning("     2. DATABASE_URL is correct")
+                logger.warning("     3. Network connectivity to database")
+                logger.warning(
+                    "   For Supabase, use Transaction Mode (port 6543) for better concurrency"
                 )
-                raise
+                # Don't raise - let app start anyway
+                return
+        except asyncio.CancelledError:
+            # Handle cancellation gracefully (e.g., during shutdown)
+            logger.warning("⚠️  Database connection cancelled")
+            return
         except Exception as e:
-            logger.error(
-                f"❌ Database connection error on attempt {attempt}/{max_retries}: {type(e).__name__}: {e}"
+            logger.warning(
+                f"⚠️  Database connection error on attempt {attempt}/{max_retries}: {type(e).__name__}: {e}"
             )
             if attempt < max_retries:
                 logger.info(f"Retrying in {retry_delay} seconds...")
                 await asyncio.sleep(retry_delay)
             else:
-                logger.error("Database connection failed after all retries")
-                logger.error("Please check your DATABASE_URL configuration")
-                logger.error(
-                    "For Supabase, use Transaction Mode (port 6543) for better concurrency"
+                logger.warning("⚠️  Database connection failed after all retries")
+                logger.warning("   Application will start anyway - requests will retry connection")
+                logger.warning("   Please check your DATABASE_URL configuration")
+                logger.warning(
+                    "   For Supabase, use Transaction Mode (port 6543) for better concurrency"
                 )
-                logger.error(
-                    "Transaction Mode uses connection pooling and supports more concurrent connections"
-                )
-                raise
+                # Don't raise - let app start anyway
+                return
 
 
 async def close_db() -> None:

@@ -99,8 +99,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info(f"    - Citation Format: {settings.citation_format}")
     logger.info("=" * 60)
 
-    await init_db()
-    logger.info("Database connection established")
+    # Initialize database - will not raise on failure, app will start anyway
+    try:
+        await init_db()
+        logger.info("Database initialization completed")
+    except Exception as e:
+        logger.warning(f"⚠️  Database initialization warning: {e}")
+        logger.warning("   Application will continue - database connections will be retried on demand")
 
     # Start background worker
     try:
