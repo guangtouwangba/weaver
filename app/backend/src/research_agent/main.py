@@ -115,10 +115,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
 
         # Start worker in background
-        asyncio.create_task(_background_worker.start())
-        logger.info("Background worker started")
+        worker_task = asyncio.create_task(_background_worker.start())
+        # Add error callback to catch any unhandled exceptions
+        def worker_error_handler(task):
+            try:
+                task.result()
+            except Exception as e:
+                logger.error(f"❌ Background worker crashed: {e}", exc_info=True)
+        
+        worker_task.add_done_callback(worker_error_handler)
+        logger.info("✅ Background worker task created and started")
     except Exception as e:
-        logger.error(f"Failed to start background worker: {e}")
+        logger.error(f"❌ Failed to start background worker: {e}", exc_info=True)
 
     yield
 

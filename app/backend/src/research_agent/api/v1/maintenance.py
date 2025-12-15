@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db
 from research_agent.config import get_settings
-from research_agent.domain.entities.task import TaskType
+from research_agent.domain.entities.task import TaskStatus, TaskType
 from research_agent.infrastructure.database.repositories.sqlalchemy_pending_cleanup_repo import (
     SQLAlchemyPendingCleanupRepository,
 )
@@ -134,7 +134,7 @@ async def trigger_cleanup(
 
     # Schedule the cleanup task
     task_service = TaskQueueService(session)
-    task = await task_service.enqueue(
+    task = await task_service.push(
         task_type=TaskType.FILE_CLEANUP,
         payload={"batch_size": request.batch_size},
         priority=0,  # Normal priority
@@ -147,4 +147,63 @@ async def trigger_cleanup(
         pending_count=len(pending),
         message=f"Scheduled cleanup task for {len(pending)} pending file(s)",
         task_id=str(task.id),
+    )
+
+
+class TaskQueueStatus(BaseModel):
+    """Response model for task queue status."""
+
+    environment: str
+    pending_count: int
+    processing_count: int
+    completed_count: int
+    failed_count: int
+    total_count: int
+    message: str
+
+
+@router.get("/tasks/status", response_model=TaskQueueStatus)
+async def get_task_queue_status(
+    session: AsyncSession = Depends(get_db),
+) -> TaskQueueStatus:
+    """
+    Get the current status of the task queue.
+    
+    This endpoint helps diagnose why documents might not be processing.
+    Returns counts of tasks by status in the current environment.
+    """
+    task_service = TaskQueueService(session)
+    
+    # Get counts for each status
+    pending_tasks = await task_service.get_tasks_by_status(TaskStatus.PENDING, limit=1000)
+    processing_tasks = await task_service.get_tasks_by_status(TaskStatus.PROCESSING, limit=1000)
+    completed_tasks = await task_service.get_tasks_by_status(TaskStatus.COMPLETED, limit=100)
+    failed_tasks = await task_service.get_tasks_by_status(TaskStatus.FAILED, limit=100)
+    
+    pending_count = len(pending_tasks)
+    processing_count = len(processing_tasks)
+    completed_count = len(completed_tasks)
+    failed_count = len(failed_tasks)
+    total_count = pending_count + processing_count + completed_count + failed_count
+    
+    message = f"Task queue status for environment '{settings.environment}': "
+    if pending_count > 0:
+        message += f"{pending_count} pending, "
+    if processing_count > 0:
+        message += f"{processing_count} processing, "
+    if failed_count > 0:
+        message += f"{failed_count} failed, "
+    message += f"{completed_count} completed (total: {total_count})"
+    
+    if pending_count > 0 and processing_count == 0:
+        message += ". ⚠️  Warning: Tasks are pending but none are processing. Check if BackgroundWorker is running."
+    
+    return TaskQueueStatus(
+        environment=settings.environment,
+        pending_count=pending_count,
+        processing_count=processing_count,
+        completed_count=completed_count,
+        failed_count=failed_count,
+        total_count=total_count,
+        message=message,
     )
