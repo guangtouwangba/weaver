@@ -111,10 +111,29 @@ class BackgroundWorker:
                         f"Please check DATABASE_URL configuration."
                     )
             except Exception as e:
-                # Other errors - log and continue with normal poll interval
-                logger.error(f"Error in worker loop: {e}", exc_info=True)
-                self._connection_error_count = 0  # Reset on non-connection errors
-                wait_time = self._poll_interval
+                error_message = str(e)
+                
+                # Check for "table does not exist" error (migration not run)
+                if "does not exist" in error_message or "UndefinedTableError" in error_message:
+                    self._connection_error_count += 1
+                    # Only log occasionally to avoid spam
+                    if self._connection_error_count == 1:
+                        logger.error(
+                            "❌ Database table not found - migrations may not have run. "
+                            "Please run: alembic upgrade head"
+                        )
+                    elif self._connection_error_count % 30 == 0:
+                        logger.warning(
+                            f"⚠️  Still waiting for database tables ({self._connection_error_count} attempts). "
+                            "Run migrations or restart the server."
+                        )
+                    # Use longer backoff for missing table errors
+                    wait_time = min(30.0, self._poll_interval * 5)
+                else:
+                    # Other errors - log and continue with normal poll interval
+                    logger.error(f"❌ Error in worker loop: {e}", exc_info=True)
+                    self._connection_error_count = 0  # Reset on non-connection errors
+                    wait_time = self._poll_interval
 
             # Wait before next poll (with backoff for connection errors)
             try:
