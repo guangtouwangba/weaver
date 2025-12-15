@@ -59,18 +59,24 @@ class BackgroundWorker:
 
         env_settings = get_settings()
 
-        logger.info("Background worker started")
-        logger.info(f"Environment: {env_settings.environment}")  # ✅ Show current environment
+        logger.info("🚀 Background worker started")
+        logger.info(f"   Environment: {env_settings.environment}")
         logger.info(
-            f"Poll interval: {self._poll_interval}s, Max concurrent: {self._max_concurrent_tasks}"
+            f"   Poll interval: {self._poll_interval}s, Max concurrent: {self._max_concurrent_tasks}"
         )
-        logger.info(f"Registered task types: {self._dispatcher.get_registered_types()}")
+        logger.info(f"   Registered task types: {self._dispatcher.get_registered_types()}")
         logger.info(
-            f"⚠️  Worker will ONLY process tasks from environment '{env_settings.environment}'"
+            f"   ⚠️  Worker will ONLY process tasks from environment '{env_settings.environment}'"
         )
 
         # Recover any stuck tasks from previous runs (e.g., after server restart/reload)
-        await self._recover_stuck_tasks()
+        # Don't let recovery failure prevent worker from starting
+        try:
+            await self._recover_stuck_tasks()
+        except Exception as e:
+            logger.warning(
+                f"⚠️  Failed to recover stuck tasks at startup (worker will continue): {e}"
+            )
 
         while self._running:
             wait_time = self._poll_interval
@@ -169,6 +175,10 @@ class BackgroundWorker:
 
                 if task:
                     await session.commit()
+                    logger.info(
+                        f"📥 Popped task from queue - task_id={task.id}, "
+                        f"task_type={task.task_type.value}, attempts={task.attempts}/{task.max_attempts}"
+                    )
 
                     # Process task in background
                     task_coro = self._process_task(task)
@@ -180,7 +190,7 @@ class BackgroundWorker:
             raise
         except Exception as e:
             # Other errors - log and continue
-            logger.error(f"Error in _poll_and_process: {e}", exc_info=True)
+            logger.error(f"❌ Error in _poll_and_process: {e}", exc_info=True)
             raise
 
     async def _process_task(self, task) -> None:

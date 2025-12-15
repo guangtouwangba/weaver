@@ -277,7 +277,7 @@ async def confirm_upload(
 
         # Schedule background processing task
         task_service = TaskQueueService(session)
-        await task_service.push(
+        task = await task_service.push(
             task_type=TaskType.PROCESS_DOCUMENT,
             payload={
                 "document_id": str(document_id),
@@ -289,7 +289,11 @@ async def confirm_upload(
 
         await session.commit()
 
-        logger.info(f"Document {document_id} scheduled for processing")
+        logger.info(
+            f"✅ Document {document_id} scheduled for processing - "
+            f"task_id={task.id}, task_type={task.task_type.value}, "
+            f"environment={settings.environment}"
+        )
 
         return DocumentUploadResponse(
             id=document_id,
