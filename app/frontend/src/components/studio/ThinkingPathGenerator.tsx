@@ -12,13 +12,19 @@
  * - Node <-> Message bidirectional linking
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Box, Chip, IconButton, Tooltip, CircularProgress, SxProps, Theme } from '@mui/material';
-import { Brain, RefreshCw, Link2, X, Layout, Trash2 } from 'lucide-react';
+import { Brain, RefreshCw, Link2, X, Layout, Trash2, ParkingCircle } from 'lucide-react';
 import { useStudio } from '@/contexts/StudioContext';
 import useCanvasWebSocket from '@/hooks/useCanvasWebSocket';
 import { CanvasNode, CanvasEdge, CanvasSection, thinkingPathApi } from '@/lib/api';
-import { layoutThinkingPath } from '@/lib/layout';
+import { 
+  layoutThinkingPath, 
+  PARKING_SECTION_CONFIG,
+  createParkingSection,
+  layoutParkingNodes,
+  ParkingSection,
+} from '@/lib/layout';
 
 interface ThinkingPathGeneratorProps {
   onStatusChange?: (status: 'idle' | 'analyzing' | 'error') => void;
@@ -55,6 +61,66 @@ export default function ThinkingPathGenerator({
   const [pendingNodes, setPendingNodes] = useState<Map<string, PendingNode>>(new Map());
   const [lastProcessedMessageId, setLastProcessedMessageId] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [parkingSection, setParkingSection] = useState<ParkingSection | null>(null);
+
+  // Track parked nodes (nodes with 'parks' relation type edges)
+  const parkedNodeIds = useMemo(() => {
+    const parkedIds = new Set<string>();
+    
+    // Find all nodes that are targets of 'parks' relation edges
+    canvasEdges.forEach(edge => {
+      if (edge.relationType === 'parks') {
+        parkedIds.add(edge.target);
+      }
+    });
+    
+    return Array.from(parkedIds);
+  }, [canvasEdges]);
+
+  // Update parking section when parked nodes change
+  useEffect(() => {
+    if (parkedNodeIds.length > 0) {
+      const section = createParkingSection(parkingSection, parkedNodeIds);
+      setParkingSection(section);
+      
+      // Layout parked nodes within the section
+      const parkedNodes = canvasNodes.filter(n => parkedNodeIds.includes(n.id));
+      if (parkedNodes.length > 0) {
+        const layoutedParked = layoutParkingNodes(parkedNodes, section);
+        setCanvasNodes(prev => 
+          prev.map(node => {
+            const updated = layoutedParked.find(p => p.id === node.id);
+            return updated || node;
+          })
+        );
+      }
+    } else {
+      setParkingSection(null);
+    }
+  }, [parkedNodeIds, canvasNodes, setCanvasNodes]);
+
+  // Function to park a node (add parks edge)
+  const parkNode = useCallback((nodeId: string) => {
+    // Create a parking edge from the node to a virtual parking target
+    const parkingEdge: CanvasEdge = {
+      id: `edge-park-${nodeId}`,
+      source: nodeId,
+      target: nodeId, // Self-reference for parking
+      relationType: 'parks',
+      label: '暂存',
+    };
+    
+    setCanvasEdges(prev => [...prev, parkingEdge]);
+    console.log('[ThinkingPath] Node parked:', nodeId);
+  }, [setCanvasEdges]);
+
+  // Function to unpark a node (remove parks edge)
+  const unparkNode = useCallback((nodeId: string) => {
+    setCanvasEdges(prev => prev.filter(
+      edge => !(edge.relationType === 'parks' && edge.target === nodeId)
+    ));
+    console.log('[ThinkingPath] Node unparked:', nodeId);
+  }, [setCanvasEdges]);
 
   // Handle node added from WebSocket
   const handleNodeAdded = useCallback(
@@ -130,15 +196,21 @@ export default function ThinkingPathGenerator({
 
   // Handle edge added from WebSocket
   const handleEdgeAdded = useCallback(
-    (edgeId: string, sourceId: string, targetId: string) => {
-      console.log('[ThinkingPath] Edge added:', edgeId);
+    (edgeId: string, sourceId: string, targetId: string, edgeData?: Partial<CanvasEdge>) => {
+      console.log('[ThinkingPath] Edge added:', edgeId, edgeData?.relationType);
       
       setCanvasEdges((prev) => {
         // Check if edge already exists
         if (prev.some((e) => e.id === edgeId)) {
           return prev;
         }
-        return [...prev, { id: edgeId, source: sourceId, target: targetId }];
+        // Include full edge data with relationType and label
+        return [...prev, { 
+          id: edgeId, 
+          source: sourceId, 
+          target: targetId,
+          ...edgeData,  // Include relationType, label, direction, etc.
+        }];
       });
     },
     [setCanvasEdges]
@@ -382,6 +454,20 @@ export default function ThinkingPathGenerator({
           color="warning"
           variant="outlined"
         />
+      )}
+
+      {/* Parking indicator */}
+      {parkedNodeIds.length > 0 && (
+        <Tooltip title={`${parkedNodeIds.length} node(s) in Parking`}>
+          <Chip
+            size="small"
+            icon={<ParkingCircle size={12} />}
+            label={`${parkedNodeIds.length} parked`}
+            color="default"
+            variant="outlined"
+            sx={{ opacity: 0.8 }}
+          />
+        </Tooltip>
       )}
 
       {/* Reconnect button (if disconnected) */}

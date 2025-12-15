@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Stage, Layer, Group, Rect, Text, Line } from 'react-konva';
+import { Stage, Layer, Group, Rect, Text, Line, Circle } from 'react-konva';
 import Konva from 'konva';
 import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
 import { Layout, ArrowUp, X, Check, Layers, Sparkles } from 'lucide-react';
@@ -1135,27 +1135,61 @@ export default function KonvaCanvas({
     return 'default';
   };
 
-  // Edge label colors based on relation type or edge type
-  const getEdgeLabelStyle = (relationType?: string, edgeType?: string) => {
-    const styles: Record<string, { color: string; bgColor: string }> = {
-      supports: { color: '#059669', bgColor: '#ECFDF5' },      // Green
-      contradicts: { color: '#DC2626', bgColor: '#FEF2F2' },   // Red
-      causes: { color: '#D97706', bgColor: '#FFFBEB' },        // Orange
-      belongs_to: { color: '#7C3AED', bgColor: '#F5F3FF' },    // Purple
-      related: { color: '#6B7280', bgColor: '#F3F4F6' },       // Gray
-      custom: { color: '#3B82F6', bgColor: '#EFF6FF' },        // Blue
-      // Thinking Path edge types
-      branch: { color: '#F59E0B', bgColor: '#FFFBEB' },        // Amber - from insight
-      progression: { color: '#8B5CF6', bgColor: '#F5F3FF' },   // Violet - topic follow-up
-    };
-    // Check edge type first (for thinking path edges), then relation type
-    if (edgeType && styles[edgeType]) {
-      return styles[edgeType];
-    }
-    return styles[relationType || 'related'] || styles.related;
+  // Edge style configuration for different relation types
+  interface EdgeStyleConfig {
+    color: string;
+    bgColor: string;
+    strokeWidth: number;
+    dash?: number[];
+    icon?: string;  // Icon name for edge midpoint
+  }
+
+  const EDGE_STYLES: Record<string, EdgeStyleConfig> = {
+    // Core Q&A relationships
+    answers:          { color: '#10B981', bgColor: '#ECFDF5', strokeWidth: 2, icon: '✓' },           // Green - check
+    prompts_question: { color: '#8B5CF6', bgColor: '#F5F3FF', strokeWidth: 2, dash: [8, 4], icon: '?' },  // Violet - question
+    derives:          { color: '#F59E0B', bgColor: '#FFFBEB', strokeWidth: 2, icon: '💡' },          // Amber - lightbulb
+    
+    // Logical relationships
+    causes:           { color: '#EF4444', bgColor: '#FEF2F2', strokeWidth: 3, icon: '→' },           // Red - arrow
+    compares:         { color: '#3B82F6', bgColor: '#EFF6FF', strokeWidth: 2, dash: [4, 4], icon: '⇆' },  // Blue - bidirectional
+    supports:         { color: '#059669', bgColor: '#ECFDF5', strokeWidth: 2, icon: '+' },           // Green - plus
+    contradicts:      { color: '#DC2626', bgColor: '#FEF2F2', strokeWidth: 2, icon: '×' },           // Red - cross
+    
+    // Evolution relationships
+    revises:          { color: '#EC4899', bgColor: '#FCE7F3', strokeWidth: 2, dash: [12, 6], icon: '✎' }, // Pink - edit
+    extends:          { color: '#06B6D4', bgColor: '#ECFEFF', strokeWidth: 2, icon: '↗' },           // Cyan - extend
+    
+    // Organization
+    parks:            { color: '#9CA3AF', bgColor: '#F3F4F6', strokeWidth: 1.5, dash: [4, 8], icon: '⏸' }, // Gray - pause
+    groups:           { color: '#7C3AED', bgColor: '#F5F3FF', strokeWidth: 1.5, dash: [2, 2], icon: '▢' }, // Purple - group
+    belongs_to:       { color: '#7C3AED', bgColor: '#F5F3FF', strokeWidth: 2 },                       // Purple (legacy)
+    related:          { color: '#6B7280', bgColor: '#F3F4F6', strokeWidth: 2 },                       // Gray (legacy)
+    
+    // User-defined
+    custom:           { color: '#6B7280', bgColor: '#F3F4F6', strokeWidth: 2 },                       // Gray
+    
+    // Thinking Path edge types (for styling compatibility)
+    branch:           { color: '#F59E0B', bgColor: '#FFFBEB', strokeWidth: 2.5, icon: '↳' },         // Amber - branch from insight
+    progression:      { color: '#8B5CF6', bgColor: '#F5F3FF', strokeWidth: 2.5, dash: [8, 4], icon: '→' }, // Violet - topic follow-up
   };
 
-  // Draw connections with labels
+  // Get edge style with fallback
+  const getEdgeStyle = (relationType?: string, edgeType?: string): EdgeStyleConfig => {
+    // Check edge type first (for thinking path edges), then relation type
+    if (edgeType && EDGE_STYLES[edgeType]) {
+      return EDGE_STYLES[edgeType];
+    }
+    return EDGE_STYLES[relationType || 'related'] || EDGE_STYLES.related;
+  };
+
+  // Legacy function for backwards compatibility
+  const getEdgeLabelStyle = (relationType?: string, edgeType?: string) => {
+    const style = getEdgeStyle(relationType, edgeType);
+    return { color: style.color, bgColor: style.bgColor };
+  };
+
+  // Draw connections with labels and relation-specific styling
   const renderEdges = () => {
     return edges.map((edge, index) => {
       const source = visibleNodes.find((n) => n.id === edge.source);
@@ -1170,17 +1204,25 @@ export default function KonvaCanvas({
 
       const controlOffset = Math.max(Math.abs(x2 - x1) * 0.4, 50);
       
-      // Calculate midpoint for label placement
+      // Calculate midpoint for label/icon placement
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
       
-      const labelStyle = getEdgeLabelStyle(edge.relationType, edge.type);
+      // Get edge style configuration
+      const edgeStyle = getEdgeStyle(edge.relationType, edge.type);
       const hasLabel = edge.label && edge.label.trim().length > 0;
-      // Use special styling for thinking path edges even without labels
+      
+      // Determine if this edge should have special styling
+      const hasRelationType = !!edge.relationType && edge.relationType !== 'related' && edge.relationType !== 'custom';
       const isThinkingPathEdge = edge.type === 'branch' || edge.type === 'progression';
+      const shouldHighlight = hasLabel || hasRelationType || isThinkingPathEdge;
+      
+      // Check for bidirectional edge (compares)
+      const isBidirectional = edge.direction === 'bidirectional' || edge.relationType === 'compares';
 
       return (
         <Group key={edge.id || `${edge.source}-${edge.target}-${index}`}>
+          {/* Main edge line */}
           <Line
             points={[
               x1, y1,
@@ -1188,33 +1230,86 @@ export default function KonvaCanvas({
               x2 - controlOffset, y2,
               x2, y2
             ]}
-            stroke={(hasLabel || isThinkingPathEdge) ? labelStyle.color : "#94A3B8"}
-            strokeWidth={isThinkingPathEdge ? 2.5 : 2}
-            dash={edge.type === 'progression' ? [8, 4] : undefined}
+            stroke={shouldHighlight ? edgeStyle.color : "#94A3B8"}
+            strokeWidth={edgeStyle.strokeWidth}
+            dash={edgeStyle.dash}
             tension={0.5}
             bezier
           />
           
-          {/* Edge Label */}
+          {/* Arrow at target end */}
+          <Line
+            points={[x2 - 8, y2 - 5, x2, y2, x2 - 8, y2 + 5]}
+            stroke={shouldHighlight ? edgeStyle.color : "#94A3B8"}
+            strokeWidth={edgeStyle.strokeWidth}
+            lineCap="round"
+            lineJoin="round"
+          />
+          
+          {/* Arrow at source end for bidirectional edges */}
+          {isBidirectional && (
+            <Line
+              points={[x1 + 8, y1 - 5, x1, y1, x1 + 8, y1 + 5]}
+              stroke={edgeStyle.color}
+              strokeWidth={edgeStyle.strokeWidth}
+              lineCap="round"
+              lineJoin="round"
+            />
+          )}
+          
+          {/* Edge Label (AI-generated or user-defined) */}
           {hasLabel && (
             <Group x={midX} y={midY}>
               <Rect
-                x={-edge.label!.length * 3.5 - 8}
-                y={-10}
-                width={edge.label!.length * 7 + 16}
-                height={20}
-                fill={labelStyle.bgColor}
-                stroke={labelStyle.color}
+                x={-edge.label!.length * 4 - 10}
+                y={-12}
+                width={edge.label!.length * 8 + 20}
+                height={24}
+                fill={edgeStyle.bgColor}
+                stroke={edgeStyle.color}
                 strokeWidth={1}
-                cornerRadius={4}
+                cornerRadius={12}
+                shadowColor="rgba(0,0,0,0.1)"
+                shadowBlur={4}
+                shadowOffsetY={2}
               />
+              {/* Icon before label if available */}
+              {edgeStyle.icon && (
+                <Text
+                  x={-edge.label!.length * 4 - 6}
+                  y={-8}
+                  text={edgeStyle.icon}
+                  fontSize={12}
+                  fill={edgeStyle.color}
+                />
+              )}
               <Text
-                x={-edge.label!.length * 3.5}
-                y={-6}
+                x={edgeStyle.icon ? -edge.label!.length * 4 + 8 : -edge.label!.length * 4}
+                y={-7}
                 text={edge.label}
                 fontSize={11}
-                fill={labelStyle.color}
+                fill={edgeStyle.color}
                 fontStyle="600"
+              />
+            </Group>
+          )}
+          
+          {/* Icon only (no label but has relation type with icon) */}
+          {!hasLabel && edgeStyle.icon && shouldHighlight && (
+            <Group x={midX} y={midY}>
+              <Circle
+                radius={12}
+                fill={edgeStyle.bgColor}
+                stroke={edgeStyle.color}
+                strokeWidth={1}
+              />
+              <Text
+                x={-6}
+                y={-7}
+                text={edgeStyle.icon}
+                fontSize={12}
+                fill={edgeStyle.color}
+                align="center"
               />
             </Group>
           )}

@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-15
+
+#### Thinking Path Edge Relation Classification System
+
+**Backend:**
+- **EdgeRelationType Enum** (`domain/entities/thinking_path.py`):
+  - New enum with 12 relation types: `answers`, `prompts_question`, `derives`, `causes`, `compares`, `supports`, `contradicts`, `revises`, `extends`, `parks`, `groups`, `custom`
+  - Semantic classification for edge relationships in thinking path visualization
+
+- **Edge Classification Prompts** (`application/prompts/thinking_path_extraction.py`):
+  - `EDGE_RELATION_CLASSIFICATION_SYSTEM_PROMPT`: LLM prompt for classifying edge relations
+  - `EDGE_RELATION_CLASSIFICATION_USER_PROMPT`: User prompt template
+  - `EDGE_RELATION_DEFAULT_LABELS`: Default Chinese labels for each relation type
+  - `EDGE_RELATION_KEYWORDS`: Keyword patterns for fast-path detection (causes, compares, revises, parks, prompts_question)
+
+- **Edge Classification Service** (`application/services/thinking_path_service.py`):
+  - `_classify_edge_relation()`: 3-tier classification (heuristic → keyword → LLM)
+  - `_llm_classify_edge_relation()`: LLM-based classification fallback
+  - `_create_edge_with_relation()`: Edge factory with relation metadata
+  - Updated edge creation to include `relationType`, `label`, and `direction` fields
+
+**Frontend:**
+- **CanvasEdge Type Update** (`lib/api.ts`):
+  - Extended `relationType` to include all 12 relation types
+  - Added `direction` field for bidirectional relations
+
+- **Edge Visual System** (`components/studio/KonvaCanvas.tsx`):
+  - `EDGE_STYLES` config with color, strokeWidth, dash patterns, and icons for each relation type
+  - Updated `renderEdges()` with:
+    - Relation-specific stroke colors and dash patterns
+    - Arrows at edge endpoints
+    - Bidirectional arrows for `compares` relations
+    - Icon display at edge midpoint (emoji icons)
+    - AI-generated label rendering with styled pill background
+  - Added `Circle` import for icon rendering
+
+- **Parking Section** (`lib/layout.ts`, `components/studio/ThinkingPathGenerator.tsx`):
+  - `PARKING_SECTION_CONFIG`: Configuration for parking area position and styling
+  - `ParkingSection` interface for parking state
+  - `createParkingSection()`: Section factory
+  - `layoutParkingNodes()`: Node layout within parking area
+  - `isWithinParkingSection()`, `getDropPositionInParking()`: Interaction helpers
+  - `parkedNodeIds` state for tracking parked nodes
+  - Parking indicator chip in UI
+
+- **WebSocket Update** (`hooks/useCanvasWebSocket.ts`):
+  - `onEdgeAdded` callback now includes full `edgeData` parameter
+  - Edge events include `relationType` and `label` fields
+
+**Visual Design:**
+| Relation | Color | Style | Icon |
+|----------|-------|-------|------|
+| answers | Green | Solid | ✓ |
+| prompts_question | Violet | Dashed | ? |
+| derives | Amber | Solid | 💡 |
+| causes | Red | Bold | → |
+| compares | Blue | Dotted | ⇆ |
+| revises | Pink | Long-dash | ✎ |
+| parks | Gray | Sparse-dash | ⏸ |
+
+**Technical Details:**
+- **Author**: Cursor Agent
+- **Implementation**: Thinking Path Edge Relation Classification as per plan
+- **Scope**: Backend (entities, prompts, service), Frontend (types, canvas, layout, websocket)
+
 ### Added - 2025-12-14
 
 #### Thinking Graph (Dynamic Mind Map) Full Stack Implementation

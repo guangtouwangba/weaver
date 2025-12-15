@@ -18,7 +18,8 @@ export interface UseCanvasWebSocketOptions {
   onNodeAdded?: (nodeId: string, nodeData: Partial<CanvasNode>, messageIds?: string[]) => void;
   onNodeUpdated?: (nodeId: string, nodeData: Partial<CanvasNode>) => void;
   onNodeDeleted?: (nodeId: string) => void;
-  onEdgeAdded?: (edgeId: string, sourceId: string, targetId: string) => void;
+  // Updated to support full edge data including relationType and label
+  onEdgeAdded?: (edgeId: string, sourceId: string, targetId: string, edgeData?: Partial<CanvasEdge>) => void;
   onThinkingPathAnalyzing?: (messageId: string) => void;
   onThinkingPathAnalyzed?: (
     messageId: string,
@@ -135,7 +136,13 @@ export function useCanvasWebSocket(
 
             case 'edge_added':
               if (data.edge_id && data.source_id && data.target_id) {
-                callbacks.onEdgeAdded?.(data.edge_id, data.source_id, data.target_id);
+                // Pass full edge data including relationType and label
+                callbacks.onEdgeAdded?.(
+                  data.edge_id, 
+                  data.source_id, 
+                  data.target_id,
+                  data.edge_data
+                );
               }
               break;
 
