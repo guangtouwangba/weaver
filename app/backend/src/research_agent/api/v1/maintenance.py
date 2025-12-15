@@ -207,3 +207,81 @@ async def get_task_queue_status(
         total_count=total_count,
         message=message,
     )
+
+
+class DatabaseDiagnostics(BaseModel):
+    """Response model for database diagnostics."""
+
+    database_url_prefix: str
+    tables_exist: dict
+    alembic_version: Optional[str]
+    message: str
+
+
+@router.get("/db/diagnostics", response_model=DatabaseDiagnostics)
+async def get_database_diagnostics(
+    session: AsyncSession = Depends(get_db),
+) -> DatabaseDiagnostics:
+    """
+    Check database health and table existence.
+    
+    Useful for diagnosing migration issues.
+    """
+    from sqlalchemy import text
+    
+    # Get database URL prefix (hide credentials)
+    db_url = settings.database_url or "not set"
+    if "@" in db_url:
+        # Hide password: postgresql://user:pass@host -> postgresql://user:***@host
+        parts = db_url.split("@")
+        prefix = parts[0].rsplit(":", 1)[0] if ":" in parts[0] else parts[0]
+        db_url_prefix = f"{prefix}:***@{parts[1][:50]}..."
+    else:
+        db_url_prefix = db_url[:50] + "..."
+    
+    # Check which tables exist
+    required_tables = [
+        "projects", "documents", "chunks", "task_queue", 
+        "entities", "relations", "canvases", "alembic_version"
+    ]
+    tables_exist = {}
+    
+    for table in required_tables:
+        try:
+            result = await session.execute(
+                text(f"SELECT 1 FROM {table} LIMIT 1")
+            )
+            tables_exist[table] = True
+        except Exception as e:
+            if "does not exist" in str(e):
+                tables_exist[table] = False
+            else:
+                tables_exist[table] = f"error: {str(e)[:50]}"
+    
+    # Get alembic version
+    alembic_version = None
+    try:
+        result = await session.execute(
+            text("SELECT version_num FROM alembic_version LIMIT 1")
+        )
+        row = result.fetchone()
+        if row:
+            alembic_version = row[0]
+    except Exception:
+        pass
+    
+    # Build message
+    missing_tables = [t for t, exists in tables_exist.items() if exists is False]
+    if missing_tables:
+        message = f"❌ Missing tables: {', '.join(missing_tables)}. Run: alembic upgrade head"
+    elif alembic_version:
+        message = f"✅ All required tables exist. Alembic version: {alembic_version}"
+    else:
+        message = "✅ Tables exist but alembic_version not found"
+    
+    return DatabaseDiagnostics(
+        database_url_prefix=db_url_prefix,
+        tables_exist=tables_exist,
+        alembic_version=alembic_version,
+        message=message,
+    )
