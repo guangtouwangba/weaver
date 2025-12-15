@@ -68,8 +68,10 @@ async def run_async_migrations() -> None:
     # pgbouncer, supabase pooler, and other connection poolers
     connect_args["statement_cache_size"] = 0
     connect_args["prepared_statement_cache_size"] = 0
-    # 添加命令超时，避免长时间卡住
-    connect_args["command_timeout"] = 30  # 30 秒超时
+    
+    # ✅ Increased timeouts for cloud databases (Zeabur internal DB may have latency)
+    connect_args["timeout"] = 60  # Connection timeout: 60 seconds
+    connect_args["command_timeout"] = 120  # Command timeout: 2 minutes (for large migrations)
 
     # Configure SSL for cloud PostgreSQL
     if "supabase" in database_url or "neon" in database_url or "pooler" in database_url:
@@ -81,22 +83,42 @@ async def run_async_migrations() -> None:
     # 配置引擎参数
     engine_config = config.get_section(config.config_ini_section, {})
 
-    # Transaction Mode 下使用更短的超时
+    # ✅ Increased pool timeout for cloud databases
     if is_transaction_mode:
-        engine_config["pool_timeout"] = "10"  # 10 秒连接超时
-        engine_config["pool_recycle"] = "300"  # 5 分钟回收连接
+        engine_config["pool_timeout"] = "60"  # 60 秒连接超时（增加以应对网络延迟）
+        engine_config["pool_recycle"] = "600"  # 10 分钟回收连接
 
-    connectable = async_engine_from_config(
-        engine_config,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-        connect_args=connect_args,
-    )
+    # Retry logic for connection failures
+    max_retries = 3
+    retry_delay = 3  # seconds
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            connectable = async_engine_from_config(
+                engine_config,
+                prefix="sqlalchemy.",
+                poolclass=pool.NullPool,
+                connect_args=connect_args,
+            )
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+            async with connectable.connect() as connection:
+                await connection.run_sync(do_run_migrations)
 
-    await connectable.dispose()
+            await connectable.dispose()
+            return  # Success, exit retry loop
+            
+        except (TimeoutError, asyncio.TimeoutError) as e:
+            if attempt < max_retries:
+                print(f"⚠️  Migration connection timeout (attempt {attempt}/{max_retries}): {e}")
+                print(f"   Retrying in {retry_delay} seconds...")
+                await asyncio.sleep(retry_delay)
+            else:
+                print(f"❌ Migration failed after {max_retries} attempts: {e}")
+                raise
+        except Exception as e:
+            # Non-timeout errors should not be retried
+            print(f"❌ Migration error: {e}")
+            raise
 
 
 def run_migrations_online() -> None:
