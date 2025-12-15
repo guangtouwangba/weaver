@@ -264,13 +264,31 @@ def receive_connect(dbapi_conn, connection_record):
 
 @event.listens_for(Pool, "invalidate")
 def receive_invalidate(dbapi_conn, connection_record, exception):
-    """Log when a connection is invalidated."""
+    """
+    Log when a connection is invalidated.
+    
+    Note: This is NORMAL behavior when pool_pre_ping=True detects a dead connection.
+    The pool will automatically create a new connection. Only log as warning if
+    it happens frequently or with specific error types.
+    """
     if exception:
-        logger.warning(
-            f"⚠️ Database connection invalidated due to: {type(exception).__name__}: {exception}"
-        )
+        error_type = type(exception).__name__
+        error_msg = str(exception)
+        
+        # InvalidatePoolError is normal - connection was detected as dead by pre_ping
+        # and will be replaced automatically. Only log at debug level.
+        if "InvalidatePoolError" in error_type or "InvalidatePoolError" in error_msg:
+            logger.debug(
+                f"Connection invalidated (normal recovery): {error_type}. "
+                f"Pool will create new connection automatically."
+            )
+        else:
+            # Other errors might be more serious
+            logger.warning(
+                f"⚠️ Database connection invalidated due to: {error_type}: {error_msg}"
+            )
     else:
-        logger.debug("Database connection invalidated (no exception)")
+        logger.debug("Database connection invalidated (no exception - normal pool maintenance)")
 
 
 @event.listens_for(Pool, "checkout")
