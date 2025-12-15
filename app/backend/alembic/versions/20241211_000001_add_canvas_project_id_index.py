@@ -35,3 +35,4 @@ def downgrade() -> None:
     # Drop the index if it exists
     op.execute("DROP INDEX IF EXISTS idx_canvases_project_id_btree")
 
+

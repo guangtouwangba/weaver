@@ -119,7 +119,14 @@ class LoggingCallbackHandler(BaseCallbackHandler):
         """Log when LLM starts."""
         model = "unknown"
         if serialized:
-            model = serialized.get("kwargs", {}).get("model_name", "unknown")
+            kwargs_dict = serialized.get("kwargs", {})
+            # Try different keys that LangChain might use for model name
+            model = (
+                kwargs_dict.get("model")
+                or kwargs_dict.get("model_name")
+                or kwargs_dict.get("model_id")
+                or "unknown"
+            )
         logger.info(f"[LLM] Starting call to {model}")
         for i, prompt in enumerate(prompts):
             # Truncate long prompts
@@ -212,6 +219,8 @@ class GraphState(TypedDict):
     # Memory fields (Short-term + Long-term)
     session_summary: str  # Summarized conversation history (sliding window)
     retrieved_memories: list[dict[str, Any]]  # Semantically retrieved past discussions
+    # Canvas context
+    canvas_context: str  # Context from explicitly selected canvas nodes
 
 
 # --- Grading Schema ---
@@ -597,8 +606,16 @@ async def classify_intent(
 
         # Parse JSON response
         import json
+        import re
 
-        result_data = json.loads(result.strip())
+        # Strip markdown code fences if present (```json ... ``` or ``` ... ```)
+        json_str = result.strip()
+        code_fence_pattern = r"```(?:json)?\s*([\s\S]*?)\s*```"
+        match = re.search(code_fence_pattern, json_str)
+        if match:
+            json_str = match.group(1).strip()
+
+        result_data = json.loads(json_str)
         intent_type_str = result_data.get("intent", "factual")
         intent_confidence = result_data.get("confidence", 0.8)
 
@@ -1434,6 +1451,7 @@ async def stream_rag_response(
     project_id: Any = None,  # UUID
     session: Any = None,  # AsyncSession
     embedding_service: Any = None,  # EmbeddingService
+    canvas_context: str = "",  # Context from canvas nodes
 ):
     """
     Stream RAG response token by token with intent-based adaptive strategies.
@@ -1462,6 +1480,7 @@ async def stream_rag_response(
     state = {
         "question": question,
         "chat_history": chat_history or [],
+        "canvas_context": canvas_context,
     }
 
     # Step 1: Query rewriting (optional)
@@ -1792,70 +1811,86 @@ async def stream_rag_response(
                     exc_info=True,
                 )
                 yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
+
+        # End of long context generation - important to return here!
+        yield {"type": "done"}
+        return
+
     else:
         # Use traditional generation
         doc_context = "\n\n".join([doc.page_content for doc in documents])
 
-        # Build memory context (session summary + relevant past discussions)
-        memory_context = format_memory_for_context(state)
+    # Build memory context (session summary + relevant past discussions)
+    memory_context = format_memory_for_context(state)
+    canvas_context = state.get("canvas_context", "")
 
-        # Combine document context with memory context
-        if memory_context:
-            context = f"{memory_context}\n\n## Retrieved Documents\n{doc_context}"
-            logger.info(
-                f"[Stream] Including memory context: {len(memory_context)} chars, "
-                f"doc context: {len(doc_context)} chars"
-            )
-        else:
-            context = doc_context
+    # Combine document context with memory context and canvas context
+    context_parts = []
 
-        logger.info(f"[Stream] Generating response with {len(context)} chars total context")
-
-        # Use intent-specific system prompt if available
-        generation_strategy = state.get("generation_strategy", {})
-        if generation_strategy and "system_prompt" in generation_strategy:
-            system_prompt = generation_strategy["system_prompt"]
-            logger.info(f"[Stream] Using intent-specific prompt for {state.get('intent_type')}")
-        else:
-            system_prompt = """You are an assistant for question-answering tasks.
-            Use the following pieces of retrieved context to answer the question.
-            The context may include:
-            - Conversation Summary: A summary of earlier parts of the conversation
-            - Relevant Past Discussions: Similar questions and answers from previous sessions
-            - Retrieved Documents: Information from the knowledge base
-            
-            Use all available context to provide the most helpful answer.
-            If you don't know the answer, just say that you don't know.
-            Use three sentences maximum and keep the answer concise."""
-
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                ("human", "Question: {question}\n\nContext: {context}\n\nAnswer:"),
-            ]
+    if canvas_context:
+        context_parts.append(
+            f"## User Specified Context (from Canvas)\nThe user has explicitly selected the following nodes as context. Prioritize this information:\n\n{canvas_context}"
         )
+        logger.info(f"[Generate] Including canvas context: {len(canvas_context)} chars")
 
-        # Create streaming LLM with callback (includes Langfuse if enabled)
-        streaming_llm = llm.with_config({"streaming": True, "callbacks": get_callbacks()})
-        chain = prompt | streaming_llm | StrOutputParser()
+    if memory_context:
+        context_parts.append(memory_context)
+        logger.info(f"[Generate] Including memory context: {len(memory_context)} chars")
 
-        # Stream tokens
-        token_count = 0
-        try:
-            async for token in chain.astream({"question": question, "context": context}):
-                token_count += 1
-                yield {"type": "token", "content": token}
-            logger.info(f"[Stream] Generation complete: {token_count} tokens")
-        except Exception as e:
-            import traceback
+    if doc_context:
+        context_parts.append(f"## Retrieved Documents\n{doc_context}")
 
-            logger.error(
-                f"[Stream] Generation error: {type(e).__name__}: {e}\n"
-                f"Question: {question[:100]}...\n"
-                f"Context length: {len(context)} chars\n"
-                f"Traceback:\n{traceback.format_exc()}",
-                exc_info=True,
-            )
-            yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
+    context = "\n\n".join(context_parts)
+
+    logger.debug(f"[Generate] Total context length: {len(context)} chars")
+
+    # Use intent-specific system prompt if available
+    generation_strategy = state.get("generation_strategy", {})
+    if generation_strategy and "system_prompt" in generation_strategy:
+        system_prompt = generation_strategy["system_prompt"]
+        logger.info(f"[Generate] Using intent-specific prompt for {state.get('intent_type')}")
+    else:
+        system_prompt = """You are an assistant for question-answering tasks.
+        Use the following pieces of retrieved context to answer the question.
+        The context may include:
+        - User Specified Context: Information explicitly selected by the user (Highest Priority)
+        - Conversation Summary: A summary of earlier parts of the conversation
+        - Relevant Past Discussions: Similar questions and answers from previous sessions
+        - Retrieved Documents: Information from the knowledge base
+        
+        Use all available context to provide the most helpful answer.
+        If you don't know the answer, just say that you don't know.
+        Use three sentences maximum and keep the answer concise."""
+
+    # Create prompt and chain (moved outside the else block to fix the bug)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "Question: {question}\n\nContext: {context}\n\nAnswer:"),
+        ]
+    )
+
+    # Create streaming LLM with callback (includes Langfuse if enabled)
+    streaming_llm = llm.with_config({"streaming": True, "callbacks": get_callbacks()})
+    chain = prompt | streaming_llm | StrOutputParser()
+
+    # Stream tokens
+    token_count = 0
+    try:
+        async for token in chain.astream({"question": question, "context": context}):
+            token_count += 1
+            yield {"type": "token", "content": token}
+        logger.info(f"[Stream] Generation complete: {token_count} tokens")
+    except Exception as e:
+        import traceback
+
+        logger.error(
+            f"[Stream] Generation error: {type(e).__name__}: {e}\n"
+            f"Question: {question[:100]}...\n"
+            f"Context length: {len(context)} chars\n"
+            f"Traceback:\n{traceback.format_exc()}",
+            exc_info=True,
+        )
+        yield {"type": "token", "content": f"\n\n[Error: {type(e).__name__}: {str(e)}]"}
 
     yield {"type": "done"}

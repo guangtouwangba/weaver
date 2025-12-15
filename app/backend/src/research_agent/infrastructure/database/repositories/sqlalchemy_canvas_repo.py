@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.domain.entities.canvas import Canvas
@@ -62,9 +62,15 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         try:
             result = await self._session.execute(stmt)
             existing = result.scalar_one_or_none()
-        except OperationalError as e:
+        except (OperationalError, DBAPIError) as e:
             # PostgreSQL error code 55P03: lock_not_available
-            if "could not obtain lock" in str(e) or "55P03" in str(e):
+            # asyncpg raises LockNotAvailableError which SQLAlchemy wraps as DBAPIError
+            error_str = str(e)
+            if (
+                "could not obtain lock" in error_str
+                or "55P03" in error_str
+                or "LockNotAvailableError" in error_str
+            ):
                 logger.warning(
                     f"[Canvas] Lock conflict for project {canvas.project_id}, "
                     "another transaction is modifying this canvas"

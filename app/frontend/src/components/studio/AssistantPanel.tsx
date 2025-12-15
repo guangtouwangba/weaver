@@ -306,6 +306,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     canvasNodes,
     navigateToNode,
     highlightedMessageId,
+    setHighlightedMessageId,
     // Session management
     chatSessions,
     activeSessionId,
@@ -314,11 +315,25 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     switchChatSession,
     updateChatSessionTitle,
     deleteChatSession,
+    // Cross-boundary drag from Konva canvas
+    crossBoundaryDragNode,
+    setCrossBoundaryDragNode,
   } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Context Nodes State
+  interface ContextNode {
+    id: string;
+    title: string;
+    content: string;
+    sourceMessageId?: string;
+  }
+  const [contextNodes, setContextNodes] = useState<ContextNode[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputAreaRef = useRef<HTMLDivElement>(null);
   
   // View state: 'chat' or 'history' (instead of collapsible sidebar)
   const [activeView, setActiveView] = useState<'chat' | 'history'>('chat');
@@ -337,6 +352,40 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(scrollToBottom, [chatMessages]);
 
+  // Handle cross-boundary drag from Konva canvas
+  useEffect(() => {
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      // Check if there's a cross-boundary drag node from Konva canvas
+      if (!crossBoundaryDragNode) return;
+      
+      // Check if mouse is over the input area
+      const inputArea = inputAreaRef.current;
+      if (!inputArea) return;
+      
+      const rect = inputArea.getBoundingClientRect();
+      const isOverInputArea = e.clientX >= rect.left && e.clientX <= rect.right &&
+                              e.clientY >= rect.top && e.clientY <= rect.bottom;
+      
+      if (isOverInputArea) {
+        // Add node to context (check for duplicates)
+        if (!contextNodes.some(n => n.id === crossBoundaryDragNode.id)) {
+          setContextNodes(prev => [...prev, {
+            id: crossBoundaryDragNode.id,
+            title: crossBoundaryDragNode.title,
+            content: crossBoundaryDragNode.content,
+            sourceMessageId: crossBoundaryDragNode.sourceMessageId,
+          }]);
+        }
+      }
+      
+      // Clear the cross-boundary drag state
+      setCrossBoundaryDragNode(null);
+    };
+
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [crossBoundaryDragNode, contextNodes, setCrossBoundaryDragNode]);
+
   const toggleSources = (msgId: string) => {
     setExpandedSources(prev => {
       const next = new Set(prev);
@@ -351,9 +400,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
   // Find a canvas node linked to this message
   const findLinkedNode = (messageId: string) => {
-    return canvasNodes.find(node => 
-      node.messageIds?.includes(messageId) || 
-      (node.viewType === 'thinking' && node.tags?.includes('#thinking-path'))
+    return canvasNodes.find(node =>
+      node.messageIds?.includes(messageId)
     );
   };
 
@@ -369,102 +417,115 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     }
   };
 
+  // Scroll to a specific message
+  const scrollToMessage = (messageId: string) => {
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(messageId);
+      // Clear highlight after animation
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && contextNodes.length === 0) || isLoading) return;
+    
+    const currentContextNodes = [...contextNodes]; // Capture current nodes
     
     const userMsg = {
         id: Date.now().toString(),
         role: 'user' as const,
         content: input,
-        timestamp: new Date()
+        timestamp: new Date(),
+        // Save context nodes with the user message for display
+        contextNodes: currentContextNodes.length > 0 ? currentContextNodes.map(n => ({
+          id: n.id,
+          title: n.title,
+          content: n.content,
+        })) : undefined,
     };
     
     const userInput = input;
+    
     setInput('');
+    setContextNodes([]); // Clear context nodes immediately
     setIsLoading(true);
 
     // Add user message
-    flushSync(() => {
-      setChatMessages(prev => [...prev, userMsg]);
-    });
+    setChatMessages(prev => [...prev, userMsg]);
+
+    // Note: Draft node creation removed - backend now handles creating Question nodes
+    // with proper edges to Answer nodes via ThinkingPathService
+
+    // Prepare AI message ID outside try block so it's accessible in catch
+    const aiMsgId = (Date.now() + 1).toString();
 
     try {
         // Prepare AI message placeholder with loading indicator
-        const aiMsgId = (Date.now() + 1).toString();
-        flushSync(() => {
-          setChatMessages(prev => [...prev, {
-              id: aiMsgId,
-              role: 'ai',
-              content: '',
-              timestamp: new Date(),
-              query: userInput,
-          }]);
-        });
+        setChatMessages(prev => [...prev, {
+            id: aiMsgId,
+            role: 'ai',
+            content: '',
+            timestamp: new Date(),
+            query: userInput,
+        }]);
 
-        // Stream response with session_id
+        // Stream response with session_id and context_nodes (full content)
         for await (const chunk of chatApi.stream(projectId, { 
           message: userInput, 
           document_id: activeDocumentId || undefined,
           session_id: activeSessionId || undefined,
+          context_nodes: currentContextNodes.length > 0 ? currentContextNodes.map(n => ({
+            id: n.id,
+            title: n.title,
+            content: n.content,
+          })) : undefined,
         })) {
             if (chunk.type === 'token' && chunk.content) {
-                // Use flushSync to force immediate DOM update for real-time rendering
-                flushSync(() => {
-                  setChatMessages(prev => prev.map(m => 
-                      m.id === aiMsgId 
-                        ? { ...m, content: (m.content || '') + chunk.content } 
-                        : m
-                  ));
-                });
-                // Scroll to bottom after each token
-                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 0);
+                // Update message content - avoid flushSync in loops to prevent max update depth
+                setChatMessages(prev => prev.map(m => 
+                    m.id === aiMsgId 
+                      ? { ...m, content: (m.content || '') + chunk.content } 
+                      : m
+                ));
             } else if (chunk.type === 'sources') {
-                flushSync(() => {
-                  setChatMessages(prev => prev.map(m => 
-                      m.id === aiMsgId ? { ...m, sources: chunk.sources } : m
-                  ));
-                });
+                setChatMessages(prev => prev.map(m => 
+                    m.id === aiMsgId ? { ...m, sources: chunk.sources } : m
+                ));
             } else if (chunk.type === 'citation' && chunk.data) {
                 // Handle single citation event from Mega-Prompt mode
-                flushSync(() => {
-                  setChatMessages(prev => prev.map(m => 
-                      m.id === aiMsgId 
-                        ? { ...m, citations: [...(m.citations || []), chunk.data as Citation] } 
-                        : m
-                  ));
-                });
+                setChatMessages(prev => prev.map(m => 
+                    m.id === aiMsgId 
+                      ? { ...m, citations: [...(m.citations || []), chunk.data as Citation] } 
+                      : m
+                ));
             } else if (chunk.type === 'citations' && chunk.citations) {
                 // Handle all citations at end of response
-                flushSync(() => {
-                  setChatMessages(prev => prev.map(m => 
-                      m.id === aiMsgId 
-                        ? { ...m, citations: chunk.citations } 
-                        : m
-                  ));
-                });
+                setChatMessages(prev => prev.map(m => 
+                    m.id === aiMsgId 
+                      ? { ...m, citations: chunk.citations } 
+                      : m
+                ));
             } else if (chunk.type === 'done') {
                 // Final scroll when done
                 setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 0);
             } else if (chunk.type === 'error') {
-                flushSync(() => {
-                  setChatMessages(prev => prev.map(m => 
-                      m.id === aiMsgId 
-                        ? { ...m, content: (m.content || '') + `\n\n[Error: ${chunk.content || 'Unknown error'}]` } 
-                        : m
-                  ));
-                });
+                setChatMessages(prev => prev.map(m => 
+                    m.id === aiMsgId 
+                      ? { ...m, content: (m.content || '') + `\n\n[Error: ${chunk.content || 'Unknown error'}]` } 
+                      : m
+                ));
             }
         }
     } catch (err) {
         console.error("Chat error:", err);
-        // Update error message
-        flushSync(() => {
-          setChatMessages(prev => prev.map(m => 
-              m.id === aiMsgId 
-                ? { ...m, content: (m.content || '') + `\n\nSorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}` }
-                : m
-          ));
-        });
+        // Update error message - aiMsgId is now in scope
+        setChatMessages(prev => prev.map(m => 
+            m.id === aiMsgId 
+              ? { ...m, content: (m.content || '') + `\n\nSorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}` }
+              : m
+        ));
     } finally {
         setIsLoading(false);
         // Final scroll
@@ -477,6 +538,47 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Drag & Drop Handlers for Input Area
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const jsonData = e.dataTransfer.getData('application/json');
+    if (!jsonData) return;
+    
+    try {
+      const data = JSON.parse(jsonData);
+      if (data.type === 'canvas_node') {
+        // Check for duplicates
+        if (!contextNodes.some(n => n.id === data.id)) {
+          setContextNodes(prev => [...prev, {
+            id: data.id,
+            title: data.title,
+            content: data.content,
+            sourceMessageId: data.sourceMessageId
+          }]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to parse dropped data:', err);
+    }
+  };
+
+  const removeContextNode = (nodeId: string) => {
+    setContextNodes(prev => prev.filter(n => n.id !== nodeId));
   };
 
   if (!visible) {
@@ -895,6 +997,49 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                         </Box>
                       )}
                       
+                      {/* Context Nodes - Show referenced nodes for user messages */}
+                      {msg.role === 'user' && msg.contextNodes && msg.contextNodes.length > 0 && (
+                        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                            <Brain size={12} />
+                            Referenced {msg.contextNodes.length} {msg.contextNodes.length === 1 ? 'node' : 'nodes'}:
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {msg.contextNodes.map((node) => (
+                              <Tooltip 
+                                key={node.id} 
+                                title={
+                                  <Box sx={{ maxWidth: 300 }}>
+                                    <Typography variant="caption" fontWeight="bold">{node.title}</Typography>
+                                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.9 }}>
+                                      {node.content.length > 200 ? node.content.substring(0, 200) + '...' : node.content}
+                                    </Typography>
+                                  </Box>
+                                }
+                                arrow
+                                placement="top"
+                              >
+                                <Chip
+                                  label={node.title.length > 25 ? node.title.substring(0, 25) + '...' : node.title}
+                                  size="small"
+                                  icon={<Brain size={10} />}
+                                  sx={{
+                                    height: 22,
+                                    fontSize: '0.7rem',
+                                    bgcolor: 'rgba(139, 92, 246, 0.1)',
+                                    color: '#7C3AED',
+                                    borderColor: 'rgba(139, 92, 246, 0.3)',
+                                    borderWidth: 1,
+                                    borderStyle: 'solid',
+                                    '& .MuiChip-icon': { color: '#7C3AED' },
+                                  }}
+                                />
+                              </Tooltip>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                      
                       {/* Sources - Styled as small chips/cards instead of generic collapsible */}
                       {msg.sources && msg.sources.length > 0 && (
                         <Box sx={{ mt: 1.5 }}>
@@ -994,11 +1139,60 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
              </Box>
       
              {/* Input */}
-             <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
-               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', bgcolor: '#F3F4F6', borderRadius: 2, px: 2, py: 1 }}>
+             <Box ref={inputAreaRef} sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff' }}>
+               {/* Context Chips Area */}
+               {contextNodes.length > 0 && (
+                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                   {contextNodes.map(node => (
+                     <Tooltip key={node.id} title={node.sourceMessageId ? "Click to view source message" : node.title}>
+                       <Chip
+                         label={node.title.length > 20 ? node.title.substring(0, 20) + '...' : node.title}
+                         onDelete={() => removeContextNode(node.id)}
+                         onClick={() => node.sourceMessageId && scrollToMessage(node.sourceMessageId)}
+                         icon={<Brain size={14} />}
+                         size="small"
+                         sx={{ 
+                           maxWidth: '100%',
+                           bgcolor: 'primary.50',
+                           color: 'primary.700',
+                           borderColor: 'primary.100',
+                           borderWidth: 1,
+                           borderStyle: 'solid',
+                           '& .MuiChip-deleteIcon': {
+                             color: 'primary.400',
+                             '&:hover': { color: 'primary.700' }
+                           },
+                           cursor: node.sourceMessageId ? 'pointer' : 'default',
+                           '&:hover': node.sourceMessageId ? {
+                             bgcolor: 'primary.100',
+                           } : {}
+                         }}
+                       />
+                     </Tooltip>
+                   ))}
+                 </Box>
+               )}
+               
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  gap: 1, 
+                  alignItems: 'center', 
+                  bgcolor: (isDragOver || crossBoundaryDragNode) ? 'primary.50' : '#F3F4F6', 
+                  borderRadius: 2, 
+                  px: 2, 
+                  py: 1,
+                  border: (isDragOver || crossBoundaryDragNode) ? '2px dashed' : '2px solid',
+                  borderColor: (isDragOver || crossBoundaryDragNode) ? 'primary.main' : 'transparent',
+                  transition: 'all 0.2s ease',
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                  <TextField 
                    fullWidth 
-                   placeholder="Ask about this document..." 
+                   placeholder={contextNodes.length > 0 ? "Ask about selected nodes..." : "Ask me anything... (Drag nodes here for context)"}
                    variant="standard" 
                    value={input}
                    onChange={(e) => setInput(e.target.value)}
@@ -1009,7 +1203,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                  {isLoading ? (
                    <CircularProgress size={16} />
                  ) : (
-                   <IconButton size="small" color="primary" onClick={handleSend} disabled={!input.trim()}><Send size={16} /></IconButton>
+                   <IconButton size="small" color="primary" onClick={handleSend} disabled={!input.trim() && contextNodes.length === 0}><Send size={16} /></IconButton>
                  )}
                </Box>
              </Box>

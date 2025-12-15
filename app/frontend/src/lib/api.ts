@@ -108,6 +108,12 @@ export interface ChatMessage {
   message: string;
   document_id?: string;
   session_id?: string;  // Chat session ID
+  context_node_ids?: string[];  // Optional: explicit context from canvas nodes (for DB lookup)
+  context_nodes?: Array<{  // Optional: explicit context content from canvas nodes (direct)
+    id: string;
+    title: string;
+    content: string;
+  }>;
 }
 
 export interface ChatResponse {
@@ -189,6 +195,25 @@ export interface CanvasNode {
     author?: string;
     lastModified?: string;
   };
+  // === Thinking Graph Fields (Dynamic Mind Map) ===
+  thinkingStepIndex?: number;  // Step number in the thinking sequence
+  thinkingFields?: {
+    claim: string;      // Main point or question
+    reason: string;     // Why this matters
+    evidence: string;   // Supporting information
+    uncertainty: string; // What's unclear
+    decision: string;   // Conclusion or next step
+  };
+  branchType?: 'alternative' | 'question' | 'counterargument';  // For branch nodes
+  depth?: number;       // Tree depth for layout (0 for root)
+  parentStepId?: string;  // ID of parent thinking step
+  isDraft?: boolean;    // True while waiting for AI response (optimistic UI)
+  topicId?: string;     // Topic context this node belongs to
+  relatedConcepts?: string[];  // Extracted concepts for linking
+  suggestedBranches?: Array<{
+    type: 'question' | 'alternative' | 'counterargument';
+    content: string;
+  }>;
 }
 
 export interface CanvasEdge {
@@ -199,6 +224,8 @@ export interface CanvasEdge {
   // Phase 2: Semantic Edge Labels (The Thread)
   label?: string;  // User-defined or AI-suggested label
   relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
+  // Thinking Path edge types
+  type?: 'branch' | 'progression';  // branch = from insight, progression = topic follow-up
 }
 
 export interface CanvasSection {

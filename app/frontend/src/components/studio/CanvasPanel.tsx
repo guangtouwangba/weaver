@@ -330,6 +330,23 @@ export default function CanvasPanel() {
             <Paper 
               key={node.id}
               elevation={selectedNodeId === node.id ? 8 : 2} 
+              draggable
+              onDragStart={(e) => {
+                // Set data for dragging to chat input
+                const payload = {
+                  type: 'canvas_node',
+                  id: node.id,
+                  title: node.title,
+                  content: node.content,
+                  sourceMessageId: (node as any).messageIds?.[0] || null // Assuming messageIds might exist on node in future
+                };
+                e.dataTransfer.setData('application/json', JSON.stringify(payload));
+                e.dataTransfer.effectAllowed = 'copy';
+                
+                // Prevent interfering with internal canvas dragging if needed
+                // But for native drag & drop to another component, we need this event
+                // We'll let the internal onMouseDown handle the internal dragging
+              }}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 if (!(e.target as HTMLElement).closest('.conn-handle')) {

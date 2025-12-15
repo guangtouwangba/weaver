@@ -61,6 +61,12 @@ class StreamMessageInput:
     rag_mode: str = field(
         default_factory=lambda: settings.rag_mode
     )  # RAG mode: traditional | long_context | auto
+    context_node_ids: Optional[List[str]] = (
+        None  # IDs of canvas nodes explicitly dragged into context (DB lookup)
+    )
+    context_nodes: Optional[List[dict]] = (
+        None  # Direct context nodes with content (no DB lookup needed)
+    )
     auto_thinking_path: bool = True  # Enable automatic thinking path generation
 
 
@@ -134,6 +140,52 @@ class StreamMessageUseCase:
                 session_id=session_id,
                 limit=10,
             )
+
+            # === Canvas Context Retrieval ===
+            canvas_context = ""
+
+            # Priority 1: Use directly passed context_nodes (no DB lookup needed)
+            if input.context_nodes:
+                context_parts = []
+                for node in input.context_nodes:
+                    title = node.get("title", "Untitled")
+                    content = node.get("content", "")
+                    if content:
+                        context_parts.append(f"## Node: {title}\n{content}")
+
+                if context_parts:
+                    canvas_context = "\n\n".join(context_parts)
+                    logger.info(
+                        f"[CanvasContext] Added {len(context_parts)} nodes from direct content ({len(canvas_context)} chars)"
+                    )
+
+            # Priority 2: Fallback to context_node_ids (DB lookup)
+            elif input.context_node_ids:
+                try:
+                    from research_agent.infrastructure.database.repositories.sqlalchemy_canvas_repo import (
+                        SQLAlchemyCanvasRepository,
+                    )
+
+                    canvas_repo = SQLAlchemyCanvasRepository(self._session)
+                    canvas = await canvas_repo.find_by_project(input.project_id)
+
+                    if canvas:
+                        context_parts = []
+                        for node_id in input.context_node_ids:
+                            node = canvas.find_node(node_id)
+                            if node:
+                                context_parts.append(f"## Node: {node.title}\n{node.content}")
+
+                        if context_parts:
+                            canvas_context = "\n\n".join(context_parts)
+                            logger.info(
+                                f"[CanvasContext] Added {len(context_parts)} nodes from DB ({len(canvas_context)} chars)"
+                            )
+                except Exception as e:
+                    logger.error(
+                        f"[CanvasContext] Failed to retrieve canvas nodes: {e}", exc_info=True
+                    )
+
             if input.use_rewrite:
                 # Convert to (human, ai) tuples
                 chat_history = [
@@ -177,6 +229,7 @@ class StreamMessageUseCase:
                 project_id=input.project_id,
                 session=self._session,
                 embedding_service=self._embedding_service,
+                canvas_context=canvas_context,
             ):
                 if event["type"] == "sources":
                     # Convert LangChain documents to SourceRef

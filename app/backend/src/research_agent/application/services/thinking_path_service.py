@@ -21,6 +21,10 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.application.prompts.thinking_path_extraction import (
+    THINKING_GRAPH_EXTRACTION_SYSTEM_PROMPT,
+    THINKING_GRAPH_EXTRACTION_USER_PROMPT,
+    THINKING_GRAPH_INTENT_CLASSIFICATION_PROMPT,
+    THINKING_GRAPH_INTENT_USER_PROMPT,
     THINKING_PATH_EXTRACTION_SYSTEM_PROMPT,
     THINKING_PATH_EXTRACTION_USER_PROMPT,
 )
@@ -38,6 +42,15 @@ from research_agent.shared.utils.logger import logger
 # Similarity threshold for duplicate detection
 DUPLICATE_THRESHOLD = 0.85
 
+# Similarity thresholds by node type
+DUPLICATE_THRESHOLDS = {
+    "question": 0.85,
+    "answer": 0.90,
+    "insight": 0.88,
+    "thinking_step": 0.85,
+    "thinking_branch": 0.80,
+}
+
 # Maximum messages to analyze at once (for LLM context limit)
 MAX_MESSAGES_PER_ANALYSIS = 20
 
@@ -47,6 +60,11 @@ NODE_HEIGHT = 200
 NODE_SPACING_X = 380  # Width + gap (horizontal between levels)
 NODE_SPACING_Y = 60  # Height + gap (vertical within level, for insights)
 INSIGHT_SPACING_Y = 220  # Spacing between insight nodes
+
+# Intent types for thinking graph
+INTENT_CONTINUATION = "continuation"
+INTENT_BRANCH = "branch"
+INTENT_NEW_TOPIC = "new_topic"
 
 
 @dataclass
@@ -115,6 +133,59 @@ class ThinkingPathAnalysisResult:
     error: Optional[str] = None
 
 
+@dataclass
+class TopicContext:
+    """
+    Represents a topic context in the thinking graph.
+
+    A topic is a branch of exploration in the conversation.
+    Multiple topics can exist, and users can branch from any point.
+    """
+
+    topic_id: str
+    root_message_id: str
+    keywords: List[str] = field(default_factory=list)
+    embedding: Optional[List[float]] = None
+    last_node_id: str = ""
+    depth: int = 0
+    parent_topic_id: Optional[str] = None
+    created_at: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "topic_id": self.topic_id,
+            "root_message_id": self.root_message_id,
+            "keywords": self.keywords,
+            "last_node_id": self.last_node_id,
+            "depth": self.depth,
+            "parent_topic_id": self.parent_topic_id,
+        }
+
+
+@dataclass
+class IntentClassificationResult:
+    """Result of message intent classification."""
+
+    intent: str  # "continuation" | "branch" | "new_topic"
+    confidence: float = 0.0
+    parent_topic_id: Optional[str] = None
+    reasoning: str = ""
+
+
+@dataclass
+class ThinkingStepExtraction:
+    """Extracted thinking step from a message exchange."""
+
+    claim: str = ""
+    reason: str = ""
+    evidence: str = ""
+    uncertainty: str = ""
+    decision: str = ""
+    related_concepts: List[str] = field(default_factory=list)
+    suggested_branches: List[Dict[str, str]] = field(default_factory=list)
+    keywords: List[str] = field(default_factory=list)
+
+
 class ThinkingPathService:
     """
     Service for generating thinking path visualizations from chat conversations.
@@ -143,6 +214,17 @@ class ThinkingPathService:
 
         # Track the last question node ID for connecting answers
         self._last_question_node_id: Dict[str, str] = {}  # project_id -> node_id
+
+        # === Thinking Graph: Topic Context Tracking ===
+        # Store topic contexts per project (project_id -> List[TopicContext])
+        self._topic_contexts: Dict[str, List[TopicContext]] = {}
+
+        # Track the active topic per project (project_id -> topic_id)
+        # This is the topic that new "continuation" messages will attach to
+        self._active_topic: Dict[str, str] = {}
+
+        # Cache for topic embeddings (topic_id -> embedding)
+        self._topic_embedding_cache: Dict[str, List[float]] = {}
 
     async def process_new_message(
         self,
@@ -190,7 +272,85 @@ class ThinkingPathService:
                         f"[ThinkingPath] Duplicate detected: message {message.id} -> node {duplicate_node_id}"
                     )
 
-            # Step 3: Create nodes for this message
+            # Step 3: For AI messages, first create a question node for the preceding user message
+            # This ensures Q->A connection even when backend only processes AI messages
+            question_node = None
+            related_insight_id = None
+            if message.role != "user" and existing_messages:
+                # Find the last user message
+                last_user_msg = next(
+                    (m for m in reversed(existing_messages) if m.role == "user"), None
+                )
+                if last_user_msg:
+                    # Check if we already have a question node stored
+                    last_q_id = self._last_question_node_id.get(project_id)
+                    if not last_q_id:
+                        # Check if this question is a follow-up to an existing insight
+                        related_insight_id = await self._find_related_insight(
+                            question=last_user_msg.content,
+                            existing_nodes=existing_nodes,
+                        )
+
+                        # Create a question node for the user message
+                        question_nodes, _ = await self._create_nodes_for_message(
+                            message=last_user_msg,
+                            existing_nodes=existing_nodes,
+                            existing_messages=existing_messages[:-1]
+                            if len(existing_messages) > 1
+                            else [],
+                            duplicate_of=None,
+                            project_id=project_id,
+                        )
+                        if question_nodes:
+                            question_node = question_nodes[0]
+                            result.nodes.append(question_node)
+                            self._last_question_node_id[project_id] = question_node.id
+                            logger.info(
+                                f"[ThinkingPath] Created question node: {question_node.id} for user message"
+                            )
+
+                            # If this question is related to a previous insight, create a branch edge
+                            if related_insight_id:
+                                branch_edge_id = (
+                                    f"edge-branch-{related_insight_id}-{question_node.id}"
+                                )
+                                result.edges.append(
+                                    {
+                                        "id": branch_edge_id,
+                                        "source": related_insight_id,
+                                        "target": question_node.id,
+                                        "type": "branch",  # Mark as branch edge for styling
+                                    }
+                                )
+                                logger.info(
+                                    f"[ThinkingPath] Created branch edge from insight {related_insight_id} "
+                                    f"to question {question_node.id}"
+                                )
+
+                            # Check for topic progression (question following up on previous question)
+                            related_question_id = await self._find_related_question(
+                                question=last_user_msg.content,
+                                existing_nodes=existing_nodes,
+                                exclude_node_id=question_node.id,
+                            )
+                            if related_question_id:
+                                progression_edge_id = (
+                                    f"edge-progression-{related_question_id}-{question_node.id}"
+                                )
+                                result.edges.append(
+                                    {
+                                        "id": progression_edge_id,
+                                        "source": related_question_id,
+                                        "target": question_node.id,
+                                        "type": "progression",  # Mark as topic progression edge
+                                    }
+                                )
+                                logger.info(
+                                    f"[ThinkingPath] Created topic progression edge from question "
+                                    f"{related_question_id} to question {question_node.id}"
+                                )
+
+            # Step 4: Create nodes for this message
             new_nodes, new_internal_edges = await self._create_nodes_for_message(
                 message=message,
                 existing_nodes=existing_nodes,
@@ -203,7 +363,7 @@ class ThinkingPathService:
                 result.nodes.extend(new_nodes)
                 result.edges.extend(new_internal_edges)
 
-            # Step 4: Connect to previous node in conversation flow
+            # Step 5: Connect to previous node in conversation flow
             if new_nodes and message.role == "user":
                 # Store the question node ID for later connecting the answer
                 self._last_question_node_id[project_id] = new_nodes[0].id
@@ -219,8 +379,11 @@ class ThinkingPathService:
                             "target": new_nodes[0].id,
                         }
                     )
+                    logger.info(
+                        f"[ThinkingPath] Created edge from question {last_q_id} to answer {new_nodes[0].id}"
+                    )
 
-            # Step 5: Broadcast result to all clients
+            # Step 6: Broadcast result to all clients
             await canvas_notification_service.notify_thinking_path_analyzed(
                 project_id=project_id,
                 message_id=str(message.id),
@@ -247,6 +410,157 @@ class ThinkingPathService:
             )
 
         return result
+
+    async def _find_related_insight(
+        self,
+        question: str,
+        existing_nodes: List[CanvasNode],
+        threshold: float = 0.75,
+    ) -> Optional[str]:
+        """
+        Find an insight node that the new question is following up on.
+
+        This detects "branch" relationships where a user asks about something
+        mentioned in a previous answer's insights.
+
+        Args:
+            question: The new user question
+            existing_nodes: Existing canvas nodes
+            threshold: Similarity threshold (default 0.75 for branch detection)
+
+        Returns:
+            Node ID of the related insight, or None if no relation found
+        """
+        if not existing_nodes:
+            return None
+
+        # Get existing insight nodes only
+        insight_nodes = [
+            n
+            for n in existing_nodes
+            if n.type == "insight"
+            and (n.view_type == "thinking" or "#thinking-path" in (n.tags or []))
+        ]
+
+        if not insight_nodes:
+            return None
+
+        try:
+            # Get embedding for the new question
+            question_embedding = await self._embedding_service.embed(question)
+
+            # Find the most similar insight
+            max_similarity = 0.0
+            most_similar_insight_id = None
+
+            for node in insight_nodes:
+                # Use both title and content for matching
+                node_text = f"{node.title} {node.content}"
+
+                # Get or compute embedding for existing node
+                cache_key = f"insight-{node.id}"
+                node_embedding = self._embedding_cache.get(cache_key)
+                if not node_embedding:
+                    node_embedding = await self._embedding_service.embed(node_text)
+                    self._embedding_cache[cache_key] = node_embedding
+
+                # Compute cosine similarity
+                similarity = self._cosine_similarity(question_embedding, node_embedding)
+
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    most_similar_insight_id = node.id
+
+            if max_similarity >= threshold and most_similar_insight_id:
+                logger.info(
+                    f"[ThinkingPath] Found related insight: {most_similar_insight_id}, "
+                    f"similarity={max_similarity:.3f}, threshold={threshold}"
+                )
+                return most_similar_insight_id
+
+            return None
+
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Related insight detection failed: {e}")
+            return None
+
+    async def _find_related_question(
+        self,
+        question: str,
+        existing_nodes: List[CanvasNode],
+        exclude_node_id: Optional[str] = None,
+        threshold: float = 0.65,
+    ) -> Optional[str]:
+        """
+        Find a previous question node that the new question is a follow-up to.
+
+        This detects topic progression where a user asks deeper questions
+        about the same topic (e.g., "what is X?" -> "what are X's features?").
+
+        Args:
+            question: The new user question
+            existing_nodes: Existing canvas nodes
+            exclude_node_id: Node ID to exclude (e.g., the current node itself)
+            threshold: Similarity threshold (default 0.65 for topic progression)
+
+        Returns:
+            Node ID of the related question, or None if no relation found
+        """
+        if not existing_nodes:
+            return None
+
+        # Get existing question nodes only (not duplicates)
+        question_nodes = [
+            n
+            for n in existing_nodes
+            if n.type == "question"
+            and (n.view_type == "thinking" or "#thinking-path" in (n.tags or []))
+            and n.id != exclude_node_id
+        ]
+
+        if not question_nodes:
+            return None
+
+        try:
+            # Get embedding for the new question
+            question_embedding = await self._embedding_service.embed(question)
+
+            # Find the most similar question (but not duplicate - those are handled separately)
+            candidates = []
+
+            for node in question_nodes:
+                # Use both title and content for matching
+                node_text = f"{node.title} {node.content}"
+
+                # Get or compute embedding for existing node
+                cache_key = f"question-{node.id}"
+                node_embedding = self._embedding_cache.get(cache_key)
+                if not node_embedding:
+                    node_embedding = await self._embedding_service.embed(node_text)
+                    self._embedding_cache[cache_key] = node_embedding
+
+                # Compute cosine similarity
+                similarity = self._cosine_similarity(question_embedding, node_embedding)
+
+                # Only consider if above threshold but below duplicate threshold (0.9)
+                if threshold <= similarity < 0.9:
+                    candidates.append((node.id, similarity))
+
+            if candidates:
+                # Sort by similarity (highest first) and return the best match
+                candidates.sort(key=lambda x: x[1], reverse=True)
+                best_match_id, best_similarity = candidates[0]
+                logger.info(
+                    f"[ThinkingPath] Found related question for topic progression: "
+                    f"{best_match_id}, similarity={best_similarity:.3f}"
+                )
+                return best_match_id
+
+            return None
+
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Related question detection failed: {e}")
+            return None
 
     async def _detect_duplicate_question(
         self,
@@ -325,6 +639,291 @@ class ThinkingPathService:
 
         return dot_product / (norm1 * norm2)
 
+    # =========================================================================
+    # ENHANCED DUPLICATE DETECTION (Node-level, Path-level, Concept-level)
+    # =========================================================================
+
+    async def _detect_duplicate_node(
+        self,
+        project_id: str,
+        content: str,
+        node_type: str,
+        existing_nodes: List[CanvasNode],
+    ) -> Optional[Tuple[str, float]]:
+        """
+        Generic duplicate detection for any node type.
+
+        Uses type-specific similarity thresholds for better accuracy.
+
+        Args:
+            project_id: Project ID
+            content: Content to check for duplicates
+            node_type: Type of node ("question", "answer", "insight", "thinking_step", etc.)
+            existing_nodes: Existing canvas nodes to compare against
+
+        Returns:
+            Tuple of (duplicate_node_id, similarity_score) if duplicate found, None otherwise
+        """
+        if not existing_nodes:
+            return None
+
+        # Filter to matching node types (for thinking path nodes)
+        matching_nodes = [
+            n
+            for n in existing_nodes
+            if n.type == node_type
+            and (n.view_type == "thinking" or "#thinking-path" in (n.tags or []))
+        ]
+
+        if not matching_nodes:
+            return None
+
+        # Get type-specific threshold
+        threshold = DUPLICATE_THRESHOLDS.get(node_type, DUPLICATE_THRESHOLD)
+
+        try:
+            # Get embedding for the new content
+            content_embedding = await self._embedding_service.embed(content)
+
+            # Compare with existing node embeddings
+            max_similarity = 0.0
+            most_similar_node_id = None
+
+            for node in matching_nodes:
+                # Get or compute embedding for existing node
+                node_embedding = self._embedding_cache.get(node.id)
+                if not node_embedding:
+                    node_embedding = await self._embedding_service.embed(node.content)
+                    self._embedding_cache[node.id] = node_embedding
+
+                similarity = self._cosine_similarity(content_embedding, node_embedding)
+
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    most_similar_node_id = node.id
+
+            if max_similarity >= threshold and most_similar_node_id:
+                logger.info(
+                    f"[ThinkingPath] Duplicate {node_type} found: "
+                    f"similarity={max_similarity:.3f}, threshold={threshold}"
+                )
+                return (most_similar_node_id, max_similarity)
+
+            return None
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Duplicate node detection failed: {e}")
+            return None
+
+    async def _detect_similar_path(
+        self,
+        project_id: str,
+        question_sequence: List[str],
+        existing_nodes: List[CanvasNode],
+        existing_edges: List[Dict[str, str]],
+    ) -> Optional[Tuple[str, float]]:
+        """
+        Detect if a sequence of questions matches an existing path.
+
+        This is useful for identifying when users are asking the same sequence
+        of questions they asked before (e.g., same research methodology).
+
+        Args:
+            project_id: Project ID
+            question_sequence: List of question contents in order
+            existing_nodes: Existing canvas nodes
+            existing_edges: Existing edges (to build paths)
+
+        Returns:
+            Tuple of (path_root_node_id, similarity_score) if similar path found
+        """
+        if len(question_sequence) < 2:
+            # Need at least 2 questions to form a path
+            return None
+
+        # Build adjacency list from edges
+        adjacency: Dict[str, List[str]] = {}
+        for edge in existing_edges:
+            source = edge.get("source", "")
+            target = edge.get("target", "")
+            if source and target:
+                if source not in adjacency:
+                    adjacency[source] = []
+                adjacency[source].append(target)
+
+        # Get question nodes and build node lookup
+        question_nodes = [
+            n for n in existing_nodes if n.type == "question" and n.view_type == "thinking"
+        ]
+        node_lookup = {n.id: n for n in question_nodes}
+
+        # Find root question nodes (nodes that are not targets of any edge)
+        all_targets = set()
+        for edge in existing_edges:
+            all_targets.add(edge.get("target", ""))
+
+        root_nodes = [n for n in question_nodes if n.id not in all_targets]
+
+        if not root_nodes:
+            return None
+
+        # Create embedding for the new question sequence
+        try:
+            # Concatenate questions for path embedding
+            sequence_text = " -> ".join(question_sequence)
+            sequence_embedding = await self._embedding_service.embed(sequence_text)
+
+            # Compare with existing paths starting from each root
+            max_similarity = 0.0
+            most_similar_root_id = None
+
+            for root in root_nodes:
+                # Build path from this root
+                path_questions = self._build_path_from_node(root.id, node_lookup, adjacency)
+
+                if len(path_questions) < 2:
+                    continue
+
+                # Create embedding for existing path
+                path_text = " -> ".join(path_questions)
+                path_cache_key = f"path-{root.id}"
+
+                if path_cache_key not in self._embedding_cache:
+                    path_embedding = await self._embedding_service.embed(path_text)
+                    self._embedding_cache[path_cache_key] = path_embedding
+
+                path_embedding = self._embedding_cache[path_cache_key]
+                similarity = self._cosine_similarity(sequence_embedding, path_embedding)
+
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    most_similar_root_id = root.id
+
+            # Use a slightly lower threshold for path similarity
+            path_threshold = 0.80
+            if max_similarity >= path_threshold and most_similar_root_id:
+                logger.info(
+                    f"[ThinkingPath] Similar path found: root={most_similar_root_id}, "
+                    f"similarity={max_similarity:.3f}"
+                )
+                return (most_similar_root_id, max_similarity)
+
+            return None
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Path similarity detection failed: {e}")
+            return None
+
+    def _build_path_from_node(
+        self,
+        node_id: str,
+        node_lookup: Dict[str, CanvasNode],
+        adjacency: Dict[str, List[str]],
+        max_depth: int = 10,
+    ) -> List[str]:
+        """
+        Build a path (sequence of question contents) starting from a node.
+
+        Args:
+            node_id: Starting node ID
+            node_lookup: Dict of node_id -> CanvasNode
+            adjacency: Adjacency list (source -> [targets])
+            max_depth: Maximum depth to traverse
+
+        Returns:
+            List of question contents in path order
+        """
+        path = []
+        current_id = node_id
+        visited = set()
+
+        while current_id and len(path) < max_depth:
+            if current_id in visited:
+                break
+            visited.add(current_id)
+
+            node = node_lookup.get(current_id)
+            if node and node.type == "question":
+                path.append(node.content)
+
+            # Get next node (follow first edge, skip answer nodes to get to next question)
+            children = adjacency.get(current_id, [])
+            current_id = None
+
+            for child_id in children:
+                child = node_lookup.get(child_id)
+                if child and child.type == "question":
+                    current_id = child_id
+                    break
+                elif child_id in adjacency:
+                    # This might be an answer node, check its children
+                    for grandchild_id in adjacency.get(child_id, []):
+                        grandchild = node_lookup.get(grandchild_id)
+                        if grandchild and grandchild.type == "question":
+                            current_id = grandchild_id
+                            break
+                    if current_id:
+                        break
+
+        return path
+
+    async def detect_and_merge_concept(
+        self,
+        project_id: str,
+        concept: str,
+        existing_concepts: List[str],
+    ) -> Tuple[str, bool]:
+        """
+        Detect if a concept is similar to an existing concept and should be merged.
+
+        This helps prevent concept explosion in the thinking graph by merging
+        synonymous or very similar concepts (e.g., "ML" and "Machine Learning").
+
+        Args:
+            project_id: Project ID
+            concept: New concept to check
+            existing_concepts: List of existing concept strings
+
+        Returns:
+            Tuple of (canonical_concept, was_merged)
+            - If merged: returns the existing concept it was merged into
+            - If new: returns the original concept
+        """
+        if not existing_concepts:
+            return (concept, False)
+
+        try:
+            # Get embedding for the new concept
+            concept_embedding = await self._embedding_service.embed(concept)
+
+            # Compare with existing concepts
+            concept_threshold = 0.88  # High threshold for concept merging
+            max_similarity = 0.0
+            most_similar_concept = None
+
+            for existing in existing_concepts:
+                cache_key = f"concept-{existing}"
+                if cache_key not in self._embedding_cache:
+                    existing_embedding = await self._embedding_service.embed(existing)
+                    self._embedding_cache[cache_key] = existing_embedding
+
+                existing_embedding = self._embedding_cache[cache_key]
+                similarity = self._cosine_similarity(concept_embedding, existing_embedding)
+
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    most_similar_concept = existing
+
+            if max_similarity >= concept_threshold and most_similar_concept:
+                logger.info(
+                    f"[ThinkingPath] Concept merged: '{concept}' -> '{most_similar_concept}', "
+                    f"similarity={max_similarity:.3f}"
+                )
+                return (most_similar_concept, True)
+
+            return (concept, False)
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Concept merge detection failed: {e}")
+            return (concept, False)
+
     async def _create_nodes_for_message(
         self,
         message: ChatMessage,
@@ -354,10 +953,15 @@ class ThinkingPathService:
             if len(content) > 300:
                 content = content[:297] + "..."
 
+            # Title is the question itself (truncated if needed)
+            question_title = message.content.strip()
+            if len(question_title) > 25:
+                question_title = question_title[:22] + "..."
+
             node = ThinkingPathNode(
                 id=node_id,
                 type="question",
-                title="User Question",
+                title=question_title,
                 content=content,
                 message_ids=[str(message.id)],
                 x=base_x,
@@ -476,8 +1080,14 @@ class ThinkingPathService:
         nodes: List[ThinkingPathNode] = []
         edges: List[Dict[str, str]] = []
 
+        # Extract title, summary, and insights from LLM response
+        answer_title = data.get("title", "AI Answer")
         summary = data.get("summary", "AI Response")
         insights = data.get("insights", [])
+
+        # Ensure title is not too long (max 25 chars for display)
+        if len(answer_title) > 25:
+            answer_title = answer_title[:22] + "..."
 
         # 1. Create Answer Node
         answer_id = f"tp-a-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
@@ -485,7 +1095,7 @@ class ThinkingPathService:
         answer_node = ThinkingPathNode(
             id=answer_id,
             type="answer",
-            title="AI Answer",
+            title=answer_title,
             content=summary[:400] if len(summary) > 400 else summary,
             message_ids=[str(message.id)],
             x=base_x,
@@ -712,6 +1322,310 @@ class ThinkingPathService:
 
         return result
 
+    # =========================================================================
+    # THINKING GRAPH: Intent Classification & Topic Management
+    # =========================================================================
+
+    async def _classify_message_intent(
+        self,
+        project_id: str,
+        message: ChatMessage,
+        recent_messages: List[ChatMessage],
+    ) -> IntentClassificationResult:
+        """
+        Classify the intent of a message to determine how it connects to the thinking graph.
+
+        Uses LLM to determine if the message is:
+        - continuation: Follows up on the active topic
+        - branch: Explores a related but different aspect
+        - new_topic: Starts a completely new discussion
+
+        Returns:
+            IntentClassificationResult with intent type and optional parent topic
+        """
+        # Default to continuation if no LLM service
+        if not self._llm_service:
+            return IntentClassificationResult(
+                intent=INTENT_CONTINUATION,
+                confidence=0.5,
+                reasoning="No LLM service available, defaulting to continuation",
+            )
+
+        # Get active topics for context
+        topics = self._topic_contexts.get(project_id, [])
+        active_topics_text = ""
+        if topics:
+            topics_list = []
+            for t in topics[-5:]:  # Last 5 topics
+                topics_list.append(f"- Topic {t.topic_id}: keywords={t.keywords}")
+            active_topics_text = "\n".join(topics_list)
+        else:
+            active_topics_text = "No active topics yet."
+
+        # Format recent conversation
+        conv_history = ""
+        for msg in recent_messages[-6:]:  # Last 6 messages
+            role = "User" if msg.role == "user" else "AI"
+            content = msg.content[:200] + "..." if len(msg.content) > 200 else msg.content
+            conv_history += f"{role}: {content}\n"
+
+        # Call LLM for intent classification
+        system_prompt = THINKING_GRAPH_INTENT_CLASSIFICATION_PROMPT
+        user_prompt = THINKING_GRAPH_INTENT_USER_PROMPT.format(
+            active_topics=active_topics_text,
+            conversation_history=conv_history,
+            current_message=message.content,
+        )
+
+        messages = [
+            LLMChatMessage(role="system", content=system_prompt),
+            LLMChatMessage(role="user", content=user_prompt),
+        ]
+
+        try:
+            response = await self._llm_service.chat(messages)
+            content = response.content.strip()
+
+            # Parse JSON response
+            if content.startswith("```"):
+                first_newline = content.find("\n")
+                if first_newline != -1:
+                    content = content[first_newline + 1 :]
+                if content.endswith("```"):
+                    content = content[:-3].strip()
+
+            data = json.loads(content)
+
+            return IntentClassificationResult(
+                intent=data.get("intent", INTENT_CONTINUATION),
+                confidence=data.get("confidence", 0.7),
+                parent_topic_id=data.get("parent_topic_id"),
+                reasoning=data.get("reasoning", ""),
+            )
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Intent classification failed: {e}")
+            return IntentClassificationResult(
+                intent=INTENT_CONTINUATION,
+                confidence=0.5,
+                reasoning=f"Classification failed: {str(e)}",
+            )
+
+    async def _find_related_topic(
+        self,
+        project_id: str,
+        message_content: str,
+        threshold: float = 0.7,
+    ) -> Optional[TopicContext]:
+        """
+        Find an existing topic that's semantically related to the message.
+
+        Uses embedding similarity to find the most related topic.
+
+        Returns:
+            TopicContext if a related topic is found, None otherwise
+        """
+        topics = self._topic_contexts.get(project_id, [])
+        if not topics:
+            return None
+
+        try:
+            # Get embedding for the message
+            message_embedding = await self._embedding_service.embed(message_content)
+
+            # Find the most similar topic
+            max_similarity = 0.0
+            most_similar_topic = None
+
+            for topic in topics:
+                # Get or compute topic embedding
+                if topic.topic_id not in self._topic_embedding_cache:
+                    # Use keywords to create topic embedding
+                    topic_text = " ".join(topic.keywords)
+                    if topic_text:
+                        topic_embedding = await self._embedding_service.embed(topic_text)
+                        self._topic_embedding_cache[topic.topic_id] = topic_embedding
+                    else:
+                        continue
+
+                topic_embedding = self._topic_embedding_cache.get(topic.topic_id)
+                if not topic_embedding:
+                    continue
+
+                similarity = self._cosine_similarity(message_embedding, topic_embedding)
+
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    most_similar_topic = topic
+
+            if max_similarity >= threshold and most_similar_topic:
+                logger.info(
+                    f"[ThinkingPath] Found related topic: {most_similar_topic.topic_id}, "
+                    f"similarity={max_similarity:.3f}"
+                )
+                return most_similar_topic
+
+            return None
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Failed to find related topic: {e}")
+            return None
+
+    def _create_new_topic(
+        self,
+        project_id: str,
+        message_id: str,
+        keywords: List[str],
+        parent_topic_id: Optional[str] = None,
+    ) -> TopicContext:
+        """
+        Create a new topic context.
+
+        Args:
+            project_id: Project ID
+            message_id: ID of the message that starts this topic
+            keywords: Keywords extracted from the message
+            parent_topic_id: ID of the parent topic (if branching)
+
+        Returns:
+            The newly created TopicContext
+        """
+        topic_id = f"topic-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{uuid4().hex[:8]}"
+
+        # Determine depth based on parent
+        depth = 0
+        if parent_topic_id:
+            parent_topic = self._get_topic_by_id(project_id, parent_topic_id)
+            if parent_topic:
+                depth = parent_topic.depth + 1
+
+        topic = TopicContext(
+            topic_id=topic_id,
+            root_message_id=message_id,
+            keywords=keywords,
+            depth=depth,
+            parent_topic_id=parent_topic_id,
+        )
+
+        # Add to topic contexts
+        if project_id not in self._topic_contexts:
+            self._topic_contexts[project_id] = []
+        self._topic_contexts[project_id].append(topic)
+
+        # Set as active topic
+        self._active_topic[project_id] = topic_id
+
+        logger.info(
+            f"[ThinkingPath] Created new topic: {topic_id}, depth={depth}, parent={parent_topic_id}"
+        )
+
+        return topic
+
+    def _get_topic_by_id(
+        self,
+        project_id: str,
+        topic_id: str,
+    ) -> Optional[TopicContext]:
+        """Get a topic by its ID."""
+        topics = self._topic_contexts.get(project_id, [])
+        return next((t for t in topics if t.topic_id == topic_id), None)
+
+    def _get_active_topic(self, project_id: str) -> Optional[TopicContext]:
+        """Get the currently active topic for a project."""
+        active_id = self._active_topic.get(project_id)
+        if not active_id:
+            return None
+        return self._get_topic_by_id(project_id, active_id)
+
+    def set_active_topic(self, project_id: str, topic_id: Optional[str]) -> None:
+        """
+        Set the active topic for a project.
+
+        This is called from the frontend when user clicks on a node to set it as
+        the "fork point" for new messages.
+
+        Args:
+            project_id: Project ID
+            topic_id: Topic ID to set as active, or None to start a new topic
+        """
+        if topic_id:
+            self._active_topic[project_id] = topic_id
+        else:
+            # Clear active topic - next message will create a new topic
+            self._active_topic.pop(project_id, None)
+
+        logger.info(f"[ThinkingPath] Active topic set to: {topic_id or 'None (new topic)'}")
+
+    async def _extract_thinking_step(
+        self,
+        user_message: str,
+        ai_response: str,
+        context: str = "",
+    ) -> Optional[ThinkingStepExtraction]:
+        """
+        Extract a structured thinking step from a message exchange.
+
+        Uses the new THINKING_GRAPH_EXTRACTION prompt to get:
+        - Structured step fields (claim, reason, evidence, etc.)
+        - Related concepts
+        - Suggested branches
+        - Keywords for semantic matching
+
+        Returns:
+            ThinkingStepExtraction or None if extraction fails
+        """
+        if not self._llm_service:
+            return None
+
+        system_prompt = THINKING_GRAPH_EXTRACTION_SYSTEM_PROMPT
+        user_prompt = THINKING_GRAPH_EXTRACTION_USER_PROMPT.format(
+            user_message=user_message,
+            ai_response=ai_response,
+            context=context,
+        )
+
+        messages = [
+            LLMChatMessage(role="system", content=system_prompt),
+            LLMChatMessage(role="user", content=user_prompt),
+        ]
+
+        try:
+            response = await self._llm_service.chat(messages)
+            content = response.content.strip()
+
+            # Parse JSON response
+            if content.startswith("```"):
+                first_newline = content.find("\n")
+                if first_newline != -1:
+                    content = content[first_newline + 1 :]
+                if content.endswith("```"):
+                    content = content[:-3].strip()
+
+            data = json.loads(content)
+            step = data.get("step", {})
+
+            return ThinkingStepExtraction(
+                claim=step.get("claim", ""),
+                reason=step.get("reason", ""),
+                evidence=step.get("evidence", ""),
+                uncertainty=step.get("uncertainty", ""),
+                decision=step.get("decision", ""),
+                related_concepts=data.get("related_concepts", []),
+                suggested_branches=data.get("suggested_branches", []),
+                keywords=data.get("keywords", []),
+            )
+        except Exception as e:
+            logger.warning(f"[ThinkingPath] Thinking step extraction failed: {e}")
+            return None
+
+    def get_topic_contexts(self, project_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all topic contexts for a project.
+
+        Returns:
+            List of topic context dictionaries
+        """
+        topics = self._topic_contexts.get(project_id, [])
+        return [t.to_dict() for t in topics]
+
     def clear_cache(self, project_id: Optional[str] = None) -> None:
         """
         Clear embedding cache.
@@ -730,10 +1644,26 @@ class ThinkingPathService:
 
             if project_id in self._last_question_node_id:
                 del self._last_question_node_id[project_id]
+
+            # Clear topic tracking
+            if project_id in self._topic_contexts:
+                del self._topic_contexts[project_id]
+            if project_id in self._active_topic:
+                del self._active_topic[project_id]
+
+            # Clear topic embedding cache
+            topics_to_clear = [
+                k for k in self._topic_embedding_cache.keys() if k.startswith(f"topic-")
+            ]
+            for key in topics_to_clear:
+                del self._topic_embedding_cache[key]
         else:
             # Clear all cache
             self._embedding_cache.clear()
             self._question_node_cache.clear()
             self._last_question_node_id.clear()
+            self._topic_contexts.clear()
+            self._active_topic.clear()
+            self._topic_embedding_cache.clear()
 
         logger.info(f"[ThinkingPath] Cache cleared for project: {project_id or 'all'}")

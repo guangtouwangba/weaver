@@ -8,7 +8,8 @@ import {
   Layout, 
   Brain, 
   Settings,
-  FolderKanban
+  FolderKanban,
+  Route
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -123,6 +124,13 @@ export default function GlobalSidebar() {
         label="Brain Mode" 
         href="/brain" 
         isActive={pathname.startsWith('/brain')}
+      />
+
+      <NavItem 
+        icon={Route} 
+        label="Thinking Path" 
+        href="/prototype/thinking-path" 
+        isActive={pathname.startsWith('/prototype/thinking-path')}
       />
 
       {/* Spacer */}

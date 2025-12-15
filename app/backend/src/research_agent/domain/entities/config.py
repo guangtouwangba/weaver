@@ -54,7 +54,9 @@ class IntentType(str, Enum):
 class LLMConfig(BaseModel):
     """LLM configuration for generation."""
 
-    model_name: str = Field(default="openai/gpt-4o-mini", description="LLM model identifier")
+    # Note: Default here is a fallback. In practice, model should be set from:
+    # 1. User settings (DB) > 2. Project settings (DB) > 3. Global settings (DB) > 4. Environment (.env)
+    model_name: str = Field(default="", description="LLM model identifier")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
     api_base: Optional[str] = Field(default=None, description="Custom API base URL")

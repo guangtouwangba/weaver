@@ -76,3 +76,4 @@ class CanvasCleanupTask(BaseTask):
             f"removed {removed_count} items (nodes, edges, sections)"
         )
 
+
