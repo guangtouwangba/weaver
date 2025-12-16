@@ -62,6 +62,12 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://research_rag:research_rag_dev@localhost:5432/research_rag"
     )
 
+    # Database Client Type
+    # "postgres" - Direct PostgreSQL connection (default for local development)
+    # "supabase" - Supabase SDK (for production/cloud)
+    # "sqlalchemy" - SQLAlchemy wrapper (for backward compatibility)
+    database_client_type: str = "postgres"
+
     @property
     def async_database_url(self) -> str:
         """Ensure database URL uses asyncpg driver and compatible SSL params."""

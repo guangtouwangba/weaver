@@ -17,6 +17,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "alembic>=1.14.0",
     "pgvector>=0.3.5",
+    "supabase>=2.0.0",  # Official Supabase Python SDK
     
     # LLM & Embedding (OpenRouter via OpenAI SDK)
     "openai>=1.55.0",
