@@ -52,3 +52,5 @@ def downgrade() -> None:
     op.drop_index("ix_highlights_document_id")
     op.drop_table("highlights")
 
+
+

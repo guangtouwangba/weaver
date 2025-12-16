@@ -112,7 +112,7 @@ class BackgroundWorker:
                     )
             except Exception as e:
                 error_message = str(e)
-                
+
                 # Check for "table does not exist" error (migration not run)
                 if "does not exist" in error_message or "UndefinedTableError" in error_message:
                     self._connection_error_count += 1
@@ -185,32 +185,52 @@ class BackgroundWorker:
         if len(self._current_tasks) >= self._max_concurrent_tasks:
             return
 
-        try:
-            async with self._session_factory() as session:
-                service = TaskQueueService(session)
+        # ✅ Retry logic for connection errors during polling
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                async with self._session_factory() as session:
+                    service = TaskQueueService(session)
 
-                # Try to get a task
-                task = await service.pop()
+                    # Try to get a task
+                    task = await service.pop()
 
-                if task:
-                    await session.commit()
-                    logger.info(
-                        f"📥 Popped task from queue - task_id={task.id}, "
-                        f"task_type={task.task_type.value}, attempts={task.attempts}/{task.max_attempts}"
+                    if task:
+                        await session.commit()
+                        logger.info(
+                            f"📥 Popped task from queue - task_id={task.id}, "
+                            f"task_type={task.task_type.value}, attempts={task.attempts}/{task.max_attempts}"
+                        )
+
+                        # Process task in background
+                        task_coro = self._process_task(task)
+                        task_future = asyncio.create_task(task_coro)
+                        self._current_tasks.add(task_future)
+                        task_future.add_done_callback(self._current_tasks.discard)
+                
+                # Success, break out of retry loop
+                break
+                
+            except (OperationalError, ConnectionError, TimeoutError, OSError) as e:
+                error_str = str(e)
+                # Check if this is a connection error that we should retry
+                if any(keyword in error_str for keyword in [
+                    "ConnectionDoesNotExistError",
+                    "connection was closed",
+                    "connection closed",
+                ]) and attempt < max_retries:
+                    logger.warning(
+                        f"⚠️ Worker poll failed due to connection error (attempt {attempt}/{max_retries}), retrying..."
                     )
-
-                    # Process task in background
-                    task_coro = self._process_task(task)
-                    task_future = asyncio.create_task(task_coro)
-                    self._current_tasks.add(task_future)
-                    task_future.add_done_callback(self._current_tasks.discard)
-        except (OperationalError, ConnectionError, TimeoutError, OSError) as e:
-            # Re-raise connection errors to be handled by the main loop
-            raise
-        except Exception as e:
-            # Other errors - log and continue
-            logger.error(f"❌ Error in _poll_and_process: {e}", exc_info=True)
-            raise
+                    await asyncio.sleep(0.5 * attempt)  # Exponential backoff
+                    continue
+                else:
+                    # Re-raise connection errors to be handled by the main loop
+                    raise
+            except Exception as e:
+                # Other errors - log and re-raise (don't retry)
+                logger.error(f"❌ Error in _poll_and_process: {e}", exc_info=True)
+                raise
 
     async def _process_task(self, task) -> None:
         """Process a single task."""
