@@ -6,6 +6,8 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.config import get_settings
+from research_agent.infrastructure.database.client.base import DatabaseClient
+from research_agent.infrastructure.database.client.factory import get_database_client
 from research_agent.infrastructure.database.session import async_session_maker
 from research_agent.infrastructure.embedding.openrouter import (
     OpenAIEmbeddingService,
@@ -83,6 +85,16 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
         except Exception as e:
             logger.warning(f"Error closing session in get_db: {e}")
+
+
+def get_database_client_dep() -> DatabaseClient:
+    """
+    Get database client instance for dependency injection.
+
+    Returns:
+        DatabaseClient instance (PostgresDatabaseClient or SupabaseDatabaseClient)
+    """
+    return get_database_client()
 
 
 def get_llm_service() -> OpenRouterLLMService:
