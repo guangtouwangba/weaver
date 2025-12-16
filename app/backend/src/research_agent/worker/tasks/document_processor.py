@@ -1,5 +1,6 @@
 """Document processor task - orchestrates the full document processing pipeline."""
 
+import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -145,6 +146,7 @@ class DocumentProcessorTask(BaseTask):
                 raise
 
             # Get user settings early to determine processing strategy
+            # ✅ Use retry logic since connection may have timed out during long PDF parsing
             user_rag_mode = settings.rag_mode  # Default to env setting
             user_safety_ratio = settings.long_context_safety_ratio  # Default to env setting
             user_fast_upload_mode = True  # Default to True for fast processing
@@ -157,42 +159,64 @@ class DocumentProcessorTask(BaseTask):
                 )
 
                 DEFAULT_USER_ID = UUIDType("00000000-0000-0000-0000-000000000001")
-                async with get_async_session() as settings_session:
-                    repo = SQLAlchemySettingsRepository(settings_session)
-                    settings_service = SettingsService(repo)
+                
+                # ✅ Retry logic for settings query (connection may have timed out during PDF parsing)
+                max_retries = 3
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        async with get_async_session(max_retries=1) as settings_session:
+                            repo = SQLAlchemySettingsRepository(settings_session)
+                            settings_service = SettingsService(repo)
 
-                    # Get rag_mode
-                    db_rag_mode = await settings_service.get_setting(
-                        "rag_mode",
-                        user_id=DEFAULT_USER_ID,
-                        project_id=project_id,
-                    )
-                    if db_rag_mode:
-                        user_rag_mode = db_rag_mode
+                            # Get rag_mode
+                            db_rag_mode = await settings_service.get_setting(
+                                "rag_mode",
+                                user_id=DEFAULT_USER_ID,
+                                project_id=project_id,
+                            )
+                            if db_rag_mode:
+                                user_rag_mode = db_rag_mode
 
-                    # Get fast_upload_mode
-                    db_fast_upload = await settings_service.get_setting(
-                        "fast_upload_mode",
-                        user_id=DEFAULT_USER_ID,
-                        project_id=project_id,
-                    )
-                    if db_fast_upload is not None:
-                        user_fast_upload_mode = bool(db_fast_upload)
+                            # Get fast_upload_mode
+                            db_fast_upload = await settings_service.get_setting(
+                                "fast_upload_mode",
+                                user_id=DEFAULT_USER_ID,
+                                project_id=project_id,
+                            )
+                            if db_fast_upload is not None:
+                                user_fast_upload_mode = bool(db_fast_upload)
 
-                    # Get long_context_safety_ratio
-                    db_safety_ratio = await settings_service.get_setting(
-                        "long_context_safety_ratio",
-                        user_id=DEFAULT_USER_ID,
-                        project_id=project_id,
-                    )
-                    if db_safety_ratio is not None:
-                        user_safety_ratio = float(db_safety_ratio)
+                            # Get long_context_safety_ratio
+                            db_safety_ratio = await settings_service.get_setting(
+                                "long_context_safety_ratio",
+                                user_id=DEFAULT_USER_ID,
+                                project_id=project_id,
+                            )
+                            if db_safety_ratio is not None:
+                                user_safety_ratio = float(db_safety_ratio)
 
-                    logger.info(
-                        f"📋 User settings: rag_mode={user_rag_mode}, "
-                        f"fast_upload_mode={user_fast_upload_mode}, "
-                        f"safety_ratio={user_safety_ratio}"
-                    )
+                            logger.info(
+                                f"📋 User settings: rag_mode={user_rag_mode}, "
+                                f"fast_upload_mode={user_fast_upload_mode}, "
+                                f"safety_ratio={user_safety_ratio}"
+                            )
+                        # Success, break out of retry loop
+                        break
+                    except Exception as retry_error:
+                        error_str = str(retry_error)
+                        if any(keyword in error_str for keyword in [
+                            "ConnectionDoesNotExistError",
+                            "connection was closed",
+                            "connection closed",
+                        ]) and attempt < max_retries:
+                            logger.warning(
+                                f"⚠️ Settings query failed due to connection error (attempt {attempt}/{max_retries}), retrying..."
+                            )
+                            await asyncio.sleep(0.5 * attempt)  # Exponential backoff
+                            continue
+                        else:
+                            # Non-connection error or max retries reached
+                            raise
             except Exception as e:
                 logger.warning(f"Failed to get user settings, using env defaults: {e}")
 
