@@ -7,8 +7,6 @@ import {
   Box, 
   Typography, 
   Button, 
-  Paper,
-  IconButton,
   CircularProgress,
   Alert,
   Menu,
@@ -19,11 +17,20 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Snackbar
+  Snackbar,
+  Stack
 } from "@mui/material";
-import { Plus, Trash2, FolderOpen, MoreVertical, Pencil } from "lucide-react";
+import { 
+  Plus, 
+  Trash2, 
+  Pencil, 
+  Import, 
+  LayoutGrid, 
+  List as ListIcon,
+} from "lucide-react";
 import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
+import ProjectCard from '@/components/dashboard/ProjectCard';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -31,6 +38,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  
+  // Tab state (visual only for now)
+  const [activeTab, setActiveTab] = useState('Recent Projects');
 
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -58,7 +68,11 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       const response = await projectsApi.list();
-      setProjects(response.items);
+      // Sort by updated_at desc
+      const sortedProjects = response.items.sort((a, b) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+      setProjects(sortedProjects);
     } catch (err: any) {
       setError(err.message || 'Failed to load projects');
     } finally {
@@ -66,12 +80,9 @@ export default function DashboardPage() {
     }
   };
 
-  const handleOpenProject = (projectId: string) => {
-    router.push(`/studio/${projectId}`);
-  };
-
   const handleProjectCreated = (project: Project) => {
-    setProjects((prev) => [...prev, project]);
+    // Add new project to top
+    setProjects((prev) => [project, ...prev]);
     router.push(`/studio/${project.id}`);
   };
 
@@ -123,155 +134,113 @@ export default function DashboardPage() {
     setSnackbarOpen(false);
   };
 
+
+  // Derived state
+  const recentProjects = projects.slice(0, 4);
+
   return (
     <GlobalLayout>
       <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
-        {/* Header */}
-        <Box sx={{ mb: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        
+        {/* Header Section */}
+        <Box sx={{ mb: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
-            <Typography variant="h4" fontWeight="600" gutterBottom>
-              Projects
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Welcome back, Alex 👋
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Manage your research projects and knowledge bases
+              Pick up where you left off or start a new analysis.
             </Typography>
           </Box>
-          <Button 
-            variant="contained" 
-            startIcon={<Plus />}
-            onClick={() => setCreateDialogOpen(true)}
-            sx={{ textTransform: 'none', borderRadius: 2 }}
-          >
-            New Project
-          </Button>
+          <Stack direction="row" spacing={2}>
+             <Button 
+              variant="outlined" 
+              startIcon={<Import size={18} />}
+              sx={{ textTransform: 'none', borderRadius: 2, bgcolor: 'background.paper', borderColor: 'divider', color: 'text.primary' }}
+            >
+              Import
+            </Button>
+            <Button 
+              variant="contained" 
+              startIcon={<Plus size={18} />}
+              onClick={() => setCreateDialogOpen(true)}
+              sx={{ textTransform: 'none', borderRadius: 2, bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
+            >
+              Create New Project
+            </Button>
+          </Stack>
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        {/* Create Project Zone - Always visible as requested */}
-        <Box 
-          sx={{ 
-            border: '2px dashed', 
-            borderColor: 'divider', 
-            borderRadius: 4, 
-            p: 6, 
-            textAlign: 'center',
-            mb: 6,
-            bgcolor: 'background.default',
-            transition: 'all 0.2s',
-            '&:hover': {
-              borderColor: 'primary.main',
-              bgcolor: 'action.hover'
-            }
-          }}
-        >
-          <FolderOpen size={48} className="mx-auto mb-4 text-gray-400" />
-          <Typography variant="h6" gutterBottom>
-            Create New Knowledge Project
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Start a new research project to organize your documents and insights
-          </Typography>
-          <Button 
-            variant="contained" 
-            startIcon={<Plus />}
-            onClick={() => setCreateDialogOpen(true)}
-            sx={{ textTransform: 'none', borderRadius: 2 }}
-          >
-            Create Project
-          </Button>
-        </Box>
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress />
           </Box>
-        ) : projects.length > 0 && (
-          /* Projects Grid */
-          <Box>
-            <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-              Your Projects ({projects.length})
-            </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
-              {projects.map((project) => (
-                <Paper 
-                  key={project.id}
-                  elevation={0}
-                  sx={{ 
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                    transition: 'all 0.2s',
-                    cursor: 'pointer',
-                    '&:hover': { 
-                      transform: 'translateY(-4px)',
-                      boxShadow: '0 12px 24px rgba(0,0,0,0.05)',
-                      borderColor: 'primary.main'
-                    }
-                  }}
-                  onClick={() => handleOpenProject(project.id)}
-                >
-                  {/* Content Area */}
-                  <Box sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                      <Typography 
-                        variant="h6" 
-                        fontWeight="bold" 
-                        color="text.primary" 
-                        sx={{ lineHeight: 1.3, flex: 1, pr: 1 }}
-                      >
-                        {project.name}
-                      </Typography>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleOpenMenu(e, project)}
-                        sx={{ 
-                          mt: -0.5, 
-                          mr: -1,
-                          color: 'text.secondary',
-                          '&:hover': { 
-                            color: 'text.primary',
-                            bgcolor: 'action.hover'
-                          }
-                        }}
-                      >
-                        <MoreVertical size={16} />
-                      </IconButton>
-                    </Box>
-                    
-                    {project.description && (
-                      <Typography 
-                        variant="body2" 
-                        color="text.secondary" 
-                        sx={{ 
-                          mb: 3,
-                          height: 40,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                      >
-                        {project.description}
-                      </Typography>
-                    )}
-
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Updated {new Date(project.updated_at).toLocaleDateString()}
-                      </Typography>
-                    </Box>
+        ) : (
+          <>
+            {/* Recent Projects Section */}
+            <Box sx={{ mb: 6 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1 }}>
+                      Recent Projects
+                    </Typography>
+                    <Box sx={{ width: '1px', height: 20, bgcolor: 'divider', mx: 1 }} />
+                    <Stack direction="row" spacing={0.5}>
+                      {['All Projects', 'Starred', 'Shared with me'].map((tab) => {
+                        const isSelected = activeTab === tab || (activeTab === 'Recent Projects' && tab === 'All Projects');
+                        return (
+                          <Box 
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            sx={{ 
+                              px: 2,
+                              py: 0.5,
+                              borderRadius: 2,
+                              cursor: 'pointer',
+                              bgcolor: isSelected ? '#eff6ff' : 'transparent',
+                              color: isSelected ? '#4f46e5' : 'text.secondary',
+                              fontWeight: isSelected ? 600 : 500,
+                              transition: 'all 0.2s',
+                              fontSize: '0.95rem',
+                              '&:hover': { 
+                                bgcolor: isSelected ? '#eff6ff' : 'rgba(0,0,0,0.04)',
+                                color: isSelected ? '#4f46e5' : 'text.primary'
+                              }
+                            }}
+                          >
+                            {tab}
+                          </Box>
+                        );
+                      })}
+                    </Stack>
                   </Box>
-                </Paper>
-              ))}
+                  
+                  <Stack direction="row" spacing={2} alignItems="center" sx={{ color: 'text.secondary' }}>
+                    <LayoutGrid size={20} cursor="pointer" />
+                    <ListIcon size={20} cursor="pointer" />
+                    <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 500 }}>Last Modified</Typography>
+                  </Stack>
+              </Box>
+              
+              {projects.length > 0 ? (
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 3 }}>
+                  {(activeTab === 'Recent Projects' ? recentProjects : projects).map((project) => (
+                    <ProjectCard 
+                      key={project.id} 
+                      project={project} 
+                      onOpenMenu={handleOpenMenu}
+                    />
+                  ))}
+                </Box>
+              ) : (
+                <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
+                   <Typography color="text.secondary">No projects yet. Create one to get started.</Typography>
+                </Box>
+              )}
             </Box>
-          </Box>
+
+          </>
         )}
 
         <CreateProjectDialog 

@@ -77,3 +77,10 @@ async def reset_database_client() -> None:
                 logger.warning(f"Error closing database client: {e}")
 
     _database_client_instance = None
+
+
+
+
+
+
+

@@ -223,3 +223,10 @@ class PostgresDatabaseClient(DatabaseClient):
             await self._pool.close()
             self._pool = None
             logger.info("Closed PostgreSQL connection pool")
+
+
+
+
+
+
+

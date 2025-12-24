@@ -10,6 +10,9 @@ from research_agent.infrastructure.websocket.canvas_notification_service import 
 from research_agent.infrastructure.websocket.notification_service import (
     document_notification_service,
 )
+from research_agent.infrastructure.websocket.output_notification_service import (
+    output_notification_service,
+)
 from research_agent.shared.utils.logger import logger
 
 router = APIRouter()
@@ -154,3 +157,66 @@ async def project_canvas_websocket(
     except Exception as e:
         logger.error(f"[Canvas WebSocket] Error in canvas websocket: {e}")
         await canvas_notification_service.disconnect(websocket, project_id)
+
+
+@router.websocket("/ws/projects/{project_id}/outputs")
+async def project_outputs_websocket(
+    websocket: WebSocket,
+    project_id: str,
+    task_id: Optional[str] = None,
+) -> None:
+    """
+    WebSocket endpoint for receiving output generation updates.
+
+    Connect to receive real-time updates about:
+    - Generation progress
+    - New nodes being added (for mindmaps)
+    - Completion or error status
+
+    Query params:
+        task_id: Optional specific task to subscribe to
+
+    Messages sent to client:
+    ```json
+    {
+        "taskId": "uuid",
+        "type": "generation_started|node_added|generation_complete|...",
+        "timestamp": "ISO timestamp",
+        "nodeData": {...},  // for node events
+        "progress": 0.5,    // for progress events
+        "errorMessage": "..." // for error events
+    }
+    ```
+
+    Output Event Types:
+    - `generation_started`: Generation task started
+    - `generation_progress`: Progress update (0.0 - 1.0)
+    - `generation_complete`: Generation finished successfully
+    - `generation_error`: Generation failed
+    - `node_generating`: A node is being generated
+    - `node_added`: A new node was added
+    - `edge_added`: A new edge was added
+    - `level_complete`: A level of the mindmap is complete
+    - `token`: A token for streaming text (explain operation)
+
+    Client can send:
+    - "ping": Server responds with "pong" (keep-alive)
+    """
+    await output_notification_service.connect(websocket, project_id, task_id)
+
+    try:
+        while True:
+            # Keep connection alive and handle client messages
+            data = await websocket.receive_text()
+
+            # Handle ping/pong for connection keep-alive
+            if data == "ping":
+                await websocket.send_text("pong")
+
+            logger.debug(f"[Output WebSocket] Received from client: {data}")
+
+    except WebSocketDisconnect:
+        await output_notification_service.disconnect(websocket, project_id, task_id)
+    except Exception as e:
+        logger.error(f"[Output WebSocket] Error in output websocket: {e}")
+        await output_notification_service.disconnect(websocket, project_id, task_id)

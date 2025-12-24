@@ -861,3 +861,87 @@ export const highlightsApi = {
     }),
 };
 
+// Output Generation Types
+export interface KeyFinding {
+  label: string;
+  content: string;
+}
+
+export interface SummaryData {
+  summary: string;
+  keyFindings: KeyFinding[];
+  documentTitle: string;
+}
+
+export interface OutputResponse {
+  id: string;
+  project_id: string;
+  output_type: 'mindmap' | 'summary' | 'custom';
+  document_ids: string[];
+  status: 'generating' | 'complete' | 'error' | 'cancelled';
+  title?: string;
+  data?: SummaryData | Record<string, unknown>;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GenerateOutputResponse {
+  task_id: string;
+  output_id: string;
+  status: string;
+  websocket_channel: string;
+}
+
+export interface OutputListResponse {
+  outputs: OutputResponse[];
+  total: number;
+}
+
+// Outputs API
+export const outputsApi = {
+  generate: (
+    projectId: string,
+    outputType: 'mindmap' | 'summary',
+    documentIds: string[],
+    title?: string,
+    options?: Record<string, unknown>
+  ) =>
+    fetchApi<GenerateOutputResponse>(`/api/v1/projects/${projectId}/outputs/generate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        output_type: outputType,
+        document_ids: documentIds,
+        title,
+        options,
+      }),
+    }),
+
+  get: (projectId: string, outputId: string) =>
+    fetchApi<OutputResponse>(`/api/v1/projects/${projectId}/outputs/${outputId}`),
+
+  list: (
+    projectId: string,
+    outputType?: string,
+    limit: number = 20,
+    offset: number = 0
+  ) =>
+    fetchApi<OutputListResponse>(
+      `/api/v1/projects/${projectId}/outputs?${new URLSearchParams({
+        ...(outputType && { output_type: outputType }),
+        limit: limit.toString(),
+        offset: offset.toString(),
+      })}`
+    ),
+
+  delete: (projectId: string, outputId: string) =>
+    fetchApi<void>(`/api/v1/projects/${projectId}/outputs/${outputId}`, {
+      method: 'DELETE',
+    }),
+
+  cancelTask: (projectId: string, taskId: string) =>
+    fetchApi<void>(`/api/v1/projects/${projectId}/outputs/tasks/${taskId}/cancel`, {
+      method: 'POST',
+    }),
+};
+

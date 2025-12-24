@@ -500,7 +500,7 @@ export default function ThinkingPathPage() {
 
   return (
     <GlobalLayout>
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#FAFAFA' }}>
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
         {/* Top Bar */}
         <Box
           sx={{
@@ -618,6 +618,13 @@ export default function ThinkingPathPage() {
     </GlobalLayout>
   );
 }
+
+
+
+
+
+
+
 
 
 

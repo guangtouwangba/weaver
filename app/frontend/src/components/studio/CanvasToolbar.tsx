@@ -42,7 +42,7 @@ export default function CanvasToolbar({ activeTool, onChange }: CanvasToolbarPro
           </ToggleButton>
         </Tooltip>
         
-        <Tooltip title="Hand (H)" arrow placement="top">
+        <Tooltip title="Hand (H) or Hold Space" arrow placement="top">
           <ToggleButton value="hand" aria-label="hand tool">
             <Hand size={18} />
           </ToggleButton>

@@ -89,6 +89,12 @@ class UploadDocumentUseCase:
             logger.info(f"Extracting text from PDF: {input.filename}")
             pages = await self._pdf_parser.extract_text(full_path)
 
+            # 3.1 Store full document content for summary generation and other use cases
+            full_text = "\n\n".join([page.content for page in pages if page.content])
+            if full_text.strip():
+                document.full_content = full_text
+                logger.info(f"Stored full content: {len(full_text)} characters")
+
             # 4. Chunk the text
             logger.info(f"Chunking {len(pages)} pages")
             chunk_data = self._chunking_service.chunk_pages(pages)

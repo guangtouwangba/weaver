@@ -16,7 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -618,3 +618,50 @@ class PendingCleanupModel(Base):
     # Optional: reference to original document (for debugging)
     document_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     project_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+# =============================================================================
+# Output Generation Models
+# =============================================================================
+
+
+class OutputModel(Base):
+    """
+    Output ORM model for storing generated outputs (mindmaps, summaries, etc.).
+
+    This table stores the results of AI-generated outputs that users can create
+    from their documents in the Canvas toolbox.
+    """
+
+    __tablename__ = "outputs"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Output type: 'mindmap', 'summary', 'custom', etc.
+    output_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Source document IDs that this output was generated from
+    document_ids: Mapped[List[UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), nullable=False, server_default="{}"
+    )
+    # Status: 'generating', 'complete', 'error', 'cancelled'
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="generating")
+    # Optional title for the output
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # Output data stored as JSONB (nodes, edges for mindmap, content for summary, etc.)
+    data: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    # Error message if generation failed
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    project: Mapped["ProjectModel"] = relationship("ProjectModel")

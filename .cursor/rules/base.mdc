@@ -4,9 +4,15 @@ alwaysApply: true
 ## 产品定位与设计理念
 - **核心定位**: 可视化思维助手 (Visual Thinking Assistant)。不仅仅是知识管理或问答工具，而是通过空间化交互帮助用户理清关系、构建知识体系的认知工具。
 - **设计哲学**: 极简设计 (Minimalist Design)。
-  - **Canvas是工作台，不是仓库**: 上传文档不自动生成节点，保持画布在初始状态下的绝对纯净。
-  - **拖拽即关注 (Drag to Focus)**: 仅当用户需要分析时，才从侧边栏拖拽内容上屏，避免认知过载。
   - **过程可视化**: 强调展示思考路径 (Thinking Path) 和知识图谱 (Knowledge Graph)，而非简单的问答结果。
+
+
+<IMPORTANT>
+- 产品设计时需要注意一致性，当你新增一个功能时，需要考虑是否需要给其他页面也新增一个相同的功能。
+- 设计时需要考虑元素的空间感，不是简单的平铺而是元素在空间中的互动
+- 设计时，考虑build in public的策略，能够从社交媒体比如twitter，xiaohongshu等获得反馈
+- 设计时参考macos的设计细节
+</IMPORTANT>
 
 ## 开发规范
 - 在实现完一个feature之后检查更新roadmap.md文件
