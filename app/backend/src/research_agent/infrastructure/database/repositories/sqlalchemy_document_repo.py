@@ -31,6 +31,10 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
             existing.mime_type = document.mime_type
             existing.page_count = document.page_count
             existing.status = document.status.value
+            existing.summary = document.summary
+            existing.full_content = document.full_content
+            existing.content_token_count = document.content_token_count
+            existing.parsing_metadata = document.parsing_metadata
         else:
             # Create new
             model = self._to_model(document)
@@ -75,6 +79,10 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
             mime_type=entity.mime_type,
             page_count=entity.page_count,
             status=entity.status.value,
+            summary=entity.summary,
+            full_content=entity.full_content,
+            content_token_count=entity.content_token_count,
+            parsing_metadata=entity.parsing_metadata,
             created_at=entity.created_at,
         )
 
@@ -90,6 +98,10 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
             mime_type=model.mime_type,
             page_count=model.page_count or 0,
             status=DocumentStatus(model.status),
+            summary=model.summary,
+            full_content=model.full_content,
+            content_token_count=model.content_token_count,
+            parsing_metadata=model.parsing_metadata,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

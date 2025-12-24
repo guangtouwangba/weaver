@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-23
+
+#### Freeform Canvas Visual Redesign
+
+**Frontend:**
+- **Sidebar Redesign** (`web/src/components/prototype/freeform/Sidebar.tsx`):
+  - Two-section LIBRARY layout: "Generated Content" and "Source Files"
+  - Import Source button with dashed border style
+  - Content type icons with color-coded backgrounds (Mind Map, Podcast, Summary, Flashcards)
+  - Eye icon indicator for items currently on canvas
+  - Active state highlight for mind maps
+  - Type-specific metadata display (duration, page count, card count)
+
+- **New Card Components** (`web/src/components/prototype/freeform/cards/`):
+  - `TopicCard.tsx`: Topic insights with colored icon backgrounds and subtitles
+  - `MindMapCard.tsx`: Central hub nodes with MIND MAP badge and expand button
+  - `PodcastCard.tsx`: Audio preview with animated waveform visualization
+  - `DataCard.tsx`: Metric display cards with accent color
+  - `BriefCard.tsx`: Document preview with left accent border and "Open" action
+  - `FlashcardNode.tsx`: Interactive flashcard with flip animation and progress bar
+
+- **Header Enhancement** (`web/src/components/prototype/freeform/ProjectHeader.tsx`):
+  - "EDITABLE" badge indicator
+  - "Last saved X mins ago" status
+  - Collaborator avatar stack with online indicators
+  - +N remaining collaborators count
+  - Purple "Share" button with refined styling
+
+- **Toolbar Restructure** (`web/src/components/prototype/freeform/CanvasToolbar.tsx`):
+  - Grid/List view toggle buttons at top
+  - Select/Hand mode toggles
+  - Zoom controls with percentage display
+  - Add node button with plus icon
+
+- **Chat Input Polish** (`web/src/components/prototype/freeform/ChatInput.tsx`):
+  - Updated placeholder: "Ask Weaver to regroup or summarize these insights..."
+  - Sparkles icon for AI indicator
+  - Focus state with purple border highlight
+  - Refined send button with arrow icon
+
+- **Canvas Integration** (`web/src/components/prototype/freeform/Canvas.tsx`):
+  - New node types: `topic`, `mindmap`, `podcast`, `data`, `brief`, `flashcard`
+  - Card component rendering for each new type
+  - Consistent selection and drag behavior
+
+- **Data Model Extension** (`web/src/app/prototype/freeform/page.tsx`):
+  - Extended Node interface with card-specific properties
+  - Demo nodes showcasing all new card types
+  - Demo edges connecting the demonstration nodes
+
+**Color Palette:**
+| Element | Color |
+|---------|-------|
+| Primary Purple | #6366F1 |
+| Topic Orange | #F97316 |
+| Topic Red | #EF4444 |
+| Data Green | #10B981 |
+| Podcast Purple | #8B5CF6 |
+| Brief Blue | #3B82F6 |
+| Flashcard Orange | #F97316 |
+
+**Technical Details:**
+- **Author**: Cursor Agent
+- **Implementation**: Freeform Canvas Visual Redesign per design reference
+- **Scope**: Prototype web app (`web/src/components/prototype/freeform/`)
+
 ### Fixed - 2025-12-15
 
 #### Critical: Database Connection Startup Fix

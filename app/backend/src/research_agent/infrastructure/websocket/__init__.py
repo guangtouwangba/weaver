@@ -12,6 +12,10 @@ from research_agent.infrastructure.websocket.notification_service import (
     DocumentNotificationService,
     document_notification_service,
 )
+from research_agent.infrastructure.websocket.output_notification_service import (
+    OutputNotificationService,
+    output_notification_service,
+)
 
 __all__ = [
     "DocumentNotificationService",
@@ -22,4 +26,6 @@ __all__ = [
     "CanvasNodeUpdate",
     "CanvasEdgeUpdate",
     "ThinkingPathUpdate",
+    "OutputNotificationService",
+    "output_notification_service",
 ]

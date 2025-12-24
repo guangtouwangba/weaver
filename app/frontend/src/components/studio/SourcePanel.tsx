@@ -36,10 +36,13 @@ import {
   Trash2,
   Network,
   Share2,
+  Plus,
 } from "lucide-react";
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument } from '@/lib/api';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
+import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
+import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
 
 // Dynamically import PDFViewer with SSR disabled to avoid "document is not defined" error
 // from pdfjs-dist/web/pdf_viewer which accesses document at module evaluation time
@@ -74,6 +77,8 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Delete state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -191,10 +196,44 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     setNumPages(numPages);
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return;
     
     const file = e.target.files[0];
+    await handleFileUpload(file);
+    
+    // Reset file input
+    e.target.value = '';
+  };
+
+  const handleFileUpload = async (file: File) => {
     setUploadFileName(file.name);
     setUploadState('uploading');
     setUploadProgress(0);
@@ -255,9 +294,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         }, 5000);
       }
     }
-    
-    // Reset file input
-    e.target.value = '';
+  };
+
+  const handleUrlImport = (url: string) => {
+    // TODO: Implement URL import functionality
+    console.log('URL import not yet implemented:', url);
   };
 
   // PDF Pagination
@@ -651,71 +692,15 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         </Box>
         
         <Box sx={{ px: 2, mb: 2 }}>
-          {/* Upload Button / Progress */}
-          {uploadState === 'idle' ? (
-            <Button 
-              component="label" 
-              fullWidth 
-              variant="contained" 
-              size="small" 
-              startIcon={<CloudUpload size={14} />} 
-              sx={{ 
-                bgcolor: '#171717', 
-                textTransform: 'none', 
-                borderRadius: 1.5, 
-                '&:hover': { bgcolor: '#000' } 
-              }}
-            >
-              Upload PDF
-              <input type="file" hidden accept=".pdf" onChange={handleUpload} />
-            </Button>
-          ) : (
-            <Paper 
-              elevation={0} 
-              sx={{ 
-                p: 1.5, 
-                borderRadius: 1.5, 
-                border: '1px solid', 
-                borderColor: uploadState === 'error' ? 'error.main' : uploadState === 'success' ? 'success.main' : 'divider',
-                bgcolor: uploadState === 'error' ? 'error.50' : uploadState === 'success' ? 'success.50' : 'background.default'
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: uploadState === 'uploading' || uploadState === 'processing' ? 1 : 0 }}>
-                {uploadState === 'uploading' && <CloudUpload size={14} className="text-blue-500" />}
-                {uploadState === 'processing' && <CloudUpload size={14} className="text-orange-500 animate-pulse" />}
-                {uploadState === 'success' && <CheckCircle size={14} className="text-green-600" />}
-                {uploadState === 'error' && <AlertCircle size={14} className="text-red-600" />}
-                
-                <Typography variant="caption" fontWeight="500" noWrap sx={{ flex: 1 }}>
-                  {uploadState === 'uploading' && `Uploading ${uploadFileName}...`}
-                  {uploadState === 'processing' && 'Processing document...'}
-                  {uploadState === 'success' && 'Upload complete!'}
-                  {uploadState === 'error' && (uploadError || 'Upload failed')}
-                </Typography>
-                
-                {(uploadState === 'uploading' || uploadState === 'processing') && (
-                  <Typography variant="caption" color="text.secondary">
-                    {uploadState === 'uploading' ? `${uploadProgress}%` : ''}
-                  </Typography>
-                )}
-              </Box>
-              
-              {(uploadState === 'uploading' || uploadState === 'processing') && (
-                <LinearProgress 
-                  variant={uploadState === 'processing' ? 'indeterminate' : 'determinate'}
-                  value={uploadProgress}
-                  sx={{ 
-                    height: 4, 
-                    borderRadius: 2,
-                    bgcolor: 'grey.200',
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: uploadState === 'processing' ? 'warning.main' : 'primary.main'
-                    }
-                  }}
-                />
-              )}
-            </Paper>
-          )}
+          {/* Import Source Area */}
+          <ImportSourceDropzone
+            onClick={() => setImportDialogOpen(true)}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            isDragging={isDragging}
+          />
         </Box>
 
         <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 2 }}>
@@ -740,7 +725,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 transition: 'transform 0.2s ease'
               }} 
             />
-            <Typography variant="caption" fontWeight="bold">FILES ({documents.length})</Typography>
+            <Typography variant="caption" fontWeight="bold">RECENT UPLOADS</Typography>
           </Box>
           
           <Collapse in={filesExpanded}>
@@ -749,6 +734,104 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', 
               gap: 1.5 
             }}>
+              {/* Uploading Card */}
+              {(uploadState === 'uploading' || uploadState === 'processing') && (
+                 viewMode === 'list' ? (
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 1.5,
+                    p: 1.5,
+                    mb: 1,
+                    borderRadius: 2,
+                    bgcolor: '#F9FAFB',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    alignItems: 'center'
+                  }}>
+                    <Box sx={{ 
+                        width: 32, 
+                        height: 32, 
+                        bgcolor: 'grey.100', 
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        {uploadState === 'processing' ? (
+                            <Network size={16} className="text-blue-500 animate-spin" style={{ animation: 'spin 3s linear infinite' }} />
+                        ) : (
+                            <CloudUpload size={16} className="text-blue-500" />
+                        )}
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                             <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                                {uploadFileName || 'Uploading...'}
+                            </Typography>
+                             <Typography variant="caption" color="text.secondary">
+                                {uploadState === 'uploading' ? `${Math.round(uploadProgress)}%` : 'Processing...'}
+                            </Typography>
+                        </Box>
+                        <LinearProgress 
+                            variant={uploadState === 'processing' ? 'indeterminate' : 'determinate'}
+                            value={uploadProgress}
+                            sx={{ 
+                                height: 4, 
+                                borderRadius: 2,
+                                bgcolor: 'grey.200',
+                                '& .MuiLinearProgress-bar': { bgcolor: 'primary.main' }
+                            }}
+                        />
+                    </Box>
+                  </Box>
+                 ) : (
+                   // Grid version
+                   <Paper
+                    elevation={0}
+                    sx={{ 
+                        p: 0, 
+                        overflow: 'hidden', 
+                        borderRadius: 2, 
+                        border: '1px solid', 
+                        borderColor: 'primary.main',
+                        opacity: 0.8,
+                        display: 'flex', 
+                        flexDirection: 'column'
+                    }}
+                   >
+                     <Box sx={{ 
+                        height: 80, 
+                        bgcolor: '#F3F4F6', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        position: 'relative'
+                     }}>
+                        <CloudUpload size={24} className="text-blue-500" />
+                        <LinearProgress 
+                            variant={uploadState === 'processing' ? 'indeterminate' : 'determinate'}
+                            value={uploadProgress}
+                            sx={{ 
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                height: 3
+                            }} 
+                        />
+                     </Box>
+                     <Box sx={{ p: 1.5 }}>
+                        <Typography variant="caption" fontWeight="600" noWrap sx={{ display: 'block' }}>
+                            {uploadFileName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                             {uploadState === 'uploading' ? 'Uploading...' : 'Processing...'}
+                        </Typography>
+                     </Box>
+                   </Paper>
+                 )
+              )}
+
               {documents.map(renderFileCard)}
             </Box>
           </Collapse>
@@ -861,6 +944,16 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Import Source Dialog */}
+      <ImportSourceDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onFileSelect={handleFileUpload}
+        onUrlImport={handleUrlImport}
+        acceptedFileTypes={['.pdf', '.docx', '.csv', '.jpg', '.jpeg']}
+        maxFileSize={25}
+      />
     </Box>
   );
 }

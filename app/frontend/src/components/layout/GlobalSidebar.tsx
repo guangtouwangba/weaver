@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Box, IconButton, Avatar, Tooltip, Divider } from '@mui/material';
+import { Box, IconButton, Avatar, Tooltip } from '@mui/material';
 import { 
-  Command, 
-  Layout, 
-  Home
+  Home,
+  LayoutGrid,
+  Settings,
+  Grid2x2
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -17,10 +18,9 @@ interface NavItemProps {
   label: string;
   href: string;
   isActive?: boolean;
-  isLogo?: boolean;
 }
 
-const NavItem = ({ icon: Icon, label, href, isActive, isLogo }: NavItemProps) => {
+const NavItem = ({ icon: Icon, label, href, isActive }: NavItemProps) => {
   return (
     <Tooltip title={label} placement="right">
       <Link href={href} style={{ textDecoration: 'none' }}>
@@ -31,28 +31,24 @@ const NavItem = ({ icon: Icon, label, href, isActive, isLogo }: NavItemProps) =>
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: isLogo ? 2 : '12px',
+            borderRadius: '16px', // Rounded square like image
             backgroundColor: isActive 
-              ? 'rgba(0, 0, 0, 0.05)' 
-              : isLogo 
-                ? 'common.black' 
-                : 'transparent',
-            color: isLogo 
-              ? 'common.white' 
-              : isActive 
-                ? 'primary.main' 
-                : 'text.secondary',
+              ? '#eff6ff' // Light blue/indigo background
+              : 'transparent',
+            color: isActive 
+              ? '#4f46e5' // Indigo icon
+              : '#64748b', // Slate-500 for inactive
             '&:hover': {
-              backgroundColor: isLogo 
-                ? 'common.black' 
-                : 'rgba(0, 0, 0, 0.05)',
-              color: isLogo ? 'common.white' : 'primary.main',
+              backgroundColor: isActive 
+                ? '#eff6ff' 
+                : 'rgba(0, 0, 0, 0.04)',
+              color: isActive ? '#4f46e5' : '#1e293b',
             },
             mb: 2,
             transition: 'all 0.2s ease',
           }}
         >
-          <Icon size={isLogo ? 20 : 24} strokeWidth={isLogo ? 3 : 2} />
+          <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
         </Box>
       </Link>
     </Tooltip>
@@ -64,6 +60,7 @@ export default function GlobalSidebar() {
 
   const isStudioActive = pathname.startsWith('/studio');
   const isDashboardActive = pathname === '/dashboard' || pathname === '/';
+  const isSettingsActive = pathname.startsWith('/settings');
 
   return (
     <Box
@@ -79,21 +76,30 @@ export default function GlobalSidebar() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        py: 3,
+        py: 4, // Increased padding
         zIndex: 1200,
       }}
     >
-      {/* Weaver Logo Zone */}
-      <NavItem 
-        icon={Command} 
-        label="Weaver" 
-        href="/dashboard" 
-        isLogo 
-      />
+      {/* App Logo - Purple Rounded Square */}
+      <Box sx={{ mb: 6 }}>
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', // Indigo gradient
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            boxShadow: '0 8px 16px rgba(79, 70, 229, 0.2)',
+          }}
+        >
+          <Grid2x2 size={24} strokeWidth={2.5} />
+        </Box>
+      </Box>
 
-      <Divider sx={{ width: '40px', mb: 3 }} />
-
-      {/* Main Navigation - MVP: Only Dashboard & Studio */}
+      {/* Main Navigation */}
       <NavItem 
         icon={Home} 
         label="Dashboard" 
@@ -102,29 +108,39 @@ export default function GlobalSidebar() {
       />
       
       <NavItem 
-        icon={Layout} 
+        icon={LayoutGrid} 
         label="Studio" 
         href="/studio" 
         isActive={isStudioActive}
+      />
+
+      <NavItem 
+        icon={Settings} 
+        label="Settings" 
+        href="/settings" 
+        isActive={isSettingsActive}
       />
 
       {/* Spacer */}
       <Box sx={{ flexGrow: 1 }} />
 
       {/* User Zone */}
-      <Tooltip title="User Settings" placement="right">
+      <Tooltip title="User Profile" placement="right">
         <IconButton 
           component={Link} 
           href="/settings"
-          sx={{ mb: 2 }}
+          sx={{ mb: 2, p: 0.5 }}
         >
           <Avatar 
             sx={{ 
-              width: 36, 
-              height: 36, 
-              bgcolor: 'grey.300',
+              width: 40, 
+              height: 40, 
+              bgcolor: '#8b5cf6', // Purple
               fontSize: 14,
-              color: 'text.primary'
+              fontWeight: 600,
+              color: 'white',
+              border: '2px solid white',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
             }}
           >
             AL

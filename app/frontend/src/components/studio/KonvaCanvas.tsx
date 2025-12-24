@@ -9,9 +9,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Stage, Layer, Group, Rect, Text, Line, Circle } from 'react-konva';
 import Konva from 'konva';
 import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
-import { Layout, ArrowUp, X, Check, Layers, Sparkles } from 'lucide-react';
+import { ArrowUp, X, Check, Layers, Sparkles } from 'lucide-react';
 import { useStudio } from '@/contexts/StudioContext';
 import { ToolMode } from './CanvasToolbar';
+import InspirationDock from './InspirationDock';
+import CanvasContextMenu from './CanvasContextMenu';
 
 interface CanvasNode {
   id: string;
@@ -60,6 +62,9 @@ interface CanvasEdge {
   // Phase 2: Semantic Edge Labels (The Thread)
   label?: string;
   relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
+  // Phase 2: Manual connection props
+  type?: 'branch' | 'progression';
+  direction?: 'bidirectional';
 }
 
 interface Viewport {
@@ -69,19 +74,20 @@ interface Viewport {
 }
 
 interface KonvaCanvasProps {
-  nodes: CanvasNode[];
-  edges: CanvasEdge[];
-  viewport: Viewport;
-  currentView: 'free' | 'thinking';
-  onNodesChange: (nodes: CanvasNode[]) => void;
-  onEdgesChange: (edges: CanvasEdge[]) => void;
-  onViewportChange: (viewport: Viewport) => void;
+  nodes?: CanvasNode[];
+  edges?: CanvasEdge[];
+  viewport?: Viewport;
+  currentView?: 'free' | 'thinking';
+  onNodesChange?: (nodes: CanvasNode[]) => void;
+  onEdgesChange?: (edges: CanvasEdge[]) => void;
+  onViewportChange?: (viewport: Viewport) => void;
   onNodeAdd?: (node: Partial<CanvasNode>) => void;
   highlightedNodeId?: string | null;  // Node to highlight (for navigation from chat)
   onNodeClick?: (node: CanvasNode) => void;  // Callback when node is clicked
   onNodeDoubleClick?: (node: CanvasNode) => void;  // Phase 1: Callback for drill-down (opening source)
   onOpenSource?: (sourceId: string, pageNumber?: number) => void;  // Phase 1: Navigate to source document
   toolMode?: ToolMode; // New prop
+  onOpenImport?: () => void; // For Context Menu Import
 }
 
 // Node style configuration based on type
@@ -209,6 +215,43 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       icon: '✨',
       topBarColor: '#8B5CF6',
     },
+    // === Inspiration Dock Generated Types ===
+    podcast: {
+      borderColor: '#8B5CF6',  // Purple
+      borderStyle: 'solid',
+      bgColor: '#F5F3FF',      // Light purple
+      icon: '🎙️',
+      topBarColor: '#8B5CF6',
+    },
+    quiz: {
+      borderColor: '#F97316',  // Orange
+      borderStyle: 'solid',
+      bgColor: '#FFF7ED',      // Light orange
+      icon: '❓',
+      topBarColor: '#F97316',
+    },
+    timeline: {
+      borderColor: '#EC4899',  // Pink
+      borderStyle: 'solid',
+      bgColor: '#FDF2F8',      // Light pink
+      icon: '📅',
+      topBarColor: '#EC4899',
+    },
+    compare: {
+      borderColor: '#10B981',  // Green
+      borderStyle: 'solid',
+      bgColor: '#ECFDF5',      // Light green
+      icon: '⚖️',
+      topBarColor: '#10B981',
+    },
+    // === Sticky Note ===
+    sticky: {
+        borderColor: '#FCD34D', // Amber 300
+        borderStyle: 'solid',
+        bgColor: '#FEF3C7', // Amber 100
+        icon: '📝',
+        topBarColor: '#FCD34D',
+    }
   };
   
   // Handle source nodes with specific file types
@@ -267,6 +310,7 @@ const KnowledgeNode = ({
   onConnectionStart,
   onMouseEnter,
   onMouseLeave,
+  isDraggable = true,
 }: {
   node: CanvasNode;
   isSelected: boolean;
@@ -275,6 +319,7 @@ const KnowledgeNode = ({
   isConnecting?: boolean;           // Phase 2: Currently dragging a connection from this node
   isConnectTarget?: boolean;        // Phase 2: Currently a potential connection target
   isActiveThinking?: boolean;       // Thinking Graph: Is this the active thinking node (fork point)
+  isDraggable?: boolean;            // Controls whether the node can be dragged
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   onClick?: () => void;
   onDoubleClick?: () => void;       // Phase 1: Drill-down
@@ -309,7 +354,7 @@ const KnowledgeNode = ({
       id={`node-${node.id}`} // Assign ID for finding during bulk drag
       x={node.x}
       y={node.y}
-      draggable
+      draggable={isDraggable}
       onClick={(e) => {
         onSelect(e);
         onClick?.();
@@ -606,19 +651,20 @@ const KnowledgeNode = ({
 };
 
 export default function KonvaCanvas({
-  nodes,
-  edges,
-  viewport,
-  currentView,
-  onNodesChange,
-  onEdgesChange,
-  onViewportChange,
+  nodes: propNodes,
+  edges: propEdges,
+  viewport: propViewport,
+  currentView: propCurrentView,
+  onNodesChange: propOnNodesChange,
+  onEdgesChange: propOnEdgesChange,
+  onViewportChange: propOnViewportChange,
   onNodeAdd,
   highlightedNodeId,
   onNodeClick,
   onNodeDoubleClick,
   onOpenSource,
   toolMode = 'select', // Default to select
+  onOpenImport,
 }: KonvaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -661,11 +707,28 @@ export default function KonvaCanvas({
     activeThinkingId,
     setActiveThinkingId,
     setCrossBoundaryDragNode,
+    documents, // Get documents for Inspiration Dock
+    // Get canvas state from context as fallback
+    canvasNodes: contextNodes,
+    canvasEdges: contextEdges,
+    canvasViewport: contextViewport,
+    setCanvasNodes: contextSetNodes,
+    setCanvasEdges: contextSetEdges,
+    setCanvasViewport: contextSetViewport,
   } = useStudio();
 
+  // Use props if provided, otherwise fall back to context values
+  const nodes = propNodes ?? contextNodes ?? [];
+  const edges = propEdges ?? contextEdges ?? [];
+  const viewport = propViewport ?? contextViewport ?? { x: 0, y: 0, scale: 1 };
+  const currentView = propCurrentView ?? studioCurrentView ?? 'free';
+  const onNodesChange = propOnNodesChange ?? contextSetNodes ?? (() => {});
+  const onEdgesChange = propOnEdgesChange ?? contextSetEdges ?? (() => {});
+  const onViewportChange = propOnViewportChange ?? contextSetViewport ?? (() => {});
+
   // Filter nodes and sections by current view
-  const visibleNodes = nodes.filter(node => node.viewType === currentView);
-  const visibleSections = canvasSections.filter(section => section.viewType === currentView);
+  const visibleNodes = (nodes || []).filter(node => node.viewType === currentView);
+  const visibleSections = (canvasSections || []).filter(section => section.viewType === currentView);
 
   // Update dimensions on resize
   useEffect(() => {
@@ -953,17 +1016,26 @@ export default function KonvaCanvas({
 
   // Handle Stage Interaction (Pan vs Box Select)
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Check if we are in Pan mode (Hand tool or Spacebar)
+    // In Hand mode/Spacebar, we ALWAYS pan, regardless of what was clicked (node or stage)
+    const isHandMode = toolMode === 'hand' || isSpacePressed;
+
+    if (isHandMode) {
+      if (e.evt.button === 0) { // Left click only for primary pan
+         setIsPanning(true);
+         lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+         return; // Stop here, do not process selection
+      }
+    }
+
+    // Existing "Clicked on Empty" check for Select Mode behaviors
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.getClassName() === 'Rect';
     
     if (clickedOnEmpty) {
       // Left click
       if (e.evt.button === 0) {
-          // Pan if Space pressed OR Tool is Hand
-          if (isSpacePressed || toolMode === 'hand') {
-              // Pan mode
-              setIsPanning(true);
-              lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
-          } else {
+          // If NOT Hand/Space (already handled above), then it's Box Selection
+          if (!isHandMode) {
               // Box Selection mode
               const stage = e.target.getStage();
               const pointer = stage?.getPointerPosition();
@@ -981,7 +1053,7 @@ export default function KonvaCanvas({
               }
           }
       } else if (e.evt.button === 1) {
-          // Middle click pan
+          // Middle click pan (always works)
           setIsPanning(true);
           lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
       }
@@ -1132,6 +1204,7 @@ export default function KonvaCanvas({
     if (isPanning) return 'grabbing';
     if (toolMode === 'hand' || isSpacePressed) return 'grab';
     if (selectionRect) return 'crosshair';
+    if (hoveredNodeId && toolMode === 'select') return 'move';
     return 'default';
   };
 
@@ -1319,34 +1392,9 @@ export default function KonvaCanvas({
   };
 
   return (
-    <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Header */}
-      <Box 
-        sx={{ 
-          height: 48, 
-          borderBottom: '1px solid', 
-          borderColor: 'divider', 
-          display: 'flex', 
-          alignItems: 'center', 
-          px: 3, 
-          justifyContent: 'space-between', 
-          bgcolor: '#FAFAFA',
-          zIndex: 100,
-          flexShrink: 0
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Layout size={14} className="text-gray-500" />
-          <Typography variant="subtitle2" fontWeight="600">
-            Canvas
-          </Typography>
-        </Box>
-        <Typography variant="caption" color="text.disabled">
-          Auto-saved • {visibleNodes.length} nodes ({currentView === 'free' ? '自由画布' : '思考路径'})
-          {selectedNodeIds.size > 0 && ` • Selected: ${selectedNodeIds.size}`}
-        </Typography>
-      </Box>
-
+    <Box 
+      sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    >
       {/* Canvas Container */}
       <Box
         ref={containerRef}
@@ -1425,8 +1473,19 @@ export default function KonvaCanvas({
           setDragPreview(null);
         }}
       >
-        {/* Context Menu */}
-        {contextMenu && (
+        {/* Context Menu for Canvas Background */}
+        {contextMenu && !contextMenu.nodeId && !contextMenu.sectionId && (
+            <CanvasContextMenu
+                open={true}
+                x={contextMenu.x}
+                y={contextMenu.y}
+                onClose={() => setContextMenu(null)}
+                onOpenImport={onOpenImport || (() => {})}
+            />
+        )}
+
+        {/* Existing Menu for Nodes/Sections */}
+        {contextMenu && (contextMenu.nodeId || contextMenu.sectionId) && (
           <Menu
             open={Boolean(contextMenu)}
             onClose={() => setContextMenu(null)}
@@ -1702,7 +1761,7 @@ export default function KonvaCanvas({
             />
           </Paper>
         )}
-        
+
         <Stage
           ref={stageRef}
           width={dimensions.width}
@@ -1721,6 +1780,19 @@ export default function KonvaCanvas({
             setConnectingFromNodeId(null);
             setConnectingLineEnd(null);
           }}
+          onContextMenu={(e) => {
+            // Handle context menu for Stage (empty space)
+            // Prevent default context menu
+            e.evt.preventDefault();
+            
+            // If we are over a node or section, that handler will have fired first and called stopPropagation?
+            // Actually, Konva event bubbling: Node -> Group -> Layer -> Stage.
+            // If Node/Group handler calls cancelBubble, Stage handler won't see it?
+            // Correct.
+            
+            // So this handler is for when we clicked on Stage background.
+            setContextMenu({ x: e.evt.clientX, y: e.evt.clientY });
+          }}
           style={{ cursor: getCursorStyle() }}
         >
           {/* Background Layer */}
@@ -1732,6 +1804,34 @@ export default function KonvaCanvas({
               height={10000}
               fill="#FAFAFA"
             />
+            {/* Infinite Dot Grid */}
+            <Group>
+              {(() => {
+                // Calculate grid boundaries based on viewport to only draw visible dots
+                const gridSize = 20; // Grid spacing
+                const startX = Math.floor((-viewport.x / viewport.scale) / gridSize) * gridSize;
+                const startY = Math.floor((-viewport.y / viewport.scale) / gridSize) * gridSize;
+                const endX = Math.ceil(((-viewport.x + dimensions.width) / viewport.scale) / gridSize) * gridSize;
+                const endY = Math.ceil(((-viewport.y + dimensions.height) / viewport.scale) / gridSize) * gridSize;
+                
+                const dots = [];
+                for (let x = startX; x <= endX; x += gridSize) {
+                  for (let y = startY; y <= endY; y += gridSize) {
+                    dots.push(
+                      <Circle
+                        key={`${x}-${y}`}
+                        x={x}
+                        y={y}
+                        radius={1.5}
+                        fill="#E5E7EB"
+                        listening={false}
+                      />
+                    );
+                  }
+                }
+                return dots;
+              })()}
+            </Group>
           </Layer>
 
           {/* Content Layer */}
@@ -1762,6 +1862,7 @@ export default function KonvaCanvas({
                   y={section.y || minY - padding - headerHeight}
                   onContextMenu={(e) => {
                     e.evt.preventDefault();
+                    e.cancelBubble = true; // Stop propagation to stage
                     setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, sectionId: section.id });
                   }}
                 >
@@ -1854,6 +1955,7 @@ export default function KonvaCanvas({
                 isConnecting={connectingFromNodeId === node.id}
                 isConnectTarget={connectingFromNodeId !== null && connectingFromNodeId !== node.id}
                 isActiveThinking={activeThinkingId === node.id}
+                isDraggable={toolMode === 'select' && !isSpacePressed}
                 onSelect={(e) => handleNodeSelect(node.id, e)}
                 onClick={() => {
                   // Thinking Graph: Set as active thinking node when clicked
@@ -1880,6 +1982,7 @@ export default function KonvaCanvas({
                 onDragEnd={handleNodeDragEnd(node.id)}
                 onContextMenu={(e) => {
                   e.evt.preventDefault();
+                  e.cancelBubble = true; // Stop propagation to stage
                   setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: node.id });
                 }}
                 onConnectionStart={() => {
@@ -1934,6 +2037,11 @@ export default function KonvaCanvas({
             )}
           </Layer>
         </Stage>
+
+        {/* Inspiration Dock - Shown when canvas is empty but documents exist */}
+        {visibleNodes.length === 0 && documents.length > 0 && (
+          <InspirationDock />
+        )}
       </Box>
     </Box>
   );

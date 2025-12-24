@@ -145,3 +145,10 @@ class SupabaseDatabaseClient(DatabaseClient):
         # But we can clear the reference
         self._client = None
         logger.info("Closed Supabase client")
+
+
+
+
+
+
+

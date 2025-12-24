@@ -12,7 +12,7 @@ const theme = createTheme({
       main: '#171717', // Dark gray/black for primary actions
     },
     background: {
-      default: '#F9FAFB', // Very light gray (Tailwind gray-50) for the app shell
+      default: '#ffffff', // White to allow global dot pattern to show clearly
       paper: '#FFFFFF',   // White for cards and canvas
     },
     text: {
