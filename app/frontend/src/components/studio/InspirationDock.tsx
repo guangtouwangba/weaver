@@ -12,7 +12,7 @@ import { outputsApi, SummaryData } from '@/lib/api';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function InspirationDock() {
-  const { documents, projectId } = useStudio();
+  const { documents, projectId, selectedDocumentIds } = useStudio();
   const { handleGenerateContent } = useCanvasActions();
   
   const [showMoreActions, setShowMoreActions] = useState(false);
@@ -40,13 +40,20 @@ export default function InspirationDock() {
       
       try {
         // 1. Call generate API
-        const documentIds = documents.map(d => d.id);
-        const firstDocName = documents[0]?.filename || 'Document';
+        const targetDocumentIds = selectedDocumentIds.size > 0 
+          ? Array.from(selectedDocumentIds) 
+          : documents.map(d => d.id);
+          
+        // Get title from first selected document or first document
+        const firstDocId = targetDocumentIds[0];
+        const firstDoc = documents.find(d => d.id === firstDocId);
+        const firstDocName = firstDoc?.filename || 'Document';
+        
         const { output_id } = await outputsApi.generate(
           projectId,
           'summary',
-          documentIds,
-          `Summary: ${firstDocName}`
+          targetDocumentIds,
+          `Summary: ${firstDocName}${targetDocumentIds.length > 1 ? ` +${targetDocumentIds.length - 1} more` : ''}`
         );
         
         // 2. Poll for completion (max 60 seconds)

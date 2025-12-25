@@ -1,12 +1,19 @@
 """Use case for generating outputs (mindmap, summary, etc.)."""
 
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-from research_agent.domain.agents.base_agent import OutputEvent
+from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent
 from research_agent.domain.agents.mindmap_agent import MindmapAgent
-from research_agent.domain.entities.output import MindmapData, Output, OutputStatus, OutputType
+from research_agent.domain.agents.summary_agent import SummaryAgent
+from research_agent.domain.entities.output import (
+    MindmapData,
+    Output,
+    OutputStatus,
+    OutputType,
+    SummaryData,
+)
 from research_agent.infrastructure.database.repositories.sqlalchemy_document_repo import (
     SQLAlchemyDocumentRepository,
 )
@@ -102,7 +109,11 @@ class GenerateOutputUseCase:
             agent = self._create_agent(input.output_type, input.options or {})
 
             # Step 4: Run generation and collect results
-            mindmap_data = MindmapData()
+            output_data: Any = None
+            if input.output_type == OutputType.MINDMAP:
+                output_data = MindmapData()
+            elif input.output_type == OutputType.SUMMARY:
+                output_data = SummaryData(summary="")
 
             async for event in agent.generate(
                 document_content=document_content,
@@ -111,24 +122,31 @@ class GenerateOutputUseCase:
             ):
                 yield event
 
-                # Collect nodes and edges for final storage
-                if event.node_data:
-                    from research_agent.domain.entities.output import MindmapNode
-                    node = MindmapNode.from_dict(event.node_data)
-                    mindmap_data.add_node(node)
+                # Collect results based on type
+                if input.output_type == OutputType.MINDMAP and isinstance(output_data, MindmapData):
+                    if event.node_data:
+                        from research_agent.domain.entities.output import MindmapNode
+                        node = MindmapNode.from_dict(event.node_data)
+                        output_data.add_node(node)
 
-                if event.edge_data:
-                    from research_agent.domain.entities.output import MindmapEdge
-                    edge = MindmapEdge.from_dict(event.edge_data)
-                    mindmap_data.add_edge(edge)
+                    if event.edge_data:
+                        from research_agent.domain.entities.output import MindmapEdge
+                        edge = MindmapEdge.from_dict(event.edge_data)
+                        output_data.add_edge(edge)
+                
+                elif input.output_type == OutputType.SUMMARY:
+                    # Summary agent returns full data in GENERATION_COMPLETE event
+                    from research_agent.domain.agents.base_agent import OutputEventType
+                    if event.type == OutputEventType.GENERATION_COMPLETE and event.node_data:
+                        output_data = SummaryData.from_dict(event.node_data)
 
             # Step 5: Save final result
-            output.mark_complete(mindmap_data.to_dict())
-            await self._output_repo.update(output)
+            if output_data:
+                output.mark_complete(output_data.to_dict())
+                await self._output_repo.update(output)
 
             logger.info(
-                f"[GenerateOutput] Complete: output={output_id}, "
-                f"nodes={len(mindmap_data.nodes)}, edges={len(mindmap_data.edges)}"
+                f"[GenerateOutput] Complete: output={output_id}"
             )
 
         except Exception as e:
@@ -165,13 +183,19 @@ class GenerateOutputUseCase:
 
         return "\n\n---\n\n".join(contents)
 
-    def _create_agent(self, output_type: str, options: Dict[str, Any]) -> MindmapAgent:
+    def _create_agent(
+        self, output_type: str, options: Dict[str, Any]
+    ) -> BaseOutputAgent:
         """Create the appropriate agent for the output type."""
         if output_type == "mindmap":
             return MindmapAgent(
                 llm_service=self._llm_service,
                 max_depth=options.get("max_depth", 3),
                 max_branches_per_node=options.get("max_branches", 5),
+            )
+        elif output_type == "summary":
+            return SummaryAgent(
+                llm_service=self._llm_service,
             )
         else:
             # For now, all types use MindmapAgent
