@@ -1,102 +1,199 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Box, Paper, Typography, IconButton, Tooltip, CircularProgress } from '@mui/material';
-import { Zap, Network, Plus, Mic, Layout, HelpCircle, Sparkles } from 'lucide-react';
-import { useStudio } from '@/contexts/StudioContext';
+import { Zap, Network, Plus, Mic, Layout, HelpCircle, Sparkles, X, Check, AlertCircle } from 'lucide-react';
+import { useStudio, GenerationType } from '@/contexts/StudioContext';
 import SummaryCard from './SummaryCard';
+import { MindMapCard, MindMapFullView } from './mindmap/MindMapViews';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
-import { outputsApi, SummaryData } from '@/lib/api';
-
-// Helper function to wait
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { SummaryData, MindmapData } from '@/lib/api';
 
 export default function InspirationDock() {
-  const { documents, projectId, selectedDocumentIds } = useStudio();
-  const { handleGenerateContent } = useCanvasActions();
+  const { 
+    documents, 
+    projectId, 
+    selectedDocumentIds, 
+    isInspirationDockVisible, 
+    setInspirationDockVisible,
+    // Concurrent generation tasks
+    generationTasks,
+    getActiveGenerationsOfType,
+    hasActiveGenerations,
+    removeGenerationTask,
+    // Legacy overlay states (for backward compatibility with card display)
+    summaryResult,
+    setSummaryResult,
+    showSummaryOverlay,
+    setShowSummaryOverlay,
+    mindmapResult,
+    setMindmapResult,
+    showMindmapOverlay,
+    setShowMindmapOverlay,
+  } = useStudio();
+  
+  const { handleGenerateContentConcurrent, getViewportCenterPosition } = useCanvasActions();
   
   const [showMoreActions, setShowMoreActions] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
-  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
-  const [summaryTitle, setSummaryTitle] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [isMindmapFull, setIsMindmapFull] = useState(false);
 
   const projectColor = '#0096FF'; // Default project color
+
+  // Get loading states for each action type
+  const isGeneratingSummary = useMemo(() => 
+    getActiveGenerationsOfType('summary').length > 0, 
+    [getActiveGenerationsOfType]
+  );
+  
+  const isGeneratingMindmap = useMemo(() => 
+    getActiveGenerationsOfType('mindmap').length > 0, 
+    [getActiveGenerationsOfType]
+  );
+
+  const isGeneratingPodcast = useMemo(() => 
+    getActiveGenerationsOfType('podcast').length > 0, 
+    [getActiveGenerationsOfType]
+  );
+
+  const isGeneratingQuiz = useMemo(() => 
+    getActiveGenerationsOfType('quiz').length > 0, 
+    [getActiveGenerationsOfType]
+  );
+
+  const isGeneratingTimeline = useMemo(() => 
+    getActiveGenerationsOfType('timeline').length > 0, 
+    [getActiveGenerationsOfType]
+  );
+
+  const isGeneratingCompare = useMemo(() => 
+    getActiveGenerationsOfType('compare').length > 0, 
+    [getActiveGenerationsOfType]
+  );
+
+  // Get recently completed tasks for showing success feedback
+  const recentlyCompleted = useMemo(() => {
+    const completed: Record<GenerationType, boolean> = {
+      summary: false, mindmap: false, podcast: false, 
+      quiz: false, timeline: false, compare: false, flashcards: false
+    };
+    generationTasks.forEach(task => {
+      if (task.status === 'complete') {
+        completed[task.type] = true;
+      }
+    });
+    return completed;
+  }, [generationTasks]);
+
+  // Get error states
+  const hasError = useMemo(() => {
+    const errors: Record<GenerationType, string | undefined> = {
+      summary: undefined, mindmap: undefined, podcast: undefined,
+      quiz: undefined, timeline: undefined, compare: undefined, flashcards: undefined
+    };
+    generationTasks.forEach(task => {
+      if (task.status === 'error') {
+        errors[task.type] = task.error;
+      }
+    });
+    return errors;
+  }, [generationTasks]);
+
+  if (!isInspirationDockVisible) return null;
 
   const handleAction = async (actionType: 'summarize' | 'map' | 'podcast' | 'quiz' | 'timeline' | 'compare') => {
     if (documents.length === 0) return;
 
-    if (actionType === 'summarize') {
-      if (!projectId) {
-        console.error('No project ID available');
-        return;
-      }
-      
-      setIsLoading(true);
-      setError(null);
-      setShowSummary(false);
-      setSummaryData(null);
-      
-      try {
-        // 1. Call generate API
-        const targetDocumentIds = selectedDocumentIds.size > 0 
-          ? Array.from(selectedDocumentIds) 
-          : documents.map(d => d.id);
-          
-        // Get title from first selected document or first document
-        const firstDocId = targetDocumentIds[0];
-        const firstDoc = documents.find(d => d.id === firstDocId);
-        const firstDocName = firstDoc?.filename || 'Document';
-        
-        const { output_id } = await outputsApi.generate(
-          projectId,
-          'summary',
-          targetDocumentIds,
-          `Summary: ${firstDocName}${targetDocumentIds.length > 1 ? ` +${targetDocumentIds.length - 1} more` : ''}`
-        );
-        
-        // 2. Poll for completion (max 60 seconds)
-        const maxAttempts = 60;
-        let attempts = 0;
-        let output = await outputsApi.get(projectId, output_id);
-        
-        while (output.status === 'generating' && attempts < maxAttempts) {
-          await sleep(1000);
-          output = await outputsApi.get(projectId, output_id);
-          attempts++;
-        }
-        
-        // 3. Handle result
-        if (output.status === 'complete' && output.data) {
-          setSummaryData(output.data as SummaryData);
-          setSummaryTitle(output.title || firstDocName);
-          setShowSummary(true);
-        } else if (output.status === 'error') {
-          setError(output.error_message || 'Summary generation failed');
-          console.error('Summary generation error:', output.error_message);
-        } else if (attempts >= maxAttempts) {
-          setError('Summary generation timed out. Please try again.');
-          console.error('Summary generation timed out');
-        }
-      } catch (err) {
-        console.error('Failed to generate summary:', err);
-        setError('Failed to generate summary. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
+    // Map action type to generation type
+    const typeMap: Record<string, GenerationType> = {
+      'summarize': 'summary',
+      'map': 'mindmap',
+      'podcast': 'podcast',
+      'quiz': 'quiz',
+      'timeline': 'timeline',
+      'compare': 'compare'
+    };
     
-    // For other actions, just call the hook
-    const hookActionType = actionType === 'map' ? 'mindmap' : actionType;
-    await handleGenerateContent(hookActionType as Parameters<typeof handleGenerateContent>[0]);
+    const generationType = typeMap[actionType];
+    
+    // Capture current viewport position at the moment of click
+    const position = getViewportCenterPosition();
+    
+    // Start concurrent generation (non-blocking)
+    handleGenerateContentConcurrent(generationType, position);
   };
 
   const handleCloseSummary = () => {
-    setShowSummary(false);
-    setSummaryData(null);
+    setShowSummaryOverlay(false);
+    setSummaryResult(null);
   };
+
+  const handleCloseMindmap = () => {
+    setShowMindmapOverlay(false);
+    setMindmapResult(null);
+  };
+
+  // Helper to render action button with per-button loading state
+  const renderActionButton = (
+    id: string,
+    label: string,
+    icon: React.ReactNode,
+    color: string,
+    isGenerating: boolean,
+    isComplete: boolean,
+    error: string | undefined,
+    onClick: () => void
+  ) => (
+    <Tooltip 
+      title={error ? `Error: ${error}` : isGenerating ? `Generating ${label}...` : `Generate ${label}`} 
+      placement="top" 
+      arrow
+    >
+      <IconButton 
+        onClick={onClick}
+        disabled={isGenerating}
+        sx={{ 
+          width: 64, 
+          height: 64, 
+          borderRadius: '16px',
+          bgcolor: error ? 'error.light' : isComplete ? `${color}22` : 'grey.50',
+          border: '1px solid',
+          borderColor: error ? 'error.main' : isGenerating ? color : 'divider',
+          flexDirection: 'column',
+          gap: 0.5,
+          transition: 'all 0.2s',
+          position: 'relative',
+          '&:hover': { 
+            bgcolor: `${color}11`, 
+            borderColor: color,
+            transform: 'translateY(-2px)' 
+          },
+          '&:disabled': {
+            opacity: 1, // Keep visible during loading
+          }
+        }}
+      >
+        {isGenerating ? (
+          <CircularProgress size={24} sx={{ color }} />
+        ) : error ? (
+          <AlertCircle size={24} color="#EF4444" />
+        ) : isComplete ? (
+          <Check size={24} color={color} />
+        ) : (
+          icon
+        )}
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            fontSize: '0.65rem', 
+            fontWeight: 600, 
+            color: error ? 'error.main' : 'text.secondary' 
+          }}
+        >
+          {label}
+        </Typography>
+      </IconButton>
+    </Tooltip>
+  );
 
   return (
     <Box
@@ -114,60 +211,69 @@ export default function InspirationDock() {
       }}
     >
       {/* Summary Card Overlay */}
-      {showSummary && summaryData && (
+      {showSummaryOverlay && summaryResult && (
         <Box sx={{ pointerEvents: 'auto' }}>
           <SummaryCard 
-            title={summaryTitle}
-            summary={summaryData.summary}
-            keyFindings={summaryData.keyFindings}
+            title={summaryResult.title}
+            summary={summaryResult.data.summary}
+            keyFindings={summaryResult.data.keyFindings}
             onClose={handleCloseSummary}
             onDock={() => console.log('Dock to board')}
             onFullScreen={() => console.log('Full screen')}
             onShare={() => console.log('Share')}
             onCopy={() => {
-              if (summaryData?.summary) {
-                navigator.clipboard.writeText(summaryData.summary);
+              if (summaryResult.data.summary) {
+                navigator.clipboard.writeText(summaryResult.data.summary);
                 console.log('Copied to clipboard');
               }
             }}
           />
         </Box>
       )}
-      
-      {/* Error display */}
-      {error && !isLoading && (
-        <Box sx={{ 
-          pointerEvents: 'auto',
-          position: 'absolute',
-          top: -60,
-          bgcolor: 'error.light',
-          color: 'error.contrastText',
-          px: 2,
-          py: 1,
-          borderRadius: 2,
-          fontSize: '0.875rem'
-        }}>
-          {error}
+
+      {/* Mindmap Card Overlay */}
+      {showMindmapOverlay && mindmapResult && (
+        <Box sx={{ pointerEvents: 'auto' }}>
+          <MindMapCard
+            data={mindmapResult.data}
+            title={mindmapResult.title}
+            onClose={handleCloseMindmap}
+            onExpand={() => setIsMindmapFull(true)}
+          />
+          <MindMapFullView 
+            open={isMindmapFull}
+            data={mindmapResult.data}
+            title={mindmapResult.title}
+            onClose={() => setIsMindmapFull(false)}
+          />
         </Box>
       )}
 
-      {/* Dock UI - Only visible when summary is not shown */}
-      {!showSummary && (
-        <Box sx={{ 
-          pointerEvents: 'auto', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          gap: 3,
-          animation: 'fadeIn 0.5s ease-out',
-          '@keyframes fadeIn': {
-            from: { opacity: 0, transform: 'translateY(20px)' },
-            to: { opacity: 1, transform: 'translateY(0)' }
-          }
-        }}>
+      {/* Dock UI - Always visible (not hidden during generation) */}
+      {!showSummaryOverlay && !showMindmapOverlay && (
+        <Box 
+          className="dock-container"
+          sx={{ 
+            pointerEvents: 'auto', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            gap: 3,
+            animation: 'fadeIn 0.5s ease-out',
+            '@keyframes fadeIn': {
+              from: { opacity: 0, transform: 'translateY(20px)' },
+              to: { opacity: 1, transform: 'translateY(0)' }
+            },
+            // Show close button on hover
+            '&:hover .close-dock-btn': {
+              opacity: 1,
+              transform: 'translateY(-50%) translateX(0)'
+            }
+          }}
+        >
           <Box sx={{ position: 'relative' }}>
             {/* Mini App Launcher Popover */}
-            {showMoreActions && !isLoading && (
+            {showMoreActions && (
               <Paper
                 elevation={8}
                 sx={{
@@ -193,32 +299,35 @@ export default function InspirationDock() {
                 }}
               >
                 {[
-                  { id: 'podcast', label: 'Podcast', desc: 'Audio overview', icon: <Mic size={20} color="#8B5CF6" />, color: '#8B5CF6' },
-                  { id: 'quiz', label: 'Quiz', desc: 'Test knowledge', icon: <HelpCircle size={20} color="#F59E0B" />, color: '#F59E0B' },
-                  { id: 'timeline', label: 'Timeline', desc: 'Chronology', icon: <Sparkles size={20} color="#EC4899" />, color: '#EC4899' },
-                  { id: 'compare', label: 'Compare', desc: 'Diff analysis', icon: <Layout size={20} color="#10B981" />, color: '#10B981' }
+                  { id: 'podcast', label: 'Podcast', desc: 'Audio overview', icon: <Mic size={20} color="#8B5CF6" />, color: '#8B5CF6', isGenerating: isGeneratingPodcast },
+                  { id: 'quiz', label: 'Quiz', desc: 'Test knowledge', icon: <HelpCircle size={20} color="#F59E0B" />, color: '#F59E0B', isGenerating: isGeneratingQuiz },
+                  { id: 'timeline', label: 'Timeline', desc: 'Chronology', icon: <Sparkles size={20} color="#EC4899" />, color: '#EC4899', isGenerating: isGeneratingTimeline },
+                  { id: 'compare', label: 'Compare', desc: 'Diff analysis', icon: <Layout size={20} color="#10B981" />, color: '#10B981', isGenerating: isGeneratingCompare }
                 ].map((action) => (
                   <Box
                     key={action.id}
                     onClick={() => {
-                      handleAction(action.id as 'podcast' | 'quiz' | 'timeline' | 'compare');
-                      setShowMoreActions(false);
+                      if (!action.isGenerating) {
+                        handleAction(action.id as 'podcast' | 'quiz' | 'timeline' | 'compare');
+                        setShowMoreActions(false);
+                      }
                     }}
                     sx={{
                       p: 1.5,
                       borderRadius: '16px',
                       border: '1px solid transparent',
-                      cursor: 'pointer',
+                      cursor: action.isGenerating ? 'wait' : 'pointer',
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 1.5,
+                      opacity: action.isGenerating ? 0.7 : 1,
                       '&:hover': {
-                        bgcolor: `${action.color}11`,
-                        borderColor: `${action.color}33`,
-                        transform: 'scale(1.02)'
+                        bgcolor: action.isGenerating ? 'transparent' : `${action.color}11`,
+                        borderColor: action.isGenerating ? 'transparent' : `${action.color}33`,
+                        transform: action.isGenerating ? 'none' : 'scale(1.02)'
                       },
-                      '&:active': { transform: 'scale(0.98)' }
+                      '&:active': { transform: action.isGenerating ? 'none' : 'scale(0.98)' }
                     }}
                   >
                     <Box sx={{ 
@@ -230,11 +339,20 @@ export default function InspirationDock() {
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      {action.icon}
+                      {action.isGenerating ? (
+                        <CircularProgress size={20} sx={{ color: action.color }} />
+                      ) : (
+                        action.icon
+                      )}
                     </Box>
                     <Box>
-                      <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary', lineHeight: 1.2 }}>{action.label}</Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>{action.desc}</Typography>
+                      <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary', lineHeight: 1.2 }}>
+                        {action.label}
+                        {action.isGenerating && '...'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                        {action.isGenerating ? 'Generating' : action.desc}
+                      </Typography>
                     </Box>
                   </Box>
                 ))}
@@ -255,14 +373,7 @@ export default function InspirationDock() {
                 transition: 'all 0.3s ease'
               }}
             >
-              {isLoading ? (
-                <Box sx={{ px: 4, py: 1.5, display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <CircularProgress size={24} sx={{ color: projectColor }} />
-                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    Generating insights...
-                  </Typography>
-                </Box>
-              ) : documents.length === 0 ? (
+              {documents.length === 0 ? (
                 <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
                     Upload a document to start
@@ -271,56 +382,28 @@ export default function InspirationDock() {
               ) : (
                 <>
                   {/* Action 1: Summary */}
-                  <Tooltip title="Generate Executive Summary" placement="top" arrow>
-                    <IconButton 
-                      onClick={() => handleAction('summarize')}
-                      sx={{ 
-                        width: 64, 
-                        height: 64, 
-                        borderRadius: '16px',
-                        bgcolor: 'grey.50',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        flexDirection: 'column',
-                        gap: 0.5,
-                        transition: 'all 0.2s',
-                        '&:hover': { 
-                          bgcolor: `${projectColor}11`, 
-                          borderColor: projectColor,
-                          transform: 'translateY(-2px)' 
-                        }
-                      }}
-                    >
-                      <Zap size={24} color={projectColor} />
-                      <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'text.secondary' }}>Summary</Typography>
-                    </IconButton>
-                  </Tooltip>
+                  {renderActionButton(
+                    'summary',
+                    'Summary',
+                    <Zap size={24} color={projectColor} />,
+                    projectColor,
+                    isGeneratingSummary,
+                    recentlyCompleted.summary,
+                    hasError.summary,
+                    () => handleAction('summarize')
+                  )}
 
-                  {/* Action 2: Concept Map */}
-                  <Tooltip title="Extract Concept Map" placement="top" arrow>
-                    <IconButton 
-                      onClick={() => handleAction('map')}
-                      sx={{ 
-                        width: 64, 
-                        height: 64, 
-                        borderRadius: '16px',
-                        bgcolor: 'grey.50',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        flexDirection: 'column',
-                        gap: 0.5,
-                        transition: 'all 0.2s',
-                        '&:hover': { 
-                          bgcolor: '#10B98111', 
-                          borderColor: '#10B981',
-                          transform: 'translateY(-2px)' 
-                        }
-                      }}
-                    >
-                      <Network size={24} color="#10B981" />
-                      <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600, color: 'text.secondary' }}>Map</Typography>
-                    </IconButton>
-                  </Tooltip>
+                  {/* Action 2: Mindmap */}
+                  {renderActionButton(
+                    'mindmap',
+                    'Mindmap',
+                    <Network size={24} color="#10B981" />,
+                    '#10B981',
+                    isGeneratingMindmap,
+                    recentlyCompleted.mindmap,
+                    hasError.mindmap,
+                    () => handleAction('map')
+                  )}
 
                   {/* Action 3: More / Close */}
                   <Tooltip title={showMoreActions ? "Close" : "More Actions"} placement="top" arrow>
@@ -349,10 +432,44 @@ export default function InspirationDock() {
                 </>
               )}
             </Paper>
+
+            {/* Close Dock Button - Outside the main paper */}
+            {documents.length > 0 && (
+              <Tooltip title="Close Dock" placement="right" arrow>
+                <IconButton
+                  onClick={() => setInspirationDockVisible(false)}
+                  size="small"
+                  className="close-dock-btn"
+                  sx={{
+                    position: 'absolute',
+                    top: '50%',
+                    right: -40,
+                    transform: 'translateY(-50%) translateX(-10px)',
+                    width: 32,
+                    height: 32,
+                    bgcolor: 'rgba(255,255,255,0.9)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                    opacity: 0,
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                    '&:hover': {
+                      bgcolor: 'white',
+                      color: 'error.main',
+                      borderColor: 'error.light',
+                      transform: 'translateY(-50%) scale(1.1) !important'
+                    }
+                  }}
+                >
+                  <X size={18} />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         </Box>
       )}
     </Box>
   );
 }
-

@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-25
+
+#### Concurrent Canvas Outputs - Multiple Simultaneous Generations
+
+**Summary:**
+Users can now generate multiple outputs (Summary, Mindmap, etc.) simultaneously. Each output appears as a draggable card on the canvas at the viewport position where the user clicked the action button. The InspirationDock remains active during generation, allowing users to pan the canvas and trigger additional generations.
+
+**Frontend:**
+- **State Management Refactor** (`contexts/StudioContext.tsx`):
+  - New `GenerationTask` type with id, type, status, position, result fields
+  - `generationTasks: Map<string, GenerationTask>` for concurrent tracking
+  - Helper methods: `startGeneration()`, `updateGenerationTask()`, `completeGeneration()`, `failGeneration()`, `removeGenerationTask()`
+  - `getActiveGenerationsOfType()` and `hasActiveGenerations()` for UI state
+
+- **Concurrent Generation Manager** (`hooks/useCanvasActions.ts`):
+  - `handleGenerateContentConcurrent()`: Non-blocking generation with position tracking
+  - `getViewportCenterPosition()`: Captures canvas center at click time
+  - Legacy `handleGenerateContent()` preserved for backward compatibility
+
+- **Per-Button Loading States** (`components/studio/InspirationDock.tsx`):
+  - Individual spinners per action button instead of global loading state
+  - Dock remains interactive during all generations
+  - Success/error state feedback per button
+  - Visual indicators for completed and failed generations
+
+- **Canvas Node Components** (`components/studio/canvas-nodes/`):
+  - `SummaryCanvasNode.tsx`: Compact summary card with expand modal
+  - `MindMapCanvasNode.tsx`: Compact mindmap preview with expand modal
+  - Both components support drag handles and position-aware rendering
+  - Scale-aware rendering based on viewport zoom level
+
+- **Canvas Integration** (`components/studio/KonvaCanvas.tsx`):
+  - New node types: `summary_output`, `mindmap_output` with distinct styling
+  - `GenerationOutputsOverlay.tsx`: Renders completed tasks as positioned overlays
+  - Overlay components track viewport for screen-space positioning
+
+**Visual Design:**
+| Node Type | Border Color | Background | Icon |
+|-----------|--------------|------------|------|
+| summary_output | #8B5CF6 (Purple) | #FAF5FF | ⚡ |
+| mindmap_output | #10B981 (Green) | #ECFDF5 | 🔀 |
+
+**Technical Details:**
+- **Author**: Cursor Agent
+- **Implementation**: Concurrent Canvas Outputs per plan
+- **Scope**: State management, generation hooks, UI components, canvas integration
+
 ### Added - 2025-12-23
 
 #### Freeform Canvas Visual Redesign

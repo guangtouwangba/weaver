@@ -671,6 +671,40 @@ export interface DocumentWebSocketEvent {
   error_message?: string;
 }
 
+// Output WebSocket Event Types (for mindmap, summary generation, etc.)
+export type OutputEventType =
+  | 'generation_started'
+  | 'generation_progress'
+  | 'generation_complete'
+  | 'generation_error'
+  | 'node_generating'
+  | 'node_added'
+  | 'node_updated'
+  | 'edge_added'
+  | 'level_complete'
+  | 'token';
+
+export interface OutputWebSocketEvent {
+  type: OutputEventType;
+  taskId?: string;
+  timestamp?: string;
+  // Generation lifecycle
+  outputType?: string;
+  message?: string;
+  progress?: number;
+  errorMessage?: string;
+  // Mindmap node/edge events
+  nodeId?: string;
+  nodeData?: Partial<MindmapNode>;
+  edgeId?: string;
+  edgeData?: Partial<MindmapEdge>;
+  // Level progress
+  currentLevel?: number;
+  totalLevels?: number;
+  // Token streaming
+  token?: string;
+}
+
 // Thinking Path API
 export const thinkingPathApi = {
   analyze: (projectId: string, startIndex: number = 0, maxMessages: number = 20) =>
@@ -873,14 +907,41 @@ export interface SummaryData {
   documentTitle: string;
 }
 
+export interface MindmapNode {
+  id: string;
+  label: string;
+  content: string;
+  depth: number;
+  parentId?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  status: 'generating' | 'complete' | 'error';
+}
+
+export interface MindmapEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface MindmapData {
+  nodes: MindmapNode[];
+  edges: MindmapEdge[];
+  rootId?: string;
+}
+
 export interface OutputResponse {
   id: string;
   project_id: string;
-  output_type: 'mindmap' | 'summary' | 'custom';
+  output_type: 'mindmap' | 'summary' | 'flashcards' | 'custom';
   document_ids: string[];
   status: 'generating' | 'complete' | 'error' | 'cancelled';
   title?: string;
-  data?: SummaryData | Record<string, unknown>;
+  data?: SummaryData | MindmapData | Record<string, unknown>;
   error_message?: string;
   created_at: string;
   updated_at: string;

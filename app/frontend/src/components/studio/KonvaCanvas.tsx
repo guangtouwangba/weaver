@@ -14,58 +14,8 @@ import { useStudio } from '@/contexts/StudioContext';
 import { ToolMode } from './CanvasToolbar';
 import InspirationDock from './InspirationDock';
 import CanvasContextMenu from './CanvasContextMenu';
-
-interface CanvasNode {
-  id: string;
-  type: string;
-  title: string;
-  content: string;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  color?: string;
-  tags?: string[];
-  sourceId?: string;
-  sourcePage?: number;
-  viewType: 'free' | 'thinking';
-  sectionId?: string;
-  messageIds?: string[];  // Linked chat message IDs
-  // Phase 1: Source Node support (The Portal)
-  subType?: 'source' | 'note' | 'insight';
-  fileMetadata?: {
-    fileType: 'pdf' | 'markdown' | 'web' | 'text';
-    pageCount?: number;
-    author?: string;
-    lastModified?: string;
-  };
-  // === Thinking Graph Fields (Dynamic Mind Map) ===
-  thinkingStepIndex?: number;
-  thinkingFields?: {
-    claim: string;
-    reason: string;
-    evidence: string;
-    uncertainty: string;
-    decision: string;
-  };
-  branchType?: 'alternative' | 'question' | 'counterargument';
-  depth?: number;
-  parentStepId?: string;
-  isDraft?: boolean;
-  topicId?: string;
-}
-
-interface CanvasEdge {
-  id?: string;
-  source: string;
-  target: string;
-  // Phase 2: Semantic Edge Labels (The Thread)
-  label?: string;
-  relationType?: 'supports' | 'contradicts' | 'causes' | 'belongs_to' | 'related' | 'custom';
-  // Phase 2: Manual connection props
-  type?: 'branch' | 'progression';
-  direction?: 'bidirectional';
-}
+import GenerationOutputsOverlay from './GenerationOutputsOverlay';
+import { CanvasNode, CanvasEdge } from '@/lib/api';
 
 interface Viewport {
   x: number;
@@ -87,6 +37,7 @@ interface KonvaCanvasProps {
   onNodeDoubleClick?: (node: CanvasNode) => void;  // Phase 1: Callback for drill-down (opening source)
   onOpenSource?: (sourceId: string, pageNumber?: number) => void;  // Phase 1: Navigate to source document
   toolMode?: ToolMode; // New prop
+  onToolChange?: (tool: ToolMode) => void; // Callback to change tool mode
   onOpenImport?: () => void; // For Context Menu Import
 }
 
@@ -192,6 +143,21 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       bgColor: '#FEF2F2',      // Light red
       icon: '⚡',              // Counterargument icon
       topBarColor: '#EF4444',
+    },
+    // === Generated Output Node Types ===
+    summary_output: {
+      borderColor: '#8B5CF6',  // Purple for AI outputs
+      borderStyle: 'solid',
+      bgColor: '#FAF5FF',      // Light purple
+      icon: '⚡',              // Zap icon for summary
+      topBarColor: '#8B5CF6',
+    },
+    mindmap_output: {
+      borderColor: '#10B981',  // Green for mindmap
+      borderStyle: 'solid',
+      bgColor: '#ECFDF5',      // Light green
+      icon: '🔀',              // Network icon for mindmap
+      topBarColor: '#10B981',
     },
     // === Other Node Types ===
     knowledge: {
@@ -664,6 +630,7 @@ export default function KonvaCanvas({
   onNodeDoubleClick,
   onOpenSource,
   toolMode = 'select', // Default to select
+  onToolChange,
   onOpenImport,
 }: KonvaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -814,6 +781,93 @@ export default function KonvaCanvas({
         const allVisibleIds = visibleNodes.map(n => n.id);
         setSelectedNodeIds(new Set(allVisibleIds));
       }
+
+      // Tool Shortcuts (V for Select, H for Hand)
+      if (e.key.toLowerCase() === 'v') {
+        onToolChange?.('select');
+      }
+      if (e.key.toLowerCase() === 'h') {
+        onToolChange?.('hand');
+      }
+
+      // Cmd+D / Ctrl+D for Duplicate
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+          e.preventDefault();
+          if (selectedNodeIds.size > 0) {
+              const nodesToDuplicate = nodes.filter(n => selectedNodeIds.has(n.id));
+              const newNodes = nodesToDuplicate.map(node => ({
+                  ...node,
+                  id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  x: node.x + 20,
+                  y: node.y + 20,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+              }));
+              
+              onNodesChange([...nodes, ...newNodes]);
+              // Select the new nodes
+              setSelectedNodeIds(new Set(newNodes.map(n => n.id)));
+          }
+      }
+
+      // Nudge (Arrow Keys)
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          if (selectedNodeIds.size > 0) {
+              e.preventDefault();
+              const step = e.shiftKey ? 10 : 1;
+              const dx = e.key === 'ArrowLeft' ? -step : (e.key === 'ArrowRight' ? step : 0);
+              const dy = e.key === 'ArrowUp' ? -step : (e.key === 'ArrowDown' ? step : 0);
+              
+              const updatedNodes = nodes.map(n => {
+                  if (selectedNodeIds.has(n.id)) {
+                      return { ...n, x: n.x + dx, y: n.y + dy };
+                  }
+                  return n;
+              });
+              onNodesChange(updatedNodes);
+          }
+      }
+
+      // Group (Cmd+G / Ctrl+G)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
+          e.preventDefault();
+          const selectedNodes = visibleNodes.filter(n => selectedNodeIds.has(n.id));
+          
+          if (selectedNodes.length >= 2) {
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              selectedNodes.forEach(node => {
+                minX = Math.min(minX, node.x);
+                minY = Math.min(minY, node.y);
+                maxX = Math.max(maxX, node.x + (node.width || 280));
+                maxY = Math.max(maxY, node.y + (node.height || 200));
+              });
+              
+              const padding = 24;
+              const headerHeight = 48;
+              const sectionId = `section-${Date.now()}`;
+              
+              const newSection = {
+                id: sectionId,
+                title: `Group (${selectedNodes.length})`,
+                viewType: currentView as 'free' | 'thinking',
+                isCollapsed: false,
+                nodeIds: Array.from(selectedNodeIds),
+                x: minX - padding,
+                y: minY - padding - headerHeight,
+                width: maxX - minX + padding * 2,
+                height: maxY - minY + padding * 2 + headerHeight,
+              };
+              
+              addSection(newSection);
+              
+              const updatedNodes = nodes.map(node => 
+                selectedNodeIds.has(node.id) 
+                  ? { ...node, sectionId }
+                  : node
+              );
+              onNodesChange(updatedNodes);
+          }
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -829,24 +883,15 @@ export default function KonvaCanvas({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedNodeIds, nodes, visibleNodes, onNodesChange]);
+  }, [selectedNodeIds, nodes, visibleNodes, onNodesChange, addSection, currentView, onToolChange]);
 
   // Handle Node Selection Logic
   const handleNodeSelect = useCallback((nodeId: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     e.cancelBubble = true; // Prevent stage click
     
-    // In Hand mode, do not select on click (unless we want to allow selection even in Hand mode? usually Hand mode disables selection to focus on panning)
-    // Actually, usually in Hand mode you can still click things but dragging pans. 
-    // Let's stick to standard: Hand mode prevents interaction that conflicts with panning. 
-    // If we want to move nodes, we switch to Select.
-    // However, clicking to *select* might be fine, but dragging will Pan.
+    // In Hand mode or holding space, do not select on click
+    if (toolMode === 'hand' || isSpacePressed) return; 
     
-    // Decision: In Hand mode, disable node dragging and selection to be safe? 
-    // Or allow selection but not dragging?
-    // Let's allow selection if toolMode is select. If hand, maybe just do nothing?
-    
-    if (toolMode === 'hand') return; 
-
     const isShift = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
     const isSelected = selectedNodeIds.has(nodeId);
 
@@ -864,7 +909,7 @@ export default function KonvaCanvas({
         setSelectedNodeIds(new Set([nodeId]));
       }
     }
-  }, [selectedNodeIds, toolMode]);
+  }, [selectedNodeIds, toolMode, isSpacePressed]);
 
   // Handle Bulk Drag
   const handleNodeDragStart = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -878,17 +923,36 @@ export default function KonvaCanvas({
     draggedNodeRef.current = nodeId;
     lastDragPosRef.current = e.target.position();
 
-    // Ensure dragging node is selected
+    // Ensure dragging node is selected and determine effective selection
+    let effectiveSelectionIds = new Set(selectedNodeIds);
     if (!selectedNodeIds.has(nodeId)) {
         if (!e.evt.shiftKey) {
-            setSelectedNodeIds(new Set([nodeId]));
+            effectiveSelectionIds = new Set([nodeId]);
+            setSelectedNodeIds(effectiveSelectionIds);
         } else {
-            setSelectedNodeIds(prev => {
-                const newSet = new Set(prev);
-                newSet.add(nodeId);
-                return newSet;
-            });
+            effectiveSelectionIds.add(nodeId);
+            setSelectedNodeIds(new Set(effectiveSelectionIds));
         }
+    }
+    
+    // Alt + Drag: Leave a copy behind (Duplicate)
+    if (e.evt.altKey) {
+       const nodesToClone = nodes.filter(n => effectiveSelectionIds.has(n.id));
+       
+       const newStaticNodes = nodesToClone.map(node => ({
+           ...node,
+           id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-copy`,
+           // Keep original position (this will be the "left behind" copy)
+           x: node.x,
+           y: node.y,
+           createdAt: new Date().toISOString(),
+           updatedAt: new Date().toISOString(),
+           // Clear selection for the copy, as we are dragging the original
+       }));
+       
+       // Add static copies to canvas
+       onNodesChange([...nodes, ...newStaticNodes]);
+       // Selection stays on the moving nodes (original IDs), which is what we want.
     }
     
     // Set cross-boundary drag node for potential drop to chat input
@@ -987,31 +1051,44 @@ export default function KonvaCanvas({
     onNodesChange(updatedNodes);
   }, [nodes, selectedNodeIds, onNodesChange, setCrossBoundaryDragNode]);
 
-  // Handle wheel zoom
+  // Handle wheel zoom and pan
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const stage = stageRef.current;
     if (!stage) return;
 
-    const scaleBy = 1.1;
-    const oldScale = viewport.scale;
-    const pointer = stage.getPointerPosition();
-    
-    if (!pointer) return;
+    // Zoom Logic (Ctrl + Wheel / Pinch)
+    if (e.evt.ctrlKey) {
+      const scaleBy = 1.05;
+      const oldScale = viewport.scale;
+      const pointer = stage.getPointerPosition();
+      
+      if (!pointer) return;
 
-    const mousePointTo = {
-      x: (pointer.x - viewport.x) / oldScale,
-      y: (pointer.y - viewport.y) / oldScale,
-    };
+      const mousePointTo = {
+        x: (pointer.x - viewport.x) / oldScale,
+        y: (pointer.y - viewport.y) / oldScale,
+      };
 
-    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
-    const clampedScale = Math.max(0.1, Math.min(5, newScale));
+      const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+      const clampedScale = Math.max(0.1, Math.min(5, newScale));
 
-    onViewportChange({
-      scale: clampedScale,
-      x: pointer.x - mousePointTo.x * clampedScale,
-      y: pointer.y - mousePointTo.y * clampedScale,
-    });
+      onViewportChange({
+        scale: clampedScale,
+        x: pointer.x - mousePointTo.x * clampedScale,
+        y: pointer.y - mousePointTo.y * clampedScale,
+      });
+    } else {
+      // Pan Logic (Trackpad scroll / Mouse wheel scroll)
+      const dx = -e.evt.deltaX;
+      const dy = -e.evt.deltaY;
+
+      onViewportChange({
+        ...viewport,
+        x: viewport.x + dx,
+        y: viewport.y + dy,
+      });
+    }
   };
 
   // Handle Stage Interaction (Pan vs Box Select)
@@ -1774,6 +1851,30 @@ export default function KonvaCanvas({
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
+          onDblClick={(e) => {
+            // Check if clicked on empty stage
+            const clickedOnEmpty = e.target === e.target.getStage();
+            if (clickedOnEmpty && onNodeAdd) {
+               const stage = e.target.getStage();
+               const pointer = stage?.getPointerPosition();
+               if (pointer) {
+                   const x = (pointer.x - viewport.x) / viewport.scale;
+                   const y = (pointer.y - viewport.y) / viewport.scale;
+                   
+                   onNodeAdd({
+                       type: 'sticky', // Default to sticky note
+                       title: '',
+                       content: 'New Note',
+                       x: x - 100, // Center approx (width/2)
+                       y: y - 75,  // Center approx (height/2)
+                       width: 200,
+                       height: 150,
+                       color: 'yellow',
+                       tags: [],
+                   });
+               }
+            }
+          }}
           onMouseLeave={() => {
             handleStageMouseUp({} as Konva.KonvaEventObject<MouseEvent>);
             // Clear connection state on mouse leave
@@ -2037,6 +2138,9 @@ export default function KonvaCanvas({
             )}
           </Layer>
         </Stage>
+
+        {/* Generation Outputs Overlay - Renders completed generation tasks at their positions */}
+        <GenerationOutputsOverlay viewport={viewport} />
 
         {/* Inspiration Dock - Shown when canvas is empty but documents exist */}
         {visibleNodes.length === 0 && documents.length > 0 && (
