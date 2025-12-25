@@ -5,7 +5,7 @@ Visual Thinking Assistant (research-agent-rag).
 A tool to help users analyze relationships, build knowledge systems, and visualize thinking paths through a spatial canvas interface, going beyond simple knowledge management or Q&A.
 
 ## Tech Stack
-- **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, MUI v7, Konva/React-Konva (Canvas), Lucide React.
+- **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4
 - **Backend:** Python 3.13+, FastAPI, SQLAlchemy (Async), AsyncPG, Alembic, LangChain/LangGraph, OpenAI SDK.
 - **Database:** PostgreSQL with pgvector (Supabase or local).
 - **Infrastructure:** Docker, Docker Compose, Modal (OCR service), Loki/Grafana (Logging).
@@ -16,7 +16,7 @@ A tool to help users analyze relationships, build knowledge systems, and visuali
 ### Code Style
 - **Python:** Strict typing (`mypy`), `ruff` for linting/formatting (target Python 3.13).
 - **Frontend:** TypeScript strict mode, ESLint, Functional React components with Hooks.
-- **Styling:** Tailwind CSS for layout/utility, MUI for core components.
+- **Styling:** Tailwind CSS for layout/utility, MUI for core components.  must follow design system and design image, if existing components cannot be used, you need to create a new component.
 - **Language:** English for all code, comments, and UI text.
 
 ### Architecture Patterns

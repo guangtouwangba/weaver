@@ -35,6 +35,9 @@ interface StudioContextType {
   setDocuments: (docs: ProjectDocument[]) => void;
   activeDocumentId: string | null;
   setActiveDocumentId: (id: string | null) => void;
+  selectedDocumentIds: Set<string>;
+  setSelectedDocumentIds: (ids: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+  toggleDocumentSelection: (id: string, multiSelect?: boolean) => void;
   
   // Canvas
   canvasNodes: CanvasNode[];
@@ -133,6 +136,24 @@ export function StudioProvider({
 }) {
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
+
+  const toggleDocumentSelection = useCallback((id: string, multiSelect: boolean = false) => {
+    setSelectedDocumentIds(prev => {
+      const newSet = new Set(multiSelect ? prev : []);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+    // Also set as active if selecting (optional, but good UX)
+    if (!multiSelect) {
+      setActiveDocumentId(id);
+    }
+  }, []);
+
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
   const [canvasEdges, setCanvasEdges] = useState<CanvasEdge[]>([]);
   const [canvasSections, setCanvasSections] = useState<CanvasSection[]>([]);
@@ -570,6 +591,7 @@ export function StudioProvider({
       }
     ]);
     setActiveDocumentId(null);
+    setSelectedDocumentIds(new Set());
     setSourceNavigation(null);
 
     const loadData = async () => {
@@ -665,6 +687,9 @@ export function StudioProvider({
     setDocuments,
     activeDocumentId,
     setActiveDocumentId,
+    selectedDocumentIds,
+    setSelectedDocumentIds,
+    toggleDocumentSelection,
     canvasNodes,
     setCanvasNodes,
     canvasEdges,
