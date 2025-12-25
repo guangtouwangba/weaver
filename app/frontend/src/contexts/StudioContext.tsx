@@ -741,7 +741,16 @@ export function StudioProvider({
         }
 
         if (canvasRes) {
-          setCanvasNodes(canvasRes.nodes || []);
+          // Deduplicate nodes by ID to prevent React key conflicts
+          const nodesMap = new Map<string, CanvasNode>();
+          (canvasRes.nodes || []).forEach((node: CanvasNode) => {
+            if (!nodesMap.has(node.id)) {
+              nodesMap.set(node.id, node);
+            } else {
+              console.warn(`[StudioContext] Duplicate node ID detected and skipped: ${node.id}`);
+            }
+          });
+          setCanvasNodes(Array.from(nodesMap.values()));
           setCanvasEdges(canvasRes.edges || []);
           setCanvasSections(canvasRes.sections || []);
           if (canvasRes.viewport) {
