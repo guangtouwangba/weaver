@@ -1,10 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import { Box, Typography, IconButton, Modal, Paper, CircularProgress } from '@mui/material';
 import { X, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from './MindMapNode';
 import { MindMapEdge } from './MindMapEdge';
+import { MindMapEditor } from './MindMapEditor';
 
 interface MindMapRendererProps {
   data: MindmapData;
@@ -160,7 +161,7 @@ export const MindMapCard: React.FC<MindMapCardProps> = ({ data, title, onClose, 
 };
 
 // ============================================================================
-// MindMap Full View (Maximized Modal)
+// MindMap Full View (Interactive Editor)
 // ============================================================================
 
 interface MindMapFullViewProps {
@@ -168,75 +169,41 @@ interface MindMapFullViewProps {
   data: MindmapData;
   title: string;
   onClose: () => void;
+  onDataChange?: (data: MindmapData) => void;
 }
 
-export const MindMapFullView: React.FC<MindMapFullViewProps> = ({ open, data, title, onClose }) => {
-  const [scale, setScale] = React.useState(1);
+export const MindMapFullView: React.FC<MindMapFullViewProps> = ({ 
+  open, 
+  data, 
+  title, 
+  onClose,
+  onDataChange,
+}) => {
+  if (!open) return null;
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <Box sx={{ 
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '90vw',
-        height: '90vh',
-        bgcolor: 'background.paper',
-        borderRadius: 4,
-        boxShadow: 24,
-        outline: 'none',
+    <Modal
+      open={open}
+      onClose={onClose}
+      sx={{
         display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      }}>
-        {/* Header */}
-        <Box sx={{ 
-          p: 2, 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          borderBottom: '1px solid divider'
-        }}>
-          <Typography variant="h6" fontWeight={600}>
-            {title}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <IconButton onClick={() => setScale(s => Math.min(s + 0.1, 2))}>
-              <ZoomIn size={20} />
-            </IconButton>
-            <IconButton onClick={() => setScale(s => Math.max(s - 0.1, 0.2))}>
-              <ZoomOut size={20} />
-            </IconButton>
-            <IconButton onClick={onClose} sx={{ ml: 2 }}>
-              <X size={20} />
-            </IconButton>
-          </Box>
-        </Box>
-
-        {/* Full Canvas */}
-        <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#F3F4F6', position: 'relative' }}>
-           {/* 
-             Note: In a real implementation, we'd want pan/zoom controls.
-             For now, we'll just center it and allow simple scaling.
-             The parent Box overflow:auto allows scrolling if the canvas is large.
-           */}
-           <Box sx={{ 
-             minWidth: '100%', 
-             minHeight: '100%', 
-             display: 'flex', 
-             alignItems: 'center', 
-             justifyContent: 'center',
-             p: 4
-           }}>
-             <MindMapRenderer 
-               data={data} 
-               width={1600} // Large virtual canvas
-               height={1200} 
-               scale={scale}
-             />
-           </Box>
-        </Box>
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* 
+        MindMapEditor has position: fixed, inset: 0
+        We wrap it in a Box that doesn't constrain it, or just pass it directly.
+        Since it has fixed positioning, it will fill the screen.
+        The Modal provides the Portal behavior to break out of parent transforms.
+      */}
+      <Box sx={{ width: '100%', height: '100%', outline: 'none' }}>
+        <MindMapEditor
+          initialData={data}
+          title={title}
+          onClose={onClose}
+          onSave={onDataChange}
+        />
       </Box>
     </Modal>
   );

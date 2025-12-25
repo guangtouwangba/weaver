@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-12-26
+
+#### Interactive Mind Map Editing with Layout Selection
+
+**Summary:**
+Mind maps are now fully interactive. Users can drag nodes to reorganize layouts, switch between different layout styles (Radial, Tree, Balanced), add/delete/edit nodes manually, and export mind maps as PNG images or JSON data. Performance optimizations ensure smooth operation even with large mind maps.
+
+**Frontend:**
+- **Layout Algorithms** (`components/studio/mindmap/layoutAlgorithms.ts`):
+  - `radialLayout()`: Nodes arranged in concentric circles around root
+  - `treeLayout()`: Hierarchical left-to-right tree structure
+  - `balancedLayout()`: Child nodes distributed evenly on both sides of root
+  - `applyLayout()`: Unified layout application with bounds calculation
+
+- **Interactive Editor** (`components/studio/mindmap/MindMapEditor.tsx`):
+  - Full-screen editor with draggable nodes
+  - Pan and zoom canvas (scroll to zoom, drag to pan)
+  - Layout selector UI (Balanced/Radial/Tree button group)
+  - Node editing toolbar (Add/Delete/Edit actions)
+  - Node edit dialog for label and content editing
+  - Double-click to edit node inline
+  - Export menu (PNG image, JSON data)
+  - "Unsaved changes" indicator
+  - Performance warning when node count > 200
+
+- **Performance Optimizations**:
+  - Level of Detail (LOD) rendering: full → labels only → simple shapes
+  - Throttled drag updates via `useThrottledCallback` hook
+  - `React.memo` on DraggableNode component
+  - Viewport culling for large mind maps
+  - Proper Konva object cleanup on unmount
+
+- **Updated MindMapFullView** (`components/studio/mindmap/MindMapViews.tsx`):
+  - Now opens the interactive MindMapEditor instead of static modal
+  - Supports `onDataChange` callback for state persistence
+
+**Visual Design:**
+| Layout | Description | Icon |
+|--------|-------------|------|
+| Balanced | Nodes on both sides of root | GitBranch |
+| Radial | Concentric circles | Circle |
+| Tree | Hierarchical left-to-right | Layers |
+
+| LOD Level | Zoom Threshold | Rendering |
+|-----------|----------------|-----------|
+| Full | ≥ 0.7 | Label + content |
+| Labels | 0.5 - 0.7 | Label only |
+| Simple | < 0.3 | Basic shapes |
+
+**Technical Details:**
+- **Author**: aqiu
+- **Implementation**: Mind Map Interactive Editing per add-mindmap-editing OpenSpec
+- **Scope**: Layout algorithms, interactive editor, performance optimizations
+
 ### Added - 2025-12-25
 
 #### Concurrent Canvas Outputs - Multiple Simultaneous Generations
