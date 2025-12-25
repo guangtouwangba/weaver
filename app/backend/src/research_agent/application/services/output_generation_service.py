@@ -10,9 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.config import get_settings
 from research_agent.domain.agents.base_agent import OutputEvent, OutputEventType
+from research_agent.domain.agents.flashcard_agent import FlashcardAgent
 from research_agent.domain.agents.mindmap_agent import MindmapAgent
 from research_agent.domain.agents.summary_agent import SummaryAgent
 from research_agent.domain.entities.output import (
+    FlashcardData,
     MindmapData,
     MindmapEdge,
     MindmapNode,
@@ -214,6 +216,17 @@ class OutputGenerationService:
                             llm_service=llm_service,
                             session=session,
                         )
+                    elif output_type == "flashcards":
+                        # Flashcard generation
+                        await self._run_flashcard_generation(
+                            task_id=task_id,
+                            project_id=project_id,
+                            output_id=output_id,
+                            document_content=document_content,
+                            title=title,
+                            llm_service=llm_service,
+                            session=session,
+                        )
                     else:
                         # Mindmap generation (default)
                         await self._run_mindmap_generation(
@@ -392,6 +405,68 @@ class OutputGenerationService:
             )
         else:
             logger.error(f"[OutputService] Summary generation returned no data: {task_id}")
+
+    async def _run_flashcard_generation(
+        self,
+        task_id: str,
+        project_id: str,
+        output_id: UUID,
+        document_content: str,
+        title: Optional[str],
+        llm_service: OpenRouterLLMService,
+        session: AsyncSession,
+    ) -> None:
+        """Run flashcard generation."""
+        # Create agent
+        agent = FlashcardAgent(llm_service=llm_service)
+
+        # Run generation and stream events
+        flashcard_data: Optional[FlashcardData] = None
+
+        async for event in agent.generate(
+            document_content=document_content,
+            document_title=title or "Document",
+        ):
+            # Check if task was cancelled
+            if task_id not in self._active_tasks:
+                logger.info(f"[OutputService] Task cancelled: {task_id}")
+                return
+
+            # Stream event to clients
+            await output_notification_service.notify_event(
+                project_id=project_id,
+                task_id=task_id,
+                event=event,
+            )
+
+            # Capture final flashcard data from GENERATION_COMPLETE event
+            if event.type == OutputEventType.GENERATION_COMPLETE and event.node_data:
+                flashcard_data = FlashcardData.from_dict(event.node_data)
+
+        # Save final result
+        if flashcard_data:
+            output_repo = SQLAlchemyOutputRepository(session)
+            output = await output_repo.find_by_id(output_id)
+            if output:
+                output.mark_complete(flashcard_data.to_dict())
+                await output_repo.update(output)
+
+            # Notify completion
+            await output_notification_service.notify_generation_complete(
+                project_id=project_id,
+                task_id=task_id,
+                output_id=str(output_id),
+                message=f"Generated {len(flashcard_data.cards)} flashcards",
+            )
+
+            logger.info(
+                f"[OutputService] Flashcard task complete: {task_id}, "
+                f"cards={len(flashcard_data.cards)}"
+            )
+        else:
+            logger.error(
+                f"[OutputService] Flashcard generation returned no data: {task_id}"
+            )
 
     async def _load_document_content(
         self,

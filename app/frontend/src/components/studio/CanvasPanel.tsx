@@ -6,6 +6,7 @@ import {
   Typography, 
   Paper, 
   Chip,
+  CircularProgress
 } from "@mui/material";
 import { 
   Layout, 
@@ -24,7 +25,8 @@ export default function CanvasPanel() {
     canvasEdges, setCanvasEdges,
     canvasViewport: viewport, setCanvasViewport: setViewport,
     saveCanvas,
-    addNodeToCanvas
+    addNodeToCanvas,
+    isGenerating // Global generation state
   } = useStudio();
 
   const [isPanning, setIsPanning] = useState(false);
@@ -198,6 +200,14 @@ export default function CanvasPanel() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Layout size={14} className="text-gray-500" />
           <Typography variant="subtitle2" fontWeight="600">Canvas</Typography>
+          {isGenerating && (
+            <Chip 
+              size="small" 
+              icon={<CircularProgress size={12} />} 
+              label="Generating..." 
+              sx={{ ml: 2, height: 24, fontSize: '0.75rem' }} 
+            />
+          )}
         </Box>
         <Typography variant="caption" color="text.disabled">Auto-saved</Typography>
       </Box>

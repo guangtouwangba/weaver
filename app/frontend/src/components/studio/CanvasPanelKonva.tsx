@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, Chip, CircularProgress } from '@mui/material';
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
 import KonvaCanvas from './KonvaCanvas';
@@ -31,6 +31,7 @@ export default function CanvasPanelKonva() {
     highlightedNodeId,
     navigateToMessage,
     navigateToSource,  // Phase 1: For opening source documents
+    isGenerating,
   } = useStudio();
 
   const [toolMode, setToolMode] = useState<ToolMode>('select');
@@ -51,23 +52,6 @@ export default function CanvasPanelKonva() {
     }, 2000);
     return () => clearTimeout(timeout);
   }, [canvasNodes, canvasEdges, canvasSections, canvasViewport, viewStates, projectId, saveCanvas]);
-
-  // Keyboard shortcuts for tools (V for Select, H for Hand)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-
-      if (e.key.toLowerCase() === 'v') {
-        setToolMode('select');
-      } else if (e.key.toLowerCase() === 'h') {
-        setToolMode('hand');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   return (
     <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, overflow: 'hidden', position: 'relative' }}>
@@ -92,10 +76,37 @@ export default function CanvasPanelKonva() {
           navigateToSource(sourceId, pageNumber || 1);
         }}
         toolMode={toolMode}
+        onToolChange={setToolMode}
       />
       
       {/* Canvas Tool Toolbar Overlay */}
       <CanvasToolbar activeTool={toolMode} onChange={setToolMode} />
+
+      {/* Global Loading Indicator */}
+      {isGenerating && (
+        <Box 
+          sx={{ 
+            position: 'absolute', 
+            top: 20, 
+            left: '50%', 
+            transform: 'translateX(-50%)', 
+            zIndex: 1200,
+            pointerEvents: 'none'
+          }}
+        >
+          <Chip
+            icon={<CircularProgress size={16} color="inherit" />}
+            label="Generating content..."
+            sx={{ 
+              bgcolor: 'background.paper', 
+              boxShadow: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              fontWeight: 500
+            }}
+          />
+        </Box>
+      )}
 
       <CanvasSidebar />
       <ThinkingPathGenerator />

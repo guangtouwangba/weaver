@@ -82,21 +82,31 @@ export default function GlobalSidebar() {
     >
       {/* App Logo - Purple Rounded Square */}
       <Box sx={{ mb: 6 }}>
-        <Box
-          sx={{
-            width: 48,
-            height: 48,
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', // Indigo gradient
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            boxShadow: '0 8px 16px rgba(79, 70, 229, 0.2)',
-          }}
-        >
-          <Grid2x2 size={24} strokeWidth={2.5} />
-        </Box>
+        <Tooltip title="Home" placement="right">
+          <Link href="/dashboard" style={{ textDecoration: 'none' }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', // Indigo gradient
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                boxShadow: '0 8px 16px rgba(79, 70, 229, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 12px 20px rgba(79, 70, 229, 0.3)',
+                },
+              }}
+            >
+              <Grid2x2 size={24} strokeWidth={2.5} />
+            </Box>
+          </Link>
+        </Tooltip>
       </Box>
 
       {/* Main Navigation */}

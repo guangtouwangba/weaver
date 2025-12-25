@@ -12,6 +12,11 @@ class OutputType(str, Enum):
 
     MINDMAP = "mindmap"
     SUMMARY = "summary"
+    FLASHCARDS = "flashcards"
+    PODCAST = "podcast"
+    QUIZ = "quiz"
+    TIMELINE = "timeline"
+    COMPARE = "compare"
     CUSTOM = "custom"
 
 
@@ -203,6 +208,60 @@ class SummaryData:
         )
 
 
+# =============================================================================
+# Flashcard Data Structures
+# =============================================================================
+
+
+@dataclass
+class Flashcard:
+    """Represents a flashcard."""
+
+    front: str
+    back: str
+    notes: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "front": self.front,
+            "back": self.back,
+            "notes": self.notes,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Flashcard":
+        """Create from dictionary."""
+        return cls(
+            front=data["front"],
+            back=data["back"],
+            notes=data.get("notes"),
+        )
+
+
+@dataclass
+class FlashcardData:
+    """Data structure for flashcards output."""
+
+    cards: List[Flashcard] = field(default_factory=list)
+    document_title: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for storage."""
+        return {
+            "cards": [c.to_dict() for c in self.cards],
+            "documentTitle": self.document_title,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FlashcardData":
+        """Create from dictionary."""
+        return cls(
+            cards=[Flashcard.from_dict(c) for c in data.get("cards", [])],
+            document_title=data.get("documentTitle", ""),
+        )
+
+
 @dataclass
 class Output:
     """Output entity - represents a generated output (mindmap, summary, etc.)."""
@@ -256,4 +315,10 @@ class Output:
         if self.output_type != OutputType.SUMMARY or not self.data:
             return None
         return SummaryData.from_dict(self.data)
+
+    def get_flashcard_data(self) -> Optional[FlashcardData]:
+        """Get flashcard data if this is a flashcard output."""
+        if self.output_type != OutputType.FLASHCARDS or not self.data:
+            return None
+        return FlashcardData.from_dict(self.data)
 

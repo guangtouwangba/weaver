@@ -152,7 +152,7 @@ function StudioPageContent() {
           </Paper>
 
           {/* Whiteboard Area */}
-          <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden' }}>
+          <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <KonvaCanvas 
               onOpenImport={() => setIsImportDialogOpen(true)}
             />

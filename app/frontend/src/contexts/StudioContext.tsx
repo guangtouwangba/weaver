@@ -1,7 +1,23 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, Citation } from '@/lib/api';
+import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, Citation, SummaryData, MindmapData } from '@/lib/api';
+
+// === Generation Task Types for Concurrent Outputs ===
+export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
+
+export interface GenerationTask {
+  id: string;
+  type: GenerationType;
+  status: 'pending' | 'generating' | 'complete' | 'error';
+  position: { x: number; y: number }; // Canvas position where output will appear
+  result?: SummaryData | MindmapData | unknown; // Result data when complete
+  title?: string;
+  error?: string;
+  taskId?: string; // Backend task ID
+  outputId?: string; // Backend output ID
+  createdAt: Date;
+}
 
 interface ChatMessage {
   id: string;
@@ -123,6 +139,35 @@ interface StudioContextType {
     topicId?: string;
   }) => void;
   startNewTopic: () => void;  // Clear activeThinkingId to start a new topic
+
+  // Inspiration Dock
+  isInspirationDockVisible: boolean;
+  setInspirationDockVisible: (visible: boolean) => void;
+
+  // === Concurrent Generation Tasks ===
+  generationTasks: Map<string, GenerationTask>;
+  startGeneration: (type: GenerationType, position: { x: number; y: number }) => string; // Returns task ID
+  updateGenerationTask: (taskId: string, updates: Partial<GenerationTask>) => void;
+  completeGeneration: (taskId: string, result: unknown, title?: string) => void;
+  failGeneration: (taskId: string, error: string) => void;
+  removeGenerationTask: (taskId: string) => void;
+  getActiveGenerationsOfType: (type: GenerationType) => GenerationTask[];
+  hasActiveGenerations: () => boolean;
+
+  // Legacy Generation State (for backward compatibility during transition)
+  isGenerating: boolean;
+  setIsGenerating: (generating: boolean) => void;
+  generationError: string | null;
+  setGenerationError: (error: string | null) => void;
+  summaryResult: { data: SummaryData; title: string } | null;
+  setSummaryResult: (result: { data: SummaryData; title: string } | null) => void;
+  showSummaryOverlay: boolean;
+  setShowSummaryOverlay: (show: boolean) => void;
+
+  mindmapResult: { data: MindmapData; title: string } | null;
+  setMindmapResult: (result: { data: MindmapData; title: string } | null) => void;
+  showMindmapOverlay: boolean;
+  setShowMindmapOverlay: (show: boolean) => void;
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
@@ -219,6 +264,94 @@ export function StudioProvider({
   // === Thinking Graph (Dynamic Mind Map) State ===
   const [activeThinkingId, setActiveThinkingId] = useState<string | null>(null);
   const [thinkingStepCounter, setThinkingStepCounter] = useState(0);
+
+  // Inspiration Dock state
+  const [isInspirationDockVisible, setInspirationDockVisible] = useState(true);
+
+  // === Concurrent Generation Tasks State ===
+  const [generationTasks, setGenerationTasks] = useState<Map<string, GenerationTask>>(new Map());
+
+  // Start a new generation task
+  const startGeneration = useCallback((type: GenerationType, position: { x: number; y: number }): string => {
+    const taskId = `gen-${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const task: GenerationTask = {
+      id: taskId,
+      type,
+      status: 'pending',
+      position,
+      createdAt: new Date(),
+    };
+    setGenerationTasks(prev => {
+      const next = new Map(prev);
+      next.set(taskId, task);
+      return next;
+    });
+    return taskId;
+  }, []);
+
+  // Update an existing generation task
+  const updateGenerationTask = useCallback((taskId: string, updates: Partial<GenerationTask>) => {
+    setGenerationTasks(prev => {
+      const task = prev.get(taskId);
+      if (!task) return prev;
+      const next = new Map(prev);
+      next.set(taskId, { ...task, ...updates });
+      return next;
+    });
+  }, []);
+
+  // Complete a generation task with result
+  const completeGeneration = useCallback((taskId: string, result: unknown, title?: string) => {
+    setGenerationTasks(prev => {
+      const task = prev.get(taskId);
+      if (!task) return prev;
+      const next = new Map(prev);
+      next.set(taskId, { ...task, status: 'complete', result, title });
+      return next;
+    });
+  }, []);
+
+  // Mark a generation task as failed
+  const failGeneration = useCallback((taskId: string, error: string) => {
+    setGenerationTasks(prev => {
+      const task = prev.get(taskId);
+      if (!task) return prev;
+      const next = new Map(prev);
+      next.set(taskId, { ...task, status: 'error', error });
+      return next;
+    });
+  }, []);
+
+  // Remove a generation task
+  const removeGenerationTask = useCallback((taskId: string) => {
+    setGenerationTasks(prev => {
+      const next = new Map(prev);
+      next.delete(taskId);
+      return next;
+    });
+  }, []);
+
+  // Get active (pending or generating) tasks of a specific type
+  const getActiveGenerationsOfType = useCallback((type: GenerationType): GenerationTask[] => {
+    return Array.from(generationTasks.values()).filter(
+      t => t.type === type && (t.status === 'pending' || t.status === 'generating')
+    );
+  }, [generationTasks]);
+
+  // Check if there are any active generations
+  const hasActiveGenerations = useCallback((): boolean => {
+    return Array.from(generationTasks.values()).some(
+      t => t.status === 'pending' || t.status === 'generating'
+    );
+  }, [generationTasks]);
+
+  // Legacy Generation State (for backward compatibility during transition)
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [summaryResult, setSummaryResult] = useState<{ data: SummaryData; title: string } | null>(null);
+  const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
+  const [mindmapResult, setMindmapResult] = useState<{ data: MindmapData; title: string } | null>(null);
+  const [showMindmapOverlay, setShowMindmapOverlay] = useState(false);
 
   const navigateToMessage = useCallback((messageId: string) => {
     setHighlightedMessageId(messageId);
@@ -744,6 +877,31 @@ export function StudioProvider({
     appendThinkingDraftStep,
     finalizeThinkingStep,
     startNewTopic,
+    // Inspiration Dock
+    isInspirationDockVisible,
+    setInspirationDockVisible,
+    // Concurrent Generation Tasks
+    generationTasks,
+    startGeneration,
+    updateGenerationTask,
+    completeGeneration,
+    failGeneration,
+    removeGenerationTask,
+    getActiveGenerationsOfType,
+    hasActiveGenerations,
+    // Legacy Generation State (backward compatibility)
+    isGenerating,
+    setIsGenerating,
+    generationError,
+    setGenerationError,
+    summaryResult,
+    setSummaryResult,
+    showSummaryOverlay,
+    setShowSummaryOverlay,
+    mindmapResult,
+    setMindmapResult,
+    showMindmapOverlay,
+    setShowMindmapOverlay,
   };
 
   return (

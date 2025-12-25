@@ -1,53 +1,187 @@
 'use client';
 
-import { Paper, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { MousePointer2, Hand } from 'lucide-react';
+import React, { useState } from 'react';
+import { Paper, ToggleButton, ToggleButtonGroup, Tooltip, IconButton, Stack, Fade, Collapse, Typography, Box } from '@mui/material';
+import { 
+  MousePointer2, 
+  Hand, 
+  Plus, 
+  ZoomIn, 
+  ZoomOut, 
+  Scan, 
+  Trash2, 
+  ChevronDown, 
+  ChevronUp 
+} from 'lucide-react';
 
 export type ToolMode = 'select' | 'hand';
 
 interface CanvasToolbarProps {
   activeTool: ToolMode;
   onChange: (tool: ToolMode) => void;
+  zoom: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetZoom: () => void;
+  onFitView: () => void;
+  onInsert: () => void;
+  onDelete: () => void;
+  hasSelection?: boolean;
 }
 
-export default function CanvasToolbar({ activeTool, onChange }: CanvasToolbarProps) {
+export default function CanvasToolbar({ 
+  activeTool, 
+  onChange,
+  zoom,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onFitView,
+  onInsert,
+  onDelete,
+  hasSelection = false
+}: CanvasToolbarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Common styling for capsules
+  const capsuleStyle = {
+    borderRadius: 4, // High border radius for capsule shape
+    overflow: 'hidden',
+    border: '1px solid',
+    borderColor: 'divider',
+    bgcolor: 'background.paper',
+    boxShadow: 3,
+  };
+
   return (
-    <Paper
-      elevation={3}
+    <Box
       sx={{
         position: 'absolute',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        top: '50%',
+        left: 24, // Left aligned vertical toolbar
+        transform: 'translateY(-50%)',
         zIndex: 1000,
-        borderRadius: 2,
-        overflow: 'hidden',
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 2,
       }}
     >
-      <ToggleButtonGroup
-        value={activeTool}
-        exclusive
-        onChange={(_, newTool) => {
-          if (newTool) onChange(newTool);
-        }}
-        size="small"
-        aria-label="canvas tool"
-      >
-        <Tooltip title="Select (V)" arrow placement="top">
-          <ToggleButton value="select" aria-label="select tool">
-            <MousePointer2 size={18} />
-          </ToggleButton>
-        </Tooltip>
-        
-        <Tooltip title="Hand (H) or Hold Space" arrow placement="top">
-          <ToggleButton value="hand" aria-label="hand tool">
-            <Hand size={18} />
-          </ToggleButton>
-        </Tooltip>
-      </ToggleButtonGroup>
-    </Paper>
+      {/* 1. Top Toggle Button */}
+      <Tooltip title={isCollapsed ? "Expand Toolbar" : "Collapse Toolbar"} placement="right">
+        <IconButton
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          size="small"
+          sx={{
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 2,
+            '&:hover': { bgcolor: 'background.paper' }
+          }}
+        >
+          {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+        </IconButton>
+      </Tooltip>
+
+      <Fade in={!isCollapsed} unmountOnExit>
+        <Stack spacing={2} alignItems="center">
+          
+          {/* 2. Operation Mode Capsule */}
+          <Paper elevation={0} sx={capsuleStyle}>
+            <ToggleButtonGroup
+              value={activeTool}
+              exclusive
+              onChange={(_, newTool) => {
+                if (newTool) onChange(newTool);
+              }}
+              orientation="vertical"
+              size="small"
+              sx={{ border: 'none' }}
+            >
+              <Tooltip title="Select (V)" placement="right" arrow>
+                <ToggleButton value="select" aria-label="select tool" sx={{ border: 'none', py: 1.5 }}>
+                  <MousePointer2 size={18} />
+                </ToggleButton>
+              </Tooltip>
+              
+              <Tooltip title="Hand (H) - Pan" placement="right" arrow>
+                <ToggleButton value="hand" aria-label="hand tool" sx={{ border: 'none', py: 1.5 }}>
+                  <Hand size={18} />
+                </ToggleButton>
+              </Tooltip>
+            </ToggleButtonGroup>
+          </Paper>
+
+          {/* 3. View Controls Capsule */}
+          <Paper elevation={0} sx={capsuleStyle}>
+            <Stack direction="column" alignItems="center">
+              <Tooltip title="Insert Node" placement="right" arrow>
+                <IconButton onClick={onInsert} sx={{ py: 1.5, borderRadius: 0 }}>
+                  <Plus size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Zoom In" placement="right" arrow>
+                <IconButton onClick={onZoomIn} sx={{ py: 1.5, borderRadius: 0 }}>
+                  <ZoomIn size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Reset Zoom (100%)" placement="right" arrow>
+                <Box 
+                  onClick={onResetZoom}
+                  sx={{ 
+                    py: 1, 
+                    width: '100%', 
+                    textAlign: 'center', 
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'action.hover' },
+                    userSelect: 'none'
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                    {Math.round(zoom * 100)}%
+                  </Typography>
+                </Box>
+              </Tooltip>
+
+              <Tooltip title="Zoom Out" placement="right" arrow>
+                <IconButton onClick={onZoomOut} sx={{ py: 1.5, borderRadius: 0 }}>
+                  <ZoomOut size={18} />
+                </IconButton>
+              </Tooltip>
+              
+              <Tooltip title="Fit to Screen" placement="right" arrow>
+                <IconButton onClick={onFitView} sx={{ py: 1.5, borderRadius: 0 }}>
+                  <Scan size={18} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Paper>
+
+          {/* 4. Delete Button */}
+          <Tooltip title="Delete Selected (Del)" placement="right" arrow>
+            <IconButton
+              onClick={onDelete}
+              disabled={!hasSelection}
+              sx={{
+                bgcolor: hasSelection ? '#FEF2F2' : 'background.paper', // Light red if active
+                border: '1px solid',
+                borderColor: hasSelection ? 'error.light' : 'divider',
+                boxShadow: 2,
+                color: hasSelection ? 'error.main' : 'action.disabled',
+                '&:hover': { 
+                  bgcolor: hasSelection ? '#FEE2E2' : 'background.paper' 
+                }
+              }}
+            >
+              <Trash2 size={18} />
+            </IconButton>
+          </Tooltip>
+
+        </Stack>
+      </Fade>
+    </Box>
   );
 }
