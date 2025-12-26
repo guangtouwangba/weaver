@@ -1,11 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import { Box, Typography, IconButton, Modal, Paper, CircularProgress } from '@mui/material';
-import { X, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { CloseIcon, FullscreenIcon, ZoomInIcon, ZoomOutIcon } from '@/components/ui/icons';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from './MindMapNode';
 import { MindMapEdge } from './MindMapEdge';
 import { MindMapEditor } from './MindMapEditor';
+import { applyLayout } from './layoutAlgorithms';
 
 interface MindMapRendererProps {
   data: MindmapData;
@@ -22,18 +23,25 @@ export const MindMapRenderer: React.FC<MindMapRendererProps> = ({
   scale = 1,
   onNodeClick 
 }) => {
-  // Calculate bounds to center content
-  const stageRef = useRef<any>(null);
-  
-  // Auto-center logic could go here, but for now we rely on the data's coordinates being reasonable
-  // or the parent passing a transformed scale/offset.
+  // Apply layout to ensure nodes are positioned correctly
+  // The preview uses a scaled-down view, so we compute layout based on preview dimensions
+  const layoutedData = useMemo(() => {
+    if (data.nodes.length === 0) return data;
+    
+    // Apply balanced layout - use larger canvas for layout calculation
+    // then the scale will shrink it down for preview
+    const canvasWidth = width / scale;
+    const canvasHeight = height / scale;
+    const result = applyLayout(data, 'balanced', canvasWidth, canvasHeight);
+    return { ...data, nodes: result.nodes };
+  }, [data, width, height, scale]);
   
   return (
     <Stage width={width} height={height} scaleX={scale} scaleY={scale}>
       <Layer>
-        {data.edges.map((edge) => {
-          const source = data.nodes.find((n) => n.id === edge.source);
-          const target = data.nodes.find((n) => n.id === edge.target);
+        {layoutedData.edges.map((edge) => {
+          const source = layoutedData.nodes.find((n) => n.id === edge.source);
+          const target = layoutedData.nodes.find((n) => n.id === edge.target);
           if (!source || !target) return null;
           return (
             <MindMapEdge 
@@ -44,7 +52,7 @@ export const MindMapRenderer: React.FC<MindMapRendererProps> = ({
             />
           );
         })}
-        {data.nodes.map((node) => (
+        {layoutedData.nodes.map((node) => (
           <MindMapNode 
             key={node.id} 
             node={node} 
@@ -109,10 +117,10 @@ export const MindMapCard: React.FC<MindMapCardProps> = ({ data, title, onClose, 
         </Box>
         <Box>
           <IconButton size="small" onClick={onExpand} disabled={isStreaming && nodeCount === 0}>
-            <Maximize2 size={16} />
+            <FullscreenIcon size="sm" />
           </IconButton>
           <IconButton size="small" onClick={onClose}>
-            <X size={16} />
+            <CloseIcon size="sm" />
           </IconButton>
         </Box>
       </Box>

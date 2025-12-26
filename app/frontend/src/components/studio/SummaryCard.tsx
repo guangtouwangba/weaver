@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Paper, Typography, IconButton, Button, Chip, Modal, Fade, Backdrop } from '@mui/material';
-import { X, Maximize2, Sparkles, TrendingUp, Users, ArrowRight, Copy, Share2, Dock } from 'lucide-react';
+import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, ShareIcon, DockIcon } from '@/components/ui/icons';
 import { KeyFinding } from '@/lib/api';
 
 interface SummaryCardProps {
@@ -70,7 +70,7 @@ export default function SummaryCard({
               flexShrink: 0
             }}
           >
-            <Sparkles size={20} fill="currentColor" />
+            <AutoAwesomeIcon size="md" sx={{ fill: 'currentColor' }} />
           </Box>
 
           {/* Title Info */}
@@ -87,10 +87,10 @@ export default function SummaryCard({
           {/* Actions */}
           <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
             <IconButton size="small" onClick={handleExpand} sx={{ color: 'text.secondary' }}>
-              <Maximize2 size={16} />
+              <FullscreenMui sx={{ fontSize: 16 }} />
             </IconButton>
             <IconButton size="small" onClick={onClose} sx={{ color: 'text.secondary' }}>
-              <X size={16} />
+              <CloseIcon size="sm" />
             </IconButton>
           </Box>
         </Box>
@@ -145,7 +145,7 @@ export default function SummaryCard({
             {keyFindings.slice(0, 2).map((finding, idx) => (
               <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: idx === 0 ? 1.5 : 0 }}>
                 <Box sx={{ mt: 0.5 }}>
-                  {idx === 0 ? <TrendingUp size={16} color="#10B981" /> : <Users size={16} color="#3B82F6" />}
+                  {idx === 0 ? <TrendingUpIcon size="sm" sx={{ color: '#10B981' }} /> : <PeopleMui sx={{ fontSize: 16, color: '#3B82F6' }} />}
                 </Box>
                 <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
                   <Box component="span" fontWeight={600}>{finding.label}:</Box> {finding.content}
@@ -170,7 +170,7 @@ export default function SummaryCard({
               bgcolor: '#4338CA'
             }
           }}
-          endIcon={<ArrowRight size={16} />}
+          endIcon={<ArrowForwardIcon size="sm" />}
         >
           Read Full Summary
         </Button>
@@ -231,7 +231,7 @@ export default function SummaryCard({
                     color: 'white',
                   }}
                 >
-                  <Sparkles size={20} fill="currentColor" />
+                  <AutoAwesomeIcon size="md" sx={{ fill: 'currentColor' }} />
                 </Box>
                 <Box>
                   <Typography variant="h6" fontWeight={700}>
@@ -245,21 +245,21 @@ export default function SummaryCard({
               <Box sx={{ display: 'flex', gap: 1 }}>
                 {onCopy && (
                   <IconButton onClick={onCopy} title="Copy to clipboard">
-                    <Copy size={20} />
+                    <ContentCopyIcon size="md" />
                   </IconButton>
                 )}
                 {onShare && (
                   <IconButton onClick={onShare} title="Share">
-                    <Share2 size={20} />
+                    <ShareIcon size="md" />
                   </IconButton>
                 )}
                 {onDock && (
                   <IconButton onClick={onDock} title="Dock to board">
-                    <Dock size={20} />
+                    <DockMui sx={{ fontSize: 20 }} />
                   </IconButton>
                 )}
                 <IconButton onClick={handleCloseExpanded} title="Close">
-                  <X size={20} />
+                  <CloseIcon size="md" />
                 </IconButton>
               </Box>
             </Box>

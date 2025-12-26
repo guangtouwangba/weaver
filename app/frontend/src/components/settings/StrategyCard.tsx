@@ -1,5 +1,5 @@
 import { Box, Paper, Typography, Radio, Chip } from '@mui/material';
-import { Zap, DollarSign, Target, Check } from 'lucide-react';
+import { BoltIcon, AttachMoneyIcon, GpsFixedIcon, CheckIcon } from '@/components/ui/icons';
 import { StrategyOption } from './StrategyTooltip';
 
 interface StrategyCardProps {
@@ -83,7 +83,7 @@ export default function StrategyCard({ option, selected, onClick }: StrategyCard
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 'auto' }}>
         <Chip
-          icon={<DollarSign size={14} />}
+          icon={<AttachMoneyIcon size={14} />}
           label={costLabels[option.cost]}
           size="small"
           sx={{
@@ -98,7 +98,7 @@ export default function StrategyCard({ option, selected, onClick }: StrategyCard
           }}
         />
         <Chip
-          icon={<Zap size={14} />}
+          icon={<BoltIcon size={14} />}
           label={performanceLabels[option.performance]}
           size="small"
           sx={{
@@ -116,7 +116,7 @@ export default function StrategyCard({ option, selected, onClick }: StrategyCard
       
       {option.best_for && (
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Target size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
+            <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                 Best for: {option.best_for}
             </Typography>

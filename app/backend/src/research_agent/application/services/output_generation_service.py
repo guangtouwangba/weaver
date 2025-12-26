@@ -291,10 +291,12 @@ class OutputGenerationService:
     ) -> None:
         """Run mindmap generation."""
         # Create agent
+        # Default to conservative settings to prevent frontend freezing
+        # max_depth=2, max_branches=4 → max ~21 nodes (1 + 4 + 16)
         agent = MindmapAgent(
             llm_service=llm_service,
-            max_depth=options.get("max_depth", 3),
-            max_branches_per_node=options.get("max_branches", 5),
+            max_depth=options.get("max_depth", 2),
+            max_branches_per_node=options.get("max_branches", 4),
         )
 
         # Run generation and stream events

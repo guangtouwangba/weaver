@@ -10,6 +10,7 @@ import {
   MindmapEdge,
   getWebSocketUrl 
 } from '@/lib/api';
+import { applyLayout } from '@/components/studio/mindmap/layoutAlgorithms';
 
 // Helper for polling (still used for non-streaming types)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -179,6 +180,19 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
               case 'generation_complete':
                 console.log('[Mindmap] Generation complete:', data.message);
+                
+                // Apply layout to final data before setting result
+                if (streamingData.nodes.length > 0) {
+                  const layoutResult = applyLayout(streamingData, 'balanced', 1200, 800);
+                  setMindmapResult({
+                    data: { 
+                      nodes: layoutResult.nodes, 
+                      edges: [...streamingData.edges] 
+                    },
+                    title: docTitle
+                  });
+                }
+                
                 setIsGenerating(false);
                 
                 // Clean up WebSocket
@@ -534,7 +548,22 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
               case 'generation_complete':
                 console.log('[Mindmap WS Concurrent] Complete');
-                completeGeneration(localTaskId, streamingData, docTitle);
+                
+                // Apply layout to final data before completing
+                let finalData = streamingData;
+                if (streamingData.nodes.length > 0) {
+                  const layoutResult = applyLayout(streamingData, 'balanced', 1200, 800);
+                  finalData = { 
+                    nodes: layoutResult.nodes, 
+                    edges: [...streamingData.edges] 
+                  };
+                  setMindmapResult({
+                    data: finalData,
+                    title: docTitle
+                  });
+                }
+                
+                completeGeneration(localTaskId, finalData, docTitle);
                 clearInterval(pingInterval);
                 ws.close();
                 resolve();

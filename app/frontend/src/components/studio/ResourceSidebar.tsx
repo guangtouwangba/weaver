@@ -12,13 +12,13 @@ import {
   Skeleton
 } from '@mui/material';
 import { 
-  PanelLeftClose, 
-  FileText, 
-  ChevronDown,
-  Trash2,
-  CloudUpload,
-  FileUp
-} from 'lucide-react';
+  DescriptionIcon, 
+  ExpandMoreIcon,
+  DeleteIcon,
+  CloudUploadIcon,
+  UploadFileIcon,
+  MenuOpenIcon
+} from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument } from '@/lib/api';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
@@ -56,13 +56,13 @@ const getFileIconProps = (filename: string) => {
       return { icon: <CustomPdfIcon size={24} />, bg: '#FEF2F2' }; // Red-50
     case 'doc':
     case 'docx':
-      return { icon: <FileText size={24} color="#3B82F6" />, bg: '#EFF6FF' }; // Blue-500, Blue-50
+      return { icon: <DescriptionIcon size="lg" sx={{ color: '#3B82F6' }} />, bg: '#EFF6FF' }; // Blue-500, Blue-50
     case 'csv':
     case 'xlsx':
     case 'xls':
-      return { icon: <FileText size={24} color="#10B981" />, bg: '#ECFDF5' }; // Emerald-500, Emerald-50
+      return { icon: <DescriptionIcon size="lg" sx={{ color: '#10B981' }} />, bg: '#ECFDF5' }; // Emerald-500, Emerald-50
     default:
-      return { icon: <FileText size={24} color="#6B7280" />, bg: '#F3F4F6' }; // Gray-500, Gray-100
+      return { icon: <DescriptionIcon size="lg" sx={{ color: '#6B7280' }} />, bg: '#F3F4F6' }; // Gray-500, Gray-100
   }
 };
 
@@ -199,7 +199,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         }}
       >
         <IconButton onClick={onToggle} size="small">
-          <PanelLeftClose size={18} style={{ transform: 'rotate(180deg)' }} />
+          <MenuOpenIcon size={18} style={{ transform: 'rotate(180deg)' }} />
         </IconButton>
       </Box>
     );
@@ -221,7 +221,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography variant="h6" fontWeight="bold">Resources</Typography>
         <IconButton onClick={onToggle} size="small">
-          <PanelLeftClose size={18} />
+          <MenuOpenIcon size={18} />
         </IconButton>
       </Box>
 
@@ -241,7 +241,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
 
         {/* File List */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, cursor: 'pointer' }} onClick={() => setFilesExpanded(!filesExpanded)}>
-          <ChevronDown size={16} style={{ transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
+          <ExpandMoreIcon size="sm" style={{ transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
           <Typography variant="subtitle2" color="text.secondary" sx={{ ml: 1 }}>RECENT UPLOADS</Typography>
         </Box>
 
@@ -271,7 +271,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   justifyContent: 'center',
                   flexShrink: 0
                 }}>
-                  <FileUp size={24} color="#6B7280" /> {/* Gray-500 */}
+                  <UploadFileIcon size="lg" sx={{ color: '#6B7280' }} /> {/* Gray-500 */}
                 </Box>
                 
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -397,7 +397,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   }}>
                     {isProcessing ? (
                       <>
-                        <FileText size={24} color="#F59E0B" />
+                        <DescriptionIcon size="lg" sx={{ color: '#F59E0B' }} />
                         <CircularProgress 
                           size={16} 
                           sx={{ 
@@ -436,7 +436,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                       }
                     }}
                   >
-                    <Trash2 size={16} />
+                    <DeleteIcon size="sm" />
                   </IconButton>
                 </Paper>
               );

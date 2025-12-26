@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Chip, Typography } from '@mui/material';
-import { Zap, DollarSign, Target } from 'lucide-react';
+import { BoltIcon, AttachMoneyIcon, GpsFixedIcon } from '@/components/ui/icons';
 
 export interface StrategyOption {
   value: string;
@@ -57,7 +57,7 @@ export default function StrategyTooltip({ option }: StrategyTooltipProps) {
 
       <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
         <Chip
-          icon={<DollarSign size={14} />}
+          icon={<AttachMoneyIcon size={14} />}
           label={costLabels[option.cost]}
           size="small"
           sx={{
@@ -68,7 +68,7 @@ export default function StrategyTooltip({ option }: StrategyTooltipProps) {
           }}
         />
         <Chip
-          icon={<Zap size={14} />}
+          icon={<BoltIcon size={14} />}
           label={performanceLabels[option.performance]}
           size="small"
           sx={{
@@ -81,7 +81,7 @@ export default function StrategyTooltip({ option }: StrategyTooltipProps) {
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-        <Target size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
+        <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
         <Typography variant="caption" color="text.secondary">
           <strong>Best for:</strong> {option.best_for}
         </Typography>

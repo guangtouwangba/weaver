@@ -15,7 +15,7 @@ import {
   IconButton,
   InputAdornment
 } from "@mui/material";
-import { X, Tag, ArrowRight } from "lucide-react";
+import { CloseIcon, TagIcon, ArrowForwardIcon } from '@/components/ui/icons';
 import { projectsApi } from "@/lib/api";
 
 interface CreateProjectDialogProps {
@@ -122,7 +122,7 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
           size="small" 
           sx={{ color: 'text.secondary' }}
         >
-          <X size={20} />
+          <CloseIcon size="md" />
         </IconButton>
       </Box>
       
@@ -178,7 +178,7 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                  <Tag size={16} />
+                  <TagIcon size="sm" />
                 </InputAdornment>
               ),
             }}
@@ -206,7 +206,7 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
           onClick={handleCreateProject} 
           variant="contained"
           disabled={!newProjectName.trim() || creating}
-          endIcon={!creating && <ArrowRight size={16} />}
+          endIcon={!creating && <ArrowForwardIcon size="sm" />}
           sx={{ 
             textTransform: 'none',
             borderRadius: 2,

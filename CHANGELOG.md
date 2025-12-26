@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2025-12-26
+
+#### Mindmap Node Limit to Prevent Frontend Freezing (@aqiu)
+
+**Problem:**
+Large mindmaps with many nodes caused the frontend to freeze. The default configuration (`max_depth=3, max_branches=5`) could generate up to 156 nodes, overwhelming the canvas renderer.
+
+**Solution:**
+- Added `MAX_TOTAL_NODES = 50` hard cap in `mindmap_graph.py`
+- Early termination in `expand_level()` when limit is reached
+- Reduced default configuration from `max_depth=3, max_branches=5` to `max_depth=2, max_branches=4` (max 21 nodes)
+
+**Files Changed:**
+- `app/backend/src/research_agent/application/graphs/mindmap_graph.py`
+- `app/backend/src/research_agent/application/services/output_generation_service.py`
+- `app/backend/src/research_agent/application/use_cases/output/generate_output.py`
+
+### Added - 2025-12-26
+
+#### Rich Card-Based Mind Map Nodes (redesign-mindmap-ui)
+
+**Summary:**
+Mind map nodes now render as rich, interactive cards with visual states that communicate the generation process. The redesign improves the "Visual Thinking Assistant" experience by making node states (processing, generating, completed, pending) visually distinct and engaging.
+
+**Frontend:**
+- **Theme Tokens** (`theme/theme.ts`):
+  - New `mindmapCardTokens` export with colors, status, text, tags, and animation timing
+  - Card tokens: `card-bg`, `card-border-active`, `card-border-dashed`, `shadow-card`
+  - Status colors: `status-success`, `status-processing`, `status-pending`
+  - Animation timing: `pulse`, `skeleton`, `dots` for coordinated animations
+
+- **RichMindMapNode** (`components/studio/mindmap/RichMindMapNode.tsx`):
+  - New card-based node component with 4 visual variants:
+    - **Root**: Larger card (280x160), brain icon, "PROCESSING" status bar with animated dots, blue glow
+    - **Generating**: Dashed blue border, skeleton loading bars with pulse animation, 85% opacity
+    - **Complete**: Clean white card, green checkmark icon, title + content display
+    - **Pending**: Gray dashed border, three-dot loading indicator, 50% opacity
+  - Tags/Chips rendering for comma-separated categorical content
+  - LOD (Level of Detail) support: full → labels → simple shapes based on zoom
+  - Drop shadows and rounded corners (12px) for depth
+
+- **CurvedMindMapEdge** (`components/studio/mindmap/CurvedMindMapEdge.tsx`):
+  - Smooth Bezier curve connections instead of straight lines
+  - Connection anchor dots (4px) at edge endpoints
+  - Edge color based on source node state (active blue, complete gray, pending light)
+  - Dashed edges for incomplete nodes
+
+- **AIInsightBadge** (`components/studio/mindmap/AIInsightBadge.tsx`):
+  - Dark floating badge with sparkle icon and text
+  - Diamond connector pointing to target node
+  - Positioned above and left of insight clusters
+
+- **MindMapEditor Integration**:
+  - Replaced `DraggableNode` with `RichMindMapNode`
+  - Replaced `MindMapEdge` with `CurvedMindMapEdge`
+  - Anchor dots hidden at low zoom levels for performance
+
+**Visual Design:**
+| Variant | Border | Background | Indicator |
+|---------|--------|------------|-----------|
+| Root | Blue glow | #F8FAFC | Brain icon + animated dots |
+| Generating | Blue dashed | #FFFFFF | Skeleton bars |
+| Complete | Light gray | #FFFFFF | Green checkmark |
+| Pending | Gray dashed | #FFFFFF | Three-dot loader |
+
+**Technical Details:**
+- **Author**: Cursor Agent
+- **Implementation**: Rich Card Mind Map UI per redesign-mindmap-ui OpenSpec
+- **Scope**: Theme tokens, node component, edge component, badge component, editor integration
+
+### Fixed - 2025-12-26
+
+#### Mind Map Node Overlap and Excessive Generation
+
+**Summary:**
+Fixed the mind map generation to produce a manageable number of nodes (21 vs 156) and eliminated visual overlap by delegating layout calculation to the frontend.
+
+**Backend:**
+- Changed default `max_depth` from 3 to 2 in `MindmapAgent`
+- Changed default `max_branches_per_node` from 5 to 4 in `MindmapAgent`
+- Removed backend position calculation (`_calculate_child_positions`)
+- All nodes now emitted with `x=0, y=0` for frontend layout
+
+**Frontend:**
+- `MindMapRenderer` in `MindMapViews.tsx` now applies balanced layout via `useMemo`
+- `useCanvasActions.ts` applies layout when `generation_complete` event received
+- Layout applied once at completion, not during streaming (better performance)
+
+**Impact:**
+- Node count reduced from 156 (depth=3, branches=5) to 21 (depth=2, branches=4)
+- Eliminated overlapping nodes by using proper layout algorithms
+- Improved rendering performance with fewer nodes
+
 ### Added - 2025-12-26
 
 #### Interactive Mind Map Editing with Layout Selection

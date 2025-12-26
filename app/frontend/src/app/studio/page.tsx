@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import GlobalLayout from '@/components/layout/GlobalLayout';
 import { Box, Typography, Button, CircularProgress, Paper, Avatar, Divider, TextField } from '@mui/material';
-import { FolderOpen, Plus, Layout, ArrowRight } from 'lucide-react';
+import { FolderOpenIcon, AddIcon, DashboardIcon, ArrowForwardIcon } from '@/components/ui/icons';
 import { projectsApi, Project } from '@/lib/api';
 
 export default function StudioIndexPage() {
@@ -166,7 +166,7 @@ export default function StudioIndexPage() {
           {/* Header */}
           <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'white' }}>
             <Avatar sx={{ width: 56, height: 56, bgcolor: '#EFF6FF', color: 'primary.main', mx: 'auto', mb: 2 }}>
-              <Layout size={28} />
+              <DashboardIcon size={28} />
             </Avatar>
             <Typography variant="h5" fontWeight="700" gutterBottom color="text.primary">
               Welcome to Studio
@@ -216,10 +216,10 @@ export default function StudioIndexPage() {
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <FolderOpen size={18} className="text-blue-500" />
+                      <FolderOpenIcon size={18} sx={{ color: 'primary.main' }} />
                       <Typography variant="body2" fontWeight="500">{project.name}</Typography>
                     </Box>
-                    <ArrowRight size={16} className="text-gray-400" />
+                    <ArrowForwardIcon size={16} sx={{ color: 'grey.400' }} />
                   </Button>
                 ))}
               </Box>
@@ -240,7 +240,7 @@ export default function StudioIndexPage() {
               variant="contained"
               fullWidth
               size="large"
-              startIcon={<Plus size={18} />}
+              startIcon={<AddIcon size="md" />}
               onClick={() => setCreateDialogOpen(true)}
               sx={{ 
                 textTransform: 'none', 

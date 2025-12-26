@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { Plus } from 'lucide-react';
+import { AddIcon } from '@/components/ui/icons';
 
 interface ImportSourceDropzoneProps {
   onClick: () => void;
@@ -60,7 +60,7 @@ export default function ImportSourceDropzone({
           borderColor: '#E0E7FF', // Indigo-100
         }}
       >
-        <Plus size={24} strokeWidth={2.5} />
+        <AddIcon size="lg" />
       </Box>
       <Typography 
         variant="body2" 

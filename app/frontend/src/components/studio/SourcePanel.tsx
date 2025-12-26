@@ -19,25 +19,24 @@ import {
   DialogActions,
 } from "@mui/material";
 import { 
-  FileText, 
-  Maximize2, 
-  Minimize2, 
-  FolderOpen,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-  LayoutGrid,
-  List as ListIcon,
-  CloudUpload,
-  CheckCircle,
-  AlertCircle,
-  Trash2,
-  Network,
-  Share2,
-  Plus,
-} from "lucide-react";
+  DescriptionIcon, 
+  FullscreenIcon, 
+  FolderOpenIcon,
+  ExpandMoreIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MenuOpenIcon,
+  GridViewIcon,
+  ViewListIcon,
+  CloudUploadIcon,
+  CheckIcon,
+  ErrorIcon,
+  DeleteIcon,
+  AccountTreeIcon,
+  ShareIcon,
+} from '@/components/ui/icons';
+import FullscreenExitMui from '@mui/icons-material/FullscreenExit';
+import MenuMui from '@mui/icons-material/Menu';
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument } from '@/lib/api';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
@@ -406,7 +405,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             opacity: isProcessing ? 0.7 : 1,
           }}
         >
-          <FileText size={16} className={isActive ? "text-blue-600 mt-0.5" : "text-gray-400 mt-0.5"} />
+          <DescriptionIcon size={16} sx={{ color: isActive ? 'primary.main' : 'grey.400', mt: 0.5 }} />
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" fontWeight={isActive ? "500" : "400"} color={isActive ? "primary.main" : "text.primary"} noWrap sx={{ flex: 1 }}>
@@ -429,12 +428,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               {/* Graph Status Icon */}
               {isGraphProcessing && (
                 <Tooltip title="Building knowledge graph...">
-                  <Network size={14} className="text-blue-500 animate-spin-slow" style={{ animation: 'spin 3s linear infinite' }} />
+                  <AccountTreeIcon size={14} sx={{ color: 'primary.main', animation: 'spin 3s linear infinite' }} />
                 </Tooltip>
               )}
               {isGraphReady && isActive && (
                 <Tooltip title="Graph ready">
-                  <Share2 size={14} className="text-green-500" />
+                  <ShareIcon size={14} sx={{ color: 'success.main' }} />
                 </Tooltip>
               )}
             </Box>
@@ -474,7 +473,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 '&:hover': { color: 'error.main', bgcolor: 'error.50' }
               }}
             >
-              <Trash2 size={14} />
+              <DeleteIcon size={14} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -565,7 +564,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                   display: 'flex',
                   boxShadow: 1
                 }}>
-                  <Network size={12} className="text-blue-500" style={{ animation: 'spin 3s linear infinite' }} />
+                  <AccountTreeIcon size={12} sx={{ color: 'primary.main', animation: 'spin 3s linear infinite' }} />
                 </Box>
               </Tooltip>
             )}
@@ -591,7 +590,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 '&:hover': { bgcolor: 'error.50', color: 'error.main' }
               }}
             >
-              <Trash2 size={12} />
+              <DeleteIcon size={12} />
             </IconButton>
             
             {/* Processing indicator for grid view */}
@@ -636,7 +635,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               {doc.filename}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FileText size={12} className="text-gray-400" />
+              <DescriptionIcon size={12} sx={{ color: 'grey.400' }} />
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
                 {formatDate(doc.created_at)}
               </Typography>
@@ -659,13 +658,13 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       <Box sx={{ width: 48, height: '100vh', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: 'background.paper' }}>
         <Box sx={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
           <Tooltip title="Expand (⌘\)" placement="right">
-            <IconButton onClick={onToggle} size="small"><PanelLeftOpen size={18} /></IconButton>
+            <IconButton onClick={onToggle} size="small"><MenuOpenIcon size={18} /></IconButton>
           </Tooltip>
         </Box>
         <Box sx={{ py: 2 }}>
           <Tooltip title="Documents" placement="right">
             <Box sx={{ p: 1, borderRadius: 1, bgcolor: '#EFF6FF', cursor: 'pointer' }} onClick={onToggle}>
-              <FolderOpen size={16} className="text-blue-600" />
+              <FolderOpenIcon size={16} sx={{ color: 'primary.main' }} />
             </Box>
           </Tooltip>
         </Box>
@@ -679,15 +678,15 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       <Box sx={{ height: isReaderExpanded ? 0 : (activeDocument ? `${splitRatio * 100}%` : '100%'), display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: isVerticalDragging ? 'none' : 'all 0.3s ease' }}>
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <FolderOpen size={16} className="text-blue-600" />
+            <FolderOpenIcon size={16} sx={{ color: 'primary.main' }} />
             <Typography variant="subtitle2" fontWeight="bold">Documents</Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 0.5 }}>
             <Box sx={{ bgcolor: '#F3F4F6', borderRadius: 1, p: 0.25, display: 'flex' }}>
               <IconButton size="small" onClick={() => setViewMode('list')} sx={{ p: 0.5, bgcolor: viewMode === 'list' ? '#fff' : 'transparent', borderRadius: 0.5 }}><ListIcon size={12} /></IconButton>
-              <IconButton size="small" onClick={() => setViewMode('grid')} sx={{ p: 0.5, bgcolor: viewMode === 'grid' ? '#fff' : 'transparent', borderRadius: 0.5 }}><LayoutGrid size={12} /></IconButton>
+              <IconButton size="small" onClick={() => setViewMode('grid')} sx={{ p: 0.5, bgcolor: viewMode === 'grid' ? '#fff' : 'transparent', borderRadius: 0.5 }}><GridViewIcon size={12} /></IconButton>
             </Box>
-            <Tooltip title="Collapse (⌘\)"><IconButton size="small" onClick={onToggle}><PanelLeftClose size={14} /></IconButton></Tooltip>
+            <Tooltip title="Collapse (⌘\)"><IconButton size="small" onClick={onToggle}><MenuMui sx={{ fontSize: 14 }} /></IconButton></Tooltip>
           </Box>
         </Box>
         
@@ -718,9 +717,9 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               '&:hover': { color: 'text.primary' }
             }}
           >
-            <ChevronDown 
+            <ExpandMoreIcon 
               size={12} 
-              style={{ 
+              sx={{ 
                 transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
                 transition: 'transform 0.2s ease'
               }} 
@@ -758,9 +757,9 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                         justifyContent: 'center'
                     }}>
                         {uploadState === 'processing' ? (
-                            <Network size={16} className="text-blue-500 animate-spin" style={{ animation: 'spin 3s linear infinite' }} />
+                            <AccountTreeIcon size={16} sx={{ color: 'primary.main', animation: 'spin 3s linear infinite' }} />
                         ) : (
-                            <CloudUpload size={16} className="text-blue-500" />
+                            <CloudUploadIcon size={16} sx={{ color: 'primary.main' }} />
                         )}
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -807,7 +806,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                         justifyContent: 'center',
                         position: 'relative'
                      }}>
-                        <CloudUpload size={24} className="text-blue-500" />
+                        <CloudUploadIcon size={24} sx={{ color: 'primary.main' }} />
                         <LinearProgress 
                             variant={uploadState === 'processing' ? 'indeterminate' : 'determinate'}
                             value={uploadProgress}
@@ -876,7 +875,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 disabled={pageNumber <= 1}
                 sx={{ p: 0.5 }}
               >
-                <ChevronLeft size={16} />
+                <ChevronLeftIcon size={16} />
               </IconButton>
               <Typography variant="caption" sx={{ minWidth: 60, textAlign: 'center' }}>
                 {pageNumber} / {numPages}
@@ -887,11 +886,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 disabled={pageNumber >= numPages}
                 sx={{ p: 0.5 }}
               >
-                <ChevronRight size={16} />
+                <ChevronRightIcon size={16} />
               </IconButton>
               
               <IconButton size="small" onClick={() => setIsReaderExpanded(!isReaderExpanded)} sx={{ ml: 1 }}>
-                {isReaderExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                {isReaderExpanded ? <FullscreenExitMui sx={{ fontSize: 14 }} /> : <FullscreenIcon size={14} />}
               </IconButton>
             </Box>
           </Box>

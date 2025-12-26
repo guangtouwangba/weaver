@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Stage, Layer, Rect, Group, Text } from 'react-konva';
+import { Stage, Layer, Rect } from 'react-konva';
 import Konva from 'konva';
 import {
   Box,
@@ -32,23 +32,23 @@ import {
   CircularProgress,
 } from '@mui/material';
 import {
-  X,
-  ZoomIn,
-  ZoomOut,
-  Download,
-  Plus,
-  Trash2,
-  Edit3,
-  RotateCcw,
-  GitBranch,
-  Circle,
-  Layers,
-  AlertTriangle,
-  Move,
-} from 'lucide-react';
+  CloseIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  AddIcon,
+  DeleteIcon,
+  EditIcon,
+  RefreshIcon,
+  LayersIcon,
+  WarningIcon,
+  OpenWithIcon,
+  DownloadIcon,
+  AccountTreeIcon,
+  CircleIcon,
+} from '@/components/ui/icons';
 import { MindmapData, MindmapNode, MindmapEdge } from '@/lib/api';
-import { MindMapNode as MindMapNodeComponent } from './MindMapNode';
-import { MindMapEdge as MindMapEdgeComponent } from './MindMapEdge';
+import { RichMindMapNode } from './RichMindMapNode';
+import { CurvedMindMapEdge } from './CurvedMindMapEdge';
 import { applyLayout, LayoutType } from './layoutAlgorithms';
 
 // ============================================================================
@@ -114,152 +114,6 @@ function useThrottledCallback<T extends (...args: any[]) => any>(
 }
 
 // ============================================================================
-// Sub-Components
-// ============================================================================
-
-interface DraggableNodeProps {
-  node: MindmapNode;
-  isSelected: boolean;
-  lodLevel: 'full' | 'labels' | 'simple';
-  shouldAnimate: boolean;
-  onSelect: (nodeId: string) => void;
-  onDragEnd: (nodeId: string, x: number, y: number) => void;
-  onDoubleClick: (nodeId: string) => void;
-}
-
-const DraggableNode: React.FC<DraggableNodeProps> = React.memo(({
-  node,
-  isSelected,
-  lodLevel,
-  shouldAnimate,
-  onSelect,
-  onDragEnd,
-  onDoubleClick,
-}) => {
-  const groupRef = useRef<Konva.Group>(null);
-  const width = node.width || 200;
-  const height = node.height || 80;
-  const isRoot = node.depth === 0;
-
-  const getColors = (color: string) => {
-    switch (color) {
-      case 'primary':
-      case 'blue': return { fill: '#EFF6FF', stroke: '#3B82F6', text: '#1E3A8A' };
-      case 'green': return { fill: '#ECFDF5', stroke: '#10B981', text: '#064E3B' };
-      case 'orange': return { fill: '#FFF7ED', stroke: '#F97316', text: '#7C2D12' };
-      case 'purple': return { fill: '#F5F3FF', stroke: '#8B5CF6', text: '#4C1D95' };
-      case 'pink': return { fill: '#FDF2F8', stroke: '#EC4899', text: '#831843' };
-      default: return { fill: '#FFFFFF', stroke: '#9CA3AF', text: '#374151' };
-    }
-  };
-
-  const colors = getColors(node.color);
-
-  // Growth animation on mount - disabled for large datasets
-  useEffect(() => {
-    if (!groupRef.current || !shouldAnimate) return;
-    
-    groupRef.current.scale({ x: 0, y: 0 });
-    groupRef.current.to({
-      scaleX: 1,
-      scaleY: 1,
-      duration: 0.4,
-      easing: Konva.Easings.BackEaseOut,
-    });
-  }, [shouldAnimate]);
-
-  return (
-    <Group
-      ref={groupRef}
-      x={node.x}
-      y={node.y}
-      width={width}
-      height={height}
-      draggable
-      onClick={() => onSelect(node.id)}
-      onTap={() => onSelect(node.id)}
-      onDblClick={() => onDoubleClick(node.id)}
-      onDblTap={() => onDoubleClick(node.id)}
-      onDragEnd={(e) => {
-        onDragEnd(node.id, e.target.x(), e.target.y());
-      }}
-    >
-      {/* Selection indicator */}
-      {isSelected && (
-        <Rect
-          x={-4}
-          y={-4}
-          width={width + 8}
-          height={height + 8}
-          stroke="#3B82F6"
-          strokeWidth={2}
-          cornerRadius={14}
-          dash={[8, 4]}
-        />
-      )}
-
-      {/* Node shape - simplified at low LOD */}
-      {lodLevel === 'simple' ? (
-        <Rect
-          width={width}
-          height={height}
-          fill={colors.fill}
-          stroke={colors.stroke}
-          strokeWidth={2}
-          cornerRadius={8}
-        />
-      ) : (
-        <>
-          <Rect
-            width={width}
-            height={height}
-            fill={colors.fill}
-            stroke={colors.stroke}
-            strokeWidth={isRoot ? 3 : 2}
-            cornerRadius={12}
-            shadowColor="black"
-            shadowBlur={8}
-            shadowOpacity={0.08}
-            shadowOffsetY={3}
-          />
-
-          {/* Label */}
-          <Text
-            x={16}
-            y={lodLevel === 'labels' ? height / 2 - 8 : 16}
-            width={width - 32}
-            text={node.label}
-            fontSize={isRoot ? 16 : 14}
-            fontStyle="bold"
-            fill={colors.text}
-            wrap="word"
-            ellipsis
-          />
-
-          {/* Content (only at full LOD) */}
-          {lodLevel === 'full' && !isRoot && node.content && (
-            <Text
-              x={16}
-              y={40}
-              width={width - 32}
-              height={height - 48}
-              text={node.content}
-              fontSize={11}
-              fill={colors.text}
-              opacity={0.8}
-              wrap="word"
-              ellipsis
-            />
-          )}
-        </>
-      )}
-    </Group>
-  );
-});
-
-DraggableNode.displayName = 'DraggableNode';
-
-// ============================================================================
 // Toolbar Component
 // ============================================================================
 
@@ -295,9 +149,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const [exportAnchor, setExportAnchor] = useState<null | HTMLElement>(null);
 
   const layoutOptions: { value: LayoutType; label: string; icon: React.ReactNode }[] = [
-    { value: 'balanced', label: 'Balanced', icon: <GitBranch size={16} /> },
-    { value: 'radial', label: 'Radial', icon: <Circle size={16} /> },
-    { value: 'tree', label: 'Tree', icon: <Layers size={16} /> },
+    { value: 'balanced', label: 'Balanced', icon: <AccountTreeIcon size="sm" /> },
+    { value: 'radial', label: 'Radial', icon: <CircleIcon size="sm" /> },
+    { value: 'tree', label: 'Tree', icon: <LayersIcon size="sm" /> },
   ];
 
   return (
@@ -339,7 +193,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <Tooltip title="Zoom Out">
           <IconButton size="small" onClick={onZoomOut}>
-            <ZoomOut size={18} />
+            <ZoomOutIcon size={18} />
           </IconButton>
         </Tooltip>
         <Chip
@@ -350,12 +204,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
         />
         <Tooltip title="Zoom In">
           <IconButton size="small" onClick={onZoomIn}>
-            <ZoomIn size={18} />
+            <ZoomInIcon size={18} />
           </IconButton>
         </Tooltip>
         <Tooltip title="Reset View">
           <IconButton size="small" onClick={onResetView}>
-            <RotateCcw size={18} />
+            <RefreshIcon size={18} />
           </IconButton>
         </Tooltip>
       </Box>
@@ -366,17 +220,17 @@ const Toolbar: React.FC<ToolbarProps> = ({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <Tooltip title="Add Node">
           <IconButton size="small" onClick={onAddNode} disabled={!hasSelection}>
-            <Plus size={18} />
+            <AddIcon size={18} />
           </IconButton>
         </Tooltip>
         <Tooltip title="Edit Node">
           <IconButton size="small" onClick={onEditNode} disabled={!hasSelection}>
-            <Edit3 size={18} />
+            <EditIcon size={18} />
           </IconButton>
         </Tooltip>
         <Tooltip title="Delete Node">
           <IconButton size="small" onClick={onDeleteNode} disabled={!hasSelection}>
-            <Trash2 size={18} />
+            <DeleteIcon size={18} />
           </IconButton>
         </Tooltip>
       </Box>
@@ -386,7 +240,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       {/* Export */}
       <Tooltip title="Download">
         <IconButton size="small" onClick={(e) => setExportAnchor(e.currentTarget)}>
-          <Download size={18} />
+          <DownloadIcon size={18} />
         </IconButton>
       </Tooltip>
       <Menu
@@ -410,7 +264,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         {nodeCount >= PERFORMANCE_WARNING_THRESHOLD && (
           <Tooltip title="Large mindmap may affect performance">
             <Chip
-              icon={<AlertTriangle size={14} />}
+              icon={<WarningIcon size={14} />}
               label={`${nodeCount} nodes`}
               size="small"
               color="warning"
@@ -920,14 +774,14 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Tooltip title="Drag to pan, scroll to zoom">
             <Chip
-              icon={<Move size={14} />}
+              icon={<OpenWithIcon size={14} />}
               label="Pan & Zoom"
               size="small"
               variant="outlined"
             />
           </Tooltip>
           <IconButton onClick={onClose}>
-            <X size={20} />
+            <CloseIcon size="md" />
           </IconButton>
         </Box>
       </Box>
@@ -1015,26 +869,28 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
               const target = data.nodes.find((n) => n.id === edge.target);
               if (!source || !target) return null;
               return (
-                <MindMapEdgeComponent
+                <CurvedMindMapEdge
                   key={edge.id}
                   edge={edge}
                   sourceNode={source}
                   targetNode={target}
+                  showAnchors={viewport.scale >= 0.5}
+                  shouldAnimate={shouldAnimate}
                 />
               );
             })}
 
             {/* Nodes - only render after layout is complete */}
             {!isCalculatingLayout && data.nodes.map((node) => (
-              <DraggableNode
+              <RichMindMapNode
                 key={node.id}
                 node={node}
                 isSelected={node.id === selectedNodeId}
                 lodLevel={lodLevel}
                 shouldAnimate={shouldAnimate}
-                onSelect={handleNodeSelect}
-                onDragEnd={handleNodeDragEnd}
+                onClick={handleNodeSelect}
                 onDoubleClick={handleNodeDoubleClick}
+                onDragEnd={handleNodeDragEnd}
               />
             ))}
           </Layer>

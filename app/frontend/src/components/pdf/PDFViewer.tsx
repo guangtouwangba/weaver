@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Box, Menu, MenuItem, TextField, Button, IconButton, Paper, Snackbar, Alert, Slide, Tooltip } from '@mui/material';
-import { Edit2, Trash2, X, AlertCircle } from 'lucide-react';
+import { EditIcon, DeleteIcon, CloseIcon, ErrorIcon } from '@/components/ui/icons';
 import { highlightsApi } from '@/lib/api'; // Removed HighlightResponse from import as we use local type extending it
 import { PDFViewerWrapper } from './PDFViewerWrapper';
 import { SelectionManager } from './SelectionManager';
@@ -436,8 +436,8 @@ export function PDFViewer({
                  <Box sx={{ width: 28, height: 28, bgcolor: color === 'yellow' ? '#FFEB3B' : color === 'green' ? '#4CAF50' : color === 'blue' ? '#2196F3' : '#E91E63', borderRadius: 1.5 }} />
              </MenuItem>
          ))}
-         <MenuItem onClick={handleEditHighlight} sx={{ p:0.5, minWidth:0, borderRadius: 2 }}><Edit2 size={16}/></MenuItem>
-         <MenuItem onClick={handleDeleteHighlight} sx={{ p:0.5, minWidth:0, borderRadius: 2, color: 'error.main' }}><Trash2 size={16}/></MenuItem>
+         <MenuItem onClick={handleEditHighlight} sx={{ p:0.5, minWidth:0, borderRadius: 2 }}><EditIcon size="sm" /></MenuItem>
+         <MenuItem onClick={handleDeleteHighlight} sx={{ p:0.5, minWidth:0, borderRadius: 2, color: 'error.main' }}><DeleteIcon size="sm" /></MenuItem>
       </Menu>
 
       {/* Note Dialog */}

@@ -188,10 +188,12 @@ class GenerateOutputUseCase:
     ) -> BaseOutputAgent:
         """Create the appropriate agent for the output type."""
         if output_type == "mindmap":
+            # Default to conservative settings to prevent frontend freezing
+            # max_depth=2, max_branches=4 → max ~21 nodes (1 + 4 + 16)
             return MindmapAgent(
                 llm_service=self._llm_service,
-                max_depth=options.get("max_depth", 3),
-                max_branches_per_node=options.get("max_branches", 5),
+                max_depth=options.get("max_depth", 2),
+                max_branches_per_node=options.get("max_branches", 4),
             )
         elif output_type == "summary":
             return SummaryAgent(

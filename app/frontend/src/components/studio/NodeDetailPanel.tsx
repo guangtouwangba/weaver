@@ -18,19 +18,19 @@ import {
   Stack,
 } from '@mui/material';
 import {
-  X,
-  Edit2,
-  Trash2,
-  ExternalLink,
-  FileText,
-  MessageSquare,
-  Lightbulb,
-  HelpCircle,
-  BookOpen,
-  Globe,
-  Check,
-  Link as LinkIcon,
-} from 'lucide-react';
+  CloseIcon,
+  EditIcon,
+  DeleteIcon,
+  DescriptionIcon,
+  HelpOutlineIcon,
+  CheckIcon,
+  LinkIcon,
+} from '@/components/ui/icons';
+import OpenInNewMui from '@mui/icons-material/OpenInNew';
+import ChatBubbleOutlineMui from '@mui/icons-material/ChatBubbleOutline';
+import TipsAndUpdatesMui from '@mui/icons-material/TipsAndUpdates';
+import MenuBookMui from '@mui/icons-material/MenuBook';
+import PublicMui from '@mui/icons-material/Public';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CanvasNode, SourceRef } from '@/lib/api';
@@ -49,63 +49,63 @@ const getNodeTypeInfo = (node: CanvasNode) => {
   const typeMap: Record<string, { icon: React.ReactNode; label: string; color: string; bgColor: string }> = {
     // Source Node Types
     source_pdf: {
-      icon: <BookOpen size={20} />,
+      icon: <MenuBookMui sx={{ fontSize: 20 }} />,
       label: 'PDF Document',
       color: '#DC2626',
       bgColor: '#FEF2F2',
     },
     source_markdown: {
-      icon: <FileText size={20} />,
+      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
       label: 'Markdown',
       color: '#2563EB',
       bgColor: '#EFF6FF',
     },
     source_web: {
-      icon: <Globe size={20} />,
+      icon: <LanguageMui sx={{ fontSize: 20 }} />,
       label: 'Web Page',
       color: '#059669',
       bgColor: '#ECFDF5',
     },
     source_text: {
-      icon: <FileText size={20} />,
+      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
       label: 'Text File',
       color: '#6B7280',
       bgColor: '#F9FAFB',
     },
     // Thinking Path Node Types
     question: {
-      icon: <HelpCircle size={20} />,
+      icon: <HelpMui sx={{ fontSize: 20 }} />,
       label: 'Question',
       color: '#3B82F6',
       bgColor: '#EFF6FF',
     },
     answer: {
-      icon: <MessageSquare size={20} />,
+      icon: <CommentMui sx={{ fontSize: 20 }} />,
       label: 'Answer',
       color: '#10B981',
       bgColor: '#F0FDF4',
     },
     insight: {
-      icon: <Lightbulb size={20} />,
+      icon: <LightbulbMui sx={{ fontSize: 20 }} />,
       label: 'Insight',
       color: '#F59E0B',
       bgColor: '#FFFBEB',
     },
     conclusion: {
-      icon: <Check size={20} />,
+      icon: <CheckMui sx={{ fontSize: 20 }} />,
       label: 'Conclusion',
       color: '#8B5CF6',
       bgColor: '#F5F3FF',
     },
     // Default
     card: {
-      icon: <FileText size={20} />,
+      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
       label: 'Note',
       color: '#6B7280',
       bgColor: '#F9FAFB',
     },
     knowledge: {
-      icon: <FileText size={20} />,
+      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
       label: 'Knowledge',
       color: '#6B7280',
       bgColor: '#F9FAFB',
@@ -271,7 +271,7 @@ export default function NodeDetailPanel({
           )}
         </Box>
         <IconButton onClick={onClose} size="small" sx={{ flexShrink: 0 }}>
-          <X size={18} />
+          <CloseIcon size={18} />
         </IconButton>
       </Box>
 
@@ -421,7 +421,7 @@ export default function NodeDetailPanel({
         {/* Source Reference */}
         {hasSourceRef && (
           <Button
-            startIcon={<ExternalLink size={14} />}
+            startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
             sx={{
@@ -445,7 +445,7 @@ export default function NodeDetailPanel({
         {/* Source Node: Open Document */}
         {isSourceNode && node.sourceId && (
           <Button
-            startIcon={<ExternalLink size={14} />}
+            startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
             sx={{
@@ -508,7 +508,7 @@ export default function NodeDetailPanel({
             <>
               <Button
                 size="small"
-                startIcon={<Edit2 size={14} />}
+                startIcon={<EditIcon size={14} />}
                 onClick={handleStartEdit}
               >
                 Edit
@@ -516,7 +516,7 @@ export default function NodeDetailPanel({
               <Button
                 size="small"
                 color="error"
-                startIcon={<Trash2 size={14} />}
+                startIcon={<DeleteIcon size={14} />}
                 onClick={handleDelete}
               >
                 Delete

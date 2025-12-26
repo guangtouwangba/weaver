@@ -21,13 +21,13 @@ import {
   Stack
 } from "@mui/material";
 import { 
-  Plus, 
-  Trash2, 
-  Pencil, 
-  Import, 
-  LayoutGrid, 
-  List as ListIcon,
-} from "lucide-react";
+  DeleteIcon, 
+  EditIcon, 
+  GridViewIcon, 
+  ViewListIcon,
+  AddIcon,
+  UploadFileIcon,
+} from '@/components/ui/icons';
 import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
 import ProjectCard from '@/components/dashboard/ProjectCard';
@@ -155,14 +155,14 @@ export default function DashboardPage() {
           <Stack direction="row" spacing={2}>
              <Button 
               variant="outlined" 
-              startIcon={<Import size={18} />}
+              startIcon={<UploadFileIcon size="md" />}
               sx={{ textTransform: 'none', borderRadius: 2, bgcolor: 'background.paper', borderColor: 'divider', color: 'text.primary' }}
             >
               Import
             </Button>
             <Button 
               variant="contained" 
-              startIcon={<Plus size={18} />}
+              startIcon={<AddIcon size="md" />}
               onClick={() => setCreateDialogOpen(true)}
               sx={{ textTransform: 'none', borderRadius: 2, bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
             >
@@ -217,8 +217,8 @@ export default function DashboardPage() {
                   </Box>
                   
                   <Stack direction="row" spacing={2} alignItems="center" sx={{ color: 'text.secondary' }}>
-                    <LayoutGrid size={20} cursor="pointer" />
-                    <ListIcon size={20} cursor="pointer" />
+                    <GridViewIcon size="md" sx={{ cursor: 'pointer' }} />
+                    <ViewListIcon size="md" sx={{ cursor: 'pointer' }} />
                     <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 500 }}>Last Modified</Typography>
                   </Stack>
               </Box>
@@ -259,7 +259,7 @@ export default function DashboardPage() {
         >
           <MenuItem disabled sx={{ color: 'text.disabled' }}>
             <ListItemIcon sx={{ color: 'inherit', minWidth: 32 }}>
-              <Pencil size={16} />
+              <EditIcon size="sm" />
             </ListItemIcon>
             <ListItemText primary="Edit" />
           </MenuItem>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
             sx={{ color: 'error.main' }}
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 32 }}>
-              <Trash2 size={16} />
+              <DeleteIcon size="sm" />
             </ListItemIcon>
             <ListItemText primary="Delete" />
           </MenuItem>

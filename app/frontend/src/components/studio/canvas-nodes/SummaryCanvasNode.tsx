@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { Box, Paper, Typography, IconButton, Chip, Modal, Fade, Backdrop, Button } from '@mui/material';
-import { X, Maximize2, Sparkles, TrendingUp, Users, ArrowRight, Copy, GripVertical, Move } from 'lucide-react';
+import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, DragIndicatorIcon, OpenWithIcon } from '@/components/ui/icons';
 import { SummaryData, KeyFinding } from '@/lib/api';
 
 interface SummaryCanvasNodeProps {
@@ -114,7 +114,7 @@ export default function SummaryCanvasNode({
               '&:active': { cursor: 'grabbing' }
             }}
           >
-            <Move size={14} />
+            <OpenWithIcon size={14} />
           </Box>
           
           {/* Icon */}
@@ -132,7 +132,7 @@ export default function SummaryCanvasNode({
               flexShrink: 0
             }}
           >
-            <Sparkles size={16} fill="currentColor" />
+            <AutoAwesomeIcon size="sm" />
           </Box>
 
           {/* Title Info */}
@@ -148,13 +148,13 @@ export default function SummaryCanvasNode({
           {/* Actions */}
           <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }}>
             <IconButton size="small" onClick={handleCopy} sx={{ color: 'text.secondary', p: 0.5 }}>
-              <Copy size={14} />
+              <ContentCopyIcon size={14} />
             </IconButton>
             <IconButton size="small" onClick={handleExpand} sx={{ color: 'text.secondary', p: 0.5 }}>
-              <Maximize2 size={14} />
+              <FullscreenIcon size={14} />
             </IconButton>
             <IconButton size="small" onClick={onClose} sx={{ color: 'text.secondary', p: 0.5 }}>
-              <X size={14} />
+              <CloseIcon size={14} />
             </IconButton>
           </Box>
         </Box>
@@ -212,7 +212,7 @@ export default function SummaryCanvasNode({
             {data.keyFindings.slice(0, 2).map((finding, idx) => (
               <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: idx === 0 && data.keyFindings.length > 1 ? 1 : 0 }}>
                 <Box sx={{ mt: 0.25 }}>
-                  {idx === 0 ? <TrendingUp size={12} color="#10B981" /> : <Users size={12} color="#3B82F6" />}
+                  {idx === 0 ? <TrendingUpIcon size={12} sx={{ color: '#10B981' }} /> : <PeopleIcon size={12} sx={{ color: '#3B82F6' }} />}
                 </Box>
                 <Typography variant="caption" sx={{ fontSize: '0.7rem', lineHeight: 1.4 }}>
                   <Box component="span" fontWeight={600}>{finding.label}:</Box> {finding.content.slice(0, 60)}...
@@ -238,7 +238,7 @@ export default function SummaryCanvasNode({
               bgcolor: '#4338CA'
             }
           }}
-          endIcon={<ArrowRight size={14} />}
+          endIcon={<ArrowForwardIcon size={14} />}
         >
           Read More
         </Button>
@@ -297,7 +297,7 @@ export default function SummaryCanvasNode({
                     color: 'white',
                   }}
                 >
-                  <Sparkles size={18} fill="currentColor" />
+                  <AutoAwesomeIcon size={18} />
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" fontWeight={700}>
@@ -310,10 +310,10 @@ export default function SummaryCanvasNode({
               </Box>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <IconButton size="small" onClick={handleCopy}>
-                  <Copy size={18} />
+                  <ContentCopyIcon size={18} />
                 </IconButton>
                 <IconButton size="small" onClick={handleCloseExpanded}>
-                  <X size={18} />
+                  <CloseIcon size={18} />
                 </IconButton>
               </Box>
             </Box>

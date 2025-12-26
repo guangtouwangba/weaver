@@ -3,16 +3,16 @@
 import React, { useState } from 'react';
 import { Paper, ToggleButton, ToggleButtonGroup, Tooltip, IconButton, Stack, Fade, Collapse, Typography, Box } from '@mui/material';
 import { 
-  MousePointer2, 
-  Hand, 
-  Plus, 
-  ZoomIn, 
-  ZoomOut, 
-  Scan, 
-  Trash2, 
-  ChevronDown, 
-  ChevronUp 
-} from 'lucide-react';
+  AddIcon, 
+  ZoomInIcon, 
+  ZoomOutIcon, 
+  DeleteIcon, 
+  ExpandMoreIcon, 
+  ExpandLessIcon 
+} from '@/components/ui/icons';
+import MouseMui from '@mui/icons-material/Mouse';
+import PanToolMui from '@mui/icons-material/PanTool';
+import CropFreeMui from '@mui/icons-material/CropFree';
 
 export type ToolMode = 'select' | 'hand';
 
@@ -80,7 +80,7 @@ export default function CanvasToolbar({
             '&:hover': { bgcolor: 'background.paper' }
           }}
         >
-          {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+          {isCollapsed ? <ExpandMoreIcon size={18} /> : <ExpandLessIcon size={18} />}
         </IconButton>
       </Tooltip>
 
@@ -101,13 +101,13 @@ export default function CanvasToolbar({
             >
               <Tooltip title="Select (V)" placement="right" arrow>
                 <ToggleButton value="select" aria-label="select tool" sx={{ border: 'none', py: 1.5 }}>
-                  <MousePointer2 size={18} />
+                  <MouseMui sx={{ fontSize: 18 }} />
                 </ToggleButton>
               </Tooltip>
               
               <Tooltip title="Hand (H) - Pan" placement="right" arrow>
                 <ToggleButton value="hand" aria-label="hand tool" sx={{ border: 'none', py: 1.5 }}>
-                  <Hand size={18} />
+                  <PanToolMui sx={{ fontSize: 18 }} />
                 </ToggleButton>
               </Tooltip>
             </ToggleButtonGroup>
@@ -118,13 +118,13 @@ export default function CanvasToolbar({
             <Stack direction="column" alignItems="center">
               <Tooltip title="Insert Node" placement="right" arrow>
                 <IconButton onClick={onInsert} sx={{ py: 1.5, borderRadius: 0 }}>
-                  <Plus size={18} />
+                  <AddIcon size="md" />
                 </IconButton>
               </Tooltip>
 
               <Tooltip title="Zoom In" placement="right" arrow>
                 <IconButton onClick={onZoomIn} sx={{ py: 1.5, borderRadius: 0 }}>
-                  <ZoomIn size={18} />
+                  <ZoomInIcon size={18} />
                 </IconButton>
               </Tooltip>
 
@@ -148,13 +148,13 @@ export default function CanvasToolbar({
 
               <Tooltip title="Zoom Out" placement="right" arrow>
                 <IconButton onClick={onZoomOut} sx={{ py: 1.5, borderRadius: 0 }}>
-                  <ZoomOut size={18} />
+                  <ZoomOutIcon size={18} />
                 </IconButton>
               </Tooltip>
               
               <Tooltip title="Fit to Screen" placement="right" arrow>
                 <IconButton onClick={onFitView} sx={{ py: 1.5, borderRadius: 0 }}>
-                  <Scan size={18} />
+                  <CropFreeMui sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             </Stack>
@@ -176,7 +176,7 @@ export default function CanvasToolbar({
                 }
               }}
             >
-              <Trash2 size={18} />
+              <DeleteIcon size={18} />
             </IconButton>
           </Tooltip>
 
