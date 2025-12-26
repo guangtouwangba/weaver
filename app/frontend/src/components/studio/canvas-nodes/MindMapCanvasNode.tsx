@@ -14,7 +14,7 @@
  *   - Export (PNG/JSON)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { Box, Paper, Typography, IconButton, Modal, Chip, CircularProgress } from '@mui/material';
 import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
@@ -37,6 +37,8 @@ interface MindMapCanvasNodeProps {
   onDragEnd?: () => void;
   /** Callback when mindmap data is saved from editor */
   onDataChange?: (data: MindmapData) => void;
+  /** External drag state control from parent (GenerationOutputsOverlay) */
+  isDragging?: boolean;
 }
 
 // Mini renderer for preview (compact card view)
@@ -82,9 +84,19 @@ export default function MindMapCanvasNode({
   onDragStart,
   onDragEnd,
   onDataChange,
+  isDragging = false, // Controlled by parent (GenerationOutputsOverlay)
 }: MindMapCanvasNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  
+  // Performance: track renders
+  const renderCountRef = useRef(0);
+  renderCountRef.current++;
+  
+  useEffect(() => {
+    if (isDragging && renderCountRef.current % 10 === 0) {
+      console.log(`[Perf][MindMapNode ${id}] Render count: ${renderCountRef.current}`);
+    }
+  });
 
   // Convert canvas coordinates to screen coordinates (only when not in overlay mode)
   const screenX = isOverlayMode ? 0 : position.x * viewport.scale + viewport.x;
@@ -93,18 +105,26 @@ export default function MindMapCanvasNode({
   const nodeCount = data.nodes.length;
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target instanceof HTMLElement && e.target.closest('.drag-handle')) {
-      setIsDragging(true);
-      onDragStart?.(e);
+    console.log('[MindMapNode] MouseDown', { 
+        target: e.target, 
+        isDragHandle: (e.target as HTMLElement).closest('.drag-handle') !== null,
+        isButton: (e.target as HTMLElement).closest('button') !== null,
+    });
+    if (e.target instanceof HTMLElement) {
+      // Skip if clicking on buttons (close, expand)
+      if (e.target.closest('button') || e.target.closest('.MuiIconButton-root')) {
+        return;
+      }
+      if (e.target.closest('.drag-handle')) {
+        console.log('[MindMapNode] Drag handle clicked, calling onDragStart');
+        onDragStart?.(e);
+      }
     }
   };
 
-  const handleMouseUp = () => {
-    if (isDragging) {
-      setIsDragging(false);
-      onDragEnd?.();
-    }
-  };
+  // Note: handleMouseUp is no longer needed here.
+  // Parent (GenerationOutputsOverlay) handles mouseup via window event listener,
+  // which ensures drag state is properly cleared even when mouse is released outside the card.
 
   return (
     <>
@@ -112,7 +132,6 @@ export default function MindMapCanvasNode({
       <Paper
         elevation={isOverlayMode ? 8 : 0}
         onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
         sx={{
           position: isOverlayMode ? 'relative' : 'absolute',
           left: isOverlayMode ? 'auto' : screenX,
@@ -146,22 +165,24 @@ export default function MindMapCanvasNode({
           },
         }}
       >
-        {/* Header */}
+        {/* Header - entire header is draggable */}
         <Box
+          className="drag-handle"
           sx={{
             p: 1.5,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             borderBottom: '1px solid rgba(0,0,0,0.05)',
+            cursor: 'grab',
+            '&:active': { cursor: 'grabbing' },
+            userSelect: 'none',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-            {/* Drag Handle */}
+            {/* Drag Indicator Icon */}
             <Box
-              className="drag-handle"
               sx={{
-                cursor: 'grab',
                 p: 0.5,
                 borderRadius: 1,
                 color: 'text.disabled',
@@ -170,7 +191,6 @@ export default function MindMapCanvasNode({
                   color: 'text.secondary',
                   bgcolor: 'grey.100',
                 },
-                '&:active': { cursor: 'grabbing' },
               }}
             >
               <OpenWithIcon size={14} />

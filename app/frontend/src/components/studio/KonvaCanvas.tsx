@@ -39,6 +39,7 @@ interface KonvaCanvasProps {
   toolMode?: ToolMode; // New prop
   onToolChange?: (tool: ToolMode) => void; // Callback to change tool mode
   onOpenImport?: () => void; // For Context Menu Import
+  onSelectionChange?: (count: number) => void; // Callback when selection changes
 }
 
 // Node style configuration based on type
@@ -632,13 +633,22 @@ export default function KonvaCanvas({
   toolMode = 'select', // Default to select
   onToolChange,
   onOpenImport,
+  onSelectionChange,
 }: KonvaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const lastWheelTimeRef = useRef(0); // For wheel event throttling
+  const WHEEL_THROTTLE_MS = 16; // ~60fps throttle for smooth scrolling
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   
   // Selection State
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  
+  // Notify parent when selection changes
+  useEffect(() => {
+    onSelectionChange?.(selectedNodeIds.size);
+  }, [selectedNodeIds, onSelectionChange]);
+
   const [selectionRect, setSelectionRect] = useState<{
     startX: number; startY: number; x: number; y: number; width: number; height: number 
   } | null>(null);
@@ -893,10 +903,10 @@ export default function KonvaCanvas({
 
   // Handle Node Selection Logic
   const handleNodeSelect = useCallback((nodeId: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    e.cancelBubble = true; // Prevent stage click
+    // In Hand mode or holding space, let event bubble to Stage for panning
+    if (toolMode === 'hand' || isSpacePressed) return;
     
-    // In Hand mode or holding space, do not select on click
-    if (toolMode === 'hand' || isSpacePressed) return; 
+    e.cancelBubble = true; // Prevent stage click (only in select mode)
     
     const isShift = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
     const isSelected = selectedNodeIds.has(nodeId);
@@ -1057,9 +1067,17 @@ export default function KonvaCanvas({
     onNodesChange(updatedNodes);
   }, [nodes, selectedNodeIds, onNodesChange, setCrossBoundaryDragNode]);
 
-  // Handle wheel zoom and pan
+  // Handle wheel zoom and pan (with throttling for smooth Mac trackpad scrolling)
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
+    
+    // Throttle wheel events to prevent stuttering on Mac trackpad
+    const now = Date.now();
+    if (now - lastWheelTimeRef.current < WHEEL_THROTTLE_MS) {
+      return;
+    }
+    lastWheelTimeRef.current = now;
+    
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -1486,6 +1504,11 @@ export default function KonvaCanvas({
           bgcolor: '#FAFAFA', 
           position: 'relative',
           overflow: 'hidden'
+        }}
+        onContextMenu={(e) => {
+          // Prevent browser default context menu at container level
+          // The Konva Stage's onContextMenu will handle showing our custom menu
+          e.preventDefault();
         }}
         onDragOver={(e) => {
           e.preventDefault();

@@ -5,7 +5,7 @@
  * Renders as an HTML overlay positioned over the Konva canvas
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Paper, Typography, IconButton, Chip, Modal, Fade, Backdrop, Button } from '@mui/material';
 import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, DragIndicatorIcon, OpenWithIcon } from '@/components/ui/icons';
 import { SummaryData, KeyFinding } from '@/lib/api';
@@ -19,6 +19,8 @@ interface SummaryCanvasNodeProps {
   onClose: () => void;
   onDragStart?: (e: React.MouseEvent) => void;
   onDragEnd?: () => void;
+  /** External drag state control from parent (GenerationOutputsOverlay) */
+  isDragging?: boolean;
 }
 
 export default function SummaryCanvasNode({
@@ -30,9 +32,19 @@ export default function SummaryCanvasNode({
   onClose,
   onDragStart,
   onDragEnd,
+  isDragging = false, // Controlled by parent (GenerationOutputsOverlay)
 }: SummaryCanvasNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  
+  // Performance: track renders
+  const renderCountRef = useRef(0);
+  renderCountRef.current++;
+  
+  useEffect(() => {
+    if (isDragging && renderCountRef.current % 10 === 0) {
+      console.log(`[Perf][SummaryNode ${id}] Render count: ${renderCountRef.current}`);
+    }
+  });
 
   // Convert canvas coordinates to screen coordinates
   const screenX = position.x * viewport.scale + viewport.x;
@@ -42,18 +54,26 @@ export default function SummaryCanvasNode({
   const handleCloseExpanded = () => setIsExpanded(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target instanceof HTMLElement && e.target.closest('.drag-handle')) {
-      setIsDragging(true);
-      onDragStart?.(e);
+    console.log('[SummaryNode] MouseDown', { 
+        target: e.target, 
+        isDragHandle: (e.target as HTMLElement).closest('.drag-handle') !== null,
+        isButton: (e.target as HTMLElement).closest('button') !== null,
+    });
+    if (e.target instanceof HTMLElement) {
+      // Skip if clicking on buttons (close, expand, copy)
+      if (e.target.closest('button') || e.target.closest('.MuiIconButton-root')) {
+        return;
+      }
+      if (e.target.closest('.drag-handle')) {
+        console.log('[SummaryNode] Drag handle clicked, calling onDragStart');
+        onDragStart?.(e);
+      }
     }
   };
 
-  const handleMouseUp = () => {
-    if (isDragging) {
-      setIsDragging(false);
-      onDragEnd?.();
-    }
-  };
+  // Note: handleMouseUp is no longer needed here.
+  // Parent (GenerationOutputsOverlay) handles mouseup via window event listener,
+  // which ensures drag state is properly cleared even when mouse is released outside the card.
 
   const handleCopy = () => {
     if (data.summary) {
@@ -67,7 +87,6 @@ export default function SummaryCanvasNode({
       <Paper
         elevation={0}
         onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
         sx={{
           position: 'absolute',
           left: screenX,
@@ -96,13 +115,21 @@ export default function SummaryCanvasNode({
           }
         }}
       >
-        {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1.5 }}>
-          {/* Drag Handle */}
+        {/* Header - entire header is draggable */}
+        <Box 
+          className="drag-handle"
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'flex-start', 
+            mb: 1.5,
+            cursor: 'grab',
+            '&:active': { cursor: 'grabbing' },
+            userSelect: 'none',
+          }}
+        >
+          {/* Drag Indicator Icon */}
           <Box 
-            className="drag-handle"
             sx={{ 
-              cursor: 'grab',
               p: 0.5,
               mr: 1,
               borderRadius: 1,
@@ -111,7 +138,6 @@ export default function SummaryCanvasNode({
                 color: 'text.secondary',
                 bgcolor: 'grey.100'
               },
-              '&:active': { cursor: 'grabbing' }
             }}
           >
             <OpenWithIcon size={14} />

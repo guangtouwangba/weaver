@@ -478,6 +478,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
   /**
    * WebSocket streaming for mindmap generation (concurrent version)
+   * Note: Only updates generationTasks state, NOT legacy overlay state
    */
   const handleMindmapStreamingConcurrent = useCallback(async (
     localTaskId: string,
@@ -488,13 +489,6 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     if (!projectId) return;
 
     const streamingData: MindmapData = { nodes: [], edges: [] };
-
-    // Also show in legacy overlay for backward compatibility
-    setMindmapResult({
-      data: { ...streamingData },
-      title: docTitle
-    });
-    setShowMindmapOverlay(true);
 
     return new Promise<void>((resolve, reject) => {
       const wsUrl = `${getWebSocketUrl()}/ws/projects/${projectId}/outputs?task_id=${backendTaskId}`;
@@ -523,8 +517,9 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
               case 'node_added':
                 if (data.nodeData) {
                   streamingData.nodes.push(data.nodeData as MindmapNode);
-                  setMindmapResult({
-                    data: { 
+                  // Update generation task with streaming data for real-time preview
+                  updateGenerationTask(localTaskId, {
+                    result: { 
                       nodes: [...streamingData.nodes], 
                       edges: [...streamingData.edges] 
                     },
@@ -536,8 +531,8 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
               case 'edge_added':
                 if (data.edgeData) {
                   streamingData.edges.push(data.edgeData as MindmapEdge);
-                  setMindmapResult({
-                    data: { 
+                  updateGenerationTask(localTaskId, {
+                    result: { 
                       nodes: [...streamingData.nodes], 
                       edges: [...streamingData.edges] 
                     },
@@ -557,10 +552,6 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                     nodes: layoutResult.nodes, 
                     edges: [...streamingData.edges] 
                   };
-                  setMindmapResult({
-                    data: finalData,
-                    title: docTitle
-                  });
                 }
                 
                 completeGeneration(localTaskId, finalData, docTitle);
@@ -605,10 +596,11 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
           .catch(reject);
       }
     });
-  }, [projectId, setMindmapResult, setShowMindmapOverlay, completeGeneration, failGeneration]);
+  }, [projectId, updateGenerationTask, completeGeneration, failGeneration]);
 
   /**
    * Polling for concurrent generation completion
+   * Note: Only updates generationTasks state, NOT legacy overlay state
    */
   const handlePollingConcurrent = useCallback(async (
     localTaskId: string,
@@ -628,20 +620,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       if (output.status === 'complete') {
         console.log(`[Concurrent] ${type} complete`);
         
-        if (type === 'mindmap' && output.data) {
-          setMindmapResult({
-            data: output.data as MindmapData,
-            title: output.title || docTitle
-          });
-          setShowMindmapOverlay(true);
-        } else if (type === 'summary' && output.data) {
-          setSummaryResult({
-            data: output.data as SummaryData,
-            title: output.title || docTitle
-          });
-          setShowSummaryOverlay(true);
-        }
-        
+        // Only update generationTasks, not legacy overlay state
         completeGeneration(localTaskId, output.data, output.title || docTitle);
         return;
       } else if (output.status === 'error') {
@@ -655,7 +634,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
     failGeneration(localTaskId, 'Generation timed out');
     throw new Error('Generation timed out');
-  }, [projectId, setMindmapResult, setShowMindmapOverlay, setSummaryResult, setShowSummaryOverlay, completeGeneration, failGeneration]);
+  }, [projectId, completeGeneration, failGeneration]);
 
   return {
     handleAddNode,

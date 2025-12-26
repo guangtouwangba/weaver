@@ -148,6 +148,7 @@ interface StudioContextType {
   generationTasks: Map<string, GenerationTask>;
   startGeneration: (type: GenerationType, position: { x: number; y: number }) => string; // Returns task ID
   updateGenerationTask: (taskId: string, updates: Partial<GenerationTask>) => void;
+  updateGenerationTaskPosition: (taskId: string, position: { x: number; y: number }) => void;
   completeGeneration: (taskId: string, result: unknown, title?: string) => void;
   failGeneration: (taskId: string, error: string) => void;
   removeGenerationTask: (taskId: string) => void;
@@ -296,6 +297,22 @@ export function StudioProvider({
       if (!task) return prev;
       const next = new Map(prev);
       next.set(taskId, { ...task, ...updates });
+      return next;
+    });
+  }, []);
+
+  // Update position of a generation task (for dragging output cards)
+  const updateGenerationTaskPosition = useCallback((taskId: string, position: { x: number; y: number }) => {
+    const updateStart = performance.now();
+    setGenerationTasks(prev => {
+      const task = prev.get(taskId);
+      if (!task) return prev;
+      const next = new Map(prev);
+      next.set(taskId, { ...task, position });
+      const updateDuration = performance.now() - updateStart;
+      if (updateDuration > 5) {
+        console.log(`[Perf][Context] State update took ${updateDuration.toFixed(2)}ms`);
+      }
       return next;
     });
   }, []);
@@ -972,6 +989,7 @@ export function StudioProvider({
     generationTasks,
     startGeneration,
     updateGenerationTask,
+    updateGenerationTaskPosition,
     completeGeneration,
     failGeneration,
     removeGenerationTask,
