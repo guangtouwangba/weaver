@@ -12,12 +12,12 @@ import {
   Tooltip
 } from "@mui/material";
 import { 
-  Share2, 
-  Bell, 
-  Search,
-  ChevronLeft,
-  ChevronDown
-} from "lucide-react";
+  ShareIcon, 
+  SearchIcon,
+  ChevronLeftIcon,
+  ExpandMoreIcon
+} from '@/components/ui/icons';
+import NotificationsMui from '@mui/icons-material/Notifications';
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { useStudio, StudioProvider } from "@/contexts/StudioContext";
 import ResourceSidebar from "@/components/studio/ResourceSidebar";
@@ -119,7 +119,7 @@ function StudioPageContent() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Tooltip title="Back to Dashboard">
                 <IconButton size="small" href="/dashboard">
-                  <ChevronLeft size={20} />
+                  <ChevronLeftIcon size="md" />
                 </IconButton>
               </Tooltip>
               {project && (
@@ -127,22 +127,22 @@ function StudioPageContent() {
                   <Typography variant="subtitle2" fontWeight="600">
                     {project.name}
                   </Typography>
-                  <ChevronDown size={14} className="text-gray-400" />
+                  <ExpandMoreIcon size="sm" sx={{ color: 'grey.400' }} />
                 </Box>
               )}
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <IconButton size="small">
-                <Search size={18} />
+                <SearchIcon size={18} />
               </IconButton>
               <IconButton size="small">
-                <Bell size={18} />
+                <NotificationsMui sx={{ fontSize: 18 }} />
               </IconButton>
               <Button 
                 variant="outlined" 
                 size="small" 
-                startIcon={<Share2 size={16} />}
+                startIcon={<ShareIcon size="sm" />}
                 sx={{ textTransform: 'none', borderRadius: 2 }}
               >
                 Share

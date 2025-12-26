@@ -9,10 +9,10 @@ import {
   CircularProgress
 } from "@mui/material";
 import { 
-  Layout, 
-  FileText,
-  Link as LinkIcon,
-} from "lucide-react";
+  DashboardIcon, 
+  DescriptionIcon,
+  LinkIcon,
+} from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
 import { CanvasNode } from '@/lib/api';
@@ -198,7 +198,7 @@ export default function CanvasPanel() {
     <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
       <Box sx={{ height: 48, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 3, justifyContent: 'space-between', bgcolor: '#FAFAFA', flexShrink: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Layout size={14} className="text-gray-500" />
+          <DashboardIcon size={14} sx={{ color: 'grey.500' }} />
           <Typography variant="subtitle2" fontWeight="600">Canvas</Typography>
           {isGenerating && (
             <Chip 

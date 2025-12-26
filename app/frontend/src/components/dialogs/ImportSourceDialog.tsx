@@ -11,7 +11,7 @@ import {
   IconButton,
   InputAdornment,
 } from '@mui/material';
-import { X, CloudUpload, FolderOpen, Link as LinkIcon } from 'lucide-react';
+import { CloseIcon, CloudUploadIcon, FolderOpenIcon, LinkIcon } from '@/components/ui/icons';
 
 interface ImportSourceDialogProps {
   open: boolean;
@@ -129,7 +129,7 @@ export default function ImportSourceDialog({
           </Typography>
         </Box>
         <IconButton onClick={handleClose} size="small" sx={{ color: 'text.secondary' }}>
-          <X size={20} />
+          <CloseIcon size={20} />
         </IconButton>
       </Box>
 
@@ -170,7 +170,7 @@ export default function ImportSourceDialog({
                 mb: 1,
               }}
             >
-              <CloudUpload size={32} color="white" />
+              <CloudUploadIcon size={32} sx={{ color: 'white' }} />
             </Box>
             <Box>
               <Typography variant="body1" sx={{ mb: 0.5 }}>
@@ -197,7 +197,7 @@ export default function ImportSourceDialog({
             </Box>
             <Button
               variant="outlined"
-              startIcon={<FolderOpen size={16} />}
+              startIcon={<FolderOpenIcon size="sm" />}
               onClick={(e) => {
                 e.stopPropagation();
                 handleBrowseClick();

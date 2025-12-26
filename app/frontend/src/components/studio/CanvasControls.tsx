@@ -10,16 +10,16 @@ import {
   Collapse
 } from "@mui/material";
 import { 
-  Minus, 
-  Plus, 
-  MousePointer2,
-  Hand,
-  ChevronDown,
-  ChevronUp,
-  Trash2,
-  ScanSearch,
-  PlusCircle
-} from "lucide-react";
+  AddIcon, 
+  AddCircleIcon,
+  ExpandMoreIcon, 
+  ExpandLessIcon,
+  DeleteIcon,
+  ImageSearchIcon
+} from '@/components/ui/icons';
+import RemoveMui from '@mui/icons-material/Remove';
+import MouseMui from '@mui/icons-material/Mouse';
+import PanToolMui from '@mui/icons-material/PanTool';
 
 interface CanvasControlsProps {
   zoom: number;
@@ -102,7 +102,7 @@ export default function CanvasControls({
             },
           }}
         >
-          {isCollapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          {isCollapsed ? <ExpandLessIcon size="sm" /> : <ExpandMoreIcon size="sm" />}
         </IconButton>
       </Tooltip>
 
@@ -117,7 +117,7 @@ export default function CanvasControls({
                   onClick={() => onModeChange?.('select')}
                   sx={getModeButtonStyle(interactionMode === 'select')}
                 >
-                  <MousePointer2 size={16} />
+                  <MouseMui sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Pan Mode (H)" placement="left">
@@ -125,7 +125,7 @@ export default function CanvasControls({
                   onClick={() => onModeChange?.('pan')}
                   sx={getModeButtonStyle(interactionMode === 'pan')}
                 >
-                  <Hand size={16} />
+                  <PanToolMui sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -144,7 +144,7 @@ export default function CanvasControls({
                     '&:hover': { bgcolor: 'action.hover' }
                   }}
                 >
-                  <PlusCircle size={16} />
+                  <AddCircleIcon size="sm" />
                 </IconButton>
               </Tooltip>
 
@@ -159,7 +159,7 @@ export default function CanvasControls({
                     '&:hover': { bgcolor: 'action.hover' }
                   }}
                 >
-                  <Plus size={16} />
+                  <AddIcon size="sm" />
                 </IconButton>
               </Tooltip>
 
@@ -189,7 +189,7 @@ export default function CanvasControls({
                     '&:hover': { bgcolor: 'action.hover' }
                   }}
                 >
-                  <Minus size={16} />
+                  <RemoveMui sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
 
@@ -204,7 +204,7 @@ export default function CanvasControls({
                     '&:hover': { bgcolor: 'action.hover' }
                   }}
                 >
-                  <ScanSearch size={16} />
+                  <ImageSearchIcon size="sm" />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -237,7 +237,7 @@ export default function CanvasControls({
                     }
                   }}
                 >
-                  <Trash2 size={16} />
+                  <DeleteIcon size="sm" />
                 </IconButton>
               </Tooltip>
             </Box>

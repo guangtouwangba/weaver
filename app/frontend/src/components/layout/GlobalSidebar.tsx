@@ -3,11 +3,11 @@
 import React from 'react';
 import { Box, IconButton, Avatar, Tooltip } from '@mui/material';
 import { 
-  Home,
-  LayoutGrid,
-  Settings,
-  Grid2x2
-} from 'lucide-react';
+  HomeIcon,
+  GridViewIcon,
+  SettingsIcon,
+  Grid4x4Icon
+} from '@/components/ui/icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -103,7 +103,7 @@ export default function GlobalSidebar() {
                 },
               }}
             >
-              <Grid2x2 size={24} strokeWidth={2.5} />
+              <GridViewIcon size="lg" />
             </Box>
           </Link>
         </Tooltip>
@@ -111,21 +111,21 @@ export default function GlobalSidebar() {
 
       {/* Main Navigation */}
       <NavItem 
-        icon={Home} 
+        icon={HomeIcon} 
         label="Dashboard" 
         href="/dashboard" 
         isActive={isDashboardActive}
       />
       
       <NavItem 
-        icon={LayoutGrid} 
+        icon={GridViewIcon} 
         label="Studio" 
         href="/studio" 
         isActive={isStudioActive}
       />
 
       <NavItem 
-        icon={Settings} 
+        icon={SettingsIcon} 
         label="Settings" 
         href="/settings" 
         isActive={isSettingsActive}

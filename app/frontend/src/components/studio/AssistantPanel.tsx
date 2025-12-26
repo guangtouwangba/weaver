@@ -38,18 +38,18 @@ import {
   GripHorizontal,
   Brain,
   ExternalLink,
-  Plus,
   Cloud,
   Lock,
   MessageSquare,
-  MoreVertical,
-  Trash2,
-  Edit2,
-  ChevronLeft,
-  ChevronRight,
-  List as ListIcon,
-  History,
-} from "lucide-react";
+  MoreVertIcon,
+  DeleteIcon,
+  EditIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ViewListIcon,
+  HistoryIcon,
+  AddIcon,
+} from '@/components/ui/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -721,7 +721,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             value="chat" 
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <MessageSquare size={15} />
+                <CommentMui sx={{ fontSize: 15 }} />
                 <span>Chat</span>
               </Box>
             } 
@@ -730,7 +730,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             value="history" 
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <History size={15} />
+                <HistoryMui sx={{ fontSize: 15 }} />
                 <span>History</span>
               </Box>
             } 
@@ -740,7 +740,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         <Box sx={{ display: 'flex', gap: 0.5 }}>
            <Tooltip title="New Chat">
              <IconButton size="small" onClick={() => handleCreateSession(false)}>
-               <Plus size={18} />
+               <AddIcon size="md" />
              </IconButton>
            </Tooltip>
            <Tooltip title="Collapse (⌘.)">
@@ -773,7 +773,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                            onClick={(e) => handleSessionMenuOpen(e, session.id)}
                            sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
                          >
-                           <MoreVertical size={14} />
+                           <MoreVertIcon size={14} />
                          </IconButton>
                        }
                        sx={{
@@ -829,12 +829,12 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                    ))}
                    {chatSessions.length === 0 && (
                       <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                        <MessageSquare size={32} style={{ opacity: 0.2, marginBottom: 8 }} />
+                        <CommentMui sx={{ fontSize: 32, opacity: 0.2, marginBottom: 1 }} />
                         <Typography variant="body2">No conversations yet</Typography>
                         <Button 
                           variant="outlined" 
                           size="small" 
-                          startIcon={<Plus size={14} />} 
+                          startIcon={<AddIcon size="sm" />} 
                           sx={{ mt: 2, textTransform: 'none' }}
                           onClick={() => handleCreateSession(false)}
                         >
@@ -1001,7 +1001,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                       {msg.role === 'user' && msg.contextNodes && msg.contextNodes.length > 0 && (
                         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                            <Brain size={12} />
+                            <PsychologyMui sx={{ fontSize: 12 }} />
                             Referenced {msg.contextNodes.length} {msg.contextNodes.length === 1 ? 'node' : 'nodes'}:
                           </Typography>
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -1022,7 +1022,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                                 <Chip
                                   label={node.title.length > 25 ? node.title.substring(0, 25) + '...' : node.title}
                                   size="small"
-                                  icon={<Brain size={10} />}
+                                  icon={<PsychologyMui sx={{ fontSize: 10 }} />}
                                   sx={{
                                     height: 22,
                                     fontSize: '0.7rem',
@@ -1047,7 +1047,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                             size="small"
                             onClick={() => toggleSources(msg.id)}
                             startIcon={<LinkIcon size={12} />}
-                            endIcon={expandedSources.has(msg.id) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            endIcon={expandedSources.has(msg.id) ? <ExpandLessMui sx={{ fontSize: 12 }} /> : <ExpandMoreMui sx={{ fontSize: 12 }} />}
                             sx={{
                               textTransform: 'none',
                               fontSize: '0.7rem',
@@ -1117,7 +1117,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                           <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
                             <Button 
                               size="small" 
-                              startIcon={<Brain size={12} />} 
+                              startIcon={<PsychologyMui sx={{ fontSize: 12 }} />} 
                               onClick={() => handleViewInThinkingPath(msg.id)}
                               sx={{ 
                                 fontSize: 10, 
@@ -1149,7 +1149,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                          label={node.title.length > 20 ? node.title.substring(0, 20) + '...' : node.title}
                          onDelete={() => removeContextNode(node.id)}
                          onClick={() => node.sourceMessageId && scrollToMessage(node.sourceMessageId)}
-                         icon={<Brain size={14} />}
+                         icon={<PsychologyMui sx={{ fontSize: 14 }} />}
                          size="small"
                          sx={{ 
                            maxWidth: '100%',
@@ -1218,11 +1218,11 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         onClose={handleSessionMenuClose}
       >
         <MenuItem onClick={handleStartEditSession}>
-          <Edit2 size={14} style={{ marginRight: 8 }} />
+          <EditMui sx={{ fontSize: 14, marginRight: 1 }} />
           Rename
         </MenuItem>
         <MenuItem onClick={handleDeleteSessionConfirm} sx={{ color: 'error.main' }}>
-          <Trash2 size={14} style={{ marginRight: 8 }} />
+          <DeleteMui sx={{ fontSize: 14, marginRight: 1 }} />
           Delete
         </MenuItem>
       </Menu>

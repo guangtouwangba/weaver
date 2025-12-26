@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Box, Paper, Typography, MenuItem, ListItemIcon, ListItemText, Divider, MenuList } from '@mui/material';
-import { Plus, StickyNote, Network, Layers, FileText, FileUp, Sparkles, Brain, CreditCard } from 'lucide-react';
+import { AddIcon, StickyNote2Icon, AccountTreeIcon, LayersIcon, DescriptionIcon, UploadFileIcon, AutoAwesomeIcon, PsychologyIcon, CreditCardIcon } from '@/components/ui/icons';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 
 interface CanvasContextMenuProps {
@@ -60,14 +60,14 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport }:
       <MenuList dense sx={{ py: 1 }}>
         <MenuItem onClick={() => handleAction(() => handleAddNode('default', { x, y }))}>
           <ListItemIcon>
-            <Plus size={18} />
+            <AddIcon size={18} />
           </ListItemIcon>
           <ListItemText>Add Node</ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => handleAction(() => handleAddNode('sticky', { x, y }))}>
           <ListItemIcon>
-            <StickyNote size={18} />
+            <StickyNote2Icon size={18} />
           </ListItemIcon>
           <ListItemText>Add Sticky Note</ListItemText>
         </MenuItem>
@@ -82,21 +82,21 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport }:
 
         <MenuItem onClick={() => handleAction(() => handleGenerateContent('mindmap'))}>
           <ListItemIcon>
-            <Network size={18} color="#6366f1" /> {/* Indigo */}
+            <AccountTreeIcon size={18} sx={{ color: '#6366f1' }} /> {/* Indigo */}
           </ListItemIcon>
           <ListItemText>Generate Mind Map</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={() => handleAction(() => handleGenerateContent('flashcards'))}>
           <ListItemIcon>
-            <CreditCard size={18} color="#f59e0b" /> {/* Amber */}
+            <CreditCardIcon size={18} sx={{ color: '#f59e0b' }} /> {/* Amber */}
           </ListItemIcon>
           <ListItemText>Generate Flashcards</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={() => handleAction(() => handleGenerateContent('summary'))}>
           <ListItemIcon>
-            <FileText size={18} color="#3b82f6" /> {/* Blue */}
+            <DescriptionIcon size={18} sx={{ color: '#3b82f6' }} /> {/* Blue */}
           </ListItemIcon>
           <ListItemText>Generate Summary</ListItemText>
         </MenuItem>
@@ -105,7 +105,7 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport }:
 
         <MenuItem onClick={() => handleAction(handleImportSource)}>
           <ListItemIcon>
-            <FileUp size={18} />
+            <UploadFileIcon size={18} />
           </ListItemIcon>
           <ListItemText>Import Source...</ListItemText>
         </MenuItem>

@@ -8,10 +8,10 @@ import {
   IconButton, 
 } from "@mui/material";
 import { 
-  SendHorizontal, 
-  Sparkles, 
-  Zap 
-} from "lucide-react";
+  SendIcon, 
+  AutoAwesomeIcon, 
+  BoltIcon 
+} from '@/components/ui/icons';
 
 interface ChatOverlayProps {
   onSendMessage: (message: string) => void;
@@ -60,10 +60,10 @@ export default function ChatOverlay({ onSendMessage }: ChatOverlayProps) {
         }}
       >
         <IconButton sx={{ p: 1, color: 'text.secondary' }}>
-          <Zap size={20} />
+          <BoltIcon size="md" />
         </IconButton>
         <IconButton sx={{ p: 1, color: 'text.secondary' }}>
-          <Sparkles size={20} />
+          <AutoAwesomeIcon size="md" />
         </IconButton>
         
         <InputBase
@@ -82,7 +82,7 @@ export default function ChatOverlay({ onSendMessage }: ChatOverlayProps) {
             color: input.trim() ? 'primary.main' : 'action.disabled' 
           }}
         >
-          <SendHorizontal size={20} />
+          <SendIcon size="md" />
         </IconButton>
       </Paper>
     </Box>

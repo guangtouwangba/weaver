@@ -34,21 +34,21 @@ import {
   Box as MuiBox,
 } from '@mui/material';
 import { 
-  User, 
-  Cpu, 
-  Database, 
-  Palette, 
-  LogOut, 
-  Eye, 
-  EyeOff, 
-  Key, 
-  Sparkles, 
-  Check, 
-  X, 
-  Search, 
-  Settings2,
-  FileText,
-} from 'lucide-react';
+  AutoAwesomeIcon, 
+  CheckIcon, 
+  CloseIcon, 
+  SearchIcon, 
+  TuneIcon,
+  DescriptionIcon,
+} from '@/components/ui/icons';
+import PersonMui from '@mui/icons-material/Person';
+import MemoryMui from '@mui/icons-material/Memory';
+import StorageMui from '@mui/icons-material/Storage';
+import PaletteMui from '@mui/icons-material/Palette';
+import LogoutMui from '@mui/icons-material/Logout';
+import VisibilityMui from '@mui/icons-material/Visibility';
+import VisibilityOffMui from '@mui/icons-material/VisibilityOff';
+import VpnKeyMui from '@mui/icons-material/VpnKey';
 
 // Mock user data (will be replaced with auth)
 const MOCK_USER = {
@@ -108,11 +108,11 @@ export default function SettingsPage() {
   });
 
   const menuItems = [
-    { id: 'profile', label: 'Profile & Account', icon: <User size={20} /> },
-    { id: 'ai', label: 'AI & Models', icon: <Cpu size={20} /> },
-    { id: 'rag', label: 'RAG Strategy', icon: <Search size={20} /> },
-    { id: 'advanced', label: 'Advanced', icon: <Settings2 size={20} /> },
-    { id: 'appearance', label: 'Appearance', icon: <Palette size={20} /> },
+    { id: 'profile', label: 'Profile & Account', icon: <PersonMui sx={{ fontSize: 20 }} /> },
+    { id: 'ai', label: 'AI & Models', icon: <MemoryMui sx={{ fontSize: 20 }} /> },
+    { id: 'rag', label: 'RAG Strategy', icon: <SearchIcon size="md" /> },
+    { id: 'advanced', label: 'Advanced', icon: <TuneIcon size="md" /> },
+    { id: 'appearance', label: 'Appearance', icon: <PaletteMui sx={{ fontSize: 20 }} /> },
   ];
 
   // Load settings on mount
@@ -308,7 +308,7 @@ export default function SettingsPage() {
             <Box sx={{ p: 1 }}>
               <ListItemButton sx={{ borderRadius: 2, color: 'error.main' }}>
                 <ListItemIcon sx={{ minWidth: 40, color: 'error.main' }}>
-                  <LogOut size={20} />
+                  <LogoutMui sx={{ fontSize: 20 }} />
                 </ListItemIcon>
                 <ListItemText primary="Sign Out" primaryTypographyProps={{ fontWeight: 500 }} />
               </ListItemButton>
@@ -325,7 +325,7 @@ export default function SettingsPage() {
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                     <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.50', color: 'primary.main' }}>
-                      <Key size={24} />
+                      <VpnKeyMui sx={{ fontSize: 24 }} />
                     </Box>
                     <Box>
                       <Typography variant="h6" fontWeight="700">API Configuration</Typography>
@@ -344,7 +344,7 @@ export default function SettingsPage() {
                         endAdornment: (
                           <InputAdornment position="end">
                             <IconButton onClick={() => setShowKey(!showKey)} edge="end">
-                              {showKey ? <EyeOff size={20} /> : <Eye size={20} />}
+                              {showKey ? <VisibilityOffMui sx={{ fontSize: 20 }} /> : <VisibilityMui sx={{ fontSize: 20 }} />}
                             </IconButton>
                           </InputAdornment>
                         ),
@@ -378,7 +378,7 @@ export default function SettingsPage() {
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                     <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'secondary.50', color: 'secondary.main' }}>
-                      <Sparkles size={24} />
+                      <AutoAwesomeMui sx={{ fontSize: 24 }} />
                     </Box>
                     <Box>
                       <Typography variant="h6" fontWeight="700">Model Selection</Typography>
@@ -412,7 +412,7 @@ export default function SettingsPage() {
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                     <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'info.50', color: 'info.main' }}>
-                      <Database size={24} />
+                      <StorageMui sx={{ fontSize: 24 }} />
                     </Box>
                     <Box>
                       <Typography variant="h6" fontWeight="700">RAG Mode</Typography>
@@ -438,7 +438,7 @@ export default function SettingsPage() {
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                     <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'success.50', color: 'success.main' }}>
-                      <FileText size={24} />
+                      <DescriptionMui sx={{ fontSize: 24 }} />
                     </Box>
                     <Box>
                       <Typography variant="h6" fontWeight="700">Document Processing</Typography>
@@ -466,7 +466,7 @@ export default function SettingsPage() {
                     <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                         <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'warning.50', color: 'warning.main' }}>
-                          <Search size={24} />
+                          <SearchIcon size="lg" />
                         </Box>
                         <Box>
                           <Typography variant="h6" fontWeight="700">Retrieval Strategy</Typography>

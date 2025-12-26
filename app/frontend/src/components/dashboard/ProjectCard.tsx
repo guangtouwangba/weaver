@@ -1,6 +1,6 @@
 import { Project } from '@/lib/api';
 import { Paper, Typography, Box, IconButton, Avatar, AvatarGroup } from '@mui/material';
-import { MoreVertical } from 'lucide-react';
+import { MoreVertIcon } from '@/components/ui/icons';
 import Link from 'next/link';
 
 interface ProjectCardProps {
@@ -97,7 +97,7 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
               '&:hover': { opacity: 1, bgcolor: 'action.hover' }
             }}
           >
-            <MoreVertical size={16} />
+            <MoreVertIcon size="sm" />
         </IconButton>
       </Paper>
     </Link>

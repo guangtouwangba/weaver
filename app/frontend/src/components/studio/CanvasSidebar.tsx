@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react';
 import { Box, Tooltip } from '@mui/material';
-import { Layout, Brain } from 'lucide-react';
+import { DashboardIcon, PsychologyIcon } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 
 export default function CanvasSidebar() {
@@ -69,7 +69,7 @@ export default function CanvasSidebar() {
           }}
           onClick={() => switchView('free')}
         >
-          <Layout size={18} />
+          <DashboardIcon size={18} />
         </Box>
       </Tooltip>
 
@@ -92,7 +92,7 @@ export default function CanvasSidebar() {
           }}
           onClick={() => switchView('thinking')}
         >
-          <Brain size={18} />
+          <PsychologyIcon size={18} />
         </Box>
       </Tooltip>
     </Box>

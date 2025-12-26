@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Paper, IconButton, Tooltip } from '@mui/material';
-import { Copy, X, FileText } from 'lucide-react';
+import { ContentCopyIcon, CloseIcon, DescriptionIcon } from '@/components/ui/icons';
 import { HighlightColor } from './types';
 
 interface SelectionToolbarProps {
@@ -108,7 +108,7 @@ export function SelectionToolbar({
             },
           }}
         >
-          <FileText size={14} />
+          <DescriptionIcon size={14} />
         </IconButton>
       </Tooltip>
 
@@ -131,7 +131,7 @@ export function SelectionToolbar({
             },
           }}
         >
-          <Copy size={14} />
+          <ContentCopyIcon size={14} />
         </IconButton>
       </Tooltip>
 

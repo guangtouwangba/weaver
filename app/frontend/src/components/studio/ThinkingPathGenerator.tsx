@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Box, Chip, IconButton, Tooltip, CircularProgress, SxProps, Theme } from '@mui/material';
-import { Brain, RefreshCw, Link2, X, Layout, Trash2, ParkingCircle } from 'lucide-react';
+import { PsychologyIcon, RefreshIcon, LinkIcon, CloseIcon, DashboardIcon, DeleteIcon, LocalParkingIcon } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import useCanvasWebSocket from '@/hooks/useCanvasWebSocket';
 import { CanvasNode, CanvasEdge, CanvasSection, thinkingPathApi } from '@/lib/api';
@@ -433,7 +433,7 @@ export default function ThinkingPathGenerator({
       <Tooltip title={`WebSocket: ${connectionStatus}`}>
         <Chip
           size="small"
-          icon={<Brain size={14} />}
+          icon={<PsychologyIcon size={14} />}
           label={isAnalyzing ? 'Analyzing...' : 'Auto'}
           color={getStatusColor()}
           variant="outlined"
@@ -474,7 +474,7 @@ export default function ThinkingPathGenerator({
       {connectionStatus === 'disconnected' && (
         <Tooltip title="Reconnect WebSocket">
           <IconButton size="small" onClick={reconnect}>
-            <RefreshCw size={16} />
+            <RefreshIcon size="sm" />
           </IconButton>
         </Tooltip>
       )}
@@ -486,7 +486,7 @@ export default function ThinkingPathGenerator({
           onClick={triggerAnalysis}
           disabled={isAnalyzing}
         >
-          <Link2 size={16} />
+          <LinkIcon size="sm" />
         </IconButton>
       </Tooltip>
 
@@ -511,7 +511,7 @@ export default function ThinkingPathGenerator({
             });
           }}
         >
-          <Layout size={16} />
+          <DashboardIcon size="sm" />
         </IconButton>
       </Tooltip>
 
@@ -537,7 +537,7 @@ export default function ThinkingPathGenerator({
           }}
           sx={{ color: 'error.main' }}
         >
-          <Trash2 size={16} />
+          <DeleteIcon size="sm" />
         </IconButton>
       </Tooltip>
     </Box>

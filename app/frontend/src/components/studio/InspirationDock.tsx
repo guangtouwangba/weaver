@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Box, Paper, Typography, IconButton, Tooltip, CircularProgress } from '@mui/material';
-import { Zap, Network, Plus, Mic, Layout, HelpCircle, Sparkles, X, Check, AlertCircle } from 'lucide-react';
+import { BoltIcon, AccountTreeIcon, AddIcon, MicIcon, DashboardIcon, HelpOutlineIcon, AutoAwesomeIcon, CloseIcon, CheckIcon, ErrorIcon } from '@/components/ui/icons';
 import { useStudio, GenerationType } from '@/contexts/StudioContext';
 import SummaryCard from './SummaryCard';
 import { MindMapCard, MindMapFullView } from './mindmap/MindMapViews';
@@ -175,9 +175,9 @@ export default function InspirationDock() {
         {isGenerating ? (
           <CircularProgress size={24} sx={{ color }} />
         ) : error ? (
-          <AlertCircle size={24} color="#EF4444" />
+          <ErrorIcon size="lg" sx={{ color: '#EF4444' }} />
         ) : isComplete ? (
-          <Check size={24} color={color} />
+          <CheckIcon size="lg" sx={{ color: color }} />
         ) : (
           icon
         )}
@@ -299,10 +299,10 @@ export default function InspirationDock() {
                 }}
               >
                 {[
-                  { id: 'podcast', label: 'Podcast', desc: 'Audio overview', icon: <Mic size={20} color="#8B5CF6" />, color: '#8B5CF6', isGenerating: isGeneratingPodcast },
-                  { id: 'quiz', label: 'Quiz', desc: 'Test knowledge', icon: <HelpCircle size={20} color="#F59E0B" />, color: '#F59E0B', isGenerating: isGeneratingQuiz },
-                  { id: 'timeline', label: 'Timeline', desc: 'Chronology', icon: <Sparkles size={20} color="#EC4899" />, color: '#EC4899', isGenerating: isGeneratingTimeline },
-                  { id: 'compare', label: 'Compare', desc: 'Diff analysis', icon: <Layout size={20} color="#10B981" />, color: '#10B981', isGenerating: isGeneratingCompare }
+                  { id: 'podcast', label: 'Podcast', desc: 'Audio overview', icon: <MicIcon size="md" sx={{ color: '#8B5CF6' }} />, color: '#8B5CF6', isGenerating: isGeneratingPodcast },
+                  { id: 'quiz', label: 'Quiz', desc: 'Test knowledge', icon: <HelpOutlineIcon size="md" sx={{ color: '#F59E0B' }} />, color: '#F59E0B', isGenerating: isGeneratingQuiz },
+                  { id: 'timeline', label: 'Timeline', desc: 'Chronology', icon: <AutoAwesomeIcon size="md" sx={{ color: '#EC4899' }} />, color: '#EC4899', isGenerating: isGeneratingTimeline },
+                  { id: 'compare', label: 'Compare', desc: 'Diff analysis', icon: <DashboardIcon size="md" sx={{ color: '#10B981' }} />, color: '#10B981', isGenerating: isGeneratingCompare }
                 ].map((action) => (
                   <Box
                     key={action.id}
@@ -385,7 +385,7 @@ export default function InspirationDock() {
                   {renderActionButton(
                     'summary',
                     'Summary',
-                    <Zap size={24} color={projectColor} />,
+                    <BoltIcon size="lg" sx={{ color: projectColor }} />,
                     projectColor,
                     isGeneratingSummary,
                     recentlyCompleted.summary,
@@ -397,7 +397,7 @@ export default function InspirationDock() {
                   {renderActionButton(
                     'mindmap',
                     'Mindmap',
-                    <Network size={24} color="#10B981" />,
+                    <AccountTreeIcon size="lg" sx={{ color: '#10B981' }} />,
                     '#10B981',
                     isGeneratingMindmap,
                     recentlyCompleted.mindmap,
@@ -426,7 +426,7 @@ export default function InspirationDock() {
                         }
                       }}
                     >
-                      <Plus size={24} />
+                      <AddIcon size="lg" />
                     </IconButton>
                   </Tooltip>
                 </>
@@ -463,7 +463,7 @@ export default function InspirationDock() {
                     }
                   }}
                 >
-                  <X size={18} />
+                  <CloseIcon size={18} />
                 </IconButton>
               </Tooltip>
             )}

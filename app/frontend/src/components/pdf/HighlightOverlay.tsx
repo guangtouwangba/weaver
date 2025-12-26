@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Paper, Typography } from '@mui/material';
-import { FileText } from 'lucide-react';
+import { DescriptionIcon } from '@/components/ui/icons';
 import { TextSelection, Highlight } from './types';
 
 interface HighlightOverlayProps {
@@ -152,7 +152,7 @@ export function HighlightOverlay({
                     pointerEvents: 'none',
                   }}
                 >
-                  <FileText size={8} style={{ color: '#6B7280' }} />
+                  <DescriptionIcon size={8} style={{ color: '#6B7280' }} />
                 </Box>
               )}
             </Box>
@@ -202,7 +202,7 @@ export function HighlightOverlay({
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <FileText size={14} style={{ color: '#6B7280', marginTop: 2, flexShrink: 0 }} />
+              <DescriptionIcon size={14} style={{ color: '#6B7280', marginTop: 2, flexShrink: 0 }} />
               <Typography
                 variant="caption"
                 sx={{

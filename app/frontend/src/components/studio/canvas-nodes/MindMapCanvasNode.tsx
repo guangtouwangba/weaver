@@ -8,7 +8,7 @@
 import React, { useState, useRef } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { Box, Paper, Typography, IconButton, Modal, Chip, CircularProgress } from '@mui/material';
-import { X, Maximize2, ZoomIn, ZoomOut, Network, Move } from 'lucide-react';
+import { CloseIcon, FullscreenIcon, ZoomInIcon, ZoomOutIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from '../mindmap/MindMapNode';
 import { MindMapEdge } from '../mindmap/MindMapEdge';
@@ -201,7 +201,7 @@ export default function MindMapCanvasNode({
                 '&:active': { cursor: 'grabbing' },
               }}
             >
-              <Move size={14} />
+              <OpenWithIcon size={14} />
             </Box>
 
             {/* Icon */}
@@ -218,7 +218,7 @@ export default function MindMapCanvasNode({
                 flexShrink: 0,
               }}
             >
-              <Network size={14} />
+              <AccountTreeIcon size={14} />
             </Box>
 
             {/* Title */}
@@ -240,10 +240,10 @@ export default function MindMapCanvasNode({
               disabled={isStreaming && nodeCount === 0}
               sx={{ p: 0.5 }}
             >
-              <Maximize2 size={14} />
+              <FullscreenIcon size={14} />
             </IconButton>
             <IconButton size="small" onClick={onClose} sx={{ p: 0.5 }}>
-              <X size={14} />
+              <CloseIcon size={14} />
             </IconButton>
           </Box>
         </Box>
@@ -361,7 +361,7 @@ export default function MindMapCanvasNode({
                   color: 'white',
                 }}
               >
-                <Network size={18} />
+                <AccountTreeIcon size={18} />
               </Box>
               <Typography variant="h6" fontWeight={600}>
                 {title}
@@ -374,13 +374,13 @@ export default function MindMapCanvasNode({
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <IconButton onClick={() => setFullScale((s) => Math.min(s + 0.1, 2))}>
-                <ZoomIn size={20} />
+                <ZoomInIcon size="md" />
               </IconButton>
               <IconButton onClick={() => setFullScale((s) => Math.max(s - 0.1, 0.2))}>
-                <ZoomOut size={20} />
+                <ZoomOutIcon size="md" />
               </IconButton>
               <IconButton onClick={() => setIsExpanded(false)} sx={{ ml: 2 }}>
-                <X size={20} />
+                <CloseIcon size="md" />
               </IconButton>
             </Box>
           </Box>

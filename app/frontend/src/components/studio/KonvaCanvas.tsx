@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Stage, Layer, Group, Rect, Text, Line, Circle } from 'react-konva';
 import Konva from 'konva';
 import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
-import { ArrowUp, X, Check, Layers, Sparkles } from 'lucide-react';
+import { ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import { ToolMode } from './CanvasToolbar';
 import InspirationDock from './InspirationDock';
@@ -1577,7 +1577,7 @@ export default function KonvaCanvas({
                 }}
                 sx={{ fontSize: 14 }}
               >
-                <ArrowUp size={14} style={{ marginRight: 8 }} />
+                <ArrowUpwardIcon size={14} style={{ marginRight: 8 }} />
                 提升到自由画布
               </MenuItem>
             )}
@@ -1652,7 +1652,7 @@ export default function KonvaCanvas({
                 }}
                 sx={{ fontSize: 14 }}
               >
-                <Sparkles size={14} style={{ marginRight: 8 }} />
+                <AutoAwesomeIcon size={14} style={{ marginRight: 8 }} />
                 提取洞察 (Extract Insights)
               </MenuItem>
             )}
@@ -1704,7 +1704,7 @@ export default function KonvaCanvas({
                 }}
                 sx={{ fontSize: 14 }}
               >
-                <Layers size={14} style={{ marginRight: 8 }} />
+                <LayersIcon size={14} style={{ marginRight: 8 }} />
                 创建分组 ({selectedNodeIds.size})
               </MenuItem>
             )}
@@ -1780,7 +1780,7 @@ export default function KonvaCanvas({
                 size="small"
                 onClick={() => setEdgeLabelDialog(null)}
               >
-                <X size={16} />
+                <CloseIcon size="sm" />
               </IconButton>
             </Box>
             
