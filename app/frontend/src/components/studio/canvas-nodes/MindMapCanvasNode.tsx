@@ -3,15 +3,25 @@
 /**
  * MindMapCanvasNode - A compact mindmap card that appears on the canvas
  * Renders as an HTML overlay positioned over the Konva canvas
+ * 
+ * Features:
+ * - Unified visual styling across all display contexts
+ * - Full MindMapEditor in expanded view with:
+ *   - Free zoom (scroll wheel, pinch, +/- buttons)
+ *   - Canvas pan
+ *   - Layout switching
+ *   - Node editing (add/delete/edit)
+ *   - Export (PNG/JSON)
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { Box, Paper, Typography, IconButton, Modal, Chip, CircularProgress } from '@mui/material';
-import { CloseIcon, FullscreenIcon, ZoomInIcon, ZoomOutIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
+import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from '../mindmap/MindMapNode';
 import { MindMapEdge } from '../mindmap/MindMapEdge';
+import { MindMapEditor } from '../mindmap/MindMapEditor';
 
 interface MindMapCanvasNodeProps {
   id: string;
@@ -20,12 +30,16 @@ interface MindMapCanvasNodeProps {
   position: { x: number; y: number };
   viewport: { x: number; y: number; scale: number };
   isStreaming?: boolean;
+  /** When true, card is centered on screen (overlay mode) without viewport transform */
+  isOverlayMode?: boolean;
   onClose: () => void;
   onDragStart?: (e: React.MouseEvent) => void;
   onDragEnd?: () => void;
+  /** Callback when mindmap data is saved from editor */
+  onDataChange?: (data: MindmapData) => void;
 }
 
-// Mini renderer for preview
+// Mini renderer for preview (compact card view)
 const MiniMindMapRenderer: React.FC<{ data: MindmapData; width: number; height: number; scale?: number }> = ({
   data,
   width,
@@ -56,51 +70,6 @@ const MiniMindMapRenderer: React.FC<{ data: MindmapData; width: number; height: 
   );
 };
 
-// Full renderer with zoom controls
-const FullMindMapRenderer: React.FC<{
-  data: MindmapData;
-  scale: number;
-  onNodeClick?: (nodeId: string) => void;
-}> = ({ data, scale, onNodeClick }) => {
-  return (
-    <Box
-      sx={{
-        minWidth: '100%',
-        minHeight: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 4,
-      }}
-    >
-      <Stage width={1600} height={1200} scaleX={scale} scaleY={scale}>
-        <Layer>
-          {data.edges.map((edge) => {
-            const source = data.nodes.find((n) => n.id === edge.source);
-            const target = data.nodes.find((n) => n.id === edge.target);
-            if (!source || !target) return null;
-            return (
-              <MindMapEdge
-                key={edge.id}
-                edge={edge}
-                sourceNode={source}
-                targetNode={target}
-              />
-            );
-          })}
-          {data.nodes.map((node) => (
-            <MindMapNode
-              key={node.id}
-              node={node}
-              onClick={onNodeClick}
-            />
-          ))}
-        </Layer>
-      </Stage>
-    </Box>
-  );
-};
-
 export default function MindMapCanvasNode({
   id,
   title,
@@ -108,17 +77,18 @@ export default function MindMapCanvasNode({
   position,
   viewport,
   isStreaming = false,
+  isOverlayMode = false,
   onClose,
   onDragStart,
   onDragEnd,
+  onDataChange,
 }: MindMapCanvasNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [fullScale, setFullScale] = useState(1);
 
-  // Convert canvas coordinates to screen coordinates
-  const screenX = position.x * viewport.scale + viewport.x;
-  const screenY = position.y * viewport.scale + viewport.y;
+  // Convert canvas coordinates to screen coordinates (only when not in overlay mode)
+  const screenX = isOverlayMode ? 0 : position.x * viewport.scale + viewport.x;
+  const screenY = isOverlayMode ? 0 : position.y * viewport.scale + viewport.y;
 
   const nodeCount = data.nodes.length;
 
@@ -140,13 +110,13 @@ export default function MindMapCanvasNode({
     <>
       {/* Compact Card */}
       <Paper
-        elevation={0}
+        elevation={isOverlayMode ? 8 : 0}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         sx={{
-          position: 'absolute',
-          left: screenX,
-          top: screenY,
+          position: isOverlayMode ? 'relative' : 'absolute',
+          left: isOverlayMode ? 'auto' : screenX,
+          top: isOverlayMode ? 'auto' : screenY,
           width: 340,
           height: 240,
           borderRadius: 3,
@@ -158,14 +128,16 @@ export default function MindMapCanvasNode({
           borderColor: 'divider',
           boxShadow: isDragging
             ? '0 12px 40px rgba(16, 185, 129, 0.25)'
-            : '0 4px 20px rgba(0,0,0,0.08)',
+            : isOverlayMode
+              ? '0 8px 32px rgba(0,0,0,0.12)'
+              : '0 4px 20px rgba(0,0,0,0.08)',
           cursor: isDragging ? 'grabbing' : 'default',
           transition: isDragging ? 'none' : 'box-shadow 0.2s, transform 0.2s',
-          transform: `scale(${viewport.scale > 0.5 ? 1 : viewport.scale * 2})`,
+          transform: isOverlayMode ? 'none' : `scale(${viewport.scale > 0.5 ? 1 : viewport.scale * 2})`,
           transformOrigin: 'top left',
           zIndex: isDragging ? 1000 : 100,
           '&:hover': {
-            boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
+            boxShadow: isOverlayMode ? '0 10px 40px rgba(0,0,0,0.15)' : '0 6px 24px rgba(0,0,0,0.12)',
           },
           animation: 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
           '@keyframes popIn': {
@@ -318,77 +290,32 @@ export default function MindMapCanvasNode({
         </Box>
       </Paper>
 
-      {/* Expanded Modal */}
-      <Modal open={isExpanded} onClose={() => setIsExpanded(false)}>
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '90vw',
-            height: '90vh',
-            bgcolor: 'background.paper',
-            borderRadius: 4,
-            boxShadow: 24,
-            outline: 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Header */}
-          <Box
-            sx={{
-              p: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box
-                sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 2,
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                }}
-              >
-                <AccountTreeIcon size={18} />
-              </Box>
-              <Typography variant="h6" fontWeight={600}>
-                {title}
-              </Typography>
-              <Chip
-                label={`${nodeCount} nodes`}
-                size="small"
-                sx={{ bgcolor: '#ECFDF5', color: '#059669', fontWeight: 600 }}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton onClick={() => setFullScale((s) => Math.min(s + 0.1, 2))}>
-                <ZoomInIcon size="md" />
-              </IconButton>
-              <IconButton onClick={() => setFullScale((s) => Math.max(s - 0.1, 0.2))}>
-                <ZoomOutIcon size="md" />
-              </IconButton>
-              <IconButton onClick={() => setIsExpanded(false)} sx={{ ml: 2 }}>
-                <CloseIcon size="md" />
-              </IconButton>
-            </Box>
-          </Box>
-
-          {/* Full Canvas */}
-          <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: '#F3F4F6', position: 'relative' }}>
-            <FullMindMapRenderer data={data} scale={fullScale} />
-          </Box>
+      {/* Expanded Modal - Uses MindMapEditor for full editing capabilities */}
+      <Modal 
+        open={isExpanded} 
+        onClose={() => setIsExpanded(false)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* 
+          MindMapEditor has position: fixed, inset: 0
+          It provides full editing capabilities:
+          - Free zoom (scroll wheel, pinch, +/- buttons)
+          - Canvas pan (drag background)
+          - Layout switching (radial, tree, balanced)
+          - Node editing (add, delete, edit label/content)
+          - Export (PNG, JSON)
+        */}
+        <Box sx={{ width: '100%', height: '100%', outline: 'none' }}>
+          <MindMapEditor
+            initialData={data}
+            title={title}
+            onClose={() => setIsExpanded(false)}
+            onSave={onDataChange}
+          />
         </Box>
       </Modal>
     </>

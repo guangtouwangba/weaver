@@ -5,7 +5,7 @@
  * Replaces DOM-based rendering with HTML5 Canvas for better performance
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Stage, Layer, Group, Rect, Text, Line, Circle } from 'react-konva';
 import Konva from 'konva';
 import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
@@ -675,6 +675,7 @@ export default function KonvaCanvas({
     setActiveThinkingId,
     setCrossBoundaryDragNode,
     documents, // Get documents for Inspiration Dock
+    generationTasks, // Get generation tasks to check for completed outputs
     // Get canvas state from context as fallback
     canvasNodes: contextNodes,
     canvasEdges: contextEdges,
@@ -696,6 +697,11 @@ export default function KonvaCanvas({
   // Filter nodes and sections by current view
   const visibleNodes = (nodes || []).filter(node => node.viewType === currentView);
   const visibleSections = (canvasSections || []).filter(section => section.viewType === currentView);
+
+  // Check if there are any completed generation outputs on the canvas
+  const hasCompletedOutputs = useMemo(() => {
+    return Array.from(generationTasks.values()).some(task => task.status === 'complete');
+  }, [generationTasks]);
 
   // Update dimensions on resize
   useEffect(() => {
@@ -1558,6 +1564,8 @@ export default function KonvaCanvas({
                 y={contextMenu.y}
                 onClose={() => setContextMenu(null)}
                 onOpenImport={onOpenImport || (() => {})}
+                viewport={viewport}
+                canvasContainerRef={containerRef}
             />
         )}
 
@@ -2142,8 +2150,8 @@ export default function KonvaCanvas({
         {/* Generation Outputs Overlay - Renders completed generation tasks at their positions */}
         <GenerationOutputsOverlay viewport={viewport} />
 
-        {/* Inspiration Dock - Shown when canvas is empty but documents exist */}
-        {visibleNodes.length === 0 && documents.length > 0 && (
+        {/* Inspiration Dock - Shown when canvas is empty, no outputs exist, but documents are uploaded */}
+        {visibleNodes.length === 0 && documents.length > 0 && !hasCompletedOutputs && (
           <InspirationDock />
         )}
       </Box>

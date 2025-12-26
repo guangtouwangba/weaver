@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2025-12-26
+
+#### Unified Mindmap Card Styles and Full Editing (@aqiu)
+
+**Problem:**
+Two different mindmap card components (`MindMapCanvasNode` and `MindMapCard`) had inconsistent visual styles:
+- `MindMapCanvasNode` (canvas overlay) had icon badge, drag handle, chips but simple expanded view
+- `MindMapCard` (InspirationDock) had different styling and opened to full `MindMapEditor`
+
+This caused jarring visual inconsistency and missing editing features when expanding from canvas cards.
+
+**Solution:**
+- Updated `MindMapCanvasNode` to use `MindMapEditor` for expanded view with full editing:
+  - Free zoom (scroll wheel, pinch gestures, +/- buttons)
+  - Canvas pan (drag background)
+  - Layout switching (radial, tree, balanced)
+  - Node editing (add, delete, edit label/content)
+  - Export (PNG, JSON)
+- Updated `InspirationDock` to use `MindMapCanvasNode` with new `isOverlayMode` prop for consistent styling
+- Deprecated `MindMapCard` component (no longer used)
+
+**Files Changed:**
+- `app/frontend/src/components/studio/canvas-nodes/MindMapCanvasNode.tsx`
+- `app/frontend/src/components/studio/InspirationDock.tsx`
+- `app/frontend/src/components/studio/mindmap/MindMapViews.tsx`
+
 ### Fixed - 2025-12-26
+
+#### Generated Outputs Not Persisting After Page Refresh (@aqiu)
+
+**Problem:**
+After generating a mindmap or summary, refreshing the page would show the Inspiration Dock instead of the generated outputs. This was because `generationTasks` state was in-memory only and not populated from persisted backend outputs on mount.
+
+**Solution:**
+- Updated `StudioContext.tsx` to load persisted outputs from backend API on mount
+- Convert `OutputResponse` objects to `GenerationTask` format and populate `generationTasks` state
+- Clear `generationTasks` when switching projects to prevent stale data
+- Position restored outputs in a grid layout (2 columns)
+
+**Files Changed:**
+- `app/frontend/src/contexts/StudioContext.tsx`
 
 #### Mindmap Node Limit to Prevent Frontend Freezing (@aqiu)
 

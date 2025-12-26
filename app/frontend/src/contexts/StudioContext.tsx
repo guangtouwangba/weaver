@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, Citation, SummaryData, MindmapData } from '@/lib/api';
+import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
 
 // === Generation Task Types for Concurrent Outputs ===
 export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
@@ -726,14 +726,17 @@ export function StudioProvider({
     setActiveDocumentId(null);
     setSelectedDocumentIds(new Set());
     setSourceNavigation(null);
+    // Clear generation tasks when switching projects
+    setGenerationTasks(new Map());
 
     const loadData = async () => {
       setSessionsLoading(true);
       try {
-        const [docsRes, canvasRes, sessionsRes] = await Promise.all([
+        const [docsRes, canvasRes, sessionsRes, outputsRes] = await Promise.all([
           documentsApi.list(projectId),
           canvasApi.get(projectId).catch(() => null), // Handle 404 for new canvas
           chatApi.listSessions(projectId).catch(() => null),
+          outputsApi.list(projectId).catch(() => null), // Fetch saved outputs
         ]);
 
         if (docsRes) {
@@ -771,6 +774,82 @@ export function StudioProvider({
                 collapsedSectionIds: [],
               },
             });
+          }
+        }
+
+        // Restore saved outputs (summary, mindmap) into generationTasks
+        if (outputsRes && outputsRes.outputs.length > 0) {
+          // Filter for complete outputs only
+          const completeOutputs = outputsRes.outputs.filter(
+            (o: OutputResponse) => o.status === 'complete'
+          );
+
+          // Convert persisted outputs to GenerationTask format
+          const restoredTasks = new Map<string, GenerationTask>();
+          
+          // Grid layout for multiple outputs: position them in a grid pattern
+          const CARD_WIDTH = 380;
+          const CARD_HEIGHT = 280;
+          const GAP = 40;
+          const START_X = 200;
+          const START_Y = 200;
+          
+          completeOutputs.forEach((output: OutputResponse, index: number) => {
+            // Skip outputs without data
+            if (!output.data) return;
+            
+            // Map output_type to GenerationType
+            const type = output.output_type as GenerationType;
+            if (type !== 'summary' && type !== 'mindmap') return; // Only support these for now
+            
+            // Calculate grid position (2 columns)
+            const col = index % 2;
+            const row = Math.floor(index / 2);
+            const x = START_X + col * (CARD_WIDTH + GAP);
+            const y = START_Y + row * (CARD_HEIGHT + GAP);
+            
+            const task: GenerationTask = {
+              id: output.id,
+              type,
+              status: 'complete',
+              position: { x, y },
+              result: output.data,
+              title: output.title,
+              outputId: output.id,
+              createdAt: new Date(output.created_at),
+            };
+            
+            restoredTasks.set(output.id, task);
+          });
+          
+          // Set the restored tasks
+          if (restoredTasks.size > 0) {
+            setGenerationTasks(restoredTasks);
+          }
+
+          // Also set legacy states for backward compatibility
+          const latestSummary = completeOutputs.find(
+            (o: OutputResponse) => o.output_type === 'summary'
+          );
+          if (latestSummary?.data) {
+            setSummaryResult({
+              data: latestSummary.data as SummaryData,
+              title: latestSummary.title || 'Summary',
+            });
+            // Keep overlay closed - user clicks to view
+            setShowSummaryOverlay(false);
+          }
+
+          const latestMindmap = completeOutputs.find(
+            (o: OutputResponse) => o.output_type === 'mindmap'
+          );
+          if (latestMindmap?.data) {
+            setMindmapResult({
+              data: latestMindmap.data as MindmapData,
+              title: latestMindmap.title || 'Mindmap',
+            });
+            // Keep overlay closed - user clicks to view
+            setShowMindmapOverlay(false);
           }
         }
 
