@@ -1,7 +1,6 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Stage, Layer, Rect } from 'react-konva';
-import { Box, Typography, IconButton, Modal, Paper, CircularProgress } from '@mui/material';
-import { CloseIcon, FullscreenIcon, ZoomInIcon, ZoomOutIcon } from '@/components/ui/icons';
+import React, { useMemo } from 'react';
+import { Stage, Layer } from 'react-konva';
+import { Box, Modal } from '@mui/material';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from './MindMapNode';
 import { MindMapEdge } from './MindMapEdge';
@@ -66,107 +65,12 @@ export const MindMapRenderer: React.FC<MindMapRendererProps> = ({
 
 // ============================================================================
 // MindMap Card (Minimized View)
+// @deprecated Use MindMapCanvasNode from './canvas-nodes/MindMapCanvasNode' instead.
+// This component is no longer used. MindMapCanvasNode provides:
+// - Unified styling across all contexts
+// - Full MindMapEditor in expanded view with zoom, pan, editing, export
+// - Overlay mode support for centered display
 // ============================================================================
-
-interface MindMapCardProps {
-  data: MindmapData;
-  title: string;
-  onClose: () => void;
-  onExpand: () => void;
-  isStreaming?: boolean;
-}
-
-export const MindMapCard: React.FC<MindMapCardProps> = ({ data, title, onClose, onExpand, isStreaming = false }) => {
-  const nodeCount = data.nodes.length;
-  
-  return (
-    <Paper
-      elevation={8}
-      sx={{
-        width: 400,
-        height: 300,
-        borderRadius: 3,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        bgcolor: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(0,0,0,0.08)',
-      }}
-    >
-      {/* Header */}
-      <Box sx={{ 
-        p: 1.5, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, maxWidth: 250 }}>
-          {isStreaming && (
-            <CircularProgress size={14} sx={{ color: '#10B981' }} />
-          )}
-          <Typography variant="subtitle2" fontWeight={600} noWrap>
-            {title}
-          </Typography>
-          {isStreaming && nodeCount > 0 && (
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-              {nodeCount} node{nodeCount !== 1 ? 's' : ''}
-            </Typography>
-          )}
-        </Box>
-        <Box>
-          <IconButton size="small" onClick={onExpand} disabled={isStreaming && nodeCount === 0}>
-            <FullscreenIcon size="sm" />
-          </IconButton>
-          <IconButton size="small" onClick={onClose}>
-            <CloseIcon size="sm" />
-          </IconButton>
-        </Box>
-      </Box>
-
-      {/* Preview Canvas */}
-      <Box sx={{ flexGrow: 1, position: 'relative', bgcolor: '#FAFAFA' }}>
-        {nodeCount > 0 ? (
-          <MindMapRenderer 
-            data={data} 
-            width={400} 
-            height={250} 
-            scale={0.4}
-          />
-        ) : (
-          /* Empty state while waiting for first node */
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            height: '100%',
-            gap: 1.5
-          }}>
-            <CircularProgress size={32} sx={{ color: '#10B981' }} />
-            <Typography variant="body2" color="text.secondary">
-              Generating mindmap...
-            </Typography>
-          </Box>
-        )}
-        
-        {/* Overlay to catch clicks for expand (only when we have nodes) */}
-        {nodeCount > 0 && (
-          <Box 
-            onClick={onExpand}
-            sx={{ 
-              position: 'absolute', 
-              inset: 0, 
-              cursor: 'pointer',
-              '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' }
-            }} 
-          />
-        )}
-      </Box>
-    </Paper>
-  );
-};
 
 // ============================================================================
 // MindMap Full View (Interactive Editor)

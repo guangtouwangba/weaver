@@ -5,7 +5,7 @@ import { Box, Paper, Typography, IconButton, Tooltip, CircularProgress } from '@
 import { BoltIcon, AccountTreeIcon, AddIcon, MicIcon, DashboardIcon, HelpOutlineIcon, AutoAwesomeIcon, CloseIcon, CheckIcon, ErrorIcon } from '@/components/ui/icons';
 import { useStudio, GenerationType } from '@/contexts/StudioContext';
 import SummaryCard from './SummaryCard';
-import { MindMapCard, MindMapFullView } from './mindmap/MindMapViews';
+import MindMapCanvasNode from './canvas-nodes/MindMapCanvasNode';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { SummaryData, MindmapData } from '@/lib/api';
 
@@ -35,7 +35,6 @@ export default function InspirationDock() {
   const { handleGenerateContentConcurrent, getViewportCenterPosition } = useCanvasActions();
   
   const [showMoreActions, setShowMoreActions] = useState(false);
-  const [isMindmapFull, setIsMindmapFull] = useState(false);
 
   const projectColor = '#0096FF'; // Default project color
 
@@ -231,20 +230,18 @@ export default function InspirationDock() {
         </Box>
       )}
 
-      {/* Mindmap Card Overlay */}
+      {/* Mindmap Card Overlay - Uses unified MindMapCanvasNode with overlay mode */}
       {showMindmapOverlay && mindmapResult && (
         <Box sx={{ pointerEvents: 'auto' }}>
-          <MindMapCard
+          <MindMapCanvasNode
+            id="overlay-mindmap"
             data={mindmapResult.data}
             title={mindmapResult.title}
+            position={{ x: 0, y: 0 }}
+            viewport={{ x: 0, y: 0, scale: 1 }}
+            isOverlayMode={true}
             onClose={handleCloseMindmap}
-            onExpand={() => setIsMindmapFull(true)}
-          />
-          <MindMapFullView 
-            open={isMindmapFull}
-            data={mindmapResult.data}
-            title={mindmapResult.title}
-            onClose={() => setIsMindmapFull(false)}
+            onDataChange={(data) => setMindmapResult({ ...mindmapResult, data })}
           />
         </Box>
       )}

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Box, Paper, Typography, MenuItem, ListItemIcon, ListItemText, Divider, MenuList } from '@mui/material';
 import { AddIcon, StickyNote2Icon, AccountTreeIcon, LayersIcon, DescriptionIcon, UploadFileIcon, AutoAwesomeIcon, PsychologyIcon, CreditCardIcon } from '@/components/ui/icons';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
+import { GenerationType } from '@/contexts/StudioContext';
 
 interface CanvasContextMenuProps {
   open: boolean;
@@ -9,11 +10,47 @@ interface CanvasContextMenuProps {
   y: number;
   onClose: () => void;
   onOpenImport: () => void;
+  viewport?: { x: number; y: number; scale: number };
+  canvasContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport }: CanvasContextMenuProps) {
+export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport, viewport, canvasContainerRef }: CanvasContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { handleAddNode, handleGenerateContent, handleImportSource } = useCanvasActions({ onOpenImport });
+  const { handleAddNode, handleGenerateContentConcurrent, handleImportSource } = useCanvasActions({ onOpenImport });
+
+  /**
+   * Convert screen coordinates to canvas coordinates
+   * Takes into account the canvas container position, viewport pan offset, and zoom scale
+   */
+  const screenToCanvasCoords = useCallback((screenX: number, screenY: number): { x: number; y: number } => {
+    if (!viewport) {
+      // Fallback: return screen coords as-is (legacy behavior)
+      return { x: screenX, y: screenY };
+    }
+    
+    // Get canvas container offset
+    let containerOffsetX = 0;
+    let containerOffsetY = 0;
+    if (canvasContainerRef?.current) {
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      containerOffsetX = rect.left;
+      containerOffsetY = rect.top;
+    }
+    
+    // Convert: (screenPos - containerOffset - viewportPan) / scale = canvasPos
+    const canvasX = (screenX - containerOffsetX - viewport.x) / viewport.scale;
+    const canvasY = (screenY - containerOffsetY - viewport.y) / viewport.scale;
+    
+    return { x: canvasX, y: canvasY };
+  }, [viewport, canvasContainerRef]);
+
+  /**
+   * Handle content generation at the right-click position
+   */
+  const handleGenerateAtPosition = useCallback((type: GenerationType) => {
+    const canvasPosition = screenToCanvasCoords(x, y);
+    handleGenerateContentConcurrent(type, canvasPosition);
+  }, [x, y, screenToCanvasCoords, handleGenerateContentConcurrent]);
 
   // Handle click outside
   useEffect(() => {
@@ -80,21 +117,21 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport }:
           </Typography>
         </Box>
 
-        <MenuItem onClick={() => handleAction(() => handleGenerateContent('mindmap'))}>
+        <MenuItem onClick={() => handleAction(() => handleGenerateAtPosition('mindmap'))}>
           <ListItemIcon>
             <AccountTreeIcon size={18} sx={{ color: '#6366f1' }} /> {/* Indigo */}
           </ListItemIcon>
           <ListItemText>Generate Mind Map</ListItemText>
         </MenuItem>
 
-        <MenuItem onClick={() => handleAction(() => handleGenerateContent('flashcards'))}>
+        <MenuItem onClick={() => handleAction(() => handleGenerateAtPosition('flashcards'))}>
           <ListItemIcon>
             <CreditCardIcon size={18} sx={{ color: '#f59e0b' }} /> {/* Amber */}
           </ListItemIcon>
           <ListItemText>Generate Flashcards</ListItemText>
         </MenuItem>
 
-        <MenuItem onClick={() => handleAction(() => handleGenerateContent('summary'))}>
+        <MenuItem onClick={() => handleAction(() => handleGenerateAtPosition('summary'))}>
           <ListItemIcon>
             <DescriptionIcon size={18} sx={{ color: '#3b82f6' }} /> {/* Blue */}
           </ListItemIcon>
