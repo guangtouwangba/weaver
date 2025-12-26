@@ -5,7 +5,7 @@
  * Provides the bridge between StudioContext and KonvaCanvas
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Chip, CircularProgress } from '@mui/material';
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
@@ -35,6 +35,71 @@ export default function CanvasPanelKonva() {
   } = useStudio();
 
   const [toolMode, setToolMode] = useState<ToolMode>('select');
+  const [hasSelection, setHasSelection] = useState(false);
+
+  // Zoom handlers
+  const handleZoomIn = useCallback(() => {
+    setCanvasViewport(prev => ({
+      ...prev,
+      scale: Math.min(5, prev.scale * 1.2)
+    }));
+  }, [setCanvasViewport]);
+
+  const handleZoomOut = useCallback(() => {
+    setCanvasViewport(prev => ({
+      ...prev,
+      scale: Math.max(0.1, prev.scale / 1.2)
+    }));
+  }, [setCanvasViewport]);
+
+  const handleResetZoom = useCallback(() => {
+    setCanvasViewport(prev => ({
+      ...prev,
+      scale: 1
+    }));
+  }, [setCanvasViewport]);
+
+  const handleFitView = useCallback(() => {
+    // Calculate bounds of all nodes and fit the view
+    if (canvasNodes.length === 0) return;
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    canvasNodes.forEach(node => {
+      minX = Math.min(minX, node.x);
+      minY = Math.min(minY, node.y);
+      maxX = Math.max(maxX, node.x + (node.width || 280));
+      maxY = Math.max(maxY, node.y + (node.height || 200));
+    });
+    
+    // Add padding
+    const padding = 100;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    // Calculate scale to fit (assuming container is ~800x600, this is approximate)
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    const scale = Math.min(800 / contentWidth, 600 / contentHeight, 1);
+    
+    setCanvasViewport({
+      x: -minX * scale,
+      y: -minY * scale,
+      scale: Math.max(0.1, Math.min(1, scale))
+    });
+  }, [canvasNodes, setCanvasViewport]);
+
+  // Selection change handler (called from KonvaCanvas)
+  const handleSelectionChange = useCallback((count: number) => {
+    setHasSelection(count > 0);
+  }, []);
+
+  // Delete selected nodes handler
+  const handleDeleteSelected = useCallback(() => {
+    // This is a placeholder - actual deletion is handled in KonvaCanvas via keyboard
+    // We could add a ref or callback to trigger deletion from toolbar
+  }, []);
 
   // Auto-save on change (debounced)
   useEffect(() => {
@@ -77,10 +142,22 @@ export default function CanvasPanelKonva() {
         }}
         toolMode={toolMode}
         onToolChange={setToolMode}
+        onSelectionChange={handleSelectionChange}
       />
       
       {/* Canvas Tool Toolbar Overlay */}
-      <CanvasToolbar activeTool={toolMode} onChange={setToolMode} />
+      <CanvasToolbar 
+        activeTool={toolMode} 
+        onChange={setToolMode}
+        zoom={canvasViewport.scale}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
+        onFitView={handleFitView}
+        onInsert={() => {/* TODO: implement insert menu */}}
+        onDelete={handleDeleteSelected}
+        hasSelection={hasSelection}
+      />
 
       {/* Global Loading Indicator */}
       {isGenerating && (

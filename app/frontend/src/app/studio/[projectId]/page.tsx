@@ -155,6 +155,8 @@ function StudioPageContent() {
           <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <KonvaCanvas 
               onOpenImport={() => setIsImportDialogOpen(true)}
+              toolMode={interactionMode === 'pan' ? 'hand' : 'select'}
+              onToolChange={(tool) => setInteractionMode(tool === 'hand' ? 'pan' : 'select')}
             />
 
             {/* Canvas Controls (Bottom Right) */}

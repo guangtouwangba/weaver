@@ -89,28 +89,31 @@ export default function CanvasToolbar({
           
           {/* 2. Operation Mode Capsule */}
           <Paper elevation={0} sx={capsuleStyle}>
-            <ToggleButtonGroup
-              value={activeTool}
-              exclusive
-              onChange={(_, newTool) => {
-                if (newTool) onChange(newTool);
-              }}
-              orientation="vertical"
-              size="small"
-              sx={{ border: 'none' }}
-            >
+            <Stack direction="column" alignItems="center">
               <Tooltip title="Select (V)" placement="right" arrow>
-                <ToggleButton value="select" aria-label="select tool" sx={{ border: 'none', py: 1.5 }}>
+                <ToggleButton 
+                  value="select" 
+                  selected={activeTool === 'select'}
+                  onClick={() => onChange('select')}
+                  aria-label="select tool" 
+                  sx={{ border: 'none', py: 1.5, borderRadius: 0, width: '100%' }}
+                >
                   <MouseMui sx={{ fontSize: 18 }} />
                 </ToggleButton>
               </Tooltip>
               
               <Tooltip title="Hand (H) - Pan" placement="right" arrow>
-                <ToggleButton value="hand" aria-label="hand tool" sx={{ border: 'none', py: 1.5 }}>
+                <ToggleButton 
+                  value="hand" 
+                  selected={activeTool === 'hand'}
+                  onClick={() => onChange('hand')}
+                  aria-label="hand tool" 
+                  sx={{ border: 'none', py: 1.5, borderRadius: 0, width: '100%' }}
+                >
                   <PanToolMui sx={{ fontSize: 18 }} />
                 </ToggleButton>
               </Tooltip>
-            </ToggleButtonGroup>
+            </Stack>
           </Paper>
 
           {/* 3. View Controls Capsule */}

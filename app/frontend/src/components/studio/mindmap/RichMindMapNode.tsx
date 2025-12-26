@@ -454,29 +454,43 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
             ellipsis
           />
 
-          {/* Processing status bar */}
+          {/* Status bar */}
           <Rect
             x={16}
             y={finalHeight - 36}
             width={finalWidth - 32}
             height={24}
-            fill={tokens.status.processingBg}
+            fill={
+              node.status === 'error' ? tokens.status.errorBg :
+              node.status === 'complete' ? tokens.status.successBg :
+              tokens.status.processingBg
+            }
             cornerRadius={6}
           />
           <Text
             x={32}
             y={finalHeight - 31}
-            text="PROCESSING"
+            text={
+              node.status === 'error' ? 'ERROR' :
+              node.status === 'complete' ? 'READY' :
+              'PROCESSING'
+            }
             fontSize={10}
             fontStyle="600"
-            fill={tokens.status.processing}
+            fill={
+              node.status === 'error' ? tokens.status.error :
+              node.status === 'complete' ? tokens.status.success :
+              tokens.status.processing
+            }
             letterSpacing={0.5}
           />
-          <ProcessingDots
-            x={finalWidth - 56}
-            y={finalHeight - 24}
-            color={tokens.status.processing}
-          />
+          {node.status !== 'complete' && node.status !== 'error' && (
+            <ProcessingDots
+              x={finalWidth - 56}
+              y={finalHeight - 24}
+              color={tokens.status.processing}
+            />
+          )}
         </>
       )}
 
