@@ -9,6 +9,12 @@
  * - Draggable output cards with position persistence
  * - Loading placeholder cards for generating tasks
  * - Viewport-aware positioning
+ * 
+ * Performance Optimizations (Phase 1):
+ * - Drag position tracked via useRef to avoid React state updates during drag
+ * - DOM updates via CSS transform during drag (bypasses React reconciliation)
+ * - RAF throttling for mouse move handler
+ * - Final position committed to state only on drag end
  */
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
@@ -29,6 +35,12 @@ interface DragState {
   startMouseY: number;
   startPositionX: number;
   startPositionY: number;
+}
+
+// Current drag position (separate from DragState for RAF optimization)
+interface DragPosition {
+  x: number;
+  y: number;
 }
 
 // Loading placeholder card for generating tasks
@@ -73,6 +85,7 @@ function LoadingCard({
   return (
     <Paper
       elevation={0}
+      data-task-id={task.id}
       onMouseDown={handleMouseDown}
       sx={{
         position: 'absolute',
@@ -192,9 +205,14 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     updateGenerationTaskPosition,
   } = useStudio();
 
-  // Drag state
+  // Drag state - only tracks if drag is active and initial conditions
   const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  
+  // === Performance Optimization: Drag position tracked via refs, not state ===
+  // This prevents React re-renders during drag
+  const dragPositionRef = useRef<DragPosition | null>(null);
+  const rafIdRef = useRef<number | null>(null);
   
   // Render tracking
   const renderCountRef = useRef(0);
@@ -247,6 +265,9 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     console.log('[Overlay] Setting drag state', newState);
     setDragState(newState);
     
+    // Initialize drag position ref with current position
+    dragPositionRef.current = { x: task.position.x, y: task.position.y };
+    
     // Reset performance counters
     frameCountRef.current = 0;
     lastFrameTimeRef.current = performance.now();
@@ -255,49 +276,74 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     console.log(`[Perf] Drag start took ${(performance.now() - startTime).toFixed(2)}ms`);
   }, [generationTasks]);
 
-  // Handle drag move - update position in real-time
+  // Handle drag move - update DOM directly via CSS transform, not React state
   useEffect(() => {
     if (!dragState) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const moveStartTime = performance.now();
-      frameCountRef.current++;
+      // RAF throttling: skip if we already have a pending frame
+      if (rafIdRef.current !== null) return;
       
-      // Calculate delta in screen pixels
-      const deltaScreenX = e.clientX - dragState.startMouseX;
-      const deltaScreenY = e.clientY - dragState.startMouseY;
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        frameCountRef.current++;
+        
+        // Calculate delta in screen pixels
+        const deltaScreenX = e.clientX - dragState.startMouseX;
+        const deltaScreenY = e.clientY - dragState.startMouseY;
 
-      // Convert screen delta to canvas coordinates (accounting for viewport scale)
-      const deltaCanvasX = deltaScreenX / viewport.scale;
-      const deltaCanvasY = deltaScreenY / viewport.scale;
+        // Convert screen delta to canvas coordinates (accounting for viewport scale)
+        const deltaCanvasX = deltaScreenX / viewport.scale;
+        const deltaCanvasY = deltaScreenY / viewport.scale;
 
-      // Update position
-      const newX = dragState.startPositionX + deltaCanvasX;
-      const newY = dragState.startPositionY + deltaCanvasY;
+        // Calculate new position
+        const newX = dragState.startPositionX + deltaCanvasX;
+        const newY = dragState.startPositionY + deltaCanvasY;
+        
+        // Store position in ref (no React re-render)
+        dragPositionRef.current = { x: newX, y: newY };
+        
+        // === Direct DOM manipulation for smooth 60fps drag ===
+        // Find the dragged element and update its position via CSS transform
+        const element = document.querySelector(`[data-task-id="${dragState.taskId}"]`) as HTMLElement;
+        if (element) {
+          // Convert canvas position to screen position
+          const screenX = newX * viewport.scale + viewport.x;
+          const screenY = newY * viewport.scale + viewport.y;
+          element.style.left = `${screenX}px`;
+          element.style.top = `${screenY}px`;
+        }
 
-      // Log performance every 30 frames
-      if (frameCountRef.current % 30 === 0) {
-        const now = performance.now();
-        const elapsed = now - lastFrameTimeRef.current;
-        const fps = (30 / elapsed) * 1000;
-        console.log(`[Perf] Drag FPS: ${fps.toFixed(1)}, Frame ${frameCountRef.current}, Avg move time: ${(elapsed / 30).toFixed(2)}ms`);
-        lastFrameTimeRef.current = now;
-      }
-
-      updateGenerationTaskPosition(dragState.taskId, { x: newX, y: newY });
-      
-      // Log if a single move takes too long
-      const moveDuration = performance.now() - moveStartTime;
-      if (moveDuration > 16) { // > 16ms means dropped below 60fps
-        console.warn(`[Perf] Slow move detected: ${moveDuration.toFixed(2)}ms`);
-      }
+        // Log performance every 30 frames
+        if (frameCountRef.current % 30 === 0) {
+          const now = performance.now();
+          const elapsed = now - lastFrameTimeRef.current;
+          const fps = (30 / elapsed) * 1000;
+          console.log(`[Perf] Drag FPS: ${fps.toFixed(1)}, Frame ${frameCountRef.current}`);
+          lastFrameTimeRef.current = now;
+        }
+      });
     };
 
     const handleMouseUp = () => {
+      // Cancel any pending RAF
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      
       const totalDragTime = performance.now() - dragStartTimeRef.current;
       const avgFps = (frameCountRef.current / totalDragTime) * 1000;
       console.log(`[Perf] Drag ended. Total frames: ${frameCountRef.current}, Duration: ${totalDragTime.toFixed(0)}ms, Avg FPS: ${avgFps.toFixed(1)}`);
       console.log('[Overlay] Drag end (mouseup)');
+      
+      // === Commit final position to React state on drag end ===
+      // This is the only state update during the entire drag operation
+      if (dragPositionRef.current) {
+        updateGenerationTaskPosition(dragState.taskId, dragPositionRef.current);
+      }
+      
+      dragPositionRef.current = null;
       setDragState(null);
     };
 
@@ -308,8 +354,13 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      // Clean up RAF on unmount
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
     };
-  }, [dragState, viewport.scale, updateGenerationTaskPosition]);
+  }, [dragState, viewport.scale, viewport.x, viewport.y, updateGenerationTaskPosition]);
 
   if (renderableTasks.length === 0) {
     return null;
@@ -350,6 +401,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
             <SummaryCanvasNode
               key={task.id}
               id={task.id}
+              data-task-id={task.id}
               title={task.title || 'Summary'}
               data={task.result as SummaryData}
               position={task.position}
@@ -367,6 +419,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
             <MindMapCanvasNode
               key={task.id}
               id={task.id}
+              data-task-id={task.id}
               title={task.title || 'Mind Map'}
               data={task.result as MindmapData}
               position={task.position}

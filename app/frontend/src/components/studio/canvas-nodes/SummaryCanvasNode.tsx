@@ -3,15 +3,20 @@
 /**
  * SummaryCanvasNode - A compact summary card that appears on the canvas
  * Renders as an HTML overlay positioned over the Konva canvas
+ * 
+ * Performance Optimizations:
+ * - Wrapped with React.memo to prevent re-renders when other nodes are being dragged
+ * - Accepts data-task-id for direct DOM manipulation during drag
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { Box, Paper, Typography, IconButton, Chip, Modal, Fade, Backdrop, Button } from '@mui/material';
 import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, DragIndicatorIcon, OpenWithIcon } from '@/components/ui/icons';
 import { SummaryData, KeyFinding } from '@/lib/api';
 
 interface SummaryCanvasNodeProps {
   id: string;
+  'data-task-id'?: string;
   title: string;
   data: SummaryData;
   position: { x: number; y: number };
@@ -23,8 +28,9 @@ interface SummaryCanvasNodeProps {
   isDragging?: boolean;
 }
 
-export default function SummaryCanvasNode({
+function SummaryCanvasNodeInner({
   id,
+  'data-task-id': dataTaskId,
   title,
   data,
   position,
@@ -86,6 +92,7 @@ export default function SummaryCanvasNode({
       {/* Compact Card */}
       <Paper
         elevation={0}
+        data-task-id={dataTaskId || id}
         onMouseDown={handleMouseDown}
         sx={{
           position: 'absolute',
@@ -380,4 +387,31 @@ export default function SummaryCanvasNode({
     </>
   );
 }
+
+/**
+ * Memoized SummaryCanvasNode - prevents re-renders when:
+ * - Other nodes are being dragged
+ * - Parent component updates unrelated state
+ * 
+ * Only re-renders when this node's props actually change.
+ */
+const SummaryCanvasNode = memo(SummaryCanvasNodeInner, (prevProps, nextProps) => {
+  // Custom equality check - only re-render if this node's data changed
+  // During drag of another node, this node's props won't change
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.title === nextProps.title &&
+    prevProps.position.x === nextProps.position.x &&
+    prevProps.position.y === nextProps.position.y &&
+    prevProps.viewport.x === nextProps.viewport.x &&
+    prevProps.viewport.y === nextProps.viewport.y &&
+    prevProps.viewport.scale === nextProps.viewport.scale &&
+    prevProps.isDragging === nextProps.isDragging &&
+    prevProps.data === nextProps.data
+  );
+});
+
+SummaryCanvasNode.displayName = 'SummaryCanvasNode';
+
+export default SummaryCanvasNode;
 
