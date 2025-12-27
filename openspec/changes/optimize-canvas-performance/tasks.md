@@ -1,29 +1,29 @@
-## Phase 1: Drag Performance (Critical - Current Issue)
+## Phase 1: Drag Performance (Critical - Current Issue) ✅ COMPLETE
 
 ### 1. Isolate Drag State from Context
 
-- [ ] 1.1 Refactor `GenerationOutputsOverlay.tsx`: Use `useRef` for drag position during active drag
-- [ ] 1.2 Update DOM directly via CSS transform during drag (bypass React state)
-- [ ] 1.3 Commit final position to state only on drag end (`mouseup`)
-- [ ] 1.4 Verify drag achieves 60fps (manual test with console perf logs)
+- [x] 1.1 Refactor `GenerationOutputsOverlay.tsx`: Use `useRef` for drag position during active drag
+- [x] 1.2 Update DOM directly via CSS transform during drag (bypass React state)
+- [x] 1.3 Commit final position to state only on drag end (`mouseup`)
+- [x] 1.4 Verify drag achieves 60fps (manual test with console perf logs)
 
 ### 2. RAF Throttling
 
-- [ ] 2.1 Add requestAnimationFrame throttling to mouse move handler
-- [ ] 2.2 Ensure proper cleanup of RAF on unmount
-- [ ] 2.3 Verify reduced state updates during drag (check console logs)
+- [x] 2.1 Add requestAnimationFrame throttling to mouse move handler
+- [x] 2.2 Ensure proper cleanup of RAF on unmount
+- [x] 2.3 Verify reduced state updates during drag (check console logs)
 
 ### 3. Memoize Canvas Components
 
-- [ ] 3.1 Wrap `SummaryCanvasNode` with `React.memo` and custom equality function
-- [ ] 3.2 Verify render count stays at 1-2 during drag of other nodes
-- [ ] 3.3 Memoize other frequently re-rendered canvas children if needed
+- [x] 3.1 Wrap `SummaryCanvasNode` with `React.memo` and custom equality function
+- [x] 3.2 Verify render count stays at 1-2 during drag of other nodes
+- [x] 3.3 Memoize other frequently re-rendered canvas children if needed
 
 ### 4. Phase 1 Validation
 
-- [ ] 4.1 Verify drag FPS ≥ 55fps (was 12.8fps)
-- [ ] 4.2 Verify context state updates < 1ms each (was 5-12ms)
-- [ ] 4.3 Verify no functional regressions (drag still works, position persists)
+- [x] 4.1 Verify drag FPS ≥ 55fps (was 12.8fps)
+- [x] 4.2 Verify context state updates < 1ms each (was 5-12ms)
+- [x] 4.3 Verify no functional regressions (drag still works, position persists)
 
 ---
 

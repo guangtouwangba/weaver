@@ -12,9 +12,13 @@
  *   - Layout switching
  *   - Node editing (add/delete/edit)
  *   - Export (PNG/JSON)
+ * 
+ * Performance Optimizations:
+ * - Wrapped with React.memo to prevent re-renders when other nodes are being dragged
+ * - Accepts data-task-id for direct DOM manipulation during drag
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { Box, Paper, Typography, IconButton, Modal, Chip, CircularProgress } from '@mui/material';
 import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
@@ -25,6 +29,7 @@ import { MindMapEditor } from '../mindmap/MindMapEditor';
 
 interface MindMapCanvasNodeProps {
   id: string;
+  'data-task-id'?: string;
   title: string;
   data: MindmapData;
   position: { x: number; y: number };
@@ -72,8 +77,9 @@ const MiniMindMapRenderer: React.FC<{ data: MindmapData; width: number; height: 
   );
 };
 
-export default function MindMapCanvasNode({
+function MindMapCanvasNodeInner({
   id,
+  'data-task-id': dataTaskId,
   title,
   data,
   position,
@@ -131,6 +137,7 @@ export default function MindMapCanvasNode({
       {/* Compact Card */}
       <Paper
         elevation={isOverlayMode ? 8 : 0}
+        data-task-id={dataTaskId || id}
         onMouseDown={handleMouseDown}
         sx={{
           position: isOverlayMode ? 'relative' : 'absolute',
@@ -341,4 +348,33 @@ export default function MindMapCanvasNode({
     </>
   );
 }
+
+/**
+ * Memoized MindMapCanvasNode - prevents re-renders when:
+ * - Other nodes are being dragged
+ * - Parent component updates unrelated state
+ * 
+ * Only re-renders when this node's props actually change.
+ */
+const MindMapCanvasNode = memo(MindMapCanvasNodeInner, (prevProps, nextProps) => {
+  // Custom equality check - only re-render if this node's data changed
+  // During drag of another node, this node's props won't change
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.title === nextProps.title &&
+    prevProps.position.x === nextProps.position.x &&
+    prevProps.position.y === nextProps.position.y &&
+    prevProps.viewport.x === nextProps.viewport.x &&
+    prevProps.viewport.y === nextProps.viewport.y &&
+    prevProps.viewport.scale === nextProps.viewport.scale &&
+    prevProps.isDragging === nextProps.isDragging &&
+    prevProps.isStreaming === nextProps.isStreaming &&
+    prevProps.isOverlayMode === nextProps.isOverlayMode &&
+    prevProps.data === nextProps.data
+  );
+});
+
+MindMapCanvasNode.displayName = 'MindMapCanvasNode';
+
+export default MindMapCanvasNode;
 

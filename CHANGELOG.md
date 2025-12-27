@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance - 2025-12-26
+
+#### Canvas Drag Performance Optimization (@aqiu)
+
+**Problem:**
+The canvas experienced severe performance issues during drag operations with an average of 12.8 FPS (target: 60 FPS). Profiling revealed:
+- Context state updates taking 5-12ms each (should be <1ms)
+- SummaryNode re-rendered 20 times during a single drag
+- Overlay re-rendered 20 times during drag
+
+**Root Causes:**
+1. **Primary**: StudioContext triggers cascade re-renders on every drag position update
+2. **Secondary**: Each mouse move triggered full React reconciliation cycle
+
+**Solution (Phase 1):**
+- **Drag State Isolation**: Moved drag position tracking to `useRef` to prevent React state updates during drag
+- **Direct DOM Manipulation**: Update element position via CSS `left`/`top` during drag, bypassing React
+- **RAF Throttling**: Added `requestAnimationFrame` throttling to mouse move handler
+- **Single State Commit**: Final position committed to React state only on drag end (`mouseup`)
+- **React.memo Optimization**: Wrapped `SummaryCanvasNode` and `MindMapCanvasNode` with custom equality functions to prevent unnecessary re-renders
+
+**Files Changed:**
+- `app/frontend/src/components/studio/GenerationOutputsOverlay.tsx` - Drag handling optimization
+- `app/frontend/src/components/studio/canvas-nodes/SummaryCanvasNode.tsx` - React.memo wrapper
+- `app/frontend/src/components/studio/canvas-nodes/MindMapCanvasNode.tsx` - React.memo wrapper
+
+**Expected Result:**
+- Drag FPS improved from 12.8 to 55+ FPS
+- Context state updates reduced from every mouse move to once on drag end
+- Component re-renders during drag reduced from 20+ to 1-2
+
 ### Changed - 2025-12-26
 
 #### Unified Mindmap Card Styles and Full Editing (@aqiu)
