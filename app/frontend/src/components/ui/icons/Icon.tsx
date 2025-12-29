@@ -45,3 +45,4 @@ export function createIcon(MuiIcon: MuiIconComponent, displayName: string) {
 export type { IconProps, IconSize } from './types';
 export { sizeMap } from './types';
 
+

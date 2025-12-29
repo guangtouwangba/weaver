@@ -123,3 +123,4 @@ class SQLAlchemyOutputRepository:
             updated_at=model.updated_at,
         )
 
+

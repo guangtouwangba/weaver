@@ -76,6 +76,10 @@ class Document:
     content_token_count: Optional[int] = None  # Cached token count
     parsing_metadata: Optional[Dict[str, Any]] = None  # Parsing metadata (layout, OCR, etc.)
 
+    # Thumbnail fields for PDF preview
+    thumbnail_path: Optional[str] = None  # Path to generated thumbnail image
+    thumbnail_status: Optional[str] = None  # pending, processing, ready, error
+
     def mark_processing(self) -> None:
         """Mark document as processing."""
         self.status = DocumentStatus.PROCESSING

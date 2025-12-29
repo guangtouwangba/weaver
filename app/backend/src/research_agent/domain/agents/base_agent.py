@@ -316,3 +316,4 @@ class BaseOutputAgent(ABC):
         """Create a token event for streaming text."""
         return OutputEvent(type=OutputEventType.TOKEN, token=token)
 
+

@@ -11,13 +11,13 @@ function getApiBaseUrl(): string {
   if (_cachedApiUrl) {
     return _cachedApiUrl;
   }
-  
+
   // For browser environments, detect based on current page URL first
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol; // 'https:' or 'http:'
     console.log('[API] Detecting API URL for hostname:', hostname, 'protocol:', protocol);
-    
+
     // If running on Zeabur public domain, auto-detect the API URL
     if (hostname.includes('zeabur.app')) {
       // Replace 'web' or 'frontend' with 'api' in the hostname
@@ -32,7 +32,7 @@ function getApiBaseUrl(): string {
       return _cachedApiUrl;
     }
   }
-  
+
   // Check build-time env var (Next.js replaces this at build time)
   // Skip internal URLs that would cause mixed content issues
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -47,20 +47,20 @@ function getApiBaseUrl(): string {
     console.log('[API] Using env URL:', _cachedApiUrl);
     return _cachedApiUrl;
   }
-  
+
   // Check runtime window config (can be injected via script tag)
   if (typeof window !== 'undefined' && (window as any).__API_URL__) {
     _cachedApiUrl = (window as any).__API_URL__;
     console.log('[API] Using window config URL:', _cachedApiUrl);
     return _cachedApiUrl;
   }
-  
+
   // Default to localhost for development (only on client-side)
   // On server-side (SSR), return empty string to avoid issues
   if (typeof window === 'undefined') {
     return ''; // SSR - will be replaced on client
   }
-  
+
   _cachedApiUrl = 'http://localhost:8000';
   console.log('[API] Using default localhost URL');
   return _cachedApiUrl;
@@ -88,6 +88,8 @@ export interface ProjectDocument {
   graph_status?: 'pending' | 'processing' | 'ready' | 'error';
   summary?: string;  // Document summary (generated during processing)
   task_id?: string;  // Async task ID for tracking processing status
+  thumbnail_url?: string;  // URL for PDF thumbnail image
+  thumbnail_status?: 'pending' | 'processing' | 'ready' | 'error' | null;  // Thumbnail generation status
   created_at: string;
 }
 
@@ -221,35 +223,35 @@ export interface CanvasEdge {
   source: string;
   target: string;
   generation?: number;  // Generation ID for async clear support
-  
+
   // Edge label (AI-generated or user-defined)
   label?: string;
-  
+
   // Semantic relationship type for Thinking Path
-  relationType?: 
-    // Core Q&A relationships
-    | 'answers'           // Q→A: Question gets answered
-    | 'prompts_question'  // A→Q': Answer leads to follow-up question
-    | 'derives'           // A→Insight: Answer derives insight
-    // Logical relationships
-    | 'causes'            // A→B: Causal relationship (因果)
-    | 'compares'          // A↔B: Comparison/contrast (对比)
-    | 'supports'          // Evidence supporting a claim
-    | 'contradicts'       // Evidence contradicting a claim
-    // Evolution relationships
-    | 'revises'           // A→A': Correction/update (修正)
-    | 'extends'           // Building on previous point
-    // Organization
-    | 'parks'             // Main→Parking: Temporarily set aside (暂存)
-    | 'groups'            // Grouping relationship
-    | 'belongs_to'        // Legacy: belongs to group
-    | 'related'           // Legacy: generic relation
-    // User-defined
-    | 'custom';
-  
+  relationType?:
+  // Core Q&A relationships
+  | 'answers'           // Q→A: Question gets answered
+  | 'prompts_question'  // A→Q': Answer leads to follow-up question
+  | 'derives'           // A→Insight: Answer derives insight
+  // Logical relationships
+  | 'causes'            // A→B: Causal relationship (因果)
+  | 'compares'          // A↔B: Comparison/contrast (对比)
+  | 'supports'          // Evidence supporting a claim
+  | 'contradicts'       // Evidence contradicting a claim
+  // Evolution relationships
+  | 'revises'           // A→A': Correction/update (修正)
+  | 'extends'           // Building on previous point
+  // Organization
+  | 'parks'             // Main→Parking: Temporarily set aside (暂存)
+  | 'groups'            // Grouping relationship
+  | 'belongs_to'        // Legacy: belongs to group
+  | 'related'           // Legacy: generic relation
+  // User-defined
+  | 'custom';
+
   // Edge direction hint (for bidirectional relations like 'compares')
   direction?: 'forward' | 'backward' | 'bidirectional';
-  
+
   // Thinking Path edge types (for styling compatibility)
   type?: 'branch' | 'progression';
 }
@@ -311,7 +313,7 @@ async function fetchApi<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${getApiUrl()}${endpoint}`;
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -336,15 +338,15 @@ async function fetchApi<T>(
 // Projects API
 export const projectsApi = {
   list: () => fetchApi<{ items: Project[]; total: number }>('/api/v1/projects'),
-  
+
   create: (name: string, description?: string) =>
     fetchApi<Project>('/api/v1/projects', {
       method: 'POST',
       body: JSON.stringify({ name, description }),
     }),
-  
+
   get: (id: string) => fetchApi<Project>(`/api/v1/projects/${id}`),
-  
+
   delete: (id: string) =>
     fetchApi<void>(`/api/v1/projects/${id}`, { method: 'DELETE' }),
 };
@@ -366,21 +368,21 @@ export const documentsApi = {
     fetchApi<{ items: ProjectDocument[]; total: number }>(
       `/api/v1/projects/${projectId}/documents`
     ),
-  
+
   get: (documentId: string) =>
     fetchApi<ProjectDocument>(`/api/v1/documents/${documentId}`),
-  
+
   // Get PDF file URL for viewing
   getFileUrl: (documentId: string) =>
     `${getApiUrl()}/api/v1/documents/${documentId}/file`,
-  
+
   // Get presigned upload URL (for Supabase Storage direct upload)
   getPresignedUrl: (projectId: string, filename: string, contentType: string = 'application/pdf') =>
     fetchApi<PresignResponse>(`/api/v1/projects/${projectId}/documents/presign`, {
       method: 'POST',
       body: JSON.stringify({ filename, content_type: contentType }),
     }),
-  
+
   // Confirm upload after direct upload to Supabase Storage
   confirmUpload: (
     projectId: string,
@@ -398,7 +400,7 @@ export const documentsApi = {
         content_type: contentType,
       }),
     }),
-  
+
   // Upload with presigned URL (new method - direct to Supabase Storage)
   uploadWithPresignedUrl: async (
     projectId: string,
@@ -411,19 +413,19 @@ export const documentsApi = {
       file.name,
       file.type || 'application/pdf'
     );
-    
+
     // Step 2: Upload directly to Supabase Storage
     // Supabase signed upload URL expects POST with the file as body
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      
+
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable && onProgress) {
           const progress = Math.round((event.loaded / event.total) * 100);
           onProgress(progress);
         }
       });
-      
+
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
@@ -432,11 +434,11 @@ export const documentsApi = {
           reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
         }
       });
-      
+
       xhr.addEventListener('error', () => {
         reject(new Error('Upload failed'));
       });
-      
+
       // Supabase Storage uploadToSignedUrl uses PUT with binary body
       // and the token as Authorization header
       // See: https://supabase.com/docs/reference/javascript/storage-from-uploadtosignedurl
@@ -445,7 +447,7 @@ export const documentsApi = {
       xhr.setRequestHeader('Content-Type', file.type || 'application/pdf');
       xhr.send(file);
     });
-    
+
     // Step 3: Confirm upload and process document
     return documentsApi.confirmUpload(
       projectId,
@@ -455,7 +457,7 @@ export const documentsApi = {
       file.type || 'application/pdf'
     );
   },
-  
+
   // Legacy upload (direct to backend - fallback)
   upload: async (projectId: string, file: File): Promise<ProjectDocument> => {
     const formData = new FormData();
@@ -476,7 +478,7 @@ export const documentsApi = {
 
     return response.json();
   },
-  
+
   delete: (documentId: string) =>
     fetchApi<void>(`/api/v1/documents/${documentId}`, { method: 'DELETE' }),
 };
@@ -521,14 +523,14 @@ export const chatApi = {
       method: 'POST',
       body: JSON.stringify(message),
     }),
-  
+
   // Streaming chat
   stream: async function* (
     projectId: string,
     message: ChatMessage
-  ): AsyncGenerator<{ 
-    type: string; 
-    content?: string; 
+  ): AsyncGenerator<{
+    type: string;
+    content?: string;
     sources?: ChatResponse['sources'];
     data?: Citation;  // Single citation event
     citations?: Citation[];  // All citations at end
@@ -566,7 +568,7 @@ export const chatApi = {
           const trimmed = line.trim();
           // Skip empty lines and comments
           if (!trimmed || trimmed.startsWith(':')) continue;
-          
+
           if (trimmed.startsWith('data: ')) {
             try {
               const jsonStr = trimmed.slice(6); // Remove 'data: ' prefix
@@ -592,7 +594,7 @@ export const chatApi = {
 export const canvasApi = {
   get: (projectId: string) =>
     fetchApi<CanvasData>(`/api/v1/projects/${projectId}/canvas`),
-  
+
   save: (projectId: string, data: Omit<CanvasData, 'updated_at'>) =>
     fetchApi<{ success: boolean; updated_at: string }>(
       `/api/v1/projects/${projectId}/canvas`,

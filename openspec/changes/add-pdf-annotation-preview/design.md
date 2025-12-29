@@ -202,3 +202,4 @@ PDFPreviewModal
 4. How to handle annotations when document is re-processed?
    - **Proposed:** Store character offsets alongside rects for re-anchoring
 
+

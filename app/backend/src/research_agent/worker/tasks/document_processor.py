@@ -159,7 +159,7 @@ class DocumentProcessorTask(BaseTask):
                 )
 
                 DEFAULT_USER_ID = UUIDType("00000000-0000-0000-0000-000000000001")
-                
+
                 # ✅ Retry logic for settings query (connection may have timed out during PDF parsing)
                 max_retries = 3
                 for attempt in range(1, max_retries + 1):
@@ -204,11 +204,17 @@ class DocumentProcessorTask(BaseTask):
                         break
                     except Exception as retry_error:
                         error_str = str(retry_error)
-                        if any(keyword in error_str for keyword in [
-                            "ConnectionDoesNotExistError",
-                            "connection was closed",
-                            "connection closed",
-                        ]) and attempt < max_retries:
+                        if (
+                            any(
+                                keyword in error_str
+                                for keyword in [
+                                    "ConnectionDoesNotExistError",
+                                    "connection was closed",
+                                    "connection closed",
+                                ]
+                            )
+                            and attempt < max_retries
+                        ):
                             logger.warning(
                                 f"⚠️ Settings query failed due to connection error (attempt {attempt}/{max_retries}), retrying..."
                             )
@@ -523,6 +529,43 @@ class DocumentProcessorTask(BaseTask):
                     exc_info=True,
                 )
                 raise
+
+            # Step 6: Queue thumbnail generation for PDF documents
+            logger.info(f"🖼️ Step 6: Queuing thumbnail generation - document_id={document_id}")
+            try:
+                from research_agent.domain.entities.task import TaskType
+                from research_agent.worker.service import TaskQueueService
+
+                async with get_async_session() as thumbnail_session:
+                    # Update document thumbnail status to pending
+                    stmt = (
+                        update(DocumentModel)
+                        .where(DocumentModel.id == document_id)
+                        .values(thumbnail_status="pending")
+                    )
+                    await thumbnail_session.execute(stmt)
+
+                    # Queue thumbnail generation task
+                    task_service = TaskQueueService(thumbnail_session)
+                    await task_service.push(
+                        task_type=TaskType.GENERATE_THUMBNAIL,
+                        payload={
+                            "document_id": str(document_id),
+                            "project_id": str(project_id),
+                            "file_path": local_path,
+                        },
+                        priority=5,  # Lower priority than document processing
+                    )
+                    await thumbnail_session.commit()
+
+                logger.info(f"✅ Step 6 completed: Thumbnail generation queued for {document_id}")
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ Step 6 failed (non-critical): Thumbnail task queuing error - "
+                    f"document_id={document_id}: {e}",
+                    exc_info=True,
+                )
+                # Non-critical failure - document is still READY, just no thumbnail
 
             logger.info(
                 f"🎉 Document processing completed successfully - document_id={document_id}, "

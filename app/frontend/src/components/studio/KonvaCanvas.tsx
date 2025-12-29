@@ -6,7 +6,33 @@
  */
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Group, Rect, Text, Line, Circle } from 'react-konva';
+import { Stage, Layer, Group, Rect, Text, Line, Circle, Image, Path } from 'react-konva';
+
+
+const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
+  const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
+
+  useEffect(() => {
+    if (!src) {
+      console.log('[DEBUG] URLImage no src');
+      return;
+    }
+    console.log('[DEBUG] URLImage loading:', src);
+    const img = new window.Image();
+    img.src = src;
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      console.log('[DEBUG] URLImage loaded:', src);
+      setImage(img);
+    };
+    img.onerror = (e) => {
+      console.error('[DEBUG] URLImage error:', src, e);
+    };
+  }, [src]);
+
+  return image ? <Image x={x} y={y} width={width} height={height} image={image} opacity={opacity} cornerRadius={cornerRadius} /> : null;
+};
+
 import Konva from 'konva';
 import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
 import { ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon } from '@/components/ui/icons';
@@ -16,6 +42,9 @@ import InspirationDock from './InspirationDock';
 import CanvasContextMenu from './CanvasContextMenu';
 import GenerationOutputsOverlay from './GenerationOutputsOverlay';
 import { CanvasNode, CanvasEdge } from '@/lib/api';
+import { useSpatialIndex, SpatialItem } from '@/hooks/useSpatialIndex';
+import { useViewportCulling } from '@/hooks/useViewportCulling';
+import GridBackground from './canvas/GridBackground';
 
 interface Viewport {
   x: number;
@@ -44,10 +73,10 @@ interface KonvaCanvasProps {
 
 // Node style configuration based on type
 const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft?: boolean, branchType?: string) => {
-  const styles: Record<string, { 
-    borderColor: string; 
-    borderStyle: 'solid' | 'dashed'; 
-    bgColor: string; 
+  const styles: Record<string, {
+    borderColor: string;
+    borderStyle: 'solid' | 'dashed';
+    bgColor: string;
     icon: string;
     topBarColor: string;
   }> = {
@@ -213,14 +242,14 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
     },
     // === Sticky Note ===
     sticky: {
-        borderColor: '#FCD34D', // Amber 300
-        borderStyle: 'solid',
-        bgColor: '#FEF3C7', // Amber 100
-        icon: '📝',
-        topBarColor: '#FCD34D',
+      borderColor: '#FCD34D', // Amber 300
+      borderStyle: 'solid',
+      bgColor: '#FEF3C7', // Amber 100
+      icon: '📝',
+      topBarColor: '#FCD34D',
     }
   };
-  
+
   // Handle source nodes with specific file types
   if (subType === 'source' && fileType) {
     const sourceKey = `source_${fileType}`;
@@ -230,7 +259,7 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
     // Fallback for unknown source types
     return styles.source_text;
   }
-  
+
   // Handle thinking_step nodes with draft status
   if (type === 'thinking_step') {
     if (isDraft) {
@@ -238,7 +267,7 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
     }
     return styles.thinking_step;
   }
-  
+
   // Handle thinking_branch nodes with branch type
   if (type === 'thinking_branch') {
     if (branchType === 'question') {
@@ -252,9 +281,154 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
     }
     return styles.thinking_branch;
   }
-  
+
   // Default to knowledge style for backward compatibility
   return styles[type] || styles.knowledge;
+};
+
+// --- PDF Icon Paths ---
+const PDF_ICON_BODY = "M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z";
+const PDF_ICON_FOLD = "M14 2V8H20";
+
+// --- Source Preview Card (Canvas Implementation of the UI) ---
+const SourcePreviewCard = ({
+  node,
+  width,
+  height,
+  isSelected,
+  isHighlighted,
+  isActiveThinking,
+}: {
+  node: CanvasNode;
+  width: number;
+  height: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+  isActiveThinking?: boolean;
+}) => {
+  const thumbUrl = node.fileMetadata?.thumbnailUrl;
+  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#6366F1' : '#E5E7EB'));
+  const strokeWidth = isSelected || isHighlighted ? 2 : 1;
+  const shadowBlur = isSelected ? 12 : 4;
+  const shadowOpacity = isSelected ? 0.15 : 0.05;
+
+  // Enforce minimum height for proper layout of "Beautiful Card"
+  const displayHeight = Math.max(height, 320);
+
+  return (
+    <Group>
+      {/* 1. Main Card Container */}
+      <Rect
+        width={width}
+        height={displayHeight}
+        fill="white"
+        cornerRadius={12}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        shadowColor="black"
+        shadowBlur={shadowBlur}
+        shadowOpacity={shadowOpacity}
+        shadowOffsetY={4}
+      />
+
+      {/* 2. Header (Top 40px) */}
+      <Group x={12} y={12}>
+        <Group scaleX={0.7} scaleY={0.7}>
+          <Path data={PDF_ICON_BODY} fill="#EF4444" />
+          <Path data={PDF_ICON_FOLD} fill="#B91C1C" fillOpacity={0.5} />
+        </Group>
+        <Text
+          x={24}
+          y={2}
+          text="PDF Document"
+          fontSize={12}
+          fontStyle="bold"
+          fill="#6B7280"
+          fontFamily="Inter, sans-serif"
+        />
+      </Group>
+
+      {/* Header Separator */}
+      <Line points={[0, 40, width, 40]} stroke="#F3F4F6" strokeWidth={1} />
+
+      {/* 3. Body (Preview Area) */}
+      <Rect
+        x={1}
+        y={40}
+        width={width - 2}
+        height={displayHeight - 90}
+        fill="#FFF7ED" // Orange-50 equivalent
+        opacity={0.5}
+      />
+
+      {/* Thumbnail Logic */}
+      {thumbUrl ? (
+        <Group x={(width - 120) / 2} y={55}>
+          {/* Shadow for Paper */}
+          <Rect
+            x={4}
+            y={4}
+            width={120}
+            height={150} // Aspect ratio approx
+            fill="black"
+            opacity={0.1}
+            cornerRadius={2}
+            blurRadius={4}
+          />
+          {/* White Paper Bg */}
+          <Rect
+            width={120}
+            height={150}
+            fill="white"
+            cornerRadius={2}
+          />
+          {/* Image */}
+          <URLImage
+            src={thumbUrl}
+            width={120}
+            height={150}
+            cornerRadius={2}
+          />
+        </Group>
+      ) : (
+        /* Placeholder */
+        <Group x={(width - 100) / 2} y={60}>
+          <Rect width={100} height={130} fill="white" stroke="#E5E7EB" dash={[4, 4]} cornerRadius={4} />
+          <Text x={10} y={60} text="No Preview" fontSize={12} fill="#9CA3AF" />
+        </Group>
+      )}
+
+      {/* 4. Footer */}
+      <Line points={[0, displayHeight - 50, width, displayHeight - 50]} stroke="#F3F4F6" strokeWidth={1} />
+
+      <Group x={12} y={displayHeight - 38}>
+        {/* Icon Box */}
+        <Rect width={28} height={28} fill="#FEF2F2" cornerRadius={6} />
+        <Group x={6} y={6} scaleX={0.7} scaleY={0.7}>
+          <Path data={PDF_ICON_BODY} fill="#DC2626" />
+        </Group>
+
+        {/* Text Info */}
+        <Group x={36} y={-2}>
+          <Text
+            text={node.title}
+            width={width - 60}
+            ellipsis={true}
+            fontSize={13}
+            fontStyle="bold"
+            fill="#111827"
+            height={20}
+          />
+          <Text
+            y={18}
+            text={node.fileMetadata?.pageCount ? `${node.fileMetadata.pageCount} pages` : 'Unknown size'}
+            fontSize={10}
+            fill="#6B7280"
+          />
+        </Group>
+      </Group>
+    </Group>
+  );
 };
 
 // Knowledge Node Component
@@ -299,14 +473,16 @@ const KnowledgeNode = ({
   onMouseEnter?: () => void;        // Phase 2: For hover state
   onMouseLeave?: () => void;        // Phase 2: For hover state
 }) => {
+
+
   const width = node.width || 280;
   const height = node.height || 200;
   const style = getNodeStyle(node.type, node.subType, node.fileMetadata?.fileType, node.isDraft, node.branchType);
-  
+
   // Thinking Graph: Check if this is a thinking step or branch node
   const isThinkingStep = node.type === 'thinking_step';
   const isThinkingBranch = node.type === 'thinking_branch';
-  
+
   // Highlight animation effect
   const highlightStrokeWidth = isActiveThinking ? 4 : (isHighlighted ? 3 : (isSelected ? 2 : 1));
   const highlightStrokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor));
@@ -339,279 +515,306 @@ const KnowledgeNode = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {/* Border/Background */}
-      <Rect
-        width={width}
-        height={height}
-        fill={style.bgColor}
-        cornerRadius={12}
-        stroke={highlightStrokeColor}
-        strokeWidth={highlightStrokeWidth}
-        dash={style.borderStyle === 'dashed' ? [8, 4] : undefined}
-        shadowColor={isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : 'black')}
-        shadowBlur={isActiveThinking ? 20 : (isHighlighted ? 16 : (isSelected ? 12 : 8))}
-        shadowOpacity={isActiveThinking ? 0.4 : (isHighlighted ? 0.3 : (isSelected ? 0.15 : 0.08))}
-        shadowOffsetY={4}
-      />
-
-      {/* Top Color Bar - thicker for source nodes */}
-      <Rect
-        y={0}
-        width={width}
-        height={isSourceNode ? 6 : 4}
-        fill={style.topBarColor}
-        cornerRadius={[12, 12, 0, 0]}
-      />
-
-      {/* Type Icon (top-left) */}
-      <Text
-        x={12}
-        y={isSourceNode ? 14 : 12}
-        text={style.icon}
-        fontSize={isSourceNode ? 18 : 16}
-      />
-
-      {/* Title (adjust for icon) */}
-      <Text
-        x={40}
-        y={isSourceNode ? 16 : 14}
-        width={width - (hasSourceRef ? 80 : 56) - (isThinkingStep ? 60 : 0)}
-        text={node.title}
-        fontSize={isSourceNode ? 15 : 16}
-        fontStyle="bold"
-        fill="#1F2937"
-        wrap="word"
-        ellipsis={true}
-      />
-      
-      {/* Thinking Graph: Step Index Badge */}
-      {isThinkingStep && node.thinkingStepIndex && (
-        <>
-          <Rect
-            x={width - 45}
-            y={12}
-            width={36}
-            height={20}
-            fill={node.isDraft ? '#8B5CF6' : '#3B82F6'}
-            cornerRadius={10}
-          />
-          <Text
-            x={width - 42}
-            y={15}
-            text={`#${node.thinkingStepIndex}`}
-            fontSize={11}
-            fontStyle="bold"
-            fill="#FFFFFF"
-          />
-        </>
-      )}
-      
-      {/* Thinking Graph: Active Context Badge */}
-      {isActiveThinking && (
-        <>
-          <Rect
-            x={width - 52}
-            y={35}
-            width={44}
-            height={16}
-            fill="#F3E8FF"
-            cornerRadius={8}
-          />
-          <Text
-            x={width - 48}
-            y={37}
-            text="Active"
-            fontSize={9}
-            fontStyle="bold"
-            fill="#7C3AED"
-          />
-        </>
-      )}
-      
-      {/* Thinking Graph: Draft Badge */}
-      {node.isDraft && (
-        <>
-          <Rect
-            x={width - (isActiveThinking ? 100 : 52)}
-            y={35}
-            width={40}
-            height={16}
-            fill="#FEF3C7"
-            cornerRadius={8}
-          />
-          <Text
-            x={width - (isActiveThinking ? 96 : 48)}
-            y={37}
-            text="Draft"
-            fontSize={9}
-            fontStyle="bold"
-            fill="#D97706"
-          />
-        </>
-      )}
-
-      {/* Source Node: File metadata badge */}
-      {isSourceNode && node.fileMetadata && (
-        <>
-          <Rect
-            x={width - 60}
-            y={14}
-            width={48}
-            height={18}
-            fill={style.topBarColor}
-            cornerRadius={4}
-            opacity={0.2}
-          />
-          <Text
-            x={width - 56}
-            y={17}
-            text={node.fileMetadata.fileType?.toUpperCase() || 'FILE'}
-            fontSize={10}
-            fontStyle="bold"
-            fill={style.topBarColor}
-          />
-        </>
-      )}
-
-      {/* Link-Back Icon (top-right) for nodes with source reference */}
-      {hasSourceRef && (
-        <Group
-          x={width - 32}
-          y={12}
-          onClick={(e) => {
-            e.cancelBubble = true;
-            onLinkBack?.();
-          }}
-          onTap={(e) => {
-            e.cancelBubble = true;
-            onLinkBack?.();
-          }}
-        >
-          <Rect
-            width={24}
-            height={24}
-            fill="#E0E7FF"
-            cornerRadius={6}
-          />
-          <Text
-            x={4}
-            y={4}
-            text="🔗"
-            fontSize={14}
-          />
-        </Group>
-      )}
-
-      {/* Content */}
-      <Text
-        x={16}
-        y={isSourceNode ? 50 : 48}
-        width={width - 32}
-        height={isSourceNode ? 85 : 95}
-        text={node.content}
-        fontSize={14}
-        fill="#6B7280"
-        wrap="word"
-        ellipsis={true}
-      />
-
-      {/* Source Node: Page count info */}
-      {isSourceNode && node.fileMetadata?.pageCount && (
-        <Text
-          x={16}
-          y={height - 50}
-          text={`${node.fileMetadata.pageCount} pages`}
-          fontSize={11}
-          fill="#9CA3AF"
+      {/* Use SourcePreviewCard for PDF Source Nodes */}
+      {isSourceNode ? (
+        <SourcePreviewCard
+          node={node}
+          width={width}
+          height={height}
+          isSelected={isSelected}
+          isHighlighted={isHighlighted}
+          isActiveThinking={isActiveThinking}
         />
-      )}
-
-      {/* Tags (simplified - show first tag only) */}
-      {node.tags && node.tags.length > 0 && (
+      ) : (
         <>
+          {/* Standard Node Rendering */}
+
+          {/* Border/Background */}
           <Rect
+            width={width}
+            height={height}
+            fill={style.bgColor}
+            cornerRadius={12}
+            stroke={highlightStrokeColor}
+            strokeWidth={highlightStrokeWidth}
+            dash={style.borderStyle === 'dashed' ? [8, 4] : undefined}
+            shadowColor={isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : 'black')}
+            shadowBlur={isActiveThinking ? 20 : (isHighlighted ? 16 : (isSelected ? 12 : 8))}
+            shadowOpacity={isActiveThinking ? 0.4 : (isHighlighted ? 0.3 : (isSelected ? 0.15 : 0.08))}
+            shadowOffsetY={4}
+          />
+
+          {/* Top Color Bar - thicker for source nodes */}
+          <Rect
+            y={0}
+            width={width}
+            height={isSourceNode ? 6 : 4}
+            fill={style.topBarColor}
+            cornerRadius={[12, 12, 0, 0]}
+          />
+
+          {/* Type Icon (top-left) */}
+          <Text
+            x={12}
+            y={isSourceNode ? 14 : 12}
+            text={style.icon}
+            fontSize={isSourceNode ? 18 : 16}
+          />
+
+          {/* Title (adjust for icon) */}
+          <Text
+            x={40}
+            y={isSourceNode ? 16 : 14}
+            width={width - (hasSourceRef ? 80 : 56) - (isThinkingStep ? 60 : 0)}
+            text={node.title}
+            fontSize={isSourceNode ? 15 : 16}
+            fontStyle="bold"
+            fill="#1F2937"
+            wrap="word"
+            ellipsis={true}
+          />
+
+          {/* Thinking Graph: Step Index Badge */}
+          {isThinkingStep && node.thinkingStepIndex && (
+            <>
+              <Rect
+                x={width - 45}
+                y={12}
+                width={36}
+                height={20}
+                fill={node.isDraft ? '#8B5CF6' : '#3B82F6'}
+                cornerRadius={10}
+              />
+              <Text
+                x={width - 42}
+                y={15}
+                text={`#${node.thinkingStepIndex}`}
+                fontSize={11}
+                fontStyle="bold"
+                fill="#FFFFFF"
+              />
+            </>
+          )}
+
+          {/* Thinking Graph: Active Context Badge */}
+          {isActiveThinking && (
+            <>
+              <Rect
+                x={width - 52}
+                y={35}
+                width={44}
+                height={16}
+                fill="#F3E8FF"
+                cornerRadius={8}
+              />
+              <Text
+                x={width - 48}
+                y={37}
+                text="Active"
+                fontSize={9}
+                fontStyle="bold"
+                fill="#7C3AED"
+              />
+            </>
+          )}
+
+          {/* Thinking Graph: Draft Badge */}
+          {node.isDraft && (
+            <>
+              <Rect
+                x={width - (isActiveThinking ? 100 : 52)}
+                y={35}
+                width={40}
+                height={16}
+                fill="#FEF3C7"
+                cornerRadius={8}
+              />
+              <Text
+                x={width - (isActiveThinking ? 96 : 48)}
+                y={37}
+                text="Draft"
+                fontSize={9}
+                fontStyle="bold"
+                fill="#D97706"
+              />
+            </>
+          )}
+
+          {/* Source Node: File metadata badge */}
+          {isSourceNode && node.fileMetadata && (
+            <>
+              <Rect
+                x={width - 60}
+                y={14}
+                width={48}
+                height={18}
+                fill={style.topBarColor}
+                cornerRadius={4}
+                opacity={0.2}
+              />
+              <Text
+                x={width - 56}
+                y={17}
+                text={node.fileMetadata.fileType?.toUpperCase() || 'FILE'}
+                fontSize={10}
+                fontStyle="bold"
+                fill={style.topBarColor}
+              />
+            </>
+          )}
+
+          {/* Link-Back Icon (top-right) for nodes with source reference */}
+          {hasSourceRef && (
+            <Group
+              x={width - 32}
+              y={12}
+              onClick={(e) => {
+                e.cancelBubble = true;
+                onLinkBack?.();
+              }}
+              onTap={(e) => {
+                e.cancelBubble = true;
+                onLinkBack?.();
+              }}
+            >
+              <Rect
+                width={24}
+                height={24}
+                fill="#E0E7FF"
+                cornerRadius={6}
+              />
+              <Text
+                x={4}
+                y={4}
+                text="🔗"
+                fontSize={14}
+              />
+            </Group>
+          )}
+
+          {/* Content */}
+          <Text
             x={16}
-            y={height - 35}
-            width={Math.min(node.tags[0].length * 7 + 16, width - 32)}
-            height={20}
-            fill="#F3F4F6"
-            cornerRadius={4}
-          />
-          <Text
-            x={24}
-            y={height - 32}
-            text={node.tags[0]}
-            fontSize={10}
+            y={isSourceNode ? 50 : 48}
+            width={width - 32}
+            height={isSourceNode ? 85 : 95}
+            text={node.content}
+            fontSize={14}
             fill="#6B7280"
+            wrap="word"
+            ellipsis={true}
+            visible={!(isSourceNode && node.fileMetadata?.thumbnailUrl)}
+          />
+          {isSourceNode && node.fileMetadata?.thumbnailUrl && (
+            <URLImage
+              src={node.fileMetadata.thumbnailUrl}
+              x={16}
+              y={50}
+              width={width - 32}
+              height={isSourceNode ? 85 : 95}
+              cornerRadius={8}
             />
+          )}
+
+          {/* Source Node: Page count info */}
+          {isSourceNode && node.fileMetadata?.pageCount && (
+            <Text
+              x={16}
+              y={height - 50}
+              text={`${node.fileMetadata.pageCount} pages`}
+              fontSize={11}
+              fill="#9CA3AF"
+            />
+          )}
+
+          {/* Tags (simplified - show first tag only) */}
+          {node.tags && node.tags.length > 0 && (
+            <>
+              <Rect
+                x={16}
+                y={height - 35}
+                width={Math.min(node.tags[0].length * 7 + 16, width - 32)}
+                height={20}
+                fill="#F3F4F6"
+                cornerRadius={4}
+              />
+              <Text
+                x={24}
+                y={height - 32}
+                text={node.tags[0]}
+                fontSize={10}
+                fill="#6B7280"
+              />
+            </>
+          )}
+
+          {/* Source info (for non-source nodes that reference a source) */}
+          {hasSourceRef && (
+            <Text
+              x={16}
+              y={height - 25}
+              width={width - 32}
+              text={`📄 ${node.sourceId!.substring(0, 8)}${node.sourcePage ? ` • p.${node.sourcePage}` : ''}`}
+              fontSize={11}
+              fill="#9CA3AF"
+            />
+          )}
+
+          {/* Double-click hint for source nodes */}
+          {isSourceNode && isSelected && (
+            <Text
+              x={16}
+              y={height - 18}
+              text="Double-click to open"
+              fontSize={10}
+              fill="#6B7280"
+              fontStyle="italic"
+            />
+          )}
+
+          {/* Phase 2: Connection Handle (Right side - output) */}
+          {(isHovered || isSelected || isConnecting) && (
+            <Group
+              x={width}
+              y={height / 2}
+              onMouseDown={(e) => {
+                e.cancelBubble = true;
+                onConnectionStart?.();
+              }}
+              onTouchStart={(e) => {
+                e.cancelBubble = true;
+                onConnectionStart?.();
+              }}
+            >
+              <Rect
+                x={-8}
+                y={-8}
+                width={16}
+                height={16}
+                fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
+                stroke="#3B82F6"
+                strokeWidth={2}
+                cornerRadius={8}
+              />
+            </Group>
+          )}
+
+          {/* Phase 2: Connection Target Handle (Left side - input) */}
+          {isConnectTarget && (
+            <Group x={0} y={height / 2}>
+              <Rect
+                x={-8}
+                y={-8}
+                width={16}
+                height={16}
+                fill="#10B981"
+                stroke="#059669"
+                strokeWidth={2}
+                cornerRadius={8}
+              />
+            </Group>
+          )}
         </>
-      )}
-
-      {/* Source info (for non-source nodes that reference a source) */}
-      {hasSourceRef && (
-        <Text
-          x={16}
-          y={height - 25}
-          width={width - 32}
-          text={`📄 ${node.sourceId!.substring(0, 8)}${node.sourcePage ? ` • p.${node.sourcePage}` : ''}`}
-          fontSize={11}
-          fill="#9CA3AF"
-        />
-      )}
-
-      {/* Double-click hint for source nodes */}
-      {isSourceNode && isSelected && (
-        <Text
-          x={16}
-          y={height - 18}
-          text="Double-click to open"
-          fontSize={10}
-          fill="#6B7280"
-          fontStyle="italic"
-        />
-      )}
-
-      {/* Phase 2: Connection Handle (Right side - output) */}
-      {(isHovered || isSelected || isConnecting) && (
-        <Group
-          x={width}
-          y={height / 2}
-          onMouseDown={(e) => {
-            e.cancelBubble = true;
-            onConnectionStart?.();
-          }}
-          onTouchStart={(e) => {
-            e.cancelBubble = true;
-            onConnectionStart?.();
-          }}
-        >
-          <Rect
-            x={-8}
-            y={-8}
-            width={16}
-            height={16}
-            fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
-            stroke="#3B82F6"
-            strokeWidth={2}
-            cornerRadius={8}
-          />
-        </Group>
-      )}
-
-      {/* Phase 2: Connection Target Handle (Left side - input) */}
-      {isConnectTarget && (
-        <Group x={0} y={height / 2}>
-          <Rect
-            x={-8}
-            y={-8}
-            width={16}
-            height={16}
-            fill="#10B981"
-            stroke="#059669"
-            strokeWidth={2}
-            cornerRadius={8}
-          />
-        </Group>
       )}
     </Group>
   );
@@ -640,42 +843,42 @@ export default function KonvaCanvas({
   const lastWheelTimeRef = useRef(0); // For wheel event throttling
   const WHEEL_THROTTLE_MS = 16; // ~60fps throttle for smooth scrolling
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  
+
   // Selection State
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
-  
+
   // Notify parent when selection changes
   useEffect(() => {
     onSelectionChange?.(selectedNodeIds.size);
   }, [selectedNodeIds, onSelectionChange]);
 
   const [selectionRect, setSelectionRect] = useState<{
-    startX: number; startY: number; x: number; y: number; width: number; height: number 
+    startX: number; startY: number; x: number; y: number; width: number; height: number
   } | null>(null);
 
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; sectionId?: string } | null>(null);
-  
+
   // Phase 2: Manual Connection State
   const [connectingFromNodeId, setConnectingFromNodeId] = useState<string | null>(null);
   const [connectingLineEnd, setConnectingLineEnd] = useState<{ x: number; y: number } | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [edgeLabelDialog, setEdgeLabelDialog] = useState<{ 
-    edge: CanvasEdge; 
+  const [edgeLabelDialog, setEdgeLabelDialog] = useState<{
+    edge: CanvasEdge;
     position: { x: number; y: number };
   } | null>(null);
-  
+
   // Refs for Drag/Pan
   const lastPosRef = useRef({ x: 0, y: 0 });
   const draggedNodeRef = useRef<string | null>(null);
-  const lastDragPosRef = useRef<{x: number, y: number} | null>(null);
+  const lastDragPosRef = useRef<{ x: number, y: number } | null>(null);
 
-  const { 
-    dragPreview, 
-    setDragPreview, 
-    dragContentRef, 
-    promoteNode, 
+  const {
+    dragPreview,
+    setDragPreview,
+    dragContentRef,
+    promoteNode,
     deleteSection,
     addSection,
     canvasSections,
@@ -700,13 +903,25 @@ export default function KonvaCanvas({
   const edges = propEdges ?? contextEdges ?? [];
   const viewport = propViewport ?? contextViewport ?? { x: 0, y: 0, scale: 1 };
   const currentView = propCurrentView ?? studioCurrentView ?? 'free';
-  const onNodesChange = propOnNodesChange ?? contextSetNodes ?? (() => {});
-  const onEdgesChange = propOnEdgesChange ?? contextSetEdges ?? (() => {});
-  const onViewportChange = propOnViewportChange ?? contextSetViewport ?? (() => {});
+  const onNodesChange = propOnNodesChange ?? contextSetNodes ?? (() => { });
+  const onEdgesChange = propOnEdgesChange ?? contextSetEdges ?? (() => { });
+  const onViewportChange = propOnViewportChange ?? contextSetViewport ?? (() => { });
 
   // Filter nodes and sections by current view
   const visibleNodes = (nodes || []).filter(node => node.viewType === currentView);
   const visibleSections = (canvasSections || []).filter(section => section.viewType === currentView);
+
+  // Spatial index for O(log N) box selection queries
+  const spatialIndex = useSpatialIndex(visibleNodes);
+
+  // Viewport culling - only render nodes within visible viewport (+ padding)
+  const culledNodes = useViewportCulling(
+    viewport,
+    dimensions,
+    spatialIndex,
+    visibleNodes,
+    300 // Extra padding to prevent pop-in during fast panning
+  );
 
   // Check if there are any completed generation outputs on the canvas
   const hasCompletedOutputs = useMemo(() => {
@@ -743,21 +958,21 @@ export default function KonvaCanvas({
   // Pan to highlighted node when navigating from chat
   useEffect(() => {
     if (!highlightedNodeId) return;
-    
+
     const node = nodes.find(n => n.id === highlightedNodeId);
     if (!node) return;
-    
+
     // Calculate center of the node
     const nodeWidth = node.width || 280;
     const nodeHeight = node.height || 200;
     const nodeCenterX = node.x + nodeWidth / 2;
     const nodeCenterY = node.y + nodeHeight / 2;
-    
+
     // Calculate new viewport position to center the node on screen
     const scale = viewport.scale;
     const newX = dimensions.width / 2 - nodeCenterX * scale;
     const newY = dimensions.height / 2 - nodeCenterY * scale;
-    
+
     // Update viewport to center on the node
     onViewportChange({
       scale,
@@ -772,7 +987,7 @@ export default function KonvaCanvas({
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-      
+
       if (isInput) return;
 
       // Space for Pan
@@ -808,81 +1023,81 @@ export default function KonvaCanvas({
 
       // Cmd+D / Ctrl+D for Duplicate
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
-          e.preventDefault();
-          if (selectedNodeIds.size > 0) {
-              const nodesToDuplicate = nodes.filter(n => selectedNodeIds.has(n.id));
-              const newNodes = nodesToDuplicate.map(node => ({
-                  ...node,
-                  id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                  x: node.x + 20,
-                  y: node.y + 20,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-              }));
-              
-              onNodesChange([...nodes, ...newNodes]);
-              // Select the new nodes
-              setSelectedNodeIds(new Set(newNodes.map(n => n.id)));
-          }
+        e.preventDefault();
+        if (selectedNodeIds.size > 0) {
+          const nodesToDuplicate = nodes.filter(n => selectedNodeIds.has(n.id));
+          const newNodes = nodesToDuplicate.map(node => ({
+            ...node,
+            id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            x: node.x + 20,
+            y: node.y + 20,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }));
+
+          onNodesChange([...nodes, ...newNodes]);
+          // Select the new nodes
+          setSelectedNodeIds(new Set(newNodes.map(n => n.id)));
+        }
       }
 
       // Nudge (Arrow Keys)
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-          if (selectedNodeIds.size > 0) {
-              e.preventDefault();
-              const step = e.shiftKey ? 10 : 1;
-              const dx = e.key === 'ArrowLeft' ? -step : (e.key === 'ArrowRight' ? step : 0);
-              const dy = e.key === 'ArrowUp' ? -step : (e.key === 'ArrowDown' ? step : 0);
-              
-              const updatedNodes = nodes.map(n => {
-                  if (selectedNodeIds.has(n.id)) {
-                      return { ...n, x: n.x + dx, y: n.y + dy };
-                  }
-                  return n;
-              });
-              onNodesChange(updatedNodes);
-          }
+        if (selectedNodeIds.size > 0) {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 1;
+          const dx = e.key === 'ArrowLeft' ? -step : (e.key === 'ArrowRight' ? step : 0);
+          const dy = e.key === 'ArrowUp' ? -step : (e.key === 'ArrowDown' ? step : 0);
+
+          const updatedNodes = nodes.map(n => {
+            if (selectedNodeIds.has(n.id)) {
+              return { ...n, x: n.x + dx, y: n.y + dy };
+            }
+            return n;
+          });
+          onNodesChange(updatedNodes);
+        }
       }
 
       // Group (Cmd+G / Ctrl+G)
       if ((e.metaKey || e.ctrlKey) && e.key === 'g') {
-          e.preventDefault();
-          const selectedNodes = visibleNodes.filter(n => selectedNodeIds.has(n.id));
-          
-          if (selectedNodes.length >= 2) {
-              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-              selectedNodes.forEach(node => {
-                minX = Math.min(minX, node.x);
-                minY = Math.min(minY, node.y);
-                maxX = Math.max(maxX, node.x + (node.width || 280));
-                maxY = Math.max(maxY, node.y + (node.height || 200));
-              });
-              
-              const padding = 24;
-              const headerHeight = 48;
-              const sectionId = `section-${Date.now()}`;
-              
-              const newSection = {
-                id: sectionId,
-                title: `Group (${selectedNodes.length})`,
-                viewType: currentView as 'free' | 'thinking',
-                isCollapsed: false,
-                nodeIds: Array.from(selectedNodeIds),
-                x: minX - padding,
-                y: minY - padding - headerHeight,
-                width: maxX - minX + padding * 2,
-                height: maxY - minY + padding * 2 + headerHeight,
-              };
-              
-              addSection(newSection);
-              
-              const updatedNodes = nodes.map(node => 
-                selectedNodeIds.has(node.id) 
-                  ? { ...node, sectionId }
-                  : node
-              );
-              onNodesChange(updatedNodes);
-          }
+        e.preventDefault();
+        const selectedNodes = visibleNodes.filter(n => selectedNodeIds.has(n.id));
+
+        if (selectedNodes.length >= 2) {
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          selectedNodes.forEach(node => {
+            minX = Math.min(minX, node.x);
+            minY = Math.min(minY, node.y);
+            maxX = Math.max(maxX, node.x + (node.width || 280));
+            maxY = Math.max(maxY, node.y + (node.height || 200));
+          });
+
+          const padding = 24;
+          const headerHeight = 48;
+          const sectionId = `section-${Date.now()}`;
+
+          const newSection = {
+            id: sectionId,
+            title: `Group (${selectedNodes.length})`,
+            viewType: currentView as 'free' | 'thinking',
+            isCollapsed: false,
+            nodeIds: Array.from(selectedNodeIds),
+            x: minX - padding,
+            y: minY - padding - headerHeight,
+            width: maxX - minX + padding * 2,
+            height: maxY - minY + padding * 2 + headerHeight,
+          };
+
+          addSection(newSection);
+
+          const updatedNodes = nodes.map(node =>
+            selectedNodeIds.has(node.id)
+              ? { ...node, sectionId }
+              : node
+          );
+          onNodesChange(updatedNodes);
+        }
       }
     };
 
@@ -905,9 +1120,9 @@ export default function KonvaCanvas({
   const handleNodeSelect = useCallback((nodeId: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     // In Hand mode or holding space, let event bubble to Stage for panning
     if (toolMode === 'hand' || isSpacePressed) return;
-    
+
     e.cancelBubble = true; // Prevent stage click (only in select mode)
-    
+
     const isShift = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
     const isSelected = selectedNodeIds.has(nodeId);
 
@@ -931,8 +1146,8 @@ export default function KonvaCanvas({
   const handleNodeDragStart = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
     // Prevent drag if in hand mode (though draggable prop should control this)
     if (toolMode === 'hand') {
-        e.target.stopDrag();
-        return;
+      e.target.stopDrag();
+      return;
     }
 
     e.cancelBubble = true;
@@ -942,35 +1157,35 @@ export default function KonvaCanvas({
     // Ensure dragging node is selected and determine effective selection
     let effectiveSelectionIds = new Set(selectedNodeIds);
     if (!selectedNodeIds.has(nodeId)) {
-        if (!e.evt.shiftKey) {
-            effectiveSelectionIds = new Set([nodeId]);
-            setSelectedNodeIds(effectiveSelectionIds);
-        } else {
-            effectiveSelectionIds.add(nodeId);
-            setSelectedNodeIds(new Set(effectiveSelectionIds));
-        }
+      if (!e.evt.shiftKey) {
+        effectiveSelectionIds = new Set([nodeId]);
+        setSelectedNodeIds(effectiveSelectionIds);
+      } else {
+        effectiveSelectionIds.add(nodeId);
+        setSelectedNodeIds(new Set(effectiveSelectionIds));
+      }
     }
-    
+
     // Alt + Drag: Leave a copy behind (Duplicate)
     if (e.evt.altKey) {
-       const nodesToClone = nodes.filter(n => effectiveSelectionIds.has(n.id));
-       
-       const newStaticNodes = nodesToClone.map(node => ({
-           ...node,
-           id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-copy`,
-           // Keep original position (this will be the "left behind" copy)
-           x: node.x,
-           y: node.y,
-           createdAt: new Date().toISOString(),
-           updatedAt: new Date().toISOString(),
-           // Clear selection for the copy, as we are dragging the original
-       }));
-       
-       // Add static copies to canvas
-       onNodesChange([...nodes, ...newStaticNodes]);
-       // Selection stays on the moving nodes (original IDs), which is what we want.
+      const nodesToClone = nodes.filter(n => effectiveSelectionIds.has(n.id));
+
+      const newStaticNodes = nodesToClone.map(node => ({
+        ...node,
+        id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-copy`,
+        // Keep original position (this will be the "left behind" copy)
+        x: node.x,
+        y: node.y,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        // Clear selection for the copy, as we are dragging the original
+      }));
+
+      // Add static copies to canvas
+      onNodesChange([...nodes, ...newStaticNodes]);
+      // Selection stays on the moving nodes (original IDs), which is what we want.
     }
-    
+
     // Set cross-boundary drag node for potential drop to chat input
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
@@ -986,11 +1201,11 @@ export default function KonvaCanvas({
   const handleNodeDragMove = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     if (!lastDragPosRef.current) return;
-    
+
     const newPos = e.target.position();
     const dx = newPos.x - lastDragPosRef.current.x;
     const dy = newPos.y - lastDragPosRef.current.y;
-    
+
     lastDragPosRef.current = newPos;
 
     // Move other selected nodes
@@ -998,12 +1213,12 @@ export default function KonvaCanvas({
     if (!stage) return;
 
     selectedNodeIds.forEach(id => {
-        if (id === nodeId) return; // Skip self
-        const node = stage.findOne(`#node-${id}`);
-        if (node) {
-            node.x(node.x() + dx);
-            node.y(node.y() + dy);
-        }
+      if (id === nodeId) return; // Skip self
+      const node = stage.findOne(`#node-${id}`);
+      if (node) {
+        node.x(node.x() + dx);
+        node.y(node.y() + dy);
+      }
     });
   }, [selectedNodeIds]);
 
@@ -1017,12 +1232,12 @@ export default function KonvaCanvas({
     const mouseX = e.evt.clientX;
     const mouseY = e.evt.clientY;
     const stage = stageRef.current;
-    
+
     if (container) {
       const rect = container.getBoundingClientRect();
-      const isOutsideCanvas = mouseX < rect.left || mouseX > rect.right || 
-                              mouseY < rect.top || mouseY > rect.bottom;
-      
+      const isOutsideCanvas = mouseX < rect.left || mouseX > rect.right ||
+        mouseY < rect.top || mouseY > rect.bottom;
+
       if (isOutsideCanvas) {
         // Cross-boundary drag: Reset node position back to original (from state)
         // This keeps the node visible in canvas while also adding it as context
@@ -1036,13 +1251,13 @@ export default function KonvaCanvas({
             }
           });
         }
-        
+
         // Clear crossBoundaryDragNode after a short delay to allow AssistantPanel to detect it
         setTimeout(() => setCrossBoundaryDragNode(null), 100);
         return;
       }
     }
-    
+
     // Clear cross-boundary drag state since we're dropping inside canvas
     setCrossBoundaryDragNode(null);
 
@@ -1050,34 +1265,34 @@ export default function KonvaCanvas({
     if (!stage) return;
 
     const updatedNodes = nodes.map(n => {
-        if (selectedNodeIds.has(n.id)) {
-            // If it's the dragged node, use event target
-            if (n.id === nodeId) {
-                return { ...n, x: e.target.x(), y: e.target.y() };
-            }
-            // For others, look up by ID
-            const nodeNode = stage.findOne(`#node-${n.id}`);
-            if (nodeNode) {
-                return { ...n, x: nodeNode.x(), y: nodeNode.y() };
-            }
+      if (selectedNodeIds.has(n.id)) {
+        // If it's the dragged node, use event target
+        if (n.id === nodeId) {
+          return { ...n, x: e.target.x(), y: e.target.y() };
         }
-        return n;
+        // For others, look up by ID
+        const nodeNode = stage.findOne(`#node-${n.id}`);
+        if (nodeNode) {
+          return { ...n, x: nodeNode.x(), y: nodeNode.y() };
+        }
+      }
+      return n;
     });
-    
+
     onNodesChange(updatedNodes);
   }, [nodes, selectedNodeIds, onNodesChange, setCrossBoundaryDragNode]);
 
   // Handle wheel zoom and pan (with throttling for smooth Mac trackpad scrolling)
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
-    
+
     // Throttle wheel events to prevent stuttering on Mac trackpad
     const now = Date.now();
     if (now - lastWheelTimeRef.current < WHEEL_THROTTLE_MS) {
       return;
     }
     lastWheelTimeRef.current = now;
-    
+
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -1086,7 +1301,7 @@ export default function KonvaCanvas({
       const scaleBy = 1.05;
       const oldScale = viewport.scale;
       const pointer = stage.getPointerPosition();
-      
+
       if (!pointer) return;
 
       const mousePointTo = {
@@ -1123,40 +1338,40 @@ export default function KonvaCanvas({
 
     if (isHandMode) {
       if (e.evt.button === 0) { // Left click only for primary pan
-         setIsPanning(true);
-         lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
-         return; // Stop here, do not process selection
+        setIsPanning(true);
+        lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+        return; // Stop here, do not process selection
       }
     }
 
     // Existing "Clicked on Empty" check for Select Mode behaviors
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.getClassName() === 'Rect';
-    
+
     if (clickedOnEmpty) {
       // Left click
       if (e.evt.button === 0) {
-          // If NOT Hand/Space (already handled above), then it's Box Selection
-          if (!isHandMode) {
-              // Box Selection mode
-              const stage = e.target.getStage();
-              const pointer = stage?.getPointerPosition();
-              if (pointer) {
-                  const x = (pointer.x - viewport.x) / viewport.scale;
-                  const y = (pointer.y - viewport.y) / viewport.scale;
-                  setSelectionRect({
-                      startX: x, startY: y,
-                      x, y, width: 0, height: 0
-                  });
-              }
-              // Clear selection if not Shift
-              if (!e.evt.shiftKey) {
-                  setSelectedNodeIds(new Set());
-              }
+        // If NOT Hand/Space (already handled above), then it's Box Selection
+        if (!isHandMode) {
+          // Box Selection mode
+          const stage = e.target.getStage();
+          const pointer = stage?.getPointerPosition();
+          if (pointer) {
+            const x = (pointer.x - viewport.x) / viewport.scale;
+            const y = (pointer.y - viewport.y) / viewport.scale;
+            setSelectionRect({
+              startX: x, startY: y,
+              x, y, width: 0, height: 0
+            });
           }
+          // Clear selection if not Shift
+          if (!e.evt.shiftKey) {
+            setSelectedNodeIds(new Set());
+          }
+        }
       } else if (e.evt.button === 1) {
-          // Middle click pan (always works)
-          setIsPanning(true);
-          lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+        // Middle click pan (always works)
+        setIsPanning(true);
+        lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
       }
     }
   };
@@ -1164,139 +1379,137 @@ export default function KonvaCanvas({
   const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
     // Phase 2: Handle Connection Line dragging
     if (connectingFromNodeId) {
-        const stage = e.target.getStage();
-        const pointer = stage?.getPointerPosition();
-        if (pointer) {
-            const canvasX = (pointer.x - viewport.x) / viewport.scale;
-            const canvasY = (pointer.y - viewport.y) / viewport.scale;
-            setConnectingLineEnd({ x: canvasX, y: canvasY });
-        }
-        return;
+      const stage = e.target.getStage();
+      const pointer = stage?.getPointerPosition();
+      if (pointer) {
+        const canvasX = (pointer.x - viewport.x) / viewport.scale;
+        const canvasY = (pointer.y - viewport.y) / viewport.scale;
+        setConnectingLineEnd({ x: canvasX, y: canvasY });
+      }
+      return;
     }
 
     // Handle Pan
     if (isPanning) {
-        const dx = e.evt.clientX - lastPosRef.current.x;
-        const dy = e.evt.clientY - lastPosRef.current.y;
+      const dx = e.evt.clientX - lastPosRef.current.x;
+      const dy = e.evt.clientY - lastPosRef.current.y;
 
-        onViewportChange({
-            ...viewport,
-            x: viewport.x + dx,
-            y: viewport.y + dy,
-        });
+      onViewportChange({
+        ...viewport,
+        x: viewport.x + dx,
+        y: viewport.y + dy,
+      });
 
-        lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
-        return;
+      lastPosRef.current = { x: e.evt.clientX, y: e.evt.clientY };
+      return;
     }
 
     // Handle Box Selection
     if (selectionRect) {
-        const stage = e.target.getStage();
-        const pointer = stage?.getPointerPosition();
-        if (pointer) {
-            const currentX = (pointer.x - viewport.x) / viewport.scale;
-            const currentY = (pointer.y - viewport.y) / viewport.scale;
-            
-            const startX = selectionRect.startX;
-            const startY = selectionRect.startY;
+      const stage = e.target.getStage();
+      const pointer = stage?.getPointerPosition();
+      if (pointer) {
+        const currentX = (pointer.x - viewport.x) / viewport.scale;
+        const currentY = (pointer.y - viewport.y) / viewport.scale;
 
-            setSelectionRect({
-                ...selectionRect,
-                x: Math.min(startX, currentX),
-                y: Math.min(startY, currentY),
-                width: Math.abs(currentX - startX),
-                height: Math.abs(currentY - startY)
-            });
-        }
+        const startX = selectionRect.startX;
+        const startY = selectionRect.startY;
+
+        setSelectionRect({
+          ...selectionRect,
+          x: Math.min(startX, currentX),
+          y: Math.min(startY, currentY),
+          width: Math.abs(currentX - startX),
+          height: Math.abs(currentY - startY)
+        });
+      }
     }
   };
 
   const handleStageMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
     // Phase 2: Handle Connection creation
     if (connectingFromNodeId && connectingLineEnd) {
-        const stage = e.target.getStage();
-        const pointer = stage?.getPointerPosition();
-        if (pointer) {
-            const canvasX = (pointer.x - viewport.x) / viewport.scale;
-            const canvasY = (pointer.y - viewport.y) / viewport.scale;
-            
-            // Find target node under the mouse
-            const targetNode = visibleNodes.find(node => {
-                const nodeWidth = node.width || 280;
-                const nodeHeight = node.height || 200;
-                return (
-                    canvasX >= node.x &&
-                    canvasX <= node.x + nodeWidth &&
-                    canvasY >= node.y &&
-                    canvasY <= node.y + nodeHeight &&
-                    node.id !== connectingFromNodeId
-                );
-            });
-            
-            if (targetNode) {
-                // Check if edge already exists
-                const edgeExists = edges.some(
-                    e => (e.source === connectingFromNodeId && e.target === targetNode.id) ||
-                         (e.source === targetNode.id && e.target === connectingFromNodeId)
-                );
-                
-                if (!edgeExists) {
-                    // Create new edge with default label
-                    const newEdge: CanvasEdge = {
-                        id: `edge-${Date.now()}`,
-                        source: connectingFromNodeId,
-                        target: targetNode.id,
-                        label: '',
-                        relationType: 'related',
-                    };
-                    onEdgesChange([...edges, newEdge]);
-                    
-                    // Show label dialog
-                    const sourceNode = visibleNodes.find(n => n.id === connectingFromNodeId);
-                    if (sourceNode) {
-                        const midX = ((sourceNode.x + (sourceNode.width || 280)) + targetNode.x) / 2;
-                        const midY = ((sourceNode.y + (sourceNode.height || 200) / 2) + (targetNode.y + (targetNode.height || 200) / 2)) / 2;
-                        // Convert to screen coordinates
-                        const screenX = midX * viewport.scale + viewport.x;
-                        const screenY = midY * viewport.scale + viewport.y;
-                        setEdgeLabelDialog({ edge: newEdge, position: { x: screenX, y: screenY } });
-                    }
-                }
+      const stage = e.target.getStage();
+      const pointer = stage?.getPointerPosition();
+      if (pointer) {
+        const canvasX = (pointer.x - viewport.x) / viewport.scale;
+        const canvasY = (pointer.y - viewport.y) / viewport.scale;
+
+        // Find target node under the mouse
+        const targetNode = visibleNodes.find(node => {
+          const nodeWidth = node.width || 280;
+          const nodeHeight = node.height || 200;
+          return (
+            canvasX >= node.x &&
+            canvasX <= node.x + nodeWidth &&
+            canvasY >= node.y &&
+            canvasY <= node.y + nodeHeight &&
+            node.id !== connectingFromNodeId
+          );
+        });
+
+        if (targetNode) {
+          // Check if edge already exists
+          const edgeExists = edges.some(
+            e => (e.source === connectingFromNodeId && e.target === targetNode.id) ||
+              (e.source === targetNode.id && e.target === connectingFromNodeId)
+          );
+
+          if (!edgeExists) {
+            // Create new edge with default label
+            const newEdge: CanvasEdge = {
+              id: `edge-${Date.now()}`,
+              source: connectingFromNodeId,
+              target: targetNode.id,
+              label: '',
+              relationType: 'related',
+            };
+            onEdgesChange([...edges, newEdge]);
+
+            // Show label dialog
+            const sourceNode = visibleNodes.find(n => n.id === connectingFromNodeId);
+            if (sourceNode) {
+              const midX = ((sourceNode.x + (sourceNode.width || 280)) + targetNode.x) / 2;
+              const midY = ((sourceNode.y + (sourceNode.height || 200) / 2) + (targetNode.y + (targetNode.height || 200) / 2)) / 2;
+              // Convert to screen coordinates
+              const screenX = midX * viewport.scale + viewport.x;
+              const screenY = midY * viewport.scale + viewport.y;
+              setEdgeLabelDialog({ edge: newEdge, position: { x: screenX, y: screenY } });
             }
+          }
         }
-        setConnectingFromNodeId(null);
-        setConnectingLineEnd(null);
-        return;
+      }
+      setConnectingFromNodeId(null);
+      setConnectingLineEnd(null);
+      return;
     }
 
     if (isPanning) {
-        setIsPanning(false);
+      setIsPanning(false);
     }
-    
+
     if (selectionRect) {
-        // Calculate Intersection
-        const box = selectionRect;
-        // Optimization: only check intersection if box has size
-        if (box.width > 0 || box.height > 0) {
-            const newSelection = new Set(selectedNodeIds);
-            
-            visibleNodes.forEach(node => {
-                const nodeWidth = node.width || 280;
-                const nodeHeight = node.height || 200;
-                
-                // Simple AABB intersection
-                if (
-                    box.x < node.x + nodeWidth &&
-                    box.x + box.width > node.x &&
-                    box.y < node.y + nodeHeight &&
-                    box.y + box.height > node.y
-                ) {
-                    newSelection.add(node.id);
-                }
-            });
-            setSelectedNodeIds(newSelection);
-        }
-        setSelectionRect(null);
+      // Calculate Intersection using spatial index O(log N) query
+      const box = selectionRect;
+      // Optimization: only check intersection if box has size
+      if (box.width > 0 || box.height > 0) {
+        const newSelection = new Set(selectedNodeIds);
+
+        // Use spatial index for efficient box selection
+        const intersectingItems = spatialIndex.search({
+          minX: box.x,
+          minY: box.y,
+          maxX: box.x + box.width,
+          maxY: box.y + box.height
+        });
+
+        intersectingItems.forEach((item: SpatialItem) => {
+          newSelection.add(item.nodeId);
+        });
+
+        setSelectedNodeIds(newSelection);
+      }
+      setSelectionRect(null);
     }
   };
 
@@ -1320,32 +1533,32 @@ export default function KonvaCanvas({
 
   const EDGE_STYLES: Record<string, EdgeStyleConfig> = {
     // Core Q&A relationships
-    answers:          { color: '#10B981', bgColor: '#ECFDF5', strokeWidth: 2, icon: '✓' },           // Green - check
+    answers: { color: '#10B981', bgColor: '#ECFDF5', strokeWidth: 2, icon: '✓' },           // Green - check
     prompts_question: { color: '#8B5CF6', bgColor: '#F5F3FF', strokeWidth: 2, dash: [8, 4], icon: '?' },  // Violet - question
-    derives:          { color: '#F59E0B', bgColor: '#FFFBEB', strokeWidth: 2, icon: '💡' },          // Amber - lightbulb
-    
+    derives: { color: '#F59E0B', bgColor: '#FFFBEB', strokeWidth: 2, icon: '💡' },          // Amber - lightbulb
+
     // Logical relationships
-    causes:           { color: '#EF4444', bgColor: '#FEF2F2', strokeWidth: 3, icon: '→' },           // Red - arrow
-    compares:         { color: '#3B82F6', bgColor: '#EFF6FF', strokeWidth: 2, dash: [4, 4], icon: '⇆' },  // Blue - bidirectional
-    supports:         { color: '#059669', bgColor: '#ECFDF5', strokeWidth: 2, icon: '+' },           // Green - plus
-    contradicts:      { color: '#DC2626', bgColor: '#FEF2F2', strokeWidth: 2, icon: '×' },           // Red - cross
-    
+    causes: { color: '#EF4444', bgColor: '#FEF2F2', strokeWidth: 3, icon: '→' },           // Red - arrow
+    compares: { color: '#3B82F6', bgColor: '#EFF6FF', strokeWidth: 2, dash: [4, 4], icon: '⇆' },  // Blue - bidirectional
+    supports: { color: '#059669', bgColor: '#ECFDF5', strokeWidth: 2, icon: '+' },           // Green - plus
+    contradicts: { color: '#DC2626', bgColor: '#FEF2F2', strokeWidth: 2, icon: '×' },           // Red - cross
+
     // Evolution relationships
-    revises:          { color: '#EC4899', bgColor: '#FCE7F3', strokeWidth: 2, dash: [12, 6], icon: '✎' }, // Pink - edit
-    extends:          { color: '#06B6D4', bgColor: '#ECFEFF', strokeWidth: 2, icon: '↗' },           // Cyan - extend
-    
+    revises: { color: '#EC4899', bgColor: '#FCE7F3', strokeWidth: 2, dash: [12, 6], icon: '✎' }, // Pink - edit
+    extends: { color: '#06B6D4', bgColor: '#ECFEFF', strokeWidth: 2, icon: '↗' },           // Cyan - extend
+
     // Organization
-    parks:            { color: '#9CA3AF', bgColor: '#F3F4F6', strokeWidth: 1.5, dash: [4, 8], icon: '⏸' }, // Gray - pause
-    groups:           { color: '#7C3AED', bgColor: '#F5F3FF', strokeWidth: 1.5, dash: [2, 2], icon: '▢' }, // Purple - group
-    belongs_to:       { color: '#7C3AED', bgColor: '#F5F3FF', strokeWidth: 2 },                       // Purple (legacy)
-    related:          { color: '#6B7280', bgColor: '#F3F4F6', strokeWidth: 2 },                       // Gray (legacy)
-    
+    parks: { color: '#9CA3AF', bgColor: '#F3F4F6', strokeWidth: 1.5, dash: [4, 8], icon: '⏸' }, // Gray - pause
+    groups: { color: '#7C3AED', bgColor: '#F5F3FF', strokeWidth: 1.5, dash: [2, 2], icon: '▢' }, // Purple - group
+    belongs_to: { color: '#7C3AED', bgColor: '#F5F3FF', strokeWidth: 2 },                       // Purple (legacy)
+    related: { color: '#6B7280', bgColor: '#F3F4F6', strokeWidth: 2 },                       // Gray (legacy)
+
     // User-defined
-    custom:           { color: '#6B7280', bgColor: '#F3F4F6', strokeWidth: 2 },                       // Gray
-    
+    custom: { color: '#6B7280', bgColor: '#F3F4F6', strokeWidth: 2 },                       // Gray
+
     // Thinking Path edge types (for styling compatibility)
-    branch:           { color: '#F59E0B', bgColor: '#FFFBEB', strokeWidth: 2.5, icon: '↳' },         // Amber - branch from insight
-    progression:      { color: '#8B5CF6', bgColor: '#F5F3FF', strokeWidth: 2.5, dash: [8, 4], icon: '→' }, // Violet - topic follow-up
+    branch: { color: '#F59E0B', bgColor: '#FFFBEB', strokeWidth: 2.5, icon: '↳' },         // Amber - branch from insight
+    progression: { color: '#8B5CF6', bgColor: '#F5F3FF', strokeWidth: 2.5, dash: [8, 4], icon: '→' }, // Violet - topic follow-up
   };
 
   // Get edge style with fallback
@@ -1368,7 +1581,7 @@ export default function KonvaCanvas({
     return edges.map((edge, index) => {
       const source = visibleNodes.find((n) => n.id === edge.source);
       const target = visibleNodes.find((n) => n.id === edge.target);
-      
+
       if (!source || !target) return null;
 
       const x1 = source.x + (source.width || 280);
@@ -1377,20 +1590,20 @@ export default function KonvaCanvas({
       const y2 = target.y + ((target.height || 200) / 2);
 
       const controlOffset = Math.max(Math.abs(x2 - x1) * 0.4, 50);
-      
+
       // Calculate midpoint for label/icon placement
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
-      
+
       // Get edge style configuration
       const edgeStyle = getEdgeStyle(edge.relationType, edge.type);
       const hasLabel = edge.label && edge.label.trim().length > 0;
-      
+
       // Determine if this edge should have special styling
       const hasRelationType = !!edge.relationType && edge.relationType !== 'related' && edge.relationType !== 'custom';
       const isThinkingPathEdge = edge.type === 'branch' || edge.type === 'progression';
       const shouldHighlight = hasLabel || hasRelationType || isThinkingPathEdge;
-      
+
       // Check for bidirectional edge (compares)
       const isBidirectional = edge.direction === 'bidirectional' || edge.relationType === 'compares';
 
@@ -1410,7 +1623,7 @@ export default function KonvaCanvas({
             tension={0.5}
             bezier
           />
-          
+
           {/* Arrow at target end */}
           <Line
             points={[x2 - 8, y2 - 5, x2, y2, x2 - 8, y2 + 5]}
@@ -1419,7 +1632,7 @@ export default function KonvaCanvas({
             lineCap="round"
             lineJoin="round"
           />
-          
+
           {/* Arrow at source end for bidirectional edges */}
           {isBidirectional && (
             <Line
@@ -1430,7 +1643,7 @@ export default function KonvaCanvas({
               lineJoin="round"
             />
           )}
-          
+
           {/* Edge Label (AI-generated or user-defined) */}
           {hasLabel && (
             <Group x={midX} y={midY}>
@@ -1467,7 +1680,7 @@ export default function KonvaCanvas({
               />
             </Group>
           )}
-          
+
           {/* Icon only (no label but has relation type with icon) */}
           {!hasLabel && edgeStyle.icon && shouldHighlight && (
             <Group x={midX} y={midY}>
@@ -1493,15 +1706,15 @@ export default function KonvaCanvas({
   };
 
   return (
-    <Box 
+    <Box
       sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
       {/* Canvas Container */}
       <Box
         ref={containerRef}
-        sx={{ 
-          flexGrow: 1, 
-          bgcolor: '#FAFAFA', 
+        sx={{
+          flexGrow: 1,
+          bgcolor: '#FAFAFA',
           position: 'relative',
           overflow: 'hidden'
         }}
@@ -1532,7 +1745,7 @@ export default function KonvaCanvas({
           const screenY = e.clientY - rect.top;
           const canvasX = (screenX - viewport.x) / viewport.scale;
           const canvasY = (screenY - viewport.y) / viewport.scale;
-          
+
           const cardWidth = 280;
           const cardHeight = 200;
           const centeredX = canvasX - cardWidth / 2;
@@ -1540,9 +1753,11 @@ export default function KonvaCanvas({
 
           let handled = false;
           const jsonData = e.dataTransfer.getData('application/json');
+
           if (jsonData && onNodeAdd) {
             try {
               const data = JSON.parse(jsonData);
+
               if (data.type === 'ai_response') {
                 onNodeAdd({
                   type: 'ai_insight',
@@ -1557,7 +1772,32 @@ export default function KonvaCanvas({
                 });
                 handled = true;
               }
-            } catch {}
+              // Handle document drops from sidebar
+              if (data.type === 'document') {
+                const nodeData = {
+                  type: 'knowledge',
+                  subType: 'source',
+                  title: data.title,
+                  content: '', // Will be populated with summary if available
+                  x: centeredX,
+                  y: centeredY,
+                  width: cardWidth,
+                  height: cardHeight,
+                  color: 'red',
+                  tags: ['#source'],
+                  sourceId: data.documentId,
+                  fileMetadata: {
+                    fileType: data.fileType || 'pdf',
+                    pageCount: data.pageCount,
+                    thumbnailUrl: data.thumbnailUrl,
+                  },
+                };
+                onNodeAdd(nodeData);
+                handled = true;
+              }
+            } catch (err) {
+              console.error('[KonvaCanvas] onDrop - Error parsing JSON:', err);
+            }
           }
 
           if (!handled && onNodeAdd) {
@@ -1581,15 +1821,15 @@ export default function KonvaCanvas({
       >
         {/* Context Menu for Canvas Background */}
         {contextMenu && !contextMenu.nodeId && !contextMenu.sectionId && (
-            <CanvasContextMenu
-                open={true}
-                x={contextMenu.x}
-                y={contextMenu.y}
-                onClose={() => setContextMenu(null)}
-                onOpenImport={onOpenImport || (() => {})}
-                viewport={viewport}
-                canvasContainerRef={containerRef}
-            />
+          <CanvasContextMenu
+            open={true}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu(null)}
+            onOpenImport={onOpenImport || (() => { })}
+            viewport={viewport}
+            canvasContainerRef={containerRef}
+          />
         )}
 
         {/* Existing Menu for Nodes/Sections */}
@@ -1617,76 +1857,76 @@ export default function KonvaCanvas({
               const node = visibleNodes.find(n => n.id === contextMenu.nodeId);
               return node?.subType === 'source';
             })() && (
-              <MenuItem
-                onClick={() => {
-                  const sourceNode = visibleNodes.find(n => n.id === contextMenu.nodeId);
-                  if (!sourceNode) return;
-                  
-                  // Generate mock insights with radial layout
-                  const insights = [
-                    { title: '核心概念 1', content: `从 "${sourceNode.title}" 中提取的核心概念。这是一个自动生成的洞察点。` },
-                    { title: '核心概念 2', content: '另一个重要的知识点。代表文档中的关键论述或结论。' },
-                    { title: '关联主题', content: '与主题相关的延伸内容。可用于进一步探索。' },
-                    { title: '待验证观点', content: '需要进一步确认的内容。建议查阅更多资料。' },
-                    { title: '总结', content: `"${sourceNode.title}" 的主要贡献和价值总结。` },
-                  ];
-                  
-                  // Radial layout calculation
-                  const centerX = sourceNode.x + (sourceNode.width || 280) / 2;
-                  const centerY = sourceNode.y + (sourceNode.height || 200) / 2;
-                  const radius = 350; // Distance from center
-                  const angleStep = (2 * Math.PI) / insights.length;
-                  const startAngle = -Math.PI / 2; // Start from top
-                  
-                  const newNodes: typeof nodes = [];
-                  const newEdges: CanvasEdge[] = [];
-                  
-                  insights.forEach((insight, index) => {
-                    const angle = startAngle + angleStep * index;
-                    const nodeWidth = 240;
-                    const nodeHeight = 160;
-                    
-                    const nodeId = `insight-${Date.now()}-${index}`;
-                    const x = centerX + radius * Math.cos(angle) - nodeWidth / 2;
-                    const y = centerY + radius * Math.sin(angle) - nodeHeight / 2;
-                    
-                    newNodes.push({
-                      id: nodeId,
-                      type: 'insight',
-                      title: insight.title,
-                      content: insight.content,
-                      x,
-                      y,
-                      width: nodeWidth,
-                      height: nodeHeight,
-                      color: 'yellow',
-                      tags: ['#extracted'],
-                      sourceId: sourceNode.sourceId || sourceNode.id,
-                      viewType: currentView as 'free' | 'thinking',
+                <MenuItem
+                  onClick={() => {
+                    const sourceNode = visibleNodes.find(n => n.id === contextMenu.nodeId);
+                    if (!sourceNode) return;
+
+                    // Generate mock insights with radial layout
+                    const insights = [
+                      { title: '核心概念 1', content: `从 "${sourceNode.title}" 中提取的核心概念。这是一个自动生成的洞察点。` },
+                      { title: '核心概念 2', content: '另一个重要的知识点。代表文档中的关键论述或结论。' },
+                      { title: '关联主题', content: '与主题相关的延伸内容。可用于进一步探索。' },
+                      { title: '待验证观点', content: '需要进一步确认的内容。建议查阅更多资料。' },
+                      { title: '总结', content: `"${sourceNode.title}" 的主要贡献和价值总结。` },
+                    ];
+
+                    // Radial layout calculation
+                    const centerX = sourceNode.x + (sourceNode.width || 280) / 2;
+                    const centerY = sourceNode.y + (sourceNode.height || 200) / 2;
+                    const radius = 350; // Distance from center
+                    const angleStep = (2 * Math.PI) / insights.length;
+                    const startAngle = -Math.PI / 2; // Start from top
+
+                    const newNodes: typeof nodes = [];
+                    const newEdges: CanvasEdge[] = [];
+
+                    insights.forEach((insight, index) => {
+                      const angle = startAngle + angleStep * index;
+                      const nodeWidth = 240;
+                      const nodeHeight = 160;
+
+                      const nodeId = `insight-${Date.now()}-${index}`;
+                      const x = centerX + radius * Math.cos(angle) - nodeWidth / 2;
+                      const y = centerY + radius * Math.sin(angle) - nodeHeight / 2;
+
+                      newNodes.push({
+                        id: nodeId,
+                        type: 'insight',
+                        title: insight.title,
+                        content: insight.content,
+                        x,
+                        y,
+                        width: nodeWidth,
+                        height: nodeHeight,
+                        color: 'yellow',
+                        tags: ['#extracted'],
+                        sourceId: sourceNode.sourceId || sourceNode.id,
+                        viewType: currentView as 'free' | 'thinking',
+                      });
+
+                      // Create edge from source to this insight
+                      newEdges.push({
+                        id: `edge-${Date.now()}-${index}`,
+                        source: sourceNode.id,
+                        target: nodeId,
+                        label: index === insights.length - 1 ? '总结' : '',
+                        relationType: index === insights.length - 1 ? 'belongs_to' : 'related',
+                      });
                     });
-                    
-                    // Create edge from source to this insight
-                    newEdges.push({
-                      id: `edge-${Date.now()}-${index}`,
-                      source: sourceNode.id,
-                      target: nodeId,
-                      label: index === insights.length - 1 ? '总结' : '',
-                      relationType: index === insights.length - 1 ? 'belongs_to' : 'related',
-                    });
-                  });
-                  
-                  // Add all new nodes and edges
-                  onNodesChange([...nodes, ...newNodes]);
-                  onEdgesChange([...edges, ...newEdges]);
-                  
-                  setContextMenu(null);
-                }}
-                sx={{ fontSize: 14 }}
-              >
-                <AutoAwesomeIcon size={14} style={{ marginRight: 8 }} />
-                提取洞察 (Extract Insights)
-              </MenuItem>
-            )}
+
+                    // Add all new nodes and edges
+                    onNodesChange([...nodes, ...newNodes]);
+                    onEdgesChange([...edges, ...newEdges]);
+
+                    setContextMenu(null);
+                  }}
+                  sx={{ fontSize: 14 }}
+                >
+                  <AutoAwesomeIcon size={14} style={{ marginRight: 8 }} />
+                  提取洞察 (Extract Insights)
+                </MenuItem>
+              )}
             {/* Phase 3: Create Group from Selection */}
             {selectedNodeIds.size >= 2 && contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId) && (
               <MenuItem
@@ -1694,7 +1934,7 @@ export default function KonvaCanvas({
                   // Get all selected nodes
                   const selectedNodes = visibleNodes.filter(n => selectedNodeIds.has(n.id));
                   if (selectedNodes.length < 2) return;
-                  
+
                   // Calculate bounding box
                   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                   selectedNodes.forEach(node => {
@@ -1703,10 +1943,10 @@ export default function KonvaCanvas({
                     maxX = Math.max(maxX, node.x + (node.width || 280));
                     maxY = Math.max(maxY, node.y + (node.height || 200));
                   });
-                  
+
                   const padding = 24;
                   const headerHeight = 48;
-                  
+
                   // Create new section
                   const sectionId = `section-${Date.now()}`;
                   const newSection = {
@@ -1720,17 +1960,17 @@ export default function KonvaCanvas({
                     width: maxX - minX + padding * 2,
                     height: maxY - minY + padding * 2 + headerHeight,
                   };
-                  
+
                   addSection(newSection);
-                  
+
                   // Update nodes with sectionId
-                  const updatedNodes = nodes.map(node => 
-                    selectedNodeIds.has(node.id) 
+                  const updatedNodes = nodes.map(node =>
+                    selectedNodeIds.has(node.id)
                       ? { ...node, sectionId }
                       : node
                   );
                   onNodesChange(updatedNodes);
-                  
+
                   setContextMenu(null);
                 }}
                 sx={{ fontSize: 14 }}
@@ -1743,14 +1983,14 @@ export default function KonvaCanvas({
               <MenuItem
                 onClick={() => {
                   if (contextMenu.nodeId) {
-                      // If the right-clicked node is in selection, delete all selected
-                      // If not, delete only this one
-                      if (selectedNodeIds.has(contextMenu.nodeId)) {
-                          onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
-                          setSelectedNodeIds(new Set());
-                      } else {
-                          onNodesChange(nodes.filter(n => n.id !== contextMenu.nodeId));
-                      }
+                    // If the right-clicked node is in selection, delete all selected
+                    // If not, delete only this one
+                    if (selectedNodeIds.has(contextMenu.nodeId)) {
+                      onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
+                      setSelectedNodeIds(new Set());
+                    } else {
+                      onNodesChange(nodes.filter(n => n.id !== contextMenu.nodeId));
+                    }
                   }
                   setContextMenu(null);
                 }}
@@ -1814,7 +2054,7 @@ export default function KonvaCanvas({
                 <CloseIcon size="sm" />
               </IconButton>
             </Box>
-            
+
             <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
               {[
                 { type: 'supports', label: '支持', color: '#059669' },
@@ -1828,8 +2068,8 @@ export default function KonvaCanvas({
                   label={label}
                   size="small"
                   onClick={() => {
-                    const updatedEdges = edges.map(e => 
-                      e.id === edgeLabelDialog.edge.id 
+                    const updatedEdges = edges.map(e =>
+                      e.id === edgeLabelDialog.edge.id
                         ? { ...e, label, relationType: type as CanvasEdge['relationType'] }
                         : e
                     );
@@ -1846,7 +2086,7 @@ export default function KonvaCanvas({
                 />
               ))}
             </Stack>
-            
+
             <TextField
               size="small"
               placeholder="自定义标签..."
@@ -1855,8 +2095,8 @@ export default function KonvaCanvas({
                 if (e.key === 'Enter') {
                   const value = (e.target as HTMLInputElement).value.trim();
                   if (value) {
-                    const updatedEdges = edges.map(edge => 
-                      edge.id === edgeLabelDialog.edge.id 
+                    const updatedEdges = edges.map(edge =>
+                      edge.id === edgeLabelDialog.edge.id
                         ? { ...edge, label: value, relationType: 'custom' as const }
                         : edge
                     );
@@ -1886,24 +2126,24 @@ export default function KonvaCanvas({
             // Check if clicked on empty stage
             const clickedOnEmpty = e.target === e.target.getStage();
             if (clickedOnEmpty && onNodeAdd) {
-               const stage = e.target.getStage();
-               const pointer = stage?.getPointerPosition();
-               if (pointer) {
-                   const x = (pointer.x - viewport.x) / viewport.scale;
-                   const y = (pointer.y - viewport.y) / viewport.scale;
-                   
-                   onNodeAdd({
-                       type: 'sticky', // Default to sticky note
-                       title: '',
-                       content: 'New Note',
-                       x: x - 100, // Center approx (width/2)
-                       y: y - 75,  // Center approx (height/2)
-                       width: 200,
-                       height: 150,
-                       color: 'yellow',
-                       tags: [],
-                   });
-               }
+              const stage = e.target.getStage();
+              const pointer = stage?.getPointerPosition();
+              if (pointer) {
+                const x = (pointer.x - viewport.x) / viewport.scale;
+                const y = (pointer.y - viewport.y) / viewport.scale;
+
+                onNodeAdd({
+                  type: 'sticky', // Default to sticky note
+                  title: '',
+                  content: 'New Note',
+                  x: x - 100, // Center approx (width/2)
+                  y: y - 75,  // Center approx (height/2)
+                  width: 200,
+                  height: 150,
+                  color: 'yellow',
+                  tags: [],
+                });
+              }
             }
           }}
           onMouseLeave={() => {
@@ -1916,12 +2156,12 @@ export default function KonvaCanvas({
             // Handle context menu for Stage (empty space)
             // Prevent default context menu
             e.evt.preventDefault();
-            
+
             // If we are over a node or section, that handler will have fired first and called stopPropagation?
             // Actually, Konva event bubbling: Node -> Group -> Layer -> Stage.
             // If Node/Group handler calls cancelBubble, Stage handler won't see it?
             // Correct.
-            
+
             // So this handler is for when we clicked on Stage background.
             setContextMenu({ x: e.evt.clientX, y: e.evt.clientY });
           }}
@@ -1936,34 +2176,8 @@ export default function KonvaCanvas({
               height={10000}
               fill="#FAFAFA"
             />
-            {/* Infinite Dot Grid */}
-            <Group>
-              {(() => {
-                // Calculate grid boundaries based on viewport to only draw visible dots
-                const gridSize = 20; // Grid spacing
-                const startX = Math.floor((-viewport.x / viewport.scale) / gridSize) * gridSize;
-                const startY = Math.floor((-viewport.y / viewport.scale) / gridSize) * gridSize;
-                const endX = Math.ceil(((-viewport.x + dimensions.width) / viewport.scale) / gridSize) * gridSize;
-                const endY = Math.ceil(((-viewport.y + dimensions.height) / viewport.scale) / gridSize) * gridSize;
-                
-                const dots = [];
-                for (let x = startX; x <= endX; x += gridSize) {
-                  for (let y = startY; y <= endY; y += gridSize) {
-                    dots.push(
-                      <Circle
-                        key={`${x}-${y}`}
-                        x={x}
-                        y={y}
-                        radius={1.5}
-                        fill="#E5E7EB"
-                        listening={false}
-                      />
-                    );
-                  }
-                }
-                return dots;
-              })()}
-            </Group>
+            {/* Infinite Dot Grid - Optimized with single Shape */}
+            <GridBackground viewport={viewport} dimensions={dimensions} />
           </Layer>
 
           {/* Content Layer */}
@@ -1972,7 +2186,7 @@ export default function KonvaCanvas({
             {visibleSections.map((section) => {
               const sectionNodes = visibleNodes.filter(n => n.sectionId === section.id);
               if (sectionNodes.length === 0) return null;
-              
+
               let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
               sectionNodes.forEach(node => {
                 minX = Math.min(minX, node.x);
@@ -1980,7 +2194,7 @@ export default function KonvaCanvas({
                 maxX = Math.max(maxX, node.x + (node.width || 280));
                 maxY = Math.max(maxY, node.y + (node.height || 200));
               });
-              
+
               const headerHeight = 48;
               const padding = 16;
               const contentWidth = maxX - minX + padding * 2;
@@ -2050,7 +2264,7 @@ export default function KonvaCanvas({
             {connectingFromNodeId && connectingLineEnd && (() => {
               const sourceNode = visibleNodes.find(n => n.id === connectingFromNodeId);
               if (!sourceNode) return null;
-              
+
               const x1 = sourceNode.x + (sourceNode.width || 280);
               const y1 = sourceNode.y + ((sourceNode.height || 200) / 2);
               const x2 = connectingLineEnd.x;
@@ -2070,75 +2284,75 @@ export default function KonvaCanvas({
               );
             })()}
 
-            {/* Nodes */}
-            {visibleNodes.map((node) => {
+            {/* Nodes - Using culledNodes for viewport culling optimization */}
+            {culledNodes.map((node) => {
               if (node.sectionId) {
                 const section = visibleSections.find(s => s.id === node.sectionId);
                 if (section?.isCollapsed) return null;
               }
-              
+
               return (
-              <KnowledgeNode
-                key={node.id}
-                node={node}
-                isSelected={selectedNodeIds.has(node.id)}
-                isHighlighted={highlightedNodeId === node.id}
-                isHovered={hoveredNodeId === node.id}
-                isConnecting={connectingFromNodeId === node.id}
-                isConnectTarget={connectingFromNodeId !== null && connectingFromNodeId !== node.id}
-                isActiveThinking={activeThinkingId === node.id}
-                isDraggable={toolMode === 'select' && !isSpacePressed}
-                onSelect={(e) => handleNodeSelect(node.id, e)}
-                onClick={() => {
-                  // Thinking Graph: Set as active thinking node when clicked
-                  if (node.type === 'thinking_step' || node.type === 'thinking_branch') {
-                    setActiveThinkingId(node.id);
-                  }
-                  onNodeClick?.(node);
-                }}
-                onDoubleClick={() => {
-                  // Phase 1: Handle double-click for source nodes (drill-down)
-                  if (node.subType === 'source' && node.sourceId) {
-                    onOpenSource?.(node.sourceId, node.sourcePage);
-                  }
-                  onNodeDoubleClick?.(node);
-                }}
-                onLinkBack={() => {
-                  // Phase 1: Navigate to source document
-                  if (node.sourceId) {
-                    onOpenSource?.(node.sourceId, node.sourcePage);
-                  }
-                }}
-                onDragStart={handleNodeDragStart(node.id)}
-                onDragMove={handleNodeDragMove(node.id)}
-                onDragEnd={handleNodeDragEnd(node.id)}
-                onContextMenu={(e) => {
-                  e.evt.preventDefault();
-                  e.cancelBubble = true; // Stop propagation to stage
-                  setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: node.id });
-                }}
-                onConnectionStart={() => {
-                  // Phase 2: Start connection drag
-                  setConnectingFromNodeId(node.id);
-                }}
-                onMouseEnter={() => setHoveredNodeId(node.id)}
-                onMouseLeave={() => setHoveredNodeId(null)}
-              />
-            );
+                <KnowledgeNode
+                  key={node.id}
+                  node={node}
+                  isSelected={selectedNodeIds.has(node.id)}
+                  isHighlighted={highlightedNodeId === node.id}
+                  isHovered={hoveredNodeId === node.id}
+                  isConnecting={connectingFromNodeId === node.id}
+                  isConnectTarget={connectingFromNodeId !== null && connectingFromNodeId !== node.id}
+                  isActiveThinking={activeThinkingId === node.id}
+                  isDraggable={toolMode === 'select' && !isSpacePressed}
+                  onSelect={(e) => handleNodeSelect(node.id, e)}
+                  onClick={() => {
+                    // Thinking Graph: Set as active thinking node when clicked
+                    if (node.type === 'thinking_step' || node.type === 'thinking_branch') {
+                      setActiveThinkingId(node.id);
+                    }
+                    onNodeClick?.(node);
+                  }}
+                  onDoubleClick={() => {
+                    // Phase 1: Handle double-click for source nodes (drill-down)
+                    if (node.subType === 'source' && node.sourceId) {
+                      onOpenSource?.(node.sourceId, node.sourcePage);
+                    }
+                    onNodeDoubleClick?.(node);
+                  }}
+                  onLinkBack={() => {
+                    // Phase 1: Navigate to source document
+                    if (node.sourceId) {
+                      onOpenSource?.(node.sourceId, node.sourcePage);
+                    }
+                  }}
+                  onDragStart={handleNodeDragStart(node.id)}
+                  onDragMove={handleNodeDragMove(node.id)}
+                  onDragEnd={handleNodeDragEnd(node.id)}
+                  onContextMenu={(e) => {
+                    e.evt.preventDefault();
+                    e.cancelBubble = true; // Stop propagation to stage
+                    setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: node.id });
+                  }}
+                  onConnectionStart={() => {
+                    // Phase 2: Start connection drag
+                    setConnectingFromNodeId(node.id);
+                  }}
+                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
+                />
+              );
             })}
 
             {/* Selection Box */}
             {selectionRect && (
-                <Rect
-                    x={selectionRect.x}
-                    y={selectionRect.y}
-                    width={selectionRect.width}
-                    height={selectionRect.height}
-                    fill="rgba(59, 130, 246, 0.1)"
-                    stroke="#3B82F6"
-                    strokeWidth={1}
-                    listening={false}
-                />
+              <Rect
+                x={selectionRect.x}
+                y={selectionRect.y}
+                width={selectionRect.width}
+                height={selectionRect.height}
+                fill="rgba(59, 130, 246, 0.1)"
+                stroke="#3B82F6"
+                strokeWidth={1}
+                listening={false}
+              />
             )}
 
             {/* Drag Preview */}

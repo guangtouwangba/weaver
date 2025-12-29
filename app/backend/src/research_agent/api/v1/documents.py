@@ -1,5 +1,7 @@
 """Documents API endpoints."""
 
+import os
+import tempfile
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -16,6 +18,9 @@ from research_agent.application.dto.document import (
     DocumentResponse,
     DocumentUploadResponse,
 )
+from research_agent.application.services.async_cleanup_service import (
+    fire_and_forget_cleanup,
+)
 from research_agent.application.use_cases.document.delete_document import (
     DeleteDocumentInput,
     DeleteDocumentUseCase,
@@ -31,6 +36,7 @@ from research_agent.application.use_cases.document.upload_document import (
 from research_agent.config import get_settings
 from research_agent.domain.entities.task import TaskType
 from research_agent.domain.services.chunking_service import ChunkingService
+from research_agent.domain.services.thumbnail_service import ThumbnailService
 from research_agent.infrastructure.database.models import DocumentModel
 from research_agent.infrastructure.database.repositories.sqlalchemy_chunk_repo import (
     SQLAlchemyChunkRepository,
@@ -41,16 +47,13 @@ from research_agent.infrastructure.database.repositories.sqlalchemy_document_rep
 from research_agent.infrastructure.database.repositories.sqlalchemy_highlight_repo import (
     SQLAlchemyHighlightRepository,
 )
+from research_agent.infrastructure.database.repositories.sqlalchemy_pending_cleanup_repo import (
+    SQLAlchemyPendingCleanupRepository,
+)
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
-from research_agent.infrastructure.database.repositories.sqlalchemy_pending_cleanup_repo import (
-    SQLAlchemyPendingCleanupRepository,
-)
-from research_agent.application.services.async_cleanup_service import (
-    fire_and_forget_cleanup,
-)
 from research_agent.shared.exceptions import NotFoundError, PDFProcessingError
 from research_agent.shared.utils.logger import setup_logger
 from research_agent.worker.service import TaskQueueService
@@ -275,6 +278,49 @@ async def confirm_upload(
         session.add(document)
         await session.flush()
 
+        # Generate thumbnail synchronously
+        try:
+            local_pdf_path = request.file_path
+            is_temp = False
+
+            # If file is in Supabase (remote), download it first
+            if request.file_path.startswith("projects/") and storage:
+                logger.info(f"[THUMBNAIL] Downloading remote file: {request.file_path}")
+                content = await storage.download_file(request.file_path)
+
+                # Create temp file
+                tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
+                os.write(tmp_fd, content)
+                os.close(tmp_fd)
+
+                local_pdf_path = tmp_path
+                is_temp = True
+
+            logger.info(f"[THUMBNAIL] Generating from: {local_pdf_path}")
+
+            thumbnail_service = ThumbnailService()
+            output_dir = (Path(settings.upload_dir) / "thumbnails").resolve()
+            thumbnail_path = await thumbnail_service.generate_thumbnail(
+                file_path=local_pdf_path, document_id=document_id, output_dir=output_dir
+            )
+
+            # Cleanup temp file
+            if is_temp and os.path.exists(local_pdf_path):
+                os.remove(local_pdf_path)
+
+            if thumbnail_path:
+                document.thumbnail_path = thumbnail_path
+                document.thumbnail_status = "ready"
+                session.add(document)  # Update record
+                logger.info(f"✅ Thumbnail generated immediately for {document_id}")
+            else:
+                logger.warning(f"⚠️ Thumbnail generation returned None")
+
+        except Exception as e:
+            logger.warning(f"⚠️ Immediate thumbnail generation failed: {e}")
+            if "is_temp" in locals() and is_temp and os.path.exists(local_pdf_path):
+                os.remove(local_pdf_path)
+
         # Schedule background processing task
         task_service = TaskQueueService(session)
         task = await task_service.push(
@@ -300,6 +346,9 @@ async def confirm_upload(
             filename=request.filename,
             page_count=0,
             status="pending",
+            thumbnail_url=f"/api/v1/documents/{document_id}/thumbnail"
+            if document.thumbnail_status == "ready"
+            else None,
             message="Document uploaded successfully. Processing scheduled.",
         )
 
@@ -332,6 +381,10 @@ async def list_documents(
                 file_size=item.file_size,
                 page_count=item.page_count,
                 status=item.status,
+                thumbnail_url=f"/api/v1/documents/{item.id}/thumbnail"
+                if item.thumbnail_status == "ready" or item.thumbnail_path
+                else None,
+                thumbnail_status=item.thumbnail_status,
                 created_at=item.created_at,
             )
             for item in result.items
@@ -405,6 +458,9 @@ async def upload_document(
             page_count=result.page_count,
             status=result.status,
             message="Document uploaded and processed successfully",
+            thumbnail_url=f"/api/v1/documents/{result.id}/thumbnail"
+            if result.thumbnail_status == "ready"
+            else None,
         )
 
     except PDFProcessingError as e:
@@ -432,6 +488,10 @@ async def get_document(
         status=document.status.value,
         graph_status=getattr(document, "graph_status", None),
         summary=getattr(document, "summary", None),
+        thumbnail_url=f"/api/v1/documents/{document.id}/thumbnail"
+        if document.thumbnail_status == "ready" or document.thumbnail_path
+        else None,
+        thumbnail_status=document.thumbnail_status,
         created_at=document.created_at,
     )
 
@@ -481,6 +541,44 @@ async def get_document_file(
         path=str(file_path),
         filename=document.filename,
         media_type="application/pdf",
+    )
+
+
+@router.get("/documents/{document_id}/thumbnail")
+async def get_document_thumbnail(
+    document_id: UUID,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Get the thumbnail image for a document.
+
+    Returns the thumbnail as a WebP image if available.
+    """
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+
+    logger.info(f"[DEBUG] Get thumbnail request: {document_id}")
+
+    if not document:
+        logger.warning(f"[DEBUG] Document not found: {document_id}")
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    logger.info(f"[DEBUG] DB Thumbnail path: {document.thumbnail_path}")
+
+    if not document.thumbnail_path:
+        raise HTTPException(status_code=404, detail="Thumbnail not available")
+
+    thumbnail_path = Path(document.thumbnail_path)
+    if not thumbnail_path.exists():
+        logger.error(f"[DEBUG] File not found at: {thumbnail_path}")
+        detail_msg = f"Thumbnail file not found at: {thumbnail_path} (Absolute? {thumbnail_path.is_absolute()})"
+        raise HTTPException(status_code=404, detail=detail_msg)
+
+    logger.info(f"[DEBUG] Serving thumbnail from: {thumbnail_path}")
+
+    return FileResponse(
+        path=str(thumbnail_path),
+        media_type="image/webp",
     )
 
 
@@ -637,7 +735,9 @@ async def list_highlights(
     ]
 
 
-@router.post("/documents/{document_id}/highlights", response_model=HighlightResponse, status_code=201)
+@router.post(
+    "/documents/{document_id}/highlights", response_model=HighlightResponse, status_code=201
+)
 async def create_highlight(
     document_id: UUID,
     request: HighlightCreateRequest,
@@ -737,7 +837,8 @@ async def update_highlight(
 
     if highlight.document_id != document_id:
         raise HTTPException(
-            status_code=400, detail=f"Highlight {highlight_id} does not belong to document {document_id}"
+            status_code=400,
+            detail=f"Highlight {highlight_id} does not belong to document {document_id}",
         )
 
     await session.commit()
@@ -750,7 +851,9 @@ async def update_highlight(
         endOffset=highlight.end_offset,
         color=highlight.color,
         note=highlight.note,
-        rects=highlight.rects.get("rects") if highlight.rects and isinstance(highlight.rects, dict) else None,
+        rects=highlight.rects.get("rects")
+        if highlight.rects and isinstance(highlight.rects, dict)
+        else None,
         createdAt=highlight.created_at.isoformat(),
         updatedAt=highlight.updated_at.isoformat(),
     )
@@ -777,7 +880,8 @@ async def delete_highlight(
 
     if highlight.document_id != document_id:
         raise HTTPException(
-            status_code=400, detail=f"Highlight {highlight_id} does not belong to document {document_id}"
+            status_code=400,
+            detail=f"Highlight {highlight_id} does not belong to document {document_id}",
         )
 
     await highlight_repo.delete(highlight_id)
