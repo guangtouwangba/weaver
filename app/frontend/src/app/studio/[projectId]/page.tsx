@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  IconButton, 
-  Button, 
+import {
+  Box,
+  Paper,
+  Typography,
+  IconButton,
+  Button,
   Avatar,
   Tooltip
 } from "@mui/material";
-import { 
-  ShareIcon, 
+import {
+  ShareIcon,
   SearchIcon,
   ChevronLeftIcon,
   ExpandMoreIcon
@@ -29,7 +29,7 @@ import { documentsApi } from "@/lib/api";
 export default function StudioPage() {
   const params = useParams();
   const projectId = params.projectId as string;
-  
+
   // Show loading or error state if projectId is not available
   if (!projectId) {
     return (
@@ -40,7 +40,7 @@ export default function StudioPage() {
       </GlobalLayout>
     );
   }
-  
+
   return (
     <StudioProvider projectId={projectId}>
       <StudioPageContent />
@@ -49,12 +49,25 @@ export default function StudioPage() {
 }
 
 function StudioPageContent() {
-  const { project, messages, canvasNodes, setCanvasNodes, projectId, documents, setDocuments } = useStudio();
+  const {
+    project,
+    messages,
+    canvasNodes,
+    setCanvasNodes,
+    canvasEdges,
+    setCanvasEdges,
+    canvasViewport,
+    setCanvasViewport,
+    projectId,
+    documents,
+    setDocuments,
+    addNodeToCanvas
+  } = useStudio();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>('select');
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
-  
+
   // Import Dialog State
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
@@ -90,9 +103,9 @@ function StudioPageContent() {
   return (
     <GlobalLayout>
       <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-        
+
         {/* Left: Resource Sidebar */}
-        <ResourceSidebar 
+        <ResourceSidebar
           width={300}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -100,15 +113,15 @@ function StudioPageContent() {
 
         {/* Main: Canvas Workspace */}
         <Box sx={{ flexGrow: 1, position: 'relative', display: 'flex', flexDirection: 'column', bgcolor: '#F9FAFB' }}>
-          
+
           {/* Minimalist Header */}
-          <Paper 
+          <Paper
             elevation={0}
-            sx={{ 
-              height: 56, 
-              px: 2, 
-              display: 'flex', 
-              alignItems: 'center', 
+            sx={{
+              height: 56,
+              px: 2,
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'space-between',
               borderBottom: '1px solid',
               borderColor: 'divider',
@@ -139,9 +152,9 @@ function StudioPageContent() {
               <IconButton size="small">
                 <NotificationsMui sx={{ fontSize: 18 }} />
               </IconButton>
-              <Button 
-                variant="outlined" 
-                size="small" 
+              <Button
+                variant="outlined"
+                size="small"
                 startIcon={<ShareIcon size="sm" />}
                 sx={{ textTransform: 'none', borderRadius: 2 }}
               >
@@ -153,14 +166,22 @@ function StudioPageContent() {
 
           {/* Whiteboard Area */}
           <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <KonvaCanvas 
+            <KonvaCanvas
+              nodes={canvasNodes}
+              edges={canvasEdges}
+              viewport={canvasViewport}
+              onNodesChange={setCanvasNodes}
+              onEdgesChange={setCanvasEdges}
+              onViewportChange={setCanvasViewport}
+              onNodeAdd={addNodeToCanvas}
               onOpenImport={() => setIsImportDialogOpen(true)}
               toolMode={interactionMode === 'pan' ? 'hand' : 'select'}
               onToolChange={(tool) => setInteractionMode(tool === 'hand' ? 'pan' : 'select')}
             />
 
+
             {/* Canvas Controls (Bottom Right) */}
-            <CanvasControls 
+            <CanvasControls
               zoom={zoom}
               onZoomIn={handleZoomIn}
               onZoomOut={handleZoomOut}
@@ -175,7 +196,7 @@ function StudioPageContent() {
       </Box>
 
       {/* Import Dialog */}
-      <ImportSourceDialog 
+      <ImportSourceDialog
         open={isImportDialogOpen}
         onClose={() => setIsImportDialogOpen(false)}
         onFileSelect={handleFileSelect}

@@ -44,3 +44,4 @@ export default function TemplateCard({ title, description, icon, color = 'primar
   );
 }
 
+

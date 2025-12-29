@@ -239,6 +239,54 @@ class DocumentNotificationService:
             all_connections.update(conns)
         return len(all_connections)
 
+    async def notify_thumbnail_ready(
+        self,
+        project_id: str,
+        document_id: str,
+        thumbnail_url: str,
+    ) -> int:
+        """
+        Send thumbnail ready notification to all connected clients.
+
+        Args:
+            project_id: Project ID
+            document_id: Document ID
+            thumbnail_url: URL to the generated thumbnail
+
+        Returns:
+            Number of clients notified
+        """
+        message = {
+            "type": "thumbnail_ready",
+            "document_id": document_id,
+            "thumbnail_url": thumbnail_url,
+            "thumbnail_status": "ready",
+        }
+
+        # Collect all relevant connections
+        connections_to_notify: Set[WebSocket] = set()
+
+        async with self._lock:
+            if project_id in self._project_connections:
+                connections_to_notify.update(self._project_connections[project_id])
+            if document_id in self._document_connections:
+                connections_to_notify.update(self._document_connections[document_id])
+
+        notified_count = 0
+        for websocket in connections_to_notify:
+            try:
+                await websocket.send_json(message)
+                notified_count += 1
+            except Exception as e:
+                logger.warning(f"[WebSocket] Failed to send thumbnail notification: {e}")
+
+        logger.info(
+            f"[WebSocket] Thumbnail ready notification sent - "
+            f"document_id={document_id}, notified={notified_count}"
+        )
+
+        return notified_count
+
 
 # Singleton instance
 document_notification_service = DocumentNotificationService()

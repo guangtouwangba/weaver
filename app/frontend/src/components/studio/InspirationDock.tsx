@@ -10,11 +10,11 @@ import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { SummaryData, MindmapData } from '@/lib/api';
 
 export default function InspirationDock() {
-  const { 
-    documents, 
-    projectId, 
-    selectedDocumentIds, 
-    isInspirationDockVisible, 
+  const {
+    documents,
+    projectId,
+    selectedDocumentIds,
+    isInspirationDockVisible,
     setInspirationDockVisible,
     // Concurrent generation tasks
     generationTasks,
@@ -31,48 +31,48 @@ export default function InspirationDock() {
     showMindmapOverlay,
     setShowMindmapOverlay,
   } = useStudio();
-  
+
   const { handleGenerateContentConcurrent, getViewportCenterPosition } = useCanvasActions();
-  
+
   const [showMoreActions, setShowMoreActions] = useState(false);
 
   const projectColor = '#0096FF'; // Default project color
 
   // Get loading states for each action type
-  const isGeneratingSummary = useMemo(() => 
-    getActiveGenerationsOfType('summary').length > 0, 
-    [getActiveGenerationsOfType]
-  );
-  
-  const isGeneratingMindmap = useMemo(() => 
-    getActiveGenerationsOfType('mindmap').length > 0, 
+  const isGeneratingSummary = useMemo(() =>
+    getActiveGenerationsOfType('summary').length > 0,
     [getActiveGenerationsOfType]
   );
 
-  const isGeneratingPodcast = useMemo(() => 
-    getActiveGenerationsOfType('podcast').length > 0, 
+  const isGeneratingMindmap = useMemo(() =>
+    getActiveGenerationsOfType('mindmap').length > 0,
     [getActiveGenerationsOfType]
   );
 
-  const isGeneratingQuiz = useMemo(() => 
-    getActiveGenerationsOfType('quiz').length > 0, 
+  const isGeneratingPodcast = useMemo(() =>
+    getActiveGenerationsOfType('podcast').length > 0,
     [getActiveGenerationsOfType]
   );
 
-  const isGeneratingTimeline = useMemo(() => 
-    getActiveGenerationsOfType('timeline').length > 0, 
+  const isGeneratingQuiz = useMemo(() =>
+    getActiveGenerationsOfType('quiz').length > 0,
     [getActiveGenerationsOfType]
   );
 
-  const isGeneratingCompare = useMemo(() => 
-    getActiveGenerationsOfType('compare').length > 0, 
+  const isGeneratingTimeline = useMemo(() =>
+    getActiveGenerationsOfType('timeline').length > 0,
+    [getActiveGenerationsOfType]
+  );
+
+  const isGeneratingCompare = useMemo(() =>
+    getActiveGenerationsOfType('compare').length > 0,
     [getActiveGenerationsOfType]
   );
 
   // Get recently completed tasks for showing success feedback
   const recentlyCompleted = useMemo(() => {
     const completed: Record<GenerationType, boolean> = {
-      summary: false, mindmap: false, podcast: false, 
+      summary: false, mindmap: false, podcast: false,
       quiz: false, timeline: false, compare: false, flashcards: false
     };
     generationTasks.forEach(task => {
@@ -111,12 +111,12 @@ export default function InspirationDock() {
       'timeline': 'timeline',
       'compare': 'compare'
     };
-    
+
     const generationType = typeMap[actionType];
-    
+
     // Capture current viewport position at the moment of click
     const position = getViewportCenterPosition();
-    
+
     // Start concurrent generation (non-blocking)
     handleGenerateContentConcurrent(generationType, position);
   };
@@ -142,17 +142,17 @@ export default function InspirationDock() {
     error: string | undefined,
     onClick: () => void
   ) => (
-    <Tooltip 
-      title={error ? `Error: ${error}` : isGenerating ? `Generating ${label}...` : `Generate ${label}`} 
-      placement="top" 
+    <Tooltip
+      title={error ? `Error: ${error}` : isGenerating ? `Generating ${label}...` : `Generate ${label}`}
+      placement="top"
       arrow
     >
-      <IconButton 
+      <IconButton
         onClick={onClick}
         disabled={isGenerating}
-        sx={{ 
-          width: 64, 
-          height: 64, 
+        sx={{
+          width: 64,
+          height: 64,
           borderRadius: '16px',
           bgcolor: error ? 'error.light' : isComplete ? `${color}22` : 'grey.50',
           border: '1px solid',
@@ -161,10 +161,10 @@ export default function InspirationDock() {
           gap: 0.5,
           transition: 'all 0.2s',
           position: 'relative',
-          '&:hover': { 
-            bgcolor: `${color}11`, 
+          '&:hover': {
+            bgcolor: `${color}11`,
             borderColor: color,
-            transform: 'translateY(-2px)' 
+            transform: 'translateY(-2px)'
           },
           '&:disabled': {
             opacity: 1, // Keep visible during loading
@@ -180,12 +180,12 @@ export default function InspirationDock() {
         ) : (
           icon
         )}
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            fontSize: '0.65rem', 
-            fontWeight: 600, 
-            color: error ? 'error.main' : 'text.secondary' 
+        <Typography
+          variant="caption"
+          sx={{
+            fontSize: '0.65rem',
+            fontWeight: 600,
+            color: error ? 'error.main' : 'text.secondary'
           }}
         >
           {label}
@@ -212,7 +212,7 @@ export default function InspirationDock() {
       {/* Summary Card Overlay */}
       {showSummaryOverlay && summaryResult && (
         <Box sx={{ pointerEvents: 'auto' }}>
-          <SummaryCard 
+          <SummaryCard
             title={summaryResult.title}
             summary={summaryResult.data.summary}
             keyFindings={summaryResult.data.keyFindings}
@@ -246,15 +246,15 @@ export default function InspirationDock() {
         </Box>
       )}
 
-      {/* Dock UI - Always visible (not hidden during generation) */}
-      {!showSummaryOverlay && !showMindmapOverlay && (
-        <Box 
+      {/* Dock UI - Hidden during generation */}
+      {!showSummaryOverlay && !showMindmapOverlay && !hasActiveGenerations() && (
+        <Box
           className="dock-container"
-          sx={{ 
-            pointerEvents: 'auto', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
+          sx={{
+            pointerEvents: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             gap: 3,
             animation: 'fadeIn 0.5s ease-out',
             '@keyframes fadeIn': {
@@ -327,9 +327,9 @@ export default function InspirationDock() {
                       '&:active': { transform: action.isGenerating ? 'none' : 'scale(0.98)' }
                     }}
                   >
-                    <Box sx={{ 
-                      p: 1, 
-                      borderRadius: '12px', 
+                    <Box sx={{
+                      p: 1,
+                      borderRadius: '12px',
                       bgcolor: 'white',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                       display: 'flex',
@@ -404,11 +404,11 @@ export default function InspirationDock() {
 
                   {/* Action 3: More / Close */}
                   <Tooltip title={showMoreActions ? "Close" : "More Actions"} placement="top" arrow>
-                    <IconButton 
+                    <IconButton
                       onClick={() => setShowMoreActions(!showMoreActions)}
-                      sx={{ 
-                        width: 64, 
-                        height: 64, 
+                      sx={{
+                        width: 64,
+                        height: 64,
                         borderRadius: '16px',
                         border: '1px dashed',
                         borderColor: showMoreActions ? projectColor : 'divider',

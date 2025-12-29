@@ -18,6 +18,8 @@ class DocumentResponse(BaseModel):
     status: str
     graph_status: Optional[str] = None
     summary: Optional[str] = None  # Document summary (generated during processing)
+    thumbnail_url: Optional[str] = None  # URL for PDF thumbnail image
+    thumbnail_status: Optional[str] = None  # pending, processing, ready, error
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -39,3 +41,4 @@ class DocumentUploadResponse(BaseModel):
     status: str
     message: str
     task_id: Optional[UUID] = None  # Async task ID for tracking processing status
+    thumbnail_url: Optional[str] = None

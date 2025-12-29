@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from research_agent.domain.repositories.document_repo import DocumentRepository
@@ -19,6 +19,8 @@ class DocumentItem:
     page_count: int
     status: str
     created_at: datetime
+    thumbnail_status: Optional[str] = None
+    thumbnail_path: Optional[str] = None
 
 
 @dataclass
@@ -55,6 +57,8 @@ class ListDocumentsUseCase:
                 page_count=d.page_count,
                 status=d.status.value,
                 created_at=d.created_at,
+                thumbnail_status=d.thumbnail_status,
+                thumbnail_path=d.thumbnail_path,
             )
             for d in documents
         ]
@@ -63,4 +67,3 @@ class ListDocumentsUseCase:
             items=items,
             total=len(items),
         )
-

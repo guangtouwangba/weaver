@@ -96,6 +96,14 @@ class DocumentModel(Base):
         JSONB, nullable=True
     )  # Parsing metadata (layout, tables, etc.)
 
+    # Thumbnail fields for PDF preview
+    thumbnail_path: Mapped[Optional[str]] = mapped_column(
+        String(512), nullable=True
+    )  # Path to generated thumbnail image
+    thumbnail_status: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True
+    )  # pending, processing, ready, error
+
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="documents")
     chunks: Mapped[List["DocumentChunkModel"]] = relationship(
@@ -156,7 +164,9 @@ class HighlightModel(Base):
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
-    color: Mapped[str] = mapped_column(String(20), nullable=False, default="yellow")  # yellow, green, blue, pink
+    color: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="yellow"
+    )  # yellow, green, blue, pink
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     rects: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSONB, nullable=True
@@ -614,7 +624,9 @@ class PendingCleanupModel(Base):
     # When this cleanup was scheduled
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # When the last attempt was made
-    last_attempt_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_attempt_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Optional: reference to original document (for debugging)
     document_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     project_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)

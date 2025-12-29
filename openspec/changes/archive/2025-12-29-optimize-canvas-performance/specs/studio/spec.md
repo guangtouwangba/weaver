@@ -64,3 +64,4 @@ The Studio SHALL provide high-performance canvas interactions with optimized ren
 - **AND** box selection responds within 16ms
 - **AND** the UI remains responsive during all interactions
 
+

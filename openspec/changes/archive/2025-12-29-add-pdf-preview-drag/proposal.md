@@ -19,3 +19,4 @@ Users need to quickly preview PDF documents in the resource sidebar and drag the
   - New component: `DocumentPreviewCard.tsx` for rich preview display
   - New canvas node: `DocumentReferenceNode` for dropped documents
 
+

@@ -198,3 +198,4 @@ The annotation toolbar SHALL provide color options for highlight and pen annotat
 - **THEN** subsequent annotations use the new color
 - **AND** the active color is visually indicated in the toolbar
 
+

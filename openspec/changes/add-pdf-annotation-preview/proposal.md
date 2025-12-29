@@ -24,3 +24,4 @@ Users need a rich document reading experience where they can annotate PDFs (high
   - Extend: `app/frontend/src/components/studio/KonvaCanvas.tsx` - Handle annotation-to-node creation
   - Backend: New API endpoints for comments and extended annotation types
 
+

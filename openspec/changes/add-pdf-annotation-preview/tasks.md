@@ -60,3 +60,4 @@
 - [ ] 8.3 Handle edge cases (document not found, empty annotations)
 - [ ] 8.4 Add transition animations for modal open/close
 
+

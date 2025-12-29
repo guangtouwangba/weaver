@@ -45,7 +45,7 @@ interface ChatMessage {
 interface StudioContextType {
   // Project
   projectId: string;
-  
+
   // Documents
   documents: ProjectDocument[];
   setDocuments: (docs: ProjectDocument[]) => void;
@@ -54,7 +54,7 @@ interface StudioContextType {
   selectedDocumentIds: Set<string>;
   setSelectedDocumentIds: (ids: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   toggleDocumentSelection: (id: string, multiSelect?: boolean) => void;
-  
+
   // Canvas
   canvasNodes: CanvasNode[];
   setCanvasNodes: (nodes: CanvasNode[] | ((prev: CanvasNode[]) => CanvasNode[])) => void;
@@ -64,7 +64,7 @@ interface StudioContextType {
   setCanvasSections: (sections: CanvasSection[] | ((prev: CanvasSection[]) => CanvasSection[])) => void;
   canvasViewport: { x: number; y: number; scale: number };
   setCanvasViewport: (viewport: { x: number; y: number; scale: number }) => void;
-  
+
   // View system
   currentView: 'free' | 'thinking';
   setCurrentView: (view: 'free' | 'thinking') => void;
@@ -74,24 +74,24 @@ interface StudioContextType {
   };
   setViewStates: (viewStates: { free: CanvasViewState; thinking: CanvasViewState }) => void;
   switchView: (view: 'free' | 'thinking') => void;
-  
+
   // Chat Sessions
   chatSessions: ChatSession[];
   setChatSessions: (sessions: ChatSession[] | ((prev: ChatSession[]) => ChatSession[])) => void;
   activeSessionId: string | null;
   setActiveSessionId: (id: string | null) => void;
   sessionsLoading: boolean;
-  
+
   // Chat Messages (for current session)
   chatMessages: ChatMessage[];
   setChatMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
-  
+
   // Session Actions
   createChatSession: (title?: string, isShared?: boolean) => Promise<ChatSession>;
   switchChatSession: (sessionId: string) => Promise<void>;
   updateChatSessionTitle: (sessionId: string, title: string) => Promise<void>;
   deleteChatSession: (sessionId: string) => Promise<void>;
-  
+
   // Actions
   addNodeToCanvas: (node: Omit<CanvasNode, 'id'>) => void;
   addSection: (section: CanvasSection) => void;
@@ -99,7 +99,7 @@ interface StudioContextType {
   deleteSection: (sectionId: string) => void;
   saveCanvas: () => Promise<void>;
   clearCanvas: (viewType?: 'free' | 'thinking') => Promise<void>;
-  
+
   // Navigation
   navigateToSource: (documentId: string, pageNumber: number, searchText?: string) => void;
   sourceNavigation: {
@@ -107,26 +107,26 @@ interface StudioContextType {
     pageNumber: number;
     searchText?: string;
   } | null;
-  
+
   // Drag Preview
   dragPreview: { x: number; y: number; content: string } | null;
   setDragPreview: (preview: { x: number; y: number; content: string } | null) => void;
   dragContentRef: React.MutableRefObject<string | null>;
-  
+
   // Cross-boundary drag (for dragging Konva nodes to DOM elements like chat input)
   crossBoundaryDragNode: { id: string; title: string; content: string; sourceMessageId?: string } | null;
   setCrossBoundaryDragNode: (node: { id: string; title: string; content: string; sourceMessageId?: string } | null) => void;
-  
+
   // Auto Thinking Path
   autoThinkingPathEnabled: boolean;
   setAutoThinkingPathEnabled: (enabled: boolean) => void;
-  
+
   // Message <-> Node Navigation
   navigateToMessage: (messageId: string) => void;
   highlightedMessageId: string | null;
   navigateToNode: (nodeId: string) => void;
   highlightedNodeId: string | null;
-  
+
   // === Thinking Graph (Dynamic Mind Map) ===
   activeThinkingId: string | null;  // Currently active thinking node (fork point)
   setActiveThinkingId: (id: string | null) => void;
@@ -173,11 +173,11 @@ interface StudioContextType {
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
-export function StudioProvider({ 
-  children, 
-  projectId 
-}: { 
-  children: ReactNode; 
+export function StudioProvider({
+  children,
+  projectId
+}: {
+  children: ReactNode;
   projectId: string;
 }) {
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
@@ -235,18 +235,18 @@ export function StudioProvider({
       timestamp: new Date(),
     }
   ]);
-  
+
   // Navigation state for source jumping
   const [sourceNavigation, setSourceNavigation] = useState<{
     documentId: string;
     pageNumber: number;
     searchText?: string;
   } | null>(null);
-  
+
   // Drag preview state
   const [dragPreview, setDragPreview] = useState<{ x: number; y: number; content: string } | null>(null);
   const dragContentRef = useRef<string | null>(null);
-  
+
   // Cross-boundary drag state (for dragging Konva nodes to DOM elements)
   const [crossBoundaryDragNode, setCrossBoundaryDragNode] = useState<{
     id: string;
@@ -257,11 +257,11 @@ export function StudioProvider({
 
   // Auto Thinking Path state
   const [autoThinkingPathEnabled, setAutoThinkingPathEnabled] = useState(true);
-  
+
   // Message <-> Node Navigation state
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
-  
+
   // === Thinking Graph (Dynamic Mind Map) State ===
   const [activeThinkingId, setActiveThinkingId] = useState<string | null>(null);
   const [thinkingStepCounter, setThinkingStepCounter] = useState(0);
@@ -386,7 +386,7 @@ export function StudioProvider({
         viewport: canvasViewport,
       },
     }));
-    
+
     // Switch to new view and restore its viewport
     setCurrentView(view);
     setCanvasViewport(viewStates[view].viewport);
@@ -404,7 +404,7 @@ export function StudioProvider({
   }, [canvasNodes, currentView, switchView]);
 
   // === Thinking Graph Methods ===
-  
+
   /**
    * Create an optimistic "draft" thinking step node when user sends a message.
    * This provides immediate visual feedback before the backend responds.
@@ -415,15 +415,15 @@ export function StudioProvider({
   const appendThinkingDraftStep = useCallback((userMessage: ChatMessage): string => {
     const newStepIndex = thinkingStepCounter + 1;
     setThinkingStepCounter(newStepIndex);
-    
+
     const draftNodeId = `tp-draft-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Calculate position based on active thinking node
     let x = 100;
     let y = 300;
     let depth = 0;
     let parentStepId: string | undefined;
-    
+
     if (activeThinkingId) {
       // Find the active node to position relative to it
       const activeNode = canvasNodes.find(n => n.id === activeThinkingId);
@@ -447,14 +447,14 @@ export function StudioProvider({
         y = maxY + 300;
       }
     }
-    
+
     // Create draft node
     const draftNode: CanvasNode = {
       id: draftNodeId,
       type: 'thinking_step',
       title: `Step ${newStepIndex}`,
-      content: userMessage.content.length > 100 
-        ? userMessage.content.substring(0, 100) + '...' 
+      content: userMessage.content.length > 100
+        ? userMessage.content.substring(0, 100) + '...'
         : userMessage.content,
       x,
       y,
@@ -470,8 +470,8 @@ export function StudioProvider({
       depth,
       parentStepId,
       thinkingFields: {
-        claim: userMessage.content.length > 100 
-          ? userMessage.content.substring(0, 100) + '...' 
+        claim: userMessage.content.length > 100
+          ? userMessage.content.substring(0, 100) + '...'
           : userMessage.content,
         reason: '',
         evidence: '',
@@ -481,10 +481,10 @@ export function StudioProvider({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     // Add the draft node
     setCanvasNodes(prev => [...prev, draftNode]);
-    
+
     // Create edge from parent if exists
     if (parentStepId) {
       const edgeId = `edge-${parentStepId}-${draftNodeId}`;
@@ -494,13 +494,13 @@ export function StudioProvider({
         target: draftNodeId,
       }]);
     }
-    
+
     // Set this as the new active thinking node
     setActiveThinkingId(draftNodeId);
-    
+
     return draftNodeId;
   }, [activeThinkingId, canvasNodes, thinkingStepCounter]);
-  
+
   /**
    * Finalize a draft thinking step with data from the backend.
    * This is called when the backend WebSocket sends the analysis result.
@@ -536,7 +536,7 @@ export function StudioProvider({
       return node;
     }));
   }, []);
-  
+
   /**
    * Start a new topic by clearing the activeThinkingId.
    * The next message will create a new root node in the thinking graph.
@@ -595,10 +595,10 @@ export function StudioProvider({
   const clearCanvas = useCallback(async (viewType?: 'free' | 'thinking') => {
     // Capture the view type at the moment of calling to handle tab switching edge case
     const targetViewType = viewType;
-    
+
     try {
       await canvasApi.clear(projectId, targetViewType);
-      
+
       // Clear local state based on the captured view type
       if (targetViewType) {
         // Only clear nodes/edges/sections for the specific view type
@@ -650,9 +650,9 @@ export function StudioProvider({
 
   const switchChatSession = useCallback(async (sessionId: string) => {
     if (sessionId === activeSessionId) return;
-    
+
     setActiveSessionId(sessionId);
-    
+
     // Load history for the selected session
     try {
       const historyRes = await chatApi.getHistory(projectId, sessionId);
@@ -684,7 +684,7 @@ export function StudioProvider({
 
   const updateChatSessionTitle = useCallback(async (sessionId: string, title: string) => {
     const updatedSession = await chatApi.updateSession(projectId, sessionId, title);
-    setChatSessions(prev => 
+    setChatSessions(prev =>
       prev.map(s => s.id === sessionId ? updatedSession : s)
     );
   }, [projectId]);
@@ -692,7 +692,7 @@ export function StudioProvider({
   const deleteChatSession = useCallback(async (sessionId: string) => {
     await chatApi.deleteSession(projectId, sessionId);
     setChatSessions(prev => prev.filter(s => s.id !== sessionId));
-    
+
     // If we deleted the active session, switch to another one
     if (sessionId === activeSessionId) {
       const remainingSessions = chatSessions.filter(s => s.id !== sessionId);
@@ -803,28 +803,28 @@ export function StudioProvider({
 
           // Convert persisted outputs to GenerationTask format
           const restoredTasks = new Map<string, GenerationTask>();
-          
+
           // Grid layout for multiple outputs: position them in a grid pattern
           const CARD_WIDTH = 380;
           const CARD_HEIGHT = 280;
           const GAP = 40;
           const START_X = 200;
           const START_Y = 200;
-          
+
           completeOutputs.forEach((output: OutputResponse, index: number) => {
             // Skip outputs without data
             if (!output.data) return;
-            
+
             // Map output_type to GenerationType
             const type = output.output_type as GenerationType;
             if (type !== 'summary' && type !== 'mindmap') return; // Only support these for now
-            
+
             // Calculate grid position (2 columns)
             const col = index % 2;
             const row = Math.floor(index / 2);
             const x = START_X + col * (CARD_WIDTH + GAP);
             const y = START_Y + row * (CARD_HEIGHT + GAP);
-            
+
             const task: GenerationTask = {
               id: output.id,
               type,
@@ -835,10 +835,10 @@ export function StudioProvider({
               outputId: output.id,
               createdAt: new Date(output.created_at),
             };
-            
+
             restoredTasks.set(output.id, task);
           });
-          
+
           // Set the restored tasks
           if (restoredTasks.size > 0) {
             setGenerationTasks(restoredTasks);
@@ -918,6 +918,8 @@ export function StudioProvider({
 
     loadData();
   }, [projectId]);
+
+
 
   const value: StudioContextType = {
     projectId,

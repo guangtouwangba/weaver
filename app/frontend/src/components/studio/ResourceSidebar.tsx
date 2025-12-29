@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  IconButton, 
+import {
+  Box,
+  Typography,
+  IconButton,
   Paper,
   LinearProgress,
   Collapse,
   CircularProgress,
   Skeleton
 } from '@mui/material';
-import { 
-  DescriptionIcon, 
+import {
+  DescriptionIcon,
   ExpandMoreIcon,
   DeleteIcon,
   CloudUploadIcon,
@@ -24,6 +24,7 @@ import { documentsApi, ProjectDocument } from '@/lib/api';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
 import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
+import DocumentPreviewCard from '@/components/studio/DocumentPreviewCard';
 
 interface ResourceSidebarProps {
   width?: number;
@@ -42,8 +43,8 @@ const formatFileSize = (bytes: number | undefined): string => {
 // Custom PDF Icon Component
 const CustomPdfIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#EF4444"/>
-    <path d="M14 2V8H20" fill="#B91C1C" fillOpacity="0.5"/>
+    <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#EF4444" />
+    <path d="M14 2V8H20" fill="#B91C1C" fillOpacity="0.5" />
     <text x="50%" y="15" fontFamily="sans-serif" fontSize="6" fill="white" fontWeight="bold" textAnchor="middle">PDF</text>
   </svg>
 );
@@ -87,7 +88,7 @@ const SkeletonBar = ({ width, height = 16, sx = {} }: { width: string | number, 
 
 export default function ResourceSidebar({ width = 300, collapsed = false, onToggle }: ResourceSidebarProps) {
   const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId } = useStudio();
-  
+
   // Subscribe to document status updates
   useDocumentWebSocket(projectId, documents, setDocuments);
 
@@ -144,7 +145,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       const newDoc = await documentsApi.upload(projectId, file);
       setDocuments([newDoc, ...documents]);
       setUploadProgress(100);
-      
+
       setTimeout(() => {
         setIsUploading(false);
         setUploadFileName(null);
@@ -185,14 +186,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
 
   if (collapsed) {
     return (
-      <Box 
-        sx={{ 
-          width: 48, 
-          height: '100%', 
-          borderRight: '1px solid', 
+      <Box
+        sx={{
+          width: 48,
+          height: '100%',
+          borderRight: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
-          display: 'flex', 
+          display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           py: 2
@@ -206,14 +207,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   }
 
   return (
-    <Box 
-      sx={{ 
-        width, 
-        height: '100%', 
-        borderRight: '1px solid', 
+    <Box
+      sx={{
+        width,
+        height: '100%',
+        borderRight: '1px solid',
         borderColor: 'divider',
         bgcolor: 'background.paper',
-        display: 'flex', 
+        display: 'flex',
         flexDirection: 'column'
       }}
     >
@@ -261,186 +262,46 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   gap: 2,
                 }}
               >
-                <Box sx={{ 
-                  width: 48, 
-                  height: 48, 
-                  borderRadius: 2, 
+                <Box sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
                   bgcolor: '#E5E7EB', // Gray-200
-                  display: 'flex', 
-                  alignItems: 'center', 
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0
                 }}>
                   <UploadFileIcon size="lg" sx={{ color: '#6B7280' }} /> {/* Gray-500 */}
                 </Box>
-                
+
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <SkeletonBar width="80%" height={20} sx={{ mb: 1, bgcolor: 'rgba(0, 0, 0, 0.08)' }} />
                   <SkeletonBar width="50%" height={16} sx={{ bgcolor: 'rgba(0, 0, 0, 0.04)' }} />
                 </Box>
 
-                <CircularProgress 
-                  size={20} 
-                  thickness={5} 
-                  sx={{ 
+                <CircularProgress
+                  size={20}
+                  thickness={5}
+                  sx={{
                     color: '#6366F1', // Indigo-500
                     '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
-                  }} 
+                  }}
                 />
               </Box>
             )}
 
             {/* Document Cards */}
-            {documents.map(doc => {
-              const isDeleting = deletingIds.has(doc.id);
-              
-              if (isDeleting) {
-                return (
-                  <Box
-                    key={doc.id}
-                    sx={{
-                      p: 0,
-                      borderRadius: 3,
-                      border: '1px solid #E5E7EB',
-                      bgcolor: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      minHeight: 82,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <CircularProgress 
-                        size={18} 
-                        thickness={5} 
-                        sx={{ 
-                          color: '#6366F1', // Indigo-500
-                          '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
-                        }} 
-                      />
-                      <Typography sx={{ color: '#6B7280', fontWeight: 500, fontSize: '0.875rem' }}>
-                        Deleting...
-                      </Typography>
-                    </Box>
-                    
-                    {/* Custom Bottom Progress Bar */}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 3,
-                        bgcolor: '#E0E7FF', // Indigo-50
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          height: '100%',
-                          bgcolor: '#6366F1', // Indigo-500
-                          width: '100%',
-                          transformOrigin: 'left',
-                          animation: 'progress 1.5s infinite linear',
-                          '@keyframes progress': {
-                            '0%': { transform: 'translateX(-100%)' },
-                            '100%': { transform: 'translateX(100%)' }
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                );
-              }
-
-              const isActive = activeDocumentId === doc.id;
-              const isProcessing = doc.status === 'processing';
-              const { icon, bg } = getFileIconProps(doc.filename);
-
-              return (
-                <Paper
-                  key={doc.id}
-                  elevation={0}
-                  onClick={() => !isDeleting && setActiveDocumentId(doc.id)}
-                  sx={{
-                    p: 2,
-                    borderRadius: 3,
-                    border: '1px solid',
-                    borderColor: isActive ? 'primary.main' : '#E5E7EB', // Gray-200
-                    bgcolor: isActive ? '#eff6ff' : '#FFFFFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    position: 'relative',
-                    '&:hover': {
-                      bgcolor: isActive ? '#eff6ff' : '#F9FAFB',
-                      borderColor: isActive ? 'primary.main' : '#D1D5DB',
-                      '& .delete-btn': { opacity: 1 }
-                    }
-                  }}
-                >
-                  {/* File Icon */}
-                  <Box sx={{ 
-                    width: 48, 
-                    height: 48, 
-                    borderRadius: 2, 
-                    bgcolor: isProcessing ? '#FEF3C7' : bg, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    position: 'relative',
-                    flexShrink: 0
-                  }}>
-                    {isProcessing ? (
-                      <>
-                        <DescriptionIcon size="lg" sx={{ color: '#F59E0B' }} />
-                        <CircularProgress 
-                          size={16} 
-                          sx={{ 
-                            position: 'absolute', 
-                            bottom: -2, 
-                            right: -2,
-                            color: '#F59E0B'
-                          }} 
-                        />
-                      </>
-                    ) : (
-                      icon
-                    )}
-                  </Box>
-                  
-                  {/* File Info */}
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="body2" fontWeight={500} color="#111827" noWrap>{doc.filename}</Typography>
-                    <Typography variant="caption" color="#6B7280">
-                      {formatFileSize(doc.file_size)}
-                    </Typography>
-                  </Box>
-
-                  {/* Delete Button */}
-                  <IconButton
-                    className="delete-btn"
-                    size="small"
-                    onClick={(e) => handleDeleteDocument(doc.id, e)}
-                    sx={{
-                      opacity: 0,
-                      transition: 'opacity 0.2s',
-                      color: 'text.secondary',
-                      '&:hover': {
-                        color: 'error.main',
-                        bgcolor: 'rgba(239, 68, 68, 0.1)'
-                      }
-                    }}
-                  >
-                    <DeleteIcon size="sm" />
-                  </IconButton>
-                </Paper>
-              );
-            })}
+            {documents.map(doc => (
+              <DocumentPreviewCard
+                key={doc.id}
+                document={doc}
+                isActive={activeDocumentId === doc.id}
+                isDeleting={deletingIds.has(doc.id)}
+                onSelect={() => setActiveDocumentId(doc.id)}
+                onDelete={(e) => handleDeleteDocument(doc.id, e)}
+              />
+            ))}
 
             {documents.length === 0 && !isUploading && (
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
@@ -452,8 +313,8 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       </Box>
 
       {/* Import Dialog */}
-      <ImportSourceDialog 
-        open={importDialogOpen} 
+      <ImportSourceDialog
+        open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
         onFileSelect={handleFileUpload}
       />

@@ -15,9 +15,9 @@ import ThinkingPathGenerator from './ThinkingPathGenerator';
 import CanvasToolbar, { ToolMode } from './CanvasToolbar';
 
 export default function CanvasPanelKonva() {
-  const { 
-    projectId, 
-    canvasNodes, 
+  const {
+    projectId,
+    canvasNodes,
     setCanvasNodes,
     canvasEdges,
     setCanvasEdges,
@@ -33,6 +33,8 @@ export default function CanvasPanelKonva() {
     navigateToSource,  // Phase 1: For opening source documents
     isGenerating,
   } = useStudio();
+
+
 
   const [toolMode, setToolMode] = useState<ToolMode>('select');
   const [hasSelection, setHasSelection] = useState(false);
@@ -62,7 +64,7 @@ export default function CanvasPanelKonva() {
   const handleFitView = useCallback(() => {
     // Calculate bounds of all nodes and fit the view
     if (canvasNodes.length === 0) return;
-    
+
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     canvasNodes.forEach(node => {
       minX = Math.min(minX, node.x);
@@ -70,19 +72,19 @@ export default function CanvasPanelKonva() {
       maxX = Math.max(maxX, node.x + (node.width || 280));
       maxY = Math.max(maxY, node.y + (node.height || 200));
     });
-    
+
     // Add padding
     const padding = 100;
     minX -= padding;
     minY -= padding;
     maxX += padding;
     maxY += padding;
-    
+
     // Calculate scale to fit (assuming container is ~800x600, this is approximate)
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
     const scale = Math.min(800 / contentWidth, 600 / contentHeight, 1);
-    
+
     setCanvasViewport({
       x: -minX * scale,
       y: -minY * scale,
@@ -120,7 +122,7 @@ export default function CanvasPanelKonva() {
 
   return (
     <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, overflow: 'hidden', position: 'relative' }}>
-      <KonvaCanvas 
+      <KonvaCanvas
         nodes={canvasNodes}
         edges={canvasEdges}
         viewport={canvasViewport}
@@ -144,29 +146,29 @@ export default function CanvasPanelKonva() {
         onToolChange={setToolMode}
         onSelectionChange={handleSelectionChange}
       />
-      
+
       {/* Canvas Tool Toolbar Overlay */}
-      <CanvasToolbar 
-        activeTool={toolMode} 
+      <CanvasToolbar
+        activeTool={toolMode}
         onChange={setToolMode}
         zoom={canvasViewport.scale}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
         onFitView={handleFitView}
-        onInsert={() => {/* TODO: implement insert menu */}}
+        onInsert={() => {/* TODO: implement insert menu */ }}
         onDelete={handleDeleteSelected}
         hasSelection={hasSelection}
       />
 
       {/* Global Loading Indicator */}
       {isGenerating && (
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            top: 20, 
-            left: '50%', 
-            transform: 'translateX(-50%)', 
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
             zIndex: 1200,
             pointerEvents: 'none'
           }}
@@ -174,8 +176,8 @@ export default function CanvasPanelKonva() {
           <Chip
             icon={<CircularProgress size={16} color="inherit" />}
             label="Generating content..."
-            sx={{ 
-              bgcolor: 'background.paper', 
+            sx={{
+              bgcolor: 'background.paper',
               boxShadow: 3,
               border: '1px solid',
               borderColor: 'divider',

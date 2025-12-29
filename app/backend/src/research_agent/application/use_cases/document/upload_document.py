@@ -1,14 +1,17 @@
 """Upload document use case."""
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import BinaryIO, Optional
 from uuid import UUID
 
+from research_agent.config import get_settings
 from research_agent.domain.entities.chunk import DocumentChunk
 from research_agent.domain.entities.document import Document
 from research_agent.domain.repositories.chunk_repo import ChunkRepository
 from research_agent.domain.repositories.document_repo import DocumentRepository
 from research_agent.domain.services.chunking_service import ChunkingService
+from research_agent.domain.services.thumbnail_service import ThumbnailService
 from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.infrastructure.pdf.base import PDFParser
 from research_agent.infrastructure.storage.base import StorageService
@@ -24,7 +27,9 @@ class UploadDocumentInput:
     filename: str
     file_content: BinaryIO
     file_size: int
-    storage_path: Optional[str] = field(default=None)  # Supabase Storage path if using cloud storage
+    storage_path: Optional[str] = field(
+        default=None
+    )  # Supabase Storage path if using cloud storage
 
 
 @dataclass
@@ -35,6 +40,7 @@ class UploadDocumentOutput:
     filename: str
     page_count: int
     status: str
+    thumbnail_status: Optional[str] = None
 
 
 class UploadDocumentUseCase:
@@ -80,6 +86,23 @@ class UploadDocumentUseCase:
             file_path = f"projects/{input.project_id}/{document.id}.pdf"
             full_path = await self._storage.save(file_path, input.file_content)
             document.file_path = full_path
+
+        # Generate thumbnail immediately
+        try:
+            settings = get_settings()
+            output_dir = (Path(settings.upload_dir) / "thumbnails").resolve()
+
+            thumbnail_service = ThumbnailService()
+            thumbnail_path = await thumbnail_service.generate_thumbnail(
+                file_path=full_path, document_id=document.id, output_dir=output_dir
+            )
+
+            if thumbnail_path:
+                document.thumbnail_path = thumbnail_path
+                document.thumbnail_status = "ready"
+                logger.info(f"✅ Thumbnail generated in use case for {document.id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Thumbnail generation failed in use case: {e}")
 
         # Save document (processing status)
         await self._document_repo.save(document)
@@ -134,6 +157,7 @@ class UploadDocumentUseCase:
                 filename=document.filename,
                 page_count=document.page_count,
                 status=document.status.value,
+                thumbnail_status=document.thumbnail_status,
             )
 
         except Exception as e:
@@ -142,4 +166,3 @@ class UploadDocumentUseCase:
             await self._document_repo.save(document)
             logger.error(f"Failed to process document: {e}")
             raise PDFProcessingError(f"Failed to process document: {e}")
-
