@@ -1,30 +1,33 @@
 # Design: Product Roadmap 2025
 
-## Product Philosophy: The "Sensemaking Loop"
-Code development will follow the user's actual workflow. We build the "In" door first, then the "Work" room, then the "Out" door.
+## Competitive Analysis & "Why Me?"
+The Knowledge Tool market is crowded (NotebookLM, YouMind, Heptabase). We win by solving the **"Closed World"** and **"Passive Tool"** problems.
 
-## Phasing Strategy
+### The Landscape
+*   **NotebookLM (Google)**: Best for **Consumption**. "Chat with *your* docs." Excellent for verifying facts in uploaded PDFs. *Limitation*: Cannot find new information; purely reactive.
+*   **YouMind**: Best for **Creation**. "Turn bookmarks into posts." Good linear workflow. *Limitation*: Focuses on content output, not deep problem solving.
+
+### Our Thesis: "The Agentic Workbench"
+We are not building a "Knowledge Base" or a "Chatbot". We are building a **Co-Thinking Partner** that acts with agency.
+1.  **Breaking the "Closed World"**: Unlike NotebookLM, we don't just answer from your files. If the answer is missing, our **Deep Research Agent** goes to the web, finds the missing puzzle piece, and adds it to the board.
+    *   *Feature*: "Deep Think" button is not a chat—it's a mission dispatcher.
+2.  **Active Sensemaking**: Unlike YouMind's static mind maps, our **Canvas** is a shared workspace. The AI doesn't just "generate" a map; it *works* on it. It groups similar notes, draws connection lines, and flags contradictions in real-time.
+    *   *Feature*: "Auto-Cluster" and "Suggest Link" interactions.
+
+## Phasing Strategy (Value-Driven)
 
 ### Phase 1: The "Research Assistant" (Capture & Triage)
-*   **User Story**: "As a researcher, I want to dump everything I find into one place and have it organized for me, so I don't lose context."
-*   **Core Workflow**:
-    1.  **Capture**: User browse web/PDFs -> One-click save via **Chrome Extension**.
-    2.  **Enrich**: System auto-tags, summarizes, and extracts entities (Backend RAG).
-    3.  **Triage**: User reviews `Inbox`, archiving noise and assigning signal to `Projects`.
-*   **Key Deliverable**: A "Smart Inbox" that feels like an AI research assistant.
+*   **Goal**: Solve Fragmentation. "Capture Everything, Miss Nothing."
+*   **Differentiation**:
+    *   **Agentic Triage**: We don't just save the URL. We auto-extract entities (People, Companies) to populate the Graph immediately.
 
 ### Phase 2: The "Thinking Partner" (Connect & Visualize)
-*   **User Story**: "As an analyst, I want to see how these 50 documents relate to each other so I can find the story."
-*   **Core Workflow**:
-    1.  **Spatial Organization**: Drag items from Inbox to **Canvas**. Group related facts.
-    2.  **Deep Research**: Trigger "Deep Think" on a cluster. Agent browses the web to fill missing gaps.
-    3.  **Pattern Recognition**: Switch to **Graph View** to see hidden connections between entities.
-*   **Key Deliverable**: A coherent "Knowledge Graph" and "Canvas" that acts as an external brain.
+*   **Goal**: Solve Complexity. "See the Unseen Patterns."
+*   **Differentiation**:
+    *   **Deep Research**: The ability to *expand* the knowledge graph autonomously. "I see you have 3 papers on Transformers. I found 2 newer ones that contradict paper #1. Shall I add them?"
+    *   **Spatial Reasoning**: AI operations happen on the Canvas (Visually), not in a hidden chat window.
 
 ### Phase 3: The "Content Studio" (Synthesize & Publish)
-*   **User Story**: "As a creator, I want to turn my research board into a structured report or script without starting from a blank page."
-*   **Core Workflow**:
-    1.  **Drafting**: **Writer Mode** generates an outline from the Canvas state.
-    2.  **Refining**: User edits the draft while AI provides citations from the source material.
-    3.  **Consumption**: **Podcast Mode** converts the report into an audio briefing for on-the-go review.
-*   **Key Deliverable**: High-quality artifacts (Reports, Slides, Audio).
+*   **Goal**: Solve Production Bottlenecks. "Turn Thoughts into Deliverables."
+*   **Differentiation**:
+    *   **Grounded Synthesis**: Writing is backed by specific nodes on the canvas. Clicking a sentence in the draft highlights the source node on the board (bi-directional linking).
