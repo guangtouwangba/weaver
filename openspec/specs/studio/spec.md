@@ -748,3 +748,66 @@ The annotation toolbar SHALL provide color options for highlight and pen annotat
 - **THEN** subsequent annotations use the new color
 - **AND** the active color is visually indicated in the toolbar
 
+### Requirement: Project Chat Interface
+The system SHALL provide a chat interface accessible from the canvas to allow users to interact with project content.
+
+#### Scenario: Wake up chat
+- **WHEN** the user clicks the "Ask AI" button at the bottom of the canvas
+- **THEN** the chat panel SHALL slide up or appear overlaid on the canvas
+- **AND** the latest chat history SHALL be displayed
+
+#### Scenario: Chat Layout
+- **WHEN** the chat panel is open
+- **THEN** it SHALL display a list of previous messages
+- **AND** it SHALL provide an input area at the bottom
+- **AND** the input area SHALL support text entry and drag-and-drop targets
+
+#### Scenario: Citation Click Interaction
+- **WHEN** the user clicks on a citation chip/link in a chat answer
+- **THEN** the Source Panel SHALL open (if closed)
+- **AND** the system SHALL switch to the cited Document ID
+- **AND** the system SHALL navigate to the specific Page Number
+- **AND** the system SHALL highlight the cited text (Quote) in the document viewer
+
+### Requirement: Project RAG Endpoint
+The system SHALL provide an API endpoint to answer user queries based on project documents and provided context.
+
+#### Scenario: Answer with Context
+- **WHEN** the frontend sends a query with a Project ID
+- **AND** optionally provides specific context item IDs (documents)
+- **THEN** the system SHALL retrieve relevant chunks from the specified documents (or all project documents if none specified)
+- **AND** generate an answer using the LLM
+- **AND** return the answer text along with citations
+
+### Requirement: Source Attribution
+The system SHALL provide citations for every answer generated from project documents.
+
+#### Scenario: Citation Format
+- **WHEN** the system generates an answer
+- **THEN** it SHALL return a list of source references (Document ID, Page Number, Quote) used for the answer
+- **AND** the Quote SHALL contain the exact text content used from the source to allow for precise highlighting
+- **AND** the frontend SHALL display these citations interactively (e.g., clickable to open source)
+
+### Requirement: Drag to Chat Context
+The system SHALL allow users to drag content from the canvas or source list into the chat to use as context for the next query.
+
+#### Scenario: Drag Source Document
+- **WHEN** the user drags a Source Document from the source list
+- **AND** drops it into the Chat Input area
+- **THEN** the document ID SHALL be added to the pending context list
+- **AND** a visual indicator of the attached document SHALL appear in the input area
+
+#### Scenario: Drag Canvas Node
+- **WHEN** the user drags a generic Canvas Node (Note, Text, etc.)
+- **AND** drops it into the Chat Input area
+- **THEN** the text content of the node SHALL be added to the context
+
+### Requirement: Drag Response to Canvas
+The system SHALL allow users to drag AI responses from the chat onto the canvas to create new nodes.
+
+#### Scenario: Drag Response
+- **WHEN** the user drags an AI response message bubble
+- **AND** drops it onto the Canvas
+- **THEN** a new Note Node SHALL be created at the drop position
+- **AND** the content of the node SHALL be the text of the AI response
+
