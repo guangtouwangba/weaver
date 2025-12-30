@@ -2,16 +2,18 @@
 
 ## Phase 1: The "Research Assistant" (Structure)
 - [ ] **Data Layer**
-    - [ ] **Entity Resolution Engine**: Backend service to deduplicate and link entities across documents. (Crucial for the "Database" moat).
-    - [ ] **Background Processing Queue**: Infrastructure for long-running agent tasks (AsyncPG + Redis/Celery equivalent).
+    - [ ] **Entity Resolution Engine**: Link "Elon" (Doc A) to "Musk" (Doc B).
+    - [ ] **Background Processing Queue**: Infrastructure for long-running agent tasks.
 
-## Phase 2: The "Thinking Partner" (Agency)
-- [ ] **Autonomy Features**
-    - [ ] **"background_loop"**: A scheduled agent task that scans the graph for "Sparse Clusters" and triggers research jobs.
-    - [ ] **"Conflict Detector"**: LLM pass to identify opposing claims between nodes and generate "Insight Nodes".
+## Phase 2: The "Curiosity Engine" (The Loop)
+- [ ] **Dissonance Detection**
+    - [ ] **"Conflict Node" Generator**: LLM pass to identify opposing claims in a cluster.
+- [ ] **Resolution Loop**
+    - [ ] **The "Tie-Breaker" Agent**: Triggered by a Conflict Node. Searches specific query: "Is X true or Y true?"
+    - [ ] **Self-Healing Graph**: Auto-update the graph with the "Winner" or "Nuance" node.
 - [ ] **UX**
-    - [ ] **"Agent Activity Feed"**: A notification center showing what the AI did while you were away ("Grouped 5 notes", "Found 2 citations").
+    - [ ] **"Resolution Feed"**: Notification: "I noticed a conflict in your data on X, so I checked 3 more sources and found Y."
 
 ## Phase 3: The "Content Studio" (Impact)
 - [ ] **Living Documents**
-    - [ ] **Live-Linked Blocks**: Text blocks in the Writer that auto-update if the source node changes (with user approval).
+    - [ ] **Live-Linked Blocks**: Text updates if the Resolution Loop changes the underlying truth.

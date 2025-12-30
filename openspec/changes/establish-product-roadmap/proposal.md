@@ -1,18 +1,17 @@
 # Establish Product Roadmap 2025
 
 ## Goal Description
-Avoid the "Solution In Search of a Problem" (SISP) trap. Instead of building "cool AI agents," we focus on solving the **"10-Hour Research Slog."** The goal is to reduce the time-to-insight for knowledge workers.
+Avoid the "Solution In Search of a Problem" (SISP) trap. Instead of building "cool AI agents," we focus on solving the **"10-Hour Research Slog."**
 
 ## The "Hair on Fire" Problem
-Knowledge workers (Analysts, Researchers, Creators) are drowning, not just "fragmented."
-*   **The Pain**: "I have to read 100 tabs and 5 PDFs to write ONE email."
-*   **The Cost**: It takes 3 days to produce a briefing that should take 3 hours.
-*   **The Solution**: It's not "Agents"—it's **"Compression"**. We compress the time between "Curiosity" and "Understanding."
+Knowledge workers are not just "searching"; they are "weighing evidence." The pain isn't finding 10 links; it's figuring out which one is true.
 
-## Strategic Adjustment (Post-Deep Research)
+## Strategic Adjustment: The "Curiosity Loop"
 > [!IMPORTANT]
-> Since "Deep Research" is now a commodity (OpenAI/Perplexity), our value is no longer *doing* the research, but **managing the context**. We are the "OS" where that research lives, connects, and evolves over time—something a chat interface cannot do.
+> A graph that just "connects" is static. A closed loop requires **Feedback**.
+> **The Loop**: Data -> Conflict -> **New Question** -> New Data -> Resolution.
+> The product must not just "manage" knowledge; it must **active seek** to resolve gaps in that knowledge.
 
 ## User Review Required
 > [!NOTE]
-> The roadmap has been renamed to focus on **Outcomes** (e.g., "Instant Briefing") rather than **Mechanisms** (e.g., "Deep Research"). Use Agency only as a means to an end.
+> Roadmap now includes **"Autonomous Resolution"** (The Tie-Breaker Agent) as the key mechanism to close the loop in Phase 2.
