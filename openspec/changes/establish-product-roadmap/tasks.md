@@ -2,22 +2,22 @@
 
 ## Phase 1: The "Research Assistant" (Capture & Triage)
 - [ ] **Unified Ingestion**
-    - [ ] **Chrome Extension**: "Save to RAG" button. Captures URL, HTML content, and screenshot.
-    - [ ] **Auto-Triage**: Backend job to process Inbox items (Summarize, Tag, Extract Entities).
-    - [ ] **Smart Search**: Semantic search over Inbox to find "that thing I read last week".
-- [ ] **Inbox UX**
-    - [ ] "Inbox Zero" Workflow: Swipe to Archive, Drag to Project.
+    - [ ] **Chrome Extension**: Standard capture (URL/HTML).
+    - [ ] **Entity Extraction Agent**: Backend job to identify "Who/What/Where" from captured content.
+    - [ ] **Auto-Tagging**: Semantic classification of incoming items.
 
 ## Phase 2: The "Thinking Partner" (Connect & Visualize)
 - [ ] **Spatial Workbench (Canvas)**
-    - [ ] **Semantic Clustering**: Drag 10 items to canvas -> "Auto-Group" button arranges them by topic.
-    - [ ] **Agentic Tools**: "Research this Card" button triggers a web search agent to expand context.
-- [ ] **Knowledge Graph**
-    - [ ] **Entity Explorer**: Click a node (e.g., "Elon Musk") to see all connected documents and events.
+    - [ ] **Auto-Cluster**: "Tidy Up" button that spatially groups related notes.
+    - [ ] **Agentic Suggestion**: Visual cues on nodes indicating "I have more info on this".
+- [ ] **Deep Research Integration**
+    - [ ] **"Find Missing Link"**: Select two disparate nodes -> Agent searches web for connections.
+    - [ ] **Fact Check**: Agent verifies node content against live web data.
 
 ## Phase 3: The "Content Studio" (Synthesize & Publish)
-- [ ] **Writer Mode**
-    - [ ] **Canvas-to-Doc**: "Generate Report" button that creates a Markdown draft based on Canvas layout.
-    - [ ] **Citation Engine**: AI inserts `[Source]` links automatically.
-- [ ] **Podcast Mode**
-    - [ ] **Audio Synthesis**: Convert written report to 2-host dialogue (NotebookLM style).
+- [ ] **Grounded Writer**
+    - [ ] **Active Citation**: Drag node to editor to insert cited text.
+    - [ ] **Source Highlighting**: Click text in editor -> Zoom to node on Canvas.
+- [ ] **Multimodal Output**
+    - [ ] **Podcast Generation**: (NotebookLM parity feature).
+    - [ ] **Slide Deck Builder**: structured export from Canvas groups.
