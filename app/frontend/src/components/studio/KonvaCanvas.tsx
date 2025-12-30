@@ -1154,6 +1154,17 @@ export default function KonvaCanvas({
     draggedNodeRef.current = nodeId;
     lastDragPosRef.current = e.target.position();
 
+    // Enable cross-boundary drag (to Chat)
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setCrossBoundaryDragNode({
+        id: node.id,
+        title: node.title,
+        content: node.content,
+        sourceMessageId: node.sourceMessageId
+      });
+    }
+
     // Ensure dragging node is selected and determine effective selection
     let effectiveSelectionIds = new Set(selectedNodeIds);
     if (!selectedNodeIds.has(nodeId)) {
@@ -1186,16 +1197,6 @@ export default function KonvaCanvas({
       // Selection stays on the moving nodes (original IDs), which is what we want.
     }
 
-    // Set cross-boundary drag node for potential drop to chat input
-    const node = nodes.find(n => n.id === nodeId);
-    if (node) {
-      setCrossBoundaryDragNode({
-        id: node.id,
-        title: node.title,
-        content: node.content,
-        sourceMessageId: node.messageIds?.[0],
-      });
-    }
   }, [selectedNodeIds, toolMode, nodes, setCrossBoundaryDragNode]);
 
   const handleNodeDragMove = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {

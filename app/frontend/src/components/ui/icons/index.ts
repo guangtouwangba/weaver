@@ -82,6 +82,14 @@ import StopMui from '@mui/icons-material/Stop';
 import MoreHorizMui from '@mui/icons-material/MoreHoriz';
 import InfoMui from '@mui/icons-material/Info';
 import KeyboardArrowDownMui from '@mui/icons-material/KeyboardArrowDown';
+import SmartToyMui from '@mui/icons-material/SmartToy';
+import ChatMui from '@mui/icons-material/Chat';
+import CloudMui from '@mui/icons-material/Cloud';
+import LockMui from '@mui/icons-material/Lock';
+import OpenInNewMui from '@mui/icons-material/OpenInNew';
+import DragHandleMui from '@mui/icons-material/DragHandle';
+import KeyboardDoubleArrowLeftMui from '@mui/icons-material/KeyboardDoubleArrowLeft';
+import KeyboardDoubleArrowRightMui from '@mui/icons-material/KeyboardDoubleArrowRight';
 
 // Create wrapped icons with consistent API
 // Naming convention: [Name]Icon
@@ -144,6 +152,10 @@ export const WarningIcon = createIcon(WarningMui, 'WarningIcon');
 export const AutoAwesomeIcon = createIcon(AutoAwesomeMui, 'AutoAwesomeIcon');
 export const BoltIcon = createIcon(BoltMui, 'BoltIcon');
 export const PsychologyIcon = createIcon(PsychologyMui, 'PsychologyIcon');
+export const BotIcon = createIcon(SmartToyMui, 'BotIcon');
+export const BrainIcon = createIcon(PsychologyMui, 'BrainIcon'); // Alias for compatibility
+export const ChatIcon = createIcon(ChatMui, 'ChatIcon');
+export const MessageSquareIcon = createIcon(ChatMui, 'MessageSquareIcon'); // Alias
 
 // Misc icons
 export const AccountTreeIcon = createIcon(AccountTreeMui, 'AccountTreeIcon');
@@ -165,6 +177,12 @@ export const StickyNote2Icon = createIcon(StickyNote2Mui, 'StickyNote2Icon');
 export const TagIcon = createIcon(TagMui, 'TagIcon');
 export const TrendingUpIcon = createIcon(TrendingUpMui, 'TrendingUpIcon');
 export const TuneIcon = createIcon(TuneMui, 'TuneIcon');
+export const CloudIcon = createIcon(CloudMui, 'CloudIcon');
+export const LockIcon = createIcon(LockMui, 'LockIcon');
+export const ExternalLinkIcon = createIcon(OpenInNewMui, 'ExternalLinkIcon');
+export const GripHorizontalIcon = createIcon(DragHandleMui, 'GripHorizontalIcon');
+export const PanelRightCloseIcon = createIcon(KeyboardDoubleArrowRightMui, 'PanelRightCloseIcon');
+export const PanelRightOpenIcon = createIcon(KeyboardDoubleArrowLeftMui, 'PanelRightOpenIcon');
 
 // Re-export types
 export type { IconProps, IconSize, IconColor } from './types';

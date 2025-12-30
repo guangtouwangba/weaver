@@ -9,11 +9,11 @@ import WriterView from "./WriterView";
 import ProjectInitializer from "@/components/studio/ProjectInitializer";
 import { NodeInspector } from "@/components/studio/NodeInspector";
 import PDFViewer from "@/components/studio/PDFViewer";
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  IconButton, 
+import {
+  Box,
+  Typography,
+  Paper,
+  IconButton,
   Button,
   TextField,
   Chip,
@@ -30,18 +30,19 @@ import {
   ListItemIcon,
   ListItemText,
   CircularProgress,
-  LinearProgress
+  LinearProgress,
+  Fab
 } from "@mui/material";
-import { 
-  FileText, 
-  Maximize2, 
+import {
+  FileText,
+  Maximize2,
   Minimize2,
-  Sparkles, 
-  Link as LinkIcon, 
-  BookOpen, 
-  Layout, 
-  Mic, 
-  Plus, 
+  Sparkles,
+  Link as LinkIcon,
+  BookOpen,
+  Layout,
+  Mic,
+  Plus,
   Bot,
   Image as ImageIcon,
   FolderOpen,
@@ -89,7 +90,7 @@ import {
 // --- Helper Components ---
 
 const VerticalResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
-  <Box 
+  <Box
     onMouseDown={onMouseDown}
     sx={{
       width: 4,
@@ -183,9 +184,9 @@ function StudioPageContent() {
     role: 'user' | 'ai';
     content: string;
     type: 'text' | 'rag_result';
-    sources?: { 
-      title: string; 
-      id: string; 
+    sources?: {
+      title: string;
+      id: string;
       snippet?: string;
       page_number?: number;
       similarity?: number;
@@ -214,12 +215,26 @@ function StudioPageContent() {
   const [dragPreview, setDragPreview] = useState<{ x: number; y: number; content: string } | null>(null);
   const dragContentRef = useRef<string | null>(null);
 
+  // Chat context items state for drag-and-drop FROM sources/nodes TO chat
+  const [chatContextItems, setChatContextItems] = useState<Array<{
+    id: string;
+    type: 'source' | 'node';
+    title: string;
+    content?: string;
+  }>>([]);
+
+  // Handler to remove a context item
+  const removeContextItem = (itemId: string) => {
+    setChatContextItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
   // --- Selection State (moved before useEffect) ---
   const [activeResource, setActiveResource] = useState<Resource>(SAMPLE_RESOURCES[0]);
   const [sourceNavigation, setSourceNavigation] = useState<{
     resourceId: string;
     pageNumber?: number;
     searchText?: string;
+    highlightQuote?: string;
   } | null>(null);
 
   // Auto-scroll to bottom of chat
@@ -258,7 +273,7 @@ function StudioPageContent() {
     const resource = [...SAMPLE_RESOURCES, ...SAMPLE_MEDIA].find(r => r.id === sourceId);
     if (resource) {
       setActiveResource(resource);
-      setSourceNavigation({ resourceId: sourceId, pageNumber, searchText });
+      setSourceNavigation({ resourceId: sourceId, pageNumber, searchText, highlightQuote: searchText });
       // Scroll to PDF viewer if needed
       setTimeout(() => {
         const pdfViewer = document.querySelector('[data-pdf-viewer]');
@@ -307,60 +322,60 @@ function StudioPageContent() {
   // Generate many nodes for performance testing
   const generateInitialNodes = (): CanvasNode[] => {
     const nodes: CanvasNode[] = [];
-    
+
     // Core source nodes
     nodes.push({ id: 'c1', type: 'card', title: 'SOURCE PDF', content: 'Attention Is All You Need', x: 200, y: 300, color: 'white', connections: ['c2', 'c3', 'c4'] });
     nodes.push({ id: 'c2', type: 'card', title: 'SOURCE PDF', content: 'BERT: Pre-training of Deep Bidirectional Transformers', x: 800, y: 300, color: 'white', connections: ['c5', 'c6'] });
     nodes.push({ id: 'c3', type: 'card', title: 'SOURCE PDF', content: 'GPT-3: Language Models are Few-Shot Learners', x: 1400, y: 300, color: 'white', connections: ['c7', 'c8'] });
-    
+
     // Transformer concepts
     nodes.push({ id: 'c4', type: 'card', title: 'Self-Attention', content: 'The core mechanism that allows the model to weigh the importance of different words in a sequence.', x: 200, y: 600, color: 'blue', tags: ['#transformer', '#nlp'], connections: ['c9', 'c10'] });
     nodes.push({ id: 'c5', type: 'card', title: 'Multi-Head Attention', content: 'Allows the model to jointly attend to information from different representation subspaces at different positions.', x: 500, y: 600, color: 'blue', tags: ['#attention', '#transformer'], connections: ['c11'] });
     nodes.push({ id: 'c6', type: 'card', title: 'Positional Encoding', content: 'Injects information about the relative or absolute position of tokens in the sequence.', x: 800, y: 600, color: 'blue', tags: ['#transformer'], connections: ['c12'] });
-    
+
     // BERT concepts
     nodes.push({ id: 'c7', type: 'card', title: 'Bidirectional Context', content: 'BERT uses bidirectional context to understand the full meaning of words by looking at both left and right context.', x: 1100, y: 600, color: 'green', tags: ['#bert', '#nlp'], connections: ['c13', 'c14'] });
     nodes.push({ id: 'c8', type: 'card', title: 'Masked Language Model', content: 'BERT is pre-trained using a masked language modeling objective where random tokens are masked and predicted.', x: 1400, y: 600, color: 'green', tags: ['#bert', '#pretraining'], connections: ['c15'] });
-    
+
     // GPT concepts
     nodes.push({ id: 'c9', type: 'card', title: 'Autoregressive Generation', content: 'GPT models generate text one token at a time, using previously generated tokens as context.', x: 200, y: 900, color: 'purple', tags: ['#gpt', '#generation'], connections: ['c16'] });
     nodes.push({ id: 'c10', type: 'card', title: 'Few-Shot Learning', content: 'GPT-3 demonstrates the ability to perform tasks with just a few examples without fine-tuning.', x: 500, y: 900, color: 'purple', tags: ['#gpt', '#few-shot'], connections: ['c17'] });
-    
+
     // Architecture details
     nodes.push({ id: 'c11', type: 'card', title: 'Encoder-Decoder', content: 'The Transformer uses an encoder-decoder architecture for sequence-to-sequence tasks.', x: 800, y: 900, color: 'orange', tags: ['#architecture'], connections: ['c18'] });
     nodes.push({ id: 'c12', type: 'card', title: 'Layer Normalization', content: 'Normalizes the inputs across the features to stabilize training and improve convergence.', x: 1100, y: 900, color: 'orange', tags: ['#normalization'], connections: ['c19'] });
     nodes.push({ id: 'c13', type: 'card', title: 'Next Sentence Prediction', content: 'BERT uses NSP task to understand relationships between sentences.', x: 1400, y: 900, color: 'green', tags: ['#bert'], connections: ['c20'] });
-    
+
     // Applications
     nodes.push({ id: 'c14', type: 'card', title: 'Question Answering', content: 'BERT achieves state-of-the-art results on various QA benchmarks.', x: 200, y: 1200, color: 'pink', tags: ['#application', '#qa'] });
     nodes.push({ id: 'c15', type: 'card', title: 'Text Classification', content: 'Transformers excel at text classification tasks with fine-tuning.', x: 500, y: 1200, color: 'pink', tags: ['#application', '#classification'] });
     nodes.push({ id: 'c16', type: 'card', title: 'Text Generation', content: 'GPT models can generate coherent and contextually relevant text.', x: 800, y: 1200, color: 'pink', tags: ['#application', '#generation'] });
     nodes.push({ id: 'c17', type: 'card', title: 'Code Generation', content: 'Large language models can generate code from natural language descriptions.', x: 1100, y: 1200, color: 'pink', tags: ['#application', '#code'] });
     nodes.push({ id: 'c18', type: 'card', title: 'Machine Translation', content: 'Transformer architecture revolutionized neural machine translation.', x: 1400, y: 1200, color: 'pink', tags: ['#application', '#translation'] });
-    
+
     // Technical details
     nodes.push({ id: 'c19', type: 'card', title: 'Residual Connections', content: 'Skip connections help with gradient flow and enable training of deeper networks.', x: 200, y: 1500, color: 'cyan', tags: ['#technical', '#training'] });
     nodes.push({ id: 'c20', type: 'card', title: 'Feed-Forward Networks', content: 'Each transformer layer contains a position-wise feed-forward network.', x: 500, y: 1500, color: 'cyan', tags: ['#technical', '#architecture'] });
-    
+
     // Additional nodes for more complexity
     nodes.push({ id: 'c21', type: 'card', title: 'Scaled Dot-Product', content: 'Attention scores are scaled by the square root of the dimension to prevent softmax saturation.', x: 800, y: 1500, color: 'blue', tags: ['#attention', '#technical'] });
     nodes.push({ id: 'c22', type: 'card', title: 'Token Embeddings', content: 'Words are converted to dense vector representations before processing.', x: 1100, y: 1500, color: 'blue', tags: ['#embedding', '#technical'] });
     nodes.push({ id: 'c23', type: 'card', title: 'Subword Tokenization', content: 'BPE and WordPiece tokenization break words into smaller subword units.', x: 1400, y: 1500, color: 'blue', tags: ['#tokenization'] });
-    
+
     // More application nodes
     nodes.push({ id: 'c24', type: 'card', title: 'Sentiment Analysis', content: 'Transformers can accurately determine the sentiment of text.', x: 200, y: 1800, color: 'pink', tags: ['#application'] });
     nodes.push({ id: 'c25', type: 'card', title: 'Named Entity Recognition', content: 'BERT-based models excel at identifying entities in text.', x: 500, y: 1800, color: 'pink', tags: ['#application', '#ner'] });
     nodes.push({ id: 'c26', type: 'card', title: 'Summarization', content: 'Transformer models can generate concise summaries of long documents.', x: 800, y: 1800, color: 'pink', tags: ['#application', '#summarization'] });
     nodes.push({ id: 'c27', type: 'card', title: 'Dialogue Systems', content: 'GPT models power conversational AI systems and chatbots.', x: 1100, y: 1800, color: 'pink', tags: ['#application', '#dialogue'] });
     nodes.push({ id: 'c28', type: 'card', title: 'Information Extraction', content: 'Transformers can extract structured information from unstructured text.', x: 1400, y: 1800, color: 'pink', tags: ['#application', '#ie'] });
-    
+
     // Performance and optimization
     nodes.push({ id: 'c29', type: 'card', title: 'Model Parallelism', content: 'Large models are distributed across multiple GPUs for training and inference.', x: 200, y: 2100, color: 'yellow', tags: ['#optimization', '#training'] });
     nodes.push({ id: 'c30', type: 'card', title: 'Quantization', content: 'Model weights can be quantized to reduce memory and speed up inference.', x: 500, y: 2100, color: 'yellow', tags: ['#optimization', '#inference'] });
     nodes.push({ id: 'c31', type: 'card', title: 'Knowledge Distillation', content: 'Smaller models can learn from larger teacher models to maintain performance.', x: 800, y: 2100, color: 'yellow', tags: ['#optimization', '#efficiency'] });
     nodes.push({ id: 'c32', type: 'card', title: 'Pruning', content: 'Unimportant weights can be removed to reduce model size.', x: 1100, y: 2100, color: 'yellow', tags: ['#optimization'] });
     nodes.push({ id: 'c33', type: 'card', title: 'Gradient Checkpointing', content: 'Trades computation for memory to enable training of larger models.', x: 1400, y: 2100, color: 'yellow', tags: ['#optimization', '#memory'] });
-    
+
     return nodes;
   };
 
@@ -397,17 +412,17 @@ function StudioPageContent() {
   const handleSourceToNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
     if (!node || !canvasRef.current) return;
-    
+
     const rect = canvasRef.current.getBoundingClientRect();
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    
+
     setViewport(prev => ({
       ...prev,
       x: centerX - node.x * prev.scale,
       y: centerY - node.y * prev.scale,
     }));
-    
+
     setSelectedNodeId(nodeId);
   }, [canvasNodes]);
 
@@ -415,15 +430,15 @@ function StudioPageContent() {
   // --- Layout State ---
   const [leftVisible, setLeftVisible] = useState(true);
   const [centerVisible, setCenterVisible] = useState(true);
-  
+
   // --- Resizing State ---
   const [leftWidth, setLeftWidth] = useState(380);
-  const [centerWidth, setCenterWidth] = useState(420); 
+  const [centerWidth, setCenterWidth] = useState(420);
   const [resizingCol, setResizingCol] = useState<'left' | 'center' | null>(null);
 
   // --- Feature State ---
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
-  const [splitRatio, setSplitRatio] = useState(0.4); 
+  const [splitRatio, setSplitRatio] = useState(0.4);
   const [quietMode, setQuietMode] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [papersExpanded, setPapersExpanded] = useState(true);
@@ -467,7 +482,7 @@ function StudioPageContent() {
   const selectedNodeIdRef = useRef(selectedNodeId); // Ref for keyboard handler
   const selectedConnectionIdRef = useRef(selectedConnectionId); // Ref for keyboard handler
   const canvasRef = useRef<HTMLDivElement>(null);
-  
+
   // Unified RAF Manager for performance optimization
   const rafManager = useRef({
     rafId: null as number | null,
@@ -479,39 +494,39 @@ function StudioPageContent() {
   // Unified RAF update handler - applies all pending updates in a single frame
   // Using useRef to store the function to avoid stale closure issues with useCallback
   const applyRafUpdatesRef = useRef<() => void>();
-  
+
   applyRafUpdatesRef.current = () => {
     const manager = rafManager.current;
-    
+
     if (manager.pendingPan) {
       const { dx, dy } = manager.pendingPan;
       // Batch update viewport - only update if change is significant
       if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-        setViewport(prev => ({ 
-          x: prev.x + dx, 
-          y: prev.y + dy, 
-          scale: prev.scale 
+        setViewport(prev => ({
+          x: prev.x + dx,
+          y: prev.y + dy,
+          scale: prev.scale
         }));
       }
       manager.pendingPan = null;
     }
-    
+
     if (manager.pendingNodeDrag) {
       const { nodeId, dx, dy } = manager.pendingNodeDrag;
       // Batch update node position - only update if change is significant
       if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-        setCanvasNodes(prev => prev.map(node => 
+        setCanvasNodes(prev => prev.map(node =>
           node.id === nodeId ? { ...node, x: node.x + dx, y: node.y + dy } : node
         ));
       }
       manager.pendingNodeDrag = null;
     }
-    
+
     if (manager.pendingTempLine) {
       setTempLineEnd(manager.pendingTempLine);
       manager.pendingTempLine = null;
     }
-    
+
     manager.rafId = null;
   };
 
@@ -519,11 +534,11 @@ function StudioPageContent() {
   useEffect(() => {
     viewportRef.current = viewport;
   }, [viewport]);
-  
+
   useEffect(() => {
     selectedNodeIdRef.current = selectedNodeId;
   }, [selectedNodeId]);
-  
+
   useEffect(() => {
     selectedConnectionIdRef.current = selectedConnectionId;
   }, [selectedConnectionId]);
@@ -566,7 +581,7 @@ function StudioPageContent() {
   const tourIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [focusMode, setFocusMode] = useState(false);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
-  
+
   // --- Layer System State ---
   const [visibleLayers, setVisibleLayers] = useState<Set<'source' | 'concept' | 'application'>>(new Set(['source', 'concept', 'application']));
   const [layerOpacity, setLayerOpacity] = useState<Record<'source' | 'concept' | 'application', number>>({
@@ -598,7 +613,7 @@ function StudioPageContent() {
   const handleAddTab = (type: TabType) => {
     setMenuAnchor(null);
     const newId = `t-${Date.now()}`;
-    
+
     let title = 'New Tab';
     let isGen = false;
 
@@ -610,10 +625,10 @@ function StudioPageContent() {
       case 'writer': title = 'Writer'; break;
     }
 
-    const newTab: Tab = { 
-      id: newId, 
-      type, 
-      title, 
+    const newTab: Tab = {
+      id: newId,
+      type,
+      title,
       status: isGen ? 'generating' : 'ready',
       progress: 0
     };
@@ -640,7 +655,7 @@ function StudioPageContent() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !e.repeat && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-        e.preventDefault(); 
+        e.preventDefault();
         setIsSpacePressed(true);
       }
       if (e.key === 'Shift') {
@@ -654,16 +669,16 @@ function StudioPageContent() {
         e.preventDefault();
         setCenterVisible(prev => !prev);
       }
-      
+
       // Delete selected node or connection
-      if ((e.key === 'Delete' || e.key === 'Backspace') && 
-          (e.target as HTMLElement).tagName !== 'INPUT' && 
-          (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+      if ((e.key === 'Delete' || e.key === 'Backspace') &&
+        (e.target as HTMLElement).tagName !== 'INPUT' &&
+        (e.target as HTMLElement).tagName !== 'TEXTAREA') {
         e.preventDefault();
-        
+
         const currentSelectedConnectionId = selectedConnectionIdRef.current;
         const currentSelectedNodeId = selectedNodeIdRef.current;
-        
+
         if (currentSelectedConnectionId) {
           // Delete connection - split only on last '-' since node ids can contain '-'
           const lastDashIndex = currentSelectedConnectionId.lastIndexOf('-');
@@ -736,15 +751,15 @@ function StudioPageContent() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      
+
       const currentViewport = viewportRef.current;
-      
+
       // Zoom with Ctrl/Cmd + Wheel
       if (e.metaKey || e.ctrlKey) {
         const zoomSensitivity = 0.001;
         const delta = -e.deltaY * zoomSensitivity;
         const newScale = Math.min(Math.max(0.1, currentViewport.scale * (1 + delta)), 5);
-        
+
         const rect = canvasElement.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -770,7 +785,7 @@ function StudioPageContent() {
 
     // Add non-passive event listener
     canvasElement.addEventListener('wheel', handleWheel, { passive: false });
-    
+
     return () => {
       canvasElement.removeEventListener('wheel', handleWheel);
       if (rafId !== null) {
@@ -794,10 +809,10 @@ function StudioPageContent() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isVerticalDragging && leftColumnRef.current) {
-      const rect = leftColumnRef.current.getBoundingClientRect();
-      const relativeY = e.clientY - rect.top;
+        const rect = leftColumnRef.current.getBoundingClientRect();
+        const relativeY = e.clientY - rect.top;
         const newRatio = Math.min(Math.max(relativeY / rect.height, 0.2), 0.8);
-      setSplitRatio(newRatio);
+        setSplitRatio(newRatio);
         return;
       }
       if (resizingCol) {
@@ -839,9 +854,9 @@ function StudioPageContent() {
     setContextMenu(
       contextMenu === null
         ? {
-            mouseX: event.clientX + 2,
-            mouseY: event.clientY - 6,
-          }
+          mouseX: event.clientX + 2,
+          mouseY: event.clientY - 6,
+        }
         : null,
     );
   };
@@ -860,8 +875,8 @@ function StudioPageContent() {
     setIsAiProcessing(true);
     try {
       const result = await canvasApi.simplifyNode(projectId, nodeId);
-      setCanvasNodes(prev => prev.map(n => 
-        n.id === nodeId 
+      setCanvasNodes(prev => prev.map(n =>
+        n.id === nodeId
           ? { ...n, content: result.simplified_content, isSimplified: true }
           : n
       ));
@@ -881,7 +896,7 @@ function StudioPageContent() {
     try {
       const result = await canvasApi.critiqueNode(projectId, nodeId);
       const critiqueNode = result.critique_node;
-      
+
       // Create new critique node
       const newCritiqueNode: CanvasNode = {
         id: critiqueNode.id || `${nodeId}_critique_${Date.now()}`,
@@ -897,7 +912,7 @@ function StudioPageContent() {
       // Add critique node and connect original to it
       setCanvasNodes(prev => {
         const updated = [...prev, newCritiqueNode];
-        return updated.map(n => 
+        return updated.map(n =>
           n.id === nodeId && n.connections
             ? { ...n, connections: [...n.connections, newCritiqueNode.id] }
             : n
@@ -918,14 +933,14 @@ function StudioPageContent() {
     try {
       // MOCK: Simulate API call for prototype
       await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-      
+
       const node1 = canvasNodes.find(n => n.id === nodeId1);
       const node2 = canvasNodes.find(n => n.id === nodeId2);
-      
+
       if (!node1 || !node2) {
         throw new Error('Nodes not found');
       }
-      
+
       // Mock fusion result
       const fusionNode = {
         id: `fusion_${nodeId1}_${nodeId2}_${Date.now()}`,
@@ -935,7 +950,7 @@ function StudioPageContent() {
         y: (node1.y + node2.y) / 2,
         connections: [nodeId1, nodeId2],
       };
-      
+
       // Create new fusion node
       const newFusionNode: CanvasNode = {
         id: fusionNode.id,
@@ -1001,20 +1016,20 @@ function StudioPageContent() {
 
   const handleCreateCard = (
     text?: string,
-    metadata?: { 
-      timestamp?: string; 
-      sourceId?: string; 
+    metadata?: {
+      timestamp?: string;
+      sourceId?: string;
       sourcePage?: number;
       sourceText?: string;
       sourceType?: 'pdf' | 'chat';
       sourceMessageId?: string;
       sourceQuery?: string;
-    }, 
+    },
     position?: { x: number, y: number }
   ) => {
     const contentToUse = text || "The output is computed as a weighted sum of the values."; // Fallback for demo
     const newId = `c-${Date.now()}`;
-    
+
     // Calculate center of viewport if no position provided
     const centerX = position ? position.x : (-viewport.x + (canvasRef.current?.clientWidth || 800) / 2) / viewport.scale;
     const centerY = position ? position.y : (-viewport.y + (canvasRef.current?.clientHeight || 600) / 2) / viewport.scale;
@@ -1041,7 +1056,7 @@ function StudioPageContent() {
     };
 
     setCanvasNodes(prev => [...prev, newNode]);
-    
+
     // Ensure we are on a canvas tab
     const currentTab = tabs.find(t => t.id === activeTabId);
     if (currentTab?.type !== 'canvas') {
@@ -1083,15 +1098,15 @@ function StudioPageContent() {
         content: `Based on your query "${userMsg.content}", I found relevant information in the "Attention Is All You Need" paper. The Transformer model relies entirely on self-attention to compute representations of its input and output without using sequence-aligned RNNs or convolution.`,
         type: 'rag_result',
         sources: [
-          { 
-            title: 'Attention Is All You Need.pdf', 
+          {
+            title: 'Attention Is All You Need.pdf',
             id: '1',
             snippet: 'The Transformer model relies entirely on self-attention to compute representations of its input and output without using sequence-aligned RNNs or convolution.',
             page_number: 2,
             similarity: 0.85
           },
-          { 
-            title: 'BERT_Pre-training.pdf', 
+          {
+            title: 'BERT_Pre-training.pdf',
             id: '2',
             snippet: 'BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers.',
             page_number: 3,
@@ -1103,7 +1118,7 @@ function StudioPageContent() {
       };
       setChatMessages(prev => [...prev, aiMsg]);
       setIsTyping(false);
-      
+
       // Finalize Thinking Path step with AI response
       finalizeThinkingStepFromAi(aiMsg, draftStepId);
     }, 1500);
@@ -1111,7 +1126,7 @@ function StudioPageContent() {
 
   const handleAddRagToCanvas = (message: ChatMessage) => {
     if (!canvasRef.current) return;
-    
+
     // Calculate position: Center of current viewport
     const centerX = (-viewport.x + (canvasRef.current.clientWidth || 800) / 2) / viewport.scale;
     const centerY = (-viewport.y + (canvasRef.current.clientHeight || 600) / 2) / viewport.scale;
@@ -1129,23 +1144,23 @@ function StudioPageContent() {
     };
 
     setCanvasNodes(prev => [...prev, newNode]);
-    
+
     // Also add citation nodes if available (optional cluster effect)
     if (message.sources) {
-        message.sources.forEach((source, index) => {
-            const sourceNodeId = `source-${Date.now()}-${index}`;
-            const sourceNode: CanvasNode = {
-                id: sourceNodeId,
-                type: 'card',
-                title: 'Source',
-                content: source.title,
-                x: centerX - 140 + (index + 1) * 40,
-                y: centerY + 150, // Place below the main insight
-                color: 'blue',
-                connections: [newNode.id] // Connect to the insight
-            };
-            setCanvasNodes(prev => [...prev, sourceNode]);
-        });
+      message.sources.forEach((source, index) => {
+        const sourceNodeId = `source-${Date.now()}-${index}`;
+        const sourceNode: CanvasNode = {
+          id: sourceNodeId,
+          type: 'card',
+          title: 'Source',
+          content: source.title,
+          x: centerX - 140 + (index + 1) * 40,
+          y: centerY + 150, // Place below the main insight
+          color: 'blue',
+          connections: [newNode.id] // Connect to the insight
+        };
+        setCanvasNodes(prev => [...prev, sourceNode]);
+      });
     }
 
     // Ensure we are on a canvas tab
@@ -1161,16 +1176,16 @@ function StudioPageContent() {
   };
 
   // --- Thinking Path Generation Functions ---
-  
+
   // Calculate position for new thinking nodes (right side of viewport)
   const getThinkingNodePosition = useCallback((depth: number) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 2000, y: 100 };
-    
+
     // Initial right position
     const rightX = (-viewport.x + rect.width - 350) / viewport.scale;
     const topY = (-viewport.y + 80) / viewport.scale;
-    
+
     return {
       x: rightX + depth * 320, // Horizontal offset based on depth
       y: topY, // Default Y, will be adjusted by reorganize or auto-placement
@@ -1180,37 +1195,37 @@ function StudioPageContent() {
   // Create a draft thinking step when user sends a message
   const appendThinkingDraftStep = useCallback((userMsg: ChatMessage) => {
     if (!thinkingPathEnabled) return;
-    
+
     // Determine parent and depth
-    let parentNode = activeThinkingId 
-      ? canvasNodes.find(n => n.id === activeThinkingId) 
+    let parentNode = activeThinkingId
+      ? canvasNodes.find(n => n.id === activeThinkingId)
       : null;
-      
+
     // If no active node is selected, or the selected one isn't a thinking node,
     // check if there's a recent thinking node to attach to (linear fallback)
     // BUT per user request "New Topic", if activeThinkingId is null, we start a new root.
-    
+
     const depth = parentNode?.depth !== undefined ? parentNode.depth + 1 : 0;
     const newStepIndex = thinkingStepCounter + 1;
-    
+
     // Calculate initial position - ensure it doesn't overlap perfectly
     const basePos = getThinkingNodePosition(depth);
     // Add some Y offset based on existing children to prevent immediate overlap before reorganize
     const existingChildren = parentNode ? canvasNodes.filter(n => n.connections?.includes(parentNode!.id)) : [];
     const yOffset = existingChildren.length * 250;
-    
-    const position = { 
-      x: basePos.x, 
+
+    const position = {
+      x: basePos.x,
       y: basePos.y + yOffset + (depth === 0 ? canvasNodes.filter(n => n.type === 'thinking_step' && (n.depth === 0 || n.depth === undefined)).length * 250 : 0)
     };
-    
+
     // Extract claim from user message (first 80 chars)
-    const claim = userMsg.content.length > 80 
-      ? userMsg.content.substring(0, 80) + '...' 
+    const claim = userMsg.content.length > 80
+      ? userMsg.content.substring(0, 80) + '...'
       : userMsg.content;
-    
+
     const newStepId = `thinking-step-${Date.now()}`;
-    
+
     const newNode: CanvasNode = {
       id: newStepId,
       type: 'thinking_step',
@@ -1234,34 +1249,34 @@ function StudioPageContent() {
       isDraft: true,
       connections: parentNode ? [parentNode.id] : [],
     };
-    
+
     setCanvasNodes(prev => [...prev, newNode]);
     setThinkingStepCounter(newStepIndex);
-    
+
     // Auto-set the new node as active for subsequent turns (continuation)
     setActiveThinkingId(newStepId);
-    
+
     return newStepId;
   }, [thinkingPathEnabled, thinkingStepCounter, canvasNodes, getThinkingNodePosition, activeThinkingId]);
 
   // Finalize the thinking step when AI responds
   const finalizeThinkingStepFromAi = useCallback((aiMsg: ChatMessage, draftStepId?: string) => {
     if (!thinkingPathEnabled) return;
-    
+
     // Find the draft step to update
-    const draftStep = draftStepId 
+    const draftStep = draftStepId
       ? canvasNodes.find(n => n.id === draftStepId)
       : canvasNodes.find(n => n.type === 'thinking_step' && n.isDraft);
-    
+
     if (!draftStep) return;
-    
+
     // Mock AI extraction: Extract structured fields from AI response
     const sentences = aiMsg.content.split(/[.!?]+/).filter(s => s.trim());
     const reason = sentences[0]?.trim() || 'Analysis based on available data';
     const evidence = sentences[1]?.trim() || 'Referenced from source materials';
     const uncertainty = sentences.length > 2 ? sentences[2]?.trim() : 'Further validation may be needed';
     const decision = sentences[sentences.length - 1]?.trim() || 'Proceed with current understanding';
-    
+
     // Update the draft step with AI-extracted fields
     setCanvasNodes(prev => prev.map(node => {
       if (node.id === draftStep.id) {
@@ -1280,7 +1295,7 @@ function StudioPageContent() {
       }
       return node;
     }));
-    
+
     // Randomly decide whether to add branch nodes (mock AI decision)
     const shouldAddBranch = Math.random() > 0.5;
     if (shouldAddBranch && aiMsg.sources && aiMsg.sources.length > 0) {
@@ -1289,16 +1304,16 @@ function StudioPageContent() {
         x: draftStep.x + 300,
         y: draftStep.y + 60,
       };
-      
+
       const branchTypes: Array<'alternative' | 'question' | 'counterargument'> = ['alternative', 'question', 'counterargument'];
       const branchType = branchTypes[Math.floor(Math.random() * branchTypes.length)];
-      
-      const branchContent = branchType === 'question' 
+
+      const branchContent = branchType === 'question'
         ? `How does this relate to ${aiMsg.sources[0].title}?`
         : branchType === 'alternative'
-        ? `Could also explore: ${aiMsg.sources[0].snippet?.substring(0, 50)}...`
-        : `Consider: ${aiMsg.sources.length} sources may have conflicting views`;
-      
+          ? `Could also explore: ${aiMsg.sources[0].snippet?.substring(0, 50)}...`
+          : `Consider: ${aiMsg.sources.length} sources may have conflicting views`;
+
       const branchNode: CanvasNode = {
         id: `thinking-branch-${Date.now()}`,
         type: 'thinking_branch',
@@ -1312,7 +1327,7 @@ function StudioPageContent() {
         parentStepId: draftStep.id,
         connections: [draftStep.id],
       };
-      
+
       setCanvasNodes(prev => [...prev, branchNode]);
     }
   }, [thinkingPathEnabled, canvasNodes]);
@@ -1323,7 +1338,7 @@ function StudioPageContent() {
     if (thinkingNodes.length === 0) return;
 
     // Build tree structure
-    const roots = thinkingNodes.filter(n => 
+    const roots = thinkingNodes.filter(n =>
       // It's a root if it has no connections pointing TO it (parent is connection target in this codebase logic?)
       // Wait, connections array in this code usually means "Outbound" connections. 
       // My implementation of appendThinkingDraftStep set `connections: [parentNode.id]`.
@@ -1356,17 +1371,17 @@ function StudioPageContent() {
       }
     });
 
-    const newPositions = new Map<string, {x: number, y: number}>();
+    const newPositions = new Map<string, { x: number, y: number }>();
     let currentY = startY;
 
     const layoutNode = (node: CanvasNode, level: number) => {
       const children = childMap.get(node.id) || [];
-      
+
       // Calculate Y based on children (center parent relative to children)
       // or just stack top-down for now (Mind Map usually spreads vertically)
-      
+
       const myY = currentY;
-      
+
       if (children.length === 0) {
         currentY += nodeHeight; // Leaf node takes space
         newPositions.set(node.id, { x: startX + level * levelWidth, y: myY });
@@ -1380,7 +1395,7 @@ function StudioPageContent() {
         // const parentY = (firstChildY + lastChildY) / 2;
         // But for "Thinking Path", top-alignment or center alignment is fine.
         // Let's stick to simple vertical stack for now to avoid overlap
-        
+
         newPositions.set(node.id, { x: startX + level * levelWidth, y: firstChildY + (children.length - 1) * nodeHeight / 2 });
       }
     };
@@ -1407,7 +1422,7 @@ function StudioPageContent() {
     const repulsionStrength = k * k;
     const attractionStrength = 0.01;
     const damping = 0.9;
-    
+
     // Initialize velocities
     const velocities = nodes.map(() => ({ x: 0, y: 0 }));
 
@@ -1424,7 +1439,7 @@ function StudioPageContent() {
           const force = repulsionStrength / (distance * distance);
           const fx = (dx / distance) * force;
           const fy = (dy / distance) * force;
-          
+
           forces[i].x += fx;
           forces[i].y += fy;
           forces[j].x -= fx;
@@ -1438,14 +1453,14 @@ function StudioPageContent() {
           for (const targetId of nodes[i].connections) {
             const targetIndex = nodes.findIndex(n => n.id === targetId);
             if (targetIndex === -1) continue;
-            
+
             const dx = nodes[targetIndex].x - nodes[i].x;
             const dy = nodes[targetIndex].y - nodes[i].y;
             const distance = Math.sqrt(dx * dx + dy * dy) || 1;
             const force = (distance - k) * attractionStrength;
             const fx = (dx / distance) * force;
             const fy = (dy / distance) * force;
-            
+
             forces[i].x += fx;
             forces[i].y += fy;
             forces[targetIndex].x -= fx;
@@ -1468,10 +1483,10 @@ function StudioPageContent() {
     const minY = Math.min(...nodes.map(n => n.y));
     const centerX = minX + (Math.max(...nodes.map(n => n.x)) - minX) / 2;
     const centerY = minY + (Math.max(...nodes.map(n => n.y)) - minY) / 2;
-    
+
     const offsetX = -centerX + (canvasRef.current?.clientWidth || 800) / 2;
     const offsetY = -centerY + (canvasRef.current?.clientHeight || 600) / 2;
-    
+
     nodes.forEach(node => {
       node.x += offsetX;
       node.y += offsetY;
@@ -1504,13 +1519,13 @@ function StudioPageContent() {
 
   const handleDetectCommunities = useCallback(() => {
     const nodes = [...canvasNodes];
-    
+
     // Build adjacency map for efficient lookup
     const adjacencyMap = new Map<string, Set<string>>();
     nodes.forEach(node => {
       adjacencyMap.set(node.id, new Set());
     });
-    
+
     // Build bidirectional connections
     nodes.forEach(node => {
       if (node.connections) {
@@ -1527,12 +1542,12 @@ function StudioPageContent() {
     // Community detection using connected components
     const visited = new Set<string>();
     const communities: string[][] = [];
-    
+
     const dfs = (nodeId: string, community: string[]) => {
       if (visited.has(nodeId)) return;
       visited.add(nodeId);
       community.push(nodeId);
-      
+
       const neighbors = adjacencyMap.get(nodeId) || new Set();
       neighbors.forEach(neighborId => {
         if (!visited.has(neighborId)) {
@@ -1580,7 +1595,7 @@ function StudioPageContent() {
   // Advanced clustering: Group nodes by semantic similarity (tags, content)
   const handleSemanticClustering = useCallback(() => {
     const nodes = [...canvasNodes];
-    
+
     // Build tag-based clusters
     const tagClusters = new Map<string, string[]>();
     nodes.forEach(node => {
@@ -1603,7 +1618,7 @@ function StudioPageContent() {
         node.tags.forEach(tag => {
           tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
         });
-        
+
         // Find most common tag
         let maxTag = '';
         let maxCount = 0;
@@ -1613,7 +1628,7 @@ function StudioPageContent() {
             maxTag = tag;
           }
         });
-        
+
         if (maxTag) {
           nodeToCluster.set(node.id, { tag: maxTag, count: maxCount });
         }
@@ -1623,7 +1638,7 @@ function StudioPageContent() {
     // Assign colors based on dominant tags
     const tagToColorIndex = new Map<string, number>();
     let colorIndex = 0;
-    
+
     nodes.forEach(node => {
       const clusterInfo = nodeToCluster.get(node.id);
       if (clusterInfo) {
@@ -1675,13 +1690,13 @@ function StudioPageContent() {
   // Enhanced clustering: Group nodes by community with connection density analysis
   const handleGroupByCommunity = useCallback(() => {
     const nodes = [...canvasNodes];
-    
+
     // Build adjacency map with connection weights
     const adjacencyMap = new Map<string, Map<string, number>>();
     nodes.forEach(node => {
       adjacencyMap.set(node.id, new Map());
     });
-    
+
     // Calculate connection weights (bidirectional)
     nodes.forEach(node => {
       if (node.connections) {
@@ -1699,27 +1714,27 @@ function StudioPageContent() {
     // Enhanced community detection using connection density
     const visited = new Set<string>();
     const communities: string[][] = [];
-    
+
     // Calculate node connection density
     const nodeDensity = new Map<string, number>();
     nodes.forEach(node => {
       const connections = adjacencyMap.get(node.id) || new Map();
       nodeDensity.set(node.id, connections.size);
     });
-    
+
     // Find communities using DFS with minimum connection threshold
     const minConnections = 2; // Minimum connections to form a community
     const dfs = (nodeId: string, community: string[]) => {
       if (visited.has(nodeId)) return;
       visited.add(nodeId);
       community.push(nodeId);
-      
+
       const neighbors = adjacencyMap.get(nodeId) || new Map();
       // Sort neighbors by connection weight
       const sortedNeighbors = Array.from(neighbors.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([id]) => id);
-      
+
       sortedNeighbors.forEach(neighborId => {
         if (!visited.has(neighborId)) {
           const weight = neighbors.get(neighborId) || 0;
@@ -1754,7 +1769,7 @@ function StudioPageContent() {
       const minY = Math.min(...communityNodes.map(n => n.y));
       const maxX = Math.max(...communityNodes.map(n => n.x + 280));
       const maxY = Math.max(...communityNodes.map(n => n.y + 200));
-      
+
       return {
         id: `group-${index}`,
         title: `Community ${index + 1} (${community.length} nodes)`,
@@ -1771,7 +1786,7 @@ function StudioPageContent() {
 
   // Toggle group collapse
   const handleToggleGroup = useCallback((groupId: string) => {
-    setNodeGroups(prev => prev.map(group => 
+    setNodeGroups(prev => prev.map(group =>
       group.id === groupId ? { ...group, collapsed: !group.collapsed } : group
     ));
   }, []);
@@ -1788,41 +1803,41 @@ function StudioPageContent() {
   // Filter nodes based on search and tags
   const filteredNodes = useMemo(() => {
     let filtered = [...canvasNodes];
-    
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(node => 
+      filtered = filtered.filter(node =>
         node.title.toLowerCase().includes(query) ||
         node.content?.toLowerCase().includes(query) ||
         node.tags?.some(tag => tag.toLowerCase().includes(query))
       );
     }
-    
+
     // Tag filter
     if (selectedTags.length > 0) {
-      filtered = filtered.filter(node => 
+      filtered = filtered.filter(node =>
         node.tags?.some(tag => selectedTags.includes(tag))
       );
     }
-    
+
     return filtered;
   }, [canvasNodes, searchQuery, selectedTags]);
 
   // Get visible nodes considering groups, progressive disclosure, and layers
   const getVisibleNodes = useCallback(() => {
     let nodes = filteredNodes;
-    
+
     // Apply layer filter
     nodes = nodes.filter(node => {
       if (node.type === 'group') return true;
-      const nodeLayer: 'source' | 'concept' | 'application' = 
+      const nodeLayer: 'source' | 'concept' | 'application' =
         node.type === 'source' || node.title === 'SOURCE PDF' ? 'source' :
-        node.type === 'concept' ? 'concept' :
-        node.type === 'application' ? 'application' : 'concept';
+          node.type === 'concept' ? 'concept' :
+            node.type === 'application' ? 'application' : 'concept';
       return visibleLayers.has(nodeLayer);
     });
-    
+
     // Apply progressive disclosure: filter out locked nodes
     if (progressiveMode) {
       nodes = nodes.filter(node => {
@@ -1831,16 +1846,16 @@ function StudioPageContent() {
         return unlockedNodes.has(node.id);
       });
     }
-    
+
     if (nodeGroups.length === 0) return nodes;
-    
+
     const visibleNodeIds = new Set<string>();
     nodeGroups.forEach(group => {
       if (!group.collapsed) {
         group.nodeIds.forEach(id => visibleNodeIds.add(id));
       }
     });
-    
+
     // Also include nodes not in any group
     nodes.forEach(node => {
       const inGroup = nodeGroups.some(g => g.nodeIds.includes(node.id));
@@ -1848,10 +1863,10 @@ function StudioPageContent() {
         visibleNodeIds.add(node.id);
       }
     });
-    
+
     return nodes.filter(node => visibleNodeIds.has(node.id));
   }, [filteredNodes, nodeGroups, progressiveMode, unlockedNodes, visibleLayers]);
-  
+
   // Toggle layer visibility
   const handleToggleLayer = useCallback((layer: 'source' | 'concept' | 'application') => {
     setVisibleLayers(prev => {
@@ -1864,7 +1879,7 @@ function StudioPageContent() {
       return next;
     });
   }, []);
-  
+
   // Set layer opacity
   const handleSetLayerOpacity = useCallback((layer: 'source' | 'concept' | 'application', opacity: number) => {
     setLayerOpacity(prev => ({ ...prev, [layer]: opacity }));
@@ -1875,14 +1890,14 @@ function StudioPageContent() {
     // Auto-generate learning path based on node connections
     const nodes = [...canvasNodes];
     if (nodes.length === 0) return;
-    
+
     // Find source nodes (starting points)
     const sourceNodes = nodes.filter(n => n.title === 'SOURCE PDF' || n.type === 'group');
     if (sourceNodes.length === 0) {
       // Use first node as starting point
       const path: string[] = [nodes[0].id];
       const visited = new Set<string>([nodes[0].id]);
-      
+
       // Follow connections to build path
       let current = nodes[0];
       while (current.connections && current.connections.length > 0) {
@@ -1892,17 +1907,17 @@ function StudioPageContent() {
         visited.add(nextId);
         current = nodes.find(n => n.id === nextId) || current;
       }
-      
+
       const learningPath: LearningPath = {
         id: `path-${Date.now()}`,
         name: 'Auto Learning Path',
         nodeIds: path,
         currentStep: 0,
       };
-      
+
       setLearningPaths([learningPath]);
       setActiveLearningPath(learningPath.id);
-      
+
       // Unlock first node
       setUnlockedNodes(new Set([path[0]]));
       setProgressiveMode(true);
@@ -1912,20 +1927,20 @@ function StudioPageContent() {
   // Unlock next node in learning path
   const handleUnlockNext = useCallback(() => {
     if (!activeLearningPath) return;
-    
+
     const path = learningPaths.find(p => p.id === activeLearningPath);
     if (!path) return;
-    
+
     if (path.currentStep < path.nodeIds.length - 1) {
       const nextStep = path.currentStep + 1;
       const nextNodeId = path.nodeIds[nextStep];
-      
-      setLearningPaths(prev => prev.map(p => 
+
+      setLearningPaths(prev => prev.map(p =>
         p.id === activeLearningPath ? { ...p, currentStep: nextStep } : p
       ));
-      
+
       setUnlockedNodes(prev => new Set([...prev, nextNodeId]));
-      
+
       // Auto-navigate to next node
       const nextNode = canvasNodes.find(n => n.id === nextNodeId);
       if (nextNode && canvasRef.current) {
@@ -1965,43 +1980,43 @@ function StudioPageContent() {
       handleCreateLearningPath();
       return;
     }
-    
+
     const path = learningPaths.find(p => p.id === activeLearningPath);
     if (!path || path.nodeIds.length === 0) return;
-    
+
     setIsTourActive(true);
     let currentIndex = 0;
-    
+
     const navigateToNode = (nodeId: string) => {
       const node = canvasNodes.find(n => n.id === nodeId);
       if (!node || !canvasRef.current) return;
-      
+
       const rect = canvasRef.current.getBoundingClientRect();
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
-      
+
       // Smooth animation to node
       setViewport(prev => ({
         ...prev,
         x: centerX - node.x * prev.scale,
         y: centerY - node.y * prev.scale,
       }));
-      
+
       // Select the node
       setSelectedNodeId(nodeId);
-      
+
       // Unlock the node
       setUnlockedNodes(prev => new Set([...prev, nodeId]));
-      
+
       // Update learning path step
-      setLearningPaths(prev => prev.map(p => 
+      setLearningPaths(prev => prev.map(p =>
         p.id === activeLearningPath ? { ...p, currentStep: currentIndex } : p
       ));
     };
-    
+
     // Navigate to first node
     navigateToNode(path.nodeIds[0]);
-    
+
     // Auto-advance through nodes
     tourIntervalRef.current = setInterval(() => {
       currentIndex++;
@@ -2014,7 +2029,7 @@ function StudioPageContent() {
         setIsTourActive(false);
         return;
       }
-      
+
       navigateToNode(path.nodeIds[currentIndex]);
     }, 3000); // 3 seconds per node
   }, [activeLearningPath, learningPaths, canvasNodes]);
@@ -2042,7 +2057,7 @@ function StudioPageContent() {
     setFocusMode(true);
     setFocusNodeId(nodeId);
     setSelectedNodeId(nodeId);
-    
+
     // Navigate to node
     const node = canvasNodes.find(n => n.id === nodeId);
     if (node && canvasRef.current) {
@@ -2068,7 +2083,7 @@ function StudioPageContent() {
     if (!focusNodeId) return new Set<string>();
     const node = canvasNodes.find(n => n.id === focusNodeId);
     if (!node) return new Set<string>();
-    
+
     const neighbors = new Set<string>([focusNodeId]);
     if (node.connections) {
       node.connections.forEach(id => neighbors.add(id));
@@ -2086,7 +2101,7 @@ function StudioPageContent() {
   const renderNodeWithLOD = useCallback((node: CanvasNode, lod: LODLevel) => {
     const isSelected = selectedNodeId === node.id;
     const isHovered = hoveredNodeId === node.id;
-    
+
     if (lod === 'dot') {
       // Minimal: just a colored dot
       return (
@@ -2111,7 +2126,7 @@ function StudioPageContent() {
         />
       );
     }
-    
+
     if (lod === 'minimal') {
       // Minimal: title only
       return (
@@ -2141,7 +2156,7 @@ function StudioPageContent() {
         </Paper>
       );
     }
-    
+
     if (lod === 'compact') {
       // Compact: title + short content
       return (
@@ -2169,7 +2184,7 @@ function StudioPageContent() {
             {node.title}
           </Typography>
           {node.content && (
-            <Typography variant="caption" color="text.secondary" sx={{ 
+            <Typography variant="caption" color="text.secondary" sx={{
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
@@ -2181,7 +2196,7 @@ function StudioPageContent() {
         </Paper>
       );
     }
-    
+
     // Full: complete node rendering (existing code)
     return null; // Will use existing full rendering
   }, [selectedNodeId, hoveredNodeId]);
@@ -2190,14 +2205,28 @@ function StudioPageContent() {
   const renderResource = (res: Resource) => {
     const isActive = activeResource.id === res.id;
     if (viewMode === 'list') {
-  return (
-        <Box 
-          key={res.id} onClick={() => setActiveResource(res)}
-          sx={{ 
-            display: 'flex', gap: 1.5, p: 1.5, mb: 1, borderRadius: 2, 
-            bgcolor: isActive ? '#EFF6FF' : 'transparent', 
+      return (
+        <Box
+          key={res.id}
+          onClick={() => setActiveResource(res)}
+          draggable
+          onDragStart={(e) => {
+            const payload = {
+              id: res.id,
+              type: 'source',
+              title: res.title,
+              name: res.title,
+              content: res.content || `Source: ${res.title}`
+            };
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('application/json', JSON.stringify(payload));
+            e.dataTransfer.setData('text/plain', res.title);
+          }}
+          sx={{
+            display: 'flex', gap: 1.5, p: 1.5, mb: 1, borderRadius: 2,
+            bgcolor: isActive ? '#EFF6FF' : 'transparent',
             border: isActive ? '1px solid' : '1px solid', borderColor: isActive ? '#BFDBFE' : 'transparent',
-            '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover' }, cursor: 'pointer', transition: 'all 0.2s'
+            '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover' }, cursor: 'grab', transition: 'all 0.2s'
           }}
         >
           {res.type === 'pdf' && <FileText size={16} className={isActive ? "text-blue-600 mt-0.5" : "text-gray-400 mt-0.5"} />}
@@ -2206,24 +2235,41 @@ function StudioPageContent() {
           {res.type === 'link' && <LinkIcon size={16} className="text-gray-400 mt-0.5" />}
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography variant="body2" fontWeight={isActive ? "500" : "400"} color={isActive ? "primary.main" : "text.primary"} noWrap>{res.title}</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="caption" color="text.secondary">{res.date}</Typography>
               {(res.duration || res.pages) && <Typography variant="caption" color="text.disabled">•</Typography>}
               {res.duration && <Typography variant="caption" sx={{ color: 'text.secondary', bgcolor: 'action.hover', px: 0.5, borderRadius: 0.5 }}>{res.duration}</Typography>}
               {res.pages && <Typography variant="caption" color="text.secondary">{res.pages}p</Typography>}
-              </Box>
-              </Box>
             </Box>
+          </Box>
+        </Box>
       );
     }
     // Grid Mode
     return (
-      <Box key={res.id} sx={{ position: 'relative', group: 'card' }} onClick={() => setActiveResource(res)}>
+      <Box
+        key={res.id}
+        sx={{ position: 'relative', group: 'card' }}
+        onClick={() => setActiveResource(res)}
+        draggable
+        onDragStart={(e) => {
+          const payload = {
+            id: res.id,
+            type: 'source',
+            title: res.title,
+            name: res.title,
+            content: res.content || `Source: ${res.title}`
+          };
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData('application/json', JSON.stringify(payload));
+          e.dataTransfer.setData('text/plain', res.title);
+        }}
+      >
         <Paper
           elevation={0}
-                sx={{ 
+          sx={{
             p: 0, overflow: 'hidden', borderRadius: 2, border: isActive ? '2px solid' : '1px solid', borderColor: isActive ? 'primary.main' : 'divider',
-            cursor: 'pointer', transition: 'all 0.2s', '&:hover': { borderColor: isActive ? 'primary.main' : 'grey.400', transform: 'translateY(-2px)' }, display: 'flex', flexDirection: 'column'
+            cursor: 'grab', transition: 'all 0.2s', '&:hover': { borderColor: isActive ? 'primary.main' : 'grey.400', transform: 'translateY(-2px)' }, display: 'flex', flexDirection: 'column'
           }}
         >
           <Box sx={{ height: 100, bgcolor: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -2239,24 +2285,24 @@ function StudioPageContent() {
                 <Box sx={{ position: 'absolute', bottom: 4, right: 4, bgcolor: 'rgba(0,0,0,0.7)', color: '#fff', px: 0.5, borderRadius: 0.5, fontSize: 10, fontWeight: 600 }}>{res.duration}</Box>
               </Box>
             )}
-             {res.type === 'audio' && (
+            {res.type === 'audio' && (
               <Box sx={{ width: '100%', height: '100%', bgcolor: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Music size={32} className="text-purple-400 opacity-80" />
                 <Box sx={{ position: 'absolute', bottom: 4, right: 4, bgcolor: 'rgba(0,0,0,0.7)', color: '#fff', px: 0.5, borderRadius: 0.5, fontSize: 10, fontWeight: 600 }}>{res.duration}</Box>
               </Box>
             )}
-             {res.type === 'link' && <Box sx={{ width: '100%', height: '100%', bgcolor: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Globe size={32} className="text-blue-300" /></Box>}
+            {res.type === 'link' && <Box sx={{ width: '100%', height: '100%', bgcolor: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Globe size={32} className="text-blue-300" /></Box>}
             {isActive && <Box sx={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', border: '2px solid white' }} />}
-              </Box>
+          </Box>
           <Box sx={{ p: 1.5 }}>
             <Typography variant="caption" fontWeight="600" sx={{ display: 'block', lineHeight: 1.2, mb: 0.5 }} noWrap title={res.title}>{res.title}</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-               {res.type === 'pdf' && <FileText size={12} className="text-gray-400" />}{res.type === 'video' && <Video size={12} className="text-gray-400" />}{res.type === 'audio' && <Music size={12} className="text-gray-400" />}{res.type === 'link' && <LinkIcon size={12} className="text-gray-400" />}
-               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{res.date}</Typography>
+              {res.type === 'pdf' && <FileText size={12} className="text-gray-400" />}{res.type === 'video' && <Video size={12} className="text-gray-400" />}{res.type === 'audio' && <Music size={12} className="text-gray-400" />}{res.type === 'link' && <LinkIcon size={12} className="text-gray-400" />}
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{res.date}</Typography>
             </Box>
-                </Box>
-              </Paper>
-            </Box>
+          </Box>
+        </Paper>
+      </Box>
     );
   };
 
@@ -2279,20 +2325,21 @@ function StudioPageContent() {
         </Box>
 
         {type === 'pdf' && (
-          <Box 
+          <Box
             data-pdf-viewer
             sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             onClick={handleCloseContextMenu}
           >
             <PDFViewer
               documentId={activeResource.id}
+              highlightText={sourceNavigation?.highlightQuote}
               content={
                 <Box sx={{ p: 4 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>3.2 Attention</Typography>
                   <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>An attention function can be described as mapping a query and a set of key-value pairs to an output.</Typography>
-                  
+
                   {/* Highlighted Text Area simulating user selection */}
-                  <Box 
+                  <Box
                     component="span"
                     onContextMenu={handleContextMenu}
                     draggable
@@ -2304,27 +2351,27 @@ function StudioPageContent() {
                     onDragEnd={() => {
                       setIsDraggingFromPdf(false);
                     }}
-                    sx={{ 
-                      bgcolor: sourceNavigation?.searchText?.includes('output is computed') ? '#FFEB3B' : '#FFF9C4', 
-                      p: 0.5, 
-                      borderRadius: 1, 
+                    sx={{
+                      bgcolor: sourceNavigation?.searchText?.includes('output is computed') ? '#FFEB3B' : '#FFF9C4',
+                      p: 0.5,
+                      borderRadius: 1,
                       mx: -0.5,
                       cursor: 'text',
                       display: 'inline',
                       border: '1px solid transparent',
-                      '&:hover': { border: '1px dashed', borderColor: 'orange.300', cursor: 'grab' } 
+                      '&:hover': { border: '1px dashed', borderColor: 'orange.300', cursor: 'grab' }
                     }}
                   >
                     <Typography component="span" variant="body1" sx={{ lineHeight: 1.8, fontWeight: 500 }}>The output is computed as a weighted sum of the values.</Typography>
                   </Box>
-                  
+
                   {/* Additional content that can be highlighted based on source navigation */}
                   {sourceNavigation && sourceNavigation.resourceId === activeResource.id && sourceNavigation.searchText && (
-                    <Typography 
-                      variant="body1" 
-                      paragraph 
-                      sx={{ 
-                        lineHeight: 1.8, 
+                    <Typography
+                      variant="body1"
+                      paragraph
+                      sx={{
+                        lineHeight: 1.8,
                         color: 'text.secondary',
                         mt: 2,
                         '& .highlighted-text': {
@@ -2365,7 +2412,7 @@ function StudioPageContent() {
                   )}
 
                   <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', mt: 2 }}>
-                    The two most commonly used attention functions are additive attention, and dot-product (multiplicative) attention. 
+                    The two most commonly used attention functions are additive attention, and dot-product (multiplicative) attention.
                   </Typography>
 
                   <Paper variant="outlined" sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', my: 4, borderStyle: 'dashed' }}><Box sx={{ textAlign: 'center', color: 'text.disabled' }}><ImageIcon size={32} className="mx-auto mb-2" /><Typography variant="caption">Figure 1: Scaled Dot-Product Attention</Typography></Box></Paper>
@@ -2381,7 +2428,7 @@ function StudioPageContent() {
                 console.log('Highlight deleted:', highlightId);
               }}
             />
-          
+
             {/* Context Menu */}
             <Menu
               open={contextMenu !== null}
@@ -2407,55 +2454,55 @@ function StudioPageContent() {
         )}
         {type === 'video' && (
           <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', position: 'relative', bgcolor: '#000' }}>
-             {/* Player Area */}
+            {/* Player Area */}
             <Box sx={{ height: '45%', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', borderBottom: '1px solid #333' }}>
-            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'grey.500' }}>[ Video Placeholder: {title} ]</Typography></Box>
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}><Slider size="small" defaultValue={30} sx={{ color: '#fff', mb: 1 }} /><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}><Box sx={{ display: 'flex', gap: 2 }}><Play size={20} fill="currentColor" /><Volume2 size={20} /></Box><Typography variant="caption">12:30 / {duration}</Typography></Box></Box>
+              <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="body2" sx={{ color: 'grey.500' }}>[ Video Placeholder: {title} ]</Typography></Box>
+              <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}><Slider size="small" defaultValue={30} sx={{ color: '#fff', mb: 1 }} /><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}><Box sx={{ display: 'flex', gap: 2 }}><Play size={20} fill="currentColor" /><Volume2 size={20} /></Box><Typography variant="caption">12:30 / {duration}</Typography></Box></Box>
             </Box>
 
             {/* Transcript Area */}
             <Box sx={{ flexGrow: 1, bgcolor: '#fff', display: 'flex', flexDirection: 'column', height: '55%' }}>
-                 <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F9FAFB' }}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><ListIcon size={14} /> Transcript</Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Chip label="English" size="small" sx={{ height: 20, fontSize: 10, bgcolor: '#fff', border: '1px solid', borderColor: 'divider' }} />
-                    </Box>
+              <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F9FAFB' }}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><ListIcon size={14} /> Transcript</Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Chip label="English" size="small" sx={{ height: 20, fontSize: 10, bgcolor: '#fff', border: '1px solid', borderColor: 'divider' }} />
                 </Box>
-                <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
-                    {[
-                        { time: '00:15', text: "Welcome to the course. Today we discuss Transformers." },
-                        { time: '02:30', text: "The attention mechanism is the key component of this architecture." },
-                        { time: '12:30', text: "It allows the model to focus on relevant parts of the input sequence.", highlight: true },
-                        { time: '15:45', text: "Let's look at the mathematical formulation of Self-Attention." }
-                    ].map((item, idx) => (
-                         <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2.5, opacity: item.highlight ? 1 : 0.7, '&:hover': { opacity: 1 } }}>
-                            <Typography variant="caption" sx={{ color: 'primary.main', fontFamily: 'monospace', flexShrink: 0, pt: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>{item.time}</Typography>
-                            <Typography 
-                                variant="body2" 
-                                draggable
-                                onDragStart={(e) => {
-                                    e.dataTransfer.setData("text/plain", item.text);
-                                    e.dataTransfer.setData("application/json", JSON.stringify({ type: 'transcript', text: item.text, timestamp: item.time, sourceId: activeResource.id }));
-                                    e.dataTransfer.effectAllowed = "copy";
-                                    setIsDraggingFromPdf(true);
-                                }}
-                                onDragEnd={() => setIsDraggingFromPdf(false)}
-                                sx={{ 
-                                    cursor: 'grab', 
-                                    bgcolor: item.highlight ? '#EFF6FF' : 'transparent',
-                                    p: item.highlight ? 1 : 0,
-                                    borderRadius: 1,
-                                    border: item.highlight ? '1px solid' : '1px solid transparent',
-                                    borderColor: item.highlight ? 'primary.light' : 'transparent',
-                                    lineHeight: 1.6,
-                                    '&:hover': { bgcolor: '#F3F4F6' }
-                                }}
-                            >
-                                {item.text}
-                            </Typography>
-                         </Box>
-                    ))}
-                </Box>
+              </Box>
+              <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+                {[
+                  { time: '00:15', text: "Welcome to the course. Today we discuss Transformers." },
+                  { time: '02:30', text: "The attention mechanism is the key component of this architecture." },
+                  { time: '12:30', text: "It allows the model to focus on relevant parts of the input sequence.", highlight: true },
+                  { time: '15:45', text: "Let's look at the mathematical formulation of Self-Attention." }
+                ].map((item, idx) => (
+                  <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2.5, opacity: item.highlight ? 1 : 0.7, '&:hover': { opacity: 1 } }}>
+                    <Typography variant="caption" sx={{ color: 'primary.main', fontFamily: 'monospace', flexShrink: 0, pt: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>{item.time}</Typography>
+                    <Typography
+                      variant="body2"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", item.text);
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: 'transcript', text: item.text, timestamp: item.time, sourceId: activeResource.id }));
+                        e.dataTransfer.effectAllowed = "copy";
+                        setIsDraggingFromPdf(true);
+                      }}
+                      onDragEnd={() => setIsDraggingFromPdf(false)}
+                      sx={{
+                        cursor: 'grab',
+                        bgcolor: item.highlight ? '#EFF6FF' : 'transparent',
+                        p: item.highlight ? 1 : 0,
+                        borderRadius: 1,
+                        border: item.highlight ? '1px solid' : '1px solid transparent',
+                        borderColor: item.highlight ? 'primary.light' : 'transparent',
+                        lineHeight: 1.6,
+                        '&:hover': { bgcolor: '#F3F4F6' }
+                      }}
+                    >
+                      {item.text}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
             </Box>
           </Box>
         )}
@@ -2469,53 +2516,53 @@ function StudioPageContent() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, color: '#fff' }}><SkipBack size={20} /><Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}><Play size={20} fill="currentColor" className="ml-1" /></Box><SkipForward size={20} /></Box>
             </Box>
 
-             {/* Transcript Area */}
+            {/* Transcript Area */}
             <Box sx={{ flexGrow: 1, bgcolor: '#fff', display: 'flex', flexDirection: 'column', height: '55%' }}>
-                 <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F9FAFB' }}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><ListIcon size={14} /> Transcript</Typography>
-                </Box>
-                <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
-                   {[
-                        { time: '00:05', text: "In this episode, we explore the depths of DeepMind's latest research." },
-                        { time: '04:12', text: "Reinforcement learning has shown remarkable results in complex environments." },
-                        { time: '15:00', text: "AlphaGo was a turning point for the field of AI.", highlight: true },
-                        { time: '22:30', text: "The future of AGI depends on generalizable learning algorithms." }
-                    ].map((item, idx) => (
-                         <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2.5, opacity: item.highlight ? 1 : 0.7, '&:hover': { opacity: 1 } }}>
-                            <Typography variant="caption" sx={{ color: 'purple.500', fontFamily: 'monospace', flexShrink: 0, pt: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>{item.time}</Typography>
-                            <Typography 
-                                variant="body2" 
-                                draggable
-                                onDragStart={(e) => {
-                                    e.dataTransfer.setData("text/plain", item.text);
-                                    e.dataTransfer.setData("application/json", JSON.stringify({ type: 'transcript', text: item.text, timestamp: item.time, sourceId: activeResource.id }));
-                                    e.dataTransfer.effectAllowed = "copy";
-                                    setIsDraggingFromPdf(true);
-                                }}
-                                onDragEnd={() => setIsDraggingFromPdf(false)}
-                                sx={{ 
-                                    cursor: 'grab', 
-                                    bgcolor: item.highlight ? '#F5F3FF' : 'transparent',
-                                    p: item.highlight ? 1 : 0,
-                                    borderRadius: 1,
-                                    border: item.highlight ? '1px solid' : '1px solid transparent',
-                                    borderColor: item.highlight ? 'purple.200' : 'transparent',
-                                    lineHeight: 1.6,
-                                    '&:hover': { bgcolor: '#FAF5FF' }
-                                }}
-                            >
-                                {item.text}
-                            </Typography>
-                         </Box>
-                    ))}
-                </Box>
+              <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F9FAFB' }}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><ListIcon size={14} /> Transcript</Typography>
+              </Box>
+              <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+                {[
+                  { time: '00:05', text: "In this episode, we explore the depths of DeepMind's latest research." },
+                  { time: '04:12', text: "Reinforcement learning has shown remarkable results in complex environments." },
+                  { time: '15:00', text: "AlphaGo was a turning point for the field of AI.", highlight: true },
+                  { time: '22:30', text: "The future of AGI depends on generalizable learning algorithms." }
+                ].map((item, idx) => (
+                  <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2.5, opacity: item.highlight ? 1 : 0.7, '&:hover': { opacity: 1 } }}>
+                    <Typography variant="caption" sx={{ color: 'purple.500', fontFamily: 'monospace', flexShrink: 0, pt: 0.5, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>{item.time}</Typography>
+                    <Typography
+                      variant="body2"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", item.text);
+                        e.dataTransfer.setData("application/json", JSON.stringify({ type: 'transcript', text: item.text, timestamp: item.time, sourceId: activeResource.id }));
+                        e.dataTransfer.effectAllowed = "copy";
+                        setIsDraggingFromPdf(true);
+                      }}
+                      onDragEnd={() => setIsDraggingFromPdf(false)}
+                      sx={{
+                        cursor: 'grab',
+                        bgcolor: item.highlight ? '#F5F3FF' : 'transparent',
+                        p: item.highlight ? 1 : 0,
+                        borderRadius: 1,
+                        border: item.highlight ? '1px solid' : '1px solid transparent',
+                        borderColor: item.highlight ? 'purple.200' : 'transparent',
+                        lineHeight: 1.6,
+                        '&:hover': { bgcolor: '#FAF5FF' }
+                      }}
+                    >
+                      {item.text}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
             </Box>
           </Box>
         )}
         {type === 'link' && (
-           <Box sx={{ flexGrow: 1, bgcolor: '#F9FAFB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4 }}>
-             <Box sx={{ textAlign: 'center', mb: 4 }}><Globe size={48} className="text-gray-300 mb-2 mx-auto" /><Typography variant="h6" gutterBottom>External Resource</Typography><Button variant="outlined" startIcon={<ExternalLink size={16} />} href="https://huggingface.co" target="_blank">Open in Browser</Button></Box>
-           </Box>
+          <Box sx={{ flexGrow: 1, bgcolor: '#F9FAFB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: 4 }}><Globe size={48} className="text-gray-300 mb-2 mx-auto" /><Typography variant="h6" gutterBottom>External Resource</Typography><Button variant="outlined" startIcon={<ExternalLink size={16} />} href="https://huggingface.co" target="_blank">Open in Browser</Button></Box>
+          </Box>
         )}
       </Box>
     );
@@ -2524,25 +2571,25 @@ function StudioPageContent() {
   // --- Render Tab Content ---
   const renderTabContent = () => {
     const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
-    
+
     // Loading State
     if (activeTab.status === 'generating') {
       return (
         <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#F9FAFB' }}>
-           <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
-             <CircularProgress size={60} thickness={4} sx={{ color: 'primary.main' }} />
-             <Box sx={{ top: 0, left: 0, bottom: 0, right: 0, position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-               {activeTab.type === 'podcast' && <Mic size={24} className="text-primary-main" />}
-               {activeTab.type === 'flashcards' && <BrainCircuit size={24} className="text-primary-main" />}
-               {activeTab.type === 'ppt' && <Presentation size={24} className="text-primary-main" />}
-             </Box>
-           </Box>
-           <Typography variant="h6" fontWeight="bold" gutterBottom>Generating {activeTab.title}...</Typography>
-           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>AI is analyzing your resources and synthesizing content.</Typography>
-           <Box sx={{ width: 300 }}>
-             <LinearProgress variant="determinate" value={activeTab.progress || 0} sx={{ borderRadius: 2, height: 6 }} />
-                </Box>
-              </Box>
+          <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
+            <CircularProgress size={60} thickness={4} sx={{ color: 'primary.main' }} />
+            <Box sx={{ top: 0, left: 0, bottom: 0, right: 0, position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {activeTab.type === 'podcast' && <Mic size={24} className="text-primary-main" />}
+              {activeTab.type === 'flashcards' && <BrainCircuit size={24} className="text-primary-main" />}
+              {activeTab.type === 'ppt' && <Presentation size={24} className="text-primary-main" />}
+            </Box>
+          </Box>
+          <Typography variant="h6" fontWeight="bold" gutterBottom>Generating {activeTab.title}...</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>AI is analyzing your resources and synthesizing content.</Typography>
+          <Box sx={{ width: 300 }}>
+            <LinearProgress variant="determinate" value={activeTab.progress || 0} sx={{ borderRadius: 2, height: 6 }} />
+          </Box>
+        </Box>
       );
     }
 
@@ -2550,44 +2597,44 @@ function StudioPageContent() {
     switch (activeTab.type) {
       case 'podcast': return <PodcastView />;
       case 'writer': return <WriterView />;
-      case 'canvas': 
+      case 'canvas':
       default:
         // Viewport culling: Calculate visible nodes and connections
         // Use explicit dependencies instead of viewport object to avoid unnecessary recalculations
         const visibleData = useMemo(() => {
           // Get nodes considering filters and groups
           const baseNodes = getVisibleNodes();
-          
+
           if (baseNodes.length === 0) {
             return { visibleNodes: baseNodes, visibleConnections: [] };
           }
-          
+
           // Read ref but don't include it in dependencies (refs don't trigger re-renders)
           const rect = canvasRef.current?.getBoundingClientRect();
           if (!rect) {
             return { visibleNodes: baseNodes, visibleConnections: [] };
           }
-          
+
           // Enhanced virtualization: dynamic padding based on scale and performance
           // Larger padding for smoother scrolling, but adaptive to prevent over-rendering
           const basePadding = 300;
           const scaleFactor = Math.max(0.5, Math.min(2, viewport.scale)); // Clamp scale factor
           const padding = basePadding * (1 / scaleFactor); // More padding when zoomed out
-          
+
           // Calculate viewport bounds in canvas coordinates with buffer zone
           const viewportLeft = (-viewport.x - padding) / viewport.scale;
           const viewportRight = (-viewport.x + rect.width + padding) / viewport.scale;
           const viewportTop = (-viewport.y - padding) / viewport.scale;
           const viewportBottom = (-viewport.y + rect.height + padding) / viewport.scale;
-          
+
           // Filter nodes in viewport
           const visibleNodes = baseNodes.filter(node => {
             const nodeRight = node.x + 280; // Card width
             const nodeBottom = node.y + 200; // Approximate card height
             return node.x < viewportRight && nodeRight > viewportLeft &&
-                   node.y < viewportBottom && nodeBottom > viewportTop;
+              node.y < viewportBottom && nodeBottom > viewportTop;
           });
-          
+
           // Filter connections where both nodes are visible
           const visibleConnections: Array<{ source: CanvasNode; target: CanvasNode; connectionId: string }> = [];
           visibleNodes.forEach(node => {
@@ -2604,15 +2651,15 @@ function StudioPageContent() {
               });
             }
           });
-          
+
           return { visibleNodes, visibleConnections };
         }, [canvasNodes, viewport.x, viewport.y, viewport.scale, searchQuery, selectedTags, nodeGroups, getVisibleNodes]); // Explicit dependencies
-        
+
         const { visibleNodes, visibleConnections } = visibleData;
         const currentLOD = getNodeLOD(viewport.scale);
         const connectionLOD = getConnectionLOD(viewport.scale);
         const textLOD = getTextLOD(viewport.scale);
-        
+
         // Render different views based on viewMode
         const renderListView = () => (
           <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
@@ -2631,7 +2678,7 @@ function StudioPageContent() {
                 {filteredNodes.length} nodes
               </Typography>
             </Box>
-            
+
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {filteredNodes.map(node => (
                 <Paper
@@ -2691,7 +2738,7 @@ function StudioPageContent() {
         const renderHierarchicalView = () => {
           // Group nodes by community or tags
           const groups = nodeGroups.length > 0 ? nodeGroups : [];
-          
+
           if (groups.length === 0) {
             return (
               <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
@@ -2704,7 +2751,7 @@ function StudioPageContent() {
               </Box>
             );
           }
-          
+
           return (
             <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2 }}>
               {groups.map(group => (
@@ -2762,7 +2809,7 @@ function StudioPageContent() {
             </Box>
           );
         };
-        
+
         // Main canvas view (default)
         if (canvasViewMode !== 'canvas') {
           return (
@@ -2786,24 +2833,24 @@ function StudioPageContent() {
             </Box>
           );
         }
-        
+
         return (
           <Box sx={{ position: 'relative', flexGrow: 1, height: '100%', overflow: 'hidden' }}>
             {/* Project Initializer Overlay */}
             {isInitializing && (
-              <ProjectInitializer 
-                projectId={projectId} 
-                onComplete={() => setIsInitializing(false)} 
+              <ProjectInitializer
+                projectId={projectId}
+                onComplete={() => setIsInitializing(false)}
               />
             )}
-            
-          <Box 
-            ref={canvasRef}
-            className={isPanning ? 'panning' : ''}
-            sx={{ 
+
+            <Box
+              ref={canvasRef}
+              className={isPanning ? 'panning' : ''}
+              sx={{
                 width: '100%',
                 height: '100%',
-                bgcolor: '#F9FAFB', 
+                bgcolor: '#F9FAFB',
                 position: 'relative',
                 overflow: 'hidden',
                 cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
@@ -2812,122 +2859,122 @@ function StudioPageContent() {
                 // Performance optimizations
                 contain: 'layout style paint', // CSS containment for better performance
                 willChange: isPanning || draggingNodeId ? 'contents' : 'auto',
-            }}
-            onMouseDown={(e) => {
+              }}
+              onMouseDown={(e) => {
                 // Only start panning if:
                 // 1. Space is pressed (force pan mode)
                 // 2. Middle mouse button
                 // 3. Left click on empty background (not on a node - nodes stopPropagation)
                 if (isSpacePressed || e.button === 1) {
-                   setIsPanning(true);
-                   lastMousePos.current = { x: e.clientX, y: e.clientY };
+                  setIsPanning(true);
+                  lastMousePos.current = { x: e.clientX, y: e.clientY };
                 } else if (e.button === 0) {
-                   // Left click on background - deselect, but DON'T pan (let user marquee select in future)
-                   setSelectedNodeId(null);
-                   setSelectedConnectionId(null);
-                   // For now, also allow panning on background drag
-                   setIsPanning(true);
-                   lastMousePos.current = { x: e.clientX, y: e.clientY };
+                  // Left click on background - deselect, but DON'T pan (let user marquee select in future)
+                  setSelectedNodeId(null);
+                  setSelectedConnectionId(null);
+                  // For now, also allow panning on background drag
+                  setIsPanning(true);
+                  lastMousePos.current = { x: e.clientX, y: e.clientY };
                 }
-            }}
-            onMouseMove={(e) => {
+              }}
+              onMouseMove={(e) => {
                 mousePos.current = { x: e.clientX, y: e.clientY };
                 const manager = rafManager.current;
-                
+
                 // Update temp line end position when connecting
                 if (connectingNodeId && canvasRef.current) {
-                    const rect = canvasRef.current.getBoundingClientRect();
-                    const currentViewport = viewportRef.current;
-                    const canvasX = (e.clientX - rect.left - currentViewport.x) / currentViewport.scale;
-                    const canvasY = (e.clientY - rect.top - currentViewport.y) / currentViewport.scale;
-                    mousePos.current = { x: canvasX, y: canvasY };
-                    // Store in pending update
-                    manager.pendingTempLine = { x: canvasX, y: canvasY };
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  const currentViewport = viewportRef.current;
+                  const canvasX = (e.clientX - rect.left - currentViewport.x) / currentViewport.scale;
+                  const canvasY = (e.clientY - rect.top - currentViewport.y) / currentViewport.scale;
+                  mousePos.current = { x: canvasX, y: canvasY };
+                  // Store in pending update
+                  manager.pendingTempLine = { x: canvasX, y: canvasY };
                 } else if (draggingNodeId) {
-                    // Calculate total movement since drag start
-                    if (dragStartPos.current) {
-                        const moveX = Math.abs(e.clientX - dragStartPos.current.x);
-                        const moveY = Math.abs(e.clientY - dragStartPos.current.y);
-                        if (moveX < 3 && moveY < 3) {
-                            lastMousePos.current = { x: e.clientX, y: e.clientY };
-                            return;
-                        }
-                        dragStartPos.current = null; 
+                  // Calculate total movement since drag start
+                  if (dragStartPos.current) {
+                    const moveX = Math.abs(e.clientX - dragStartPos.current.x);
+                    const moveY = Math.abs(e.clientY - dragStartPos.current.y);
+                    if (moveX < 3 && moveY < 3) {
+                      lastMousePos.current = { x: e.clientX, y: e.clientY };
+                      return;
                     }
+                    dragStartPos.current = null;
+                  }
 
-                    // Dragging Node logic (Canvas Space)
-                    const currentViewport = viewportRef.current;
-                    const dx = (e.clientX - lastMousePos.current.x) / currentViewport.scale;
-                    const dy = (e.clientY - lastMousePos.current.y) / currentViewport.scale;
-                    
-                    // Store in pending update
-                    manager.pendingNodeDrag = { nodeId: draggingNodeId, dx, dy };
-                    
-                    lastMousePos.current = { x: e.clientX, y: e.clientY };
+                  // Dragging Node logic (Canvas Space)
+                  const currentViewport = viewportRef.current;
+                  const dx = (e.clientX - lastMousePos.current.x) / currentViewport.scale;
+                  const dy = (e.clientY - lastMousePos.current.y) / currentViewport.scale;
+
+                  // Store in pending update
+                  manager.pendingNodeDrag = { nodeId: draggingNodeId, dx, dy };
+
+                  lastMousePos.current = { x: e.clientX, y: e.clientY };
                 } else if (isPanning && !draggingNodeId) {
-                    // Panning Viewport logic (Screen Space)
-                    const dx = e.clientX - lastMousePos.current.x;
-                    const dy = e.clientY - lastMousePos.current.y;
-                    
-                    // Store in pending update
-                    manager.pendingPan = { dx, dy };
-                    
-                    lastMousePos.current = { x: e.clientX, y: e.clientY };
+                  // Panning Viewport logic (Screen Space)
+                  const dx = e.clientX - lastMousePos.current.x;
+                  const dy = e.clientY - lastMousePos.current.y;
+
+                  // Store in pending update
+                  manager.pendingPan = { dx, dy };
+
+                  lastMousePos.current = { x: e.clientX, y: e.clientY };
                 }
-                
+
                 // Schedule RAF update if not already scheduled
                 if (manager.rafId === null && applyRafUpdatesRef.current) {
-                    manager.rafId = requestAnimationFrame(applyRafUpdatesRef.current);
+                  manager.rafId = requestAnimationFrame(applyRafUpdatesRef.current);
                 }
-            }}
-            onMouseUp={() => {
+              }}
+              onMouseUp={() => {
                 setIsPanning(false);
                 setDraggingNodeId(null);
                 dragStartPos.current = null;
                 // Cancel connection if mouse released on empty space (not on a card)
                 setConnectingNodeId(null);
                 setTempLineEnd(null);
-            }}
-            onMouseLeave={() => {
+              }}
+              onMouseLeave={() => {
                 setIsPanning(false);
                 setDraggingNodeId(null);
                 setConnectingNodeId(null);
                 setTempLineEnd(null);
                 dragStartPos.current = null;
-            }}
-            onClick={(e) => {
-              // Clear selection when clicking on empty canvas (not on a node)
-              if (e.target === e.currentTarget) {
-                setSelectedNodeId(null);
-                setSelectedNodeIds(new Set());
-              }
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "copy";
+              }}
+              onClick={(e) => {
+                // Clear selection when clicking on empty canvas (not on a node)
+                if (e.target === e.currentTarget) {
+                  setSelectedNodeId(null);
+                  setSelectedNodeIds(new Set());
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
 
-              // Update drag preview position while dragging AI response
-              if (dragContentRef.current && canvasRef.current) {
-                const rect = canvasRef.current.getBoundingClientRect();
-                const screenX = e.clientX - rect.left;
-                const screenY = e.clientY - rect.top;
-                const canvasX = (screenX - viewport.x) / viewport.scale;
-                const canvasY = (screenY - viewport.y) / viewport.scale;
+                // Update drag preview position while dragging AI response
+                if (dragContentRef.current && canvasRef.current) {
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  const screenX = e.clientX - rect.left;
+                  const screenY = e.clientY - rect.top;
+                  const canvasX = (screenX - viewport.x) / viewport.scale;
+                  const canvasY = (screenY - viewport.y) / viewport.scale;
 
-                setDragPreview({
-                  x: canvasX,
-                  y: canvasY,
-                  content: dragContentRef.current,
-                });
-              }
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+                  setDragPreview({
+                    x: canvasX,
+                    y: canvasY,
+                    content: dragContentRef.current,
+                  });
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
 
-              // Calculate drop position in Canvas Coordinates
-              const rect = canvasRef.current?.getBoundingClientRect();
-              if (rect) {
+                // Calculate drop position in Canvas Coordinates
+                const rect = canvasRef.current?.getBoundingClientRect();
+                if (rect) {
                   const screenX = e.clientX - rect.left;
                   const screenY = e.clientY - rect.top;
                   const canvasX = (screenX - viewport.x) / viewport.scale;
@@ -2939,18 +2986,18 @@ function StudioPageContent() {
                   if (jsonData) {
                     try {
                       const data = JSON.parse(jsonData);
-                      
+
                       // From transcript / timeline
                       if (data.type === 'transcript') {
                         handleCreateCard(
-                          data.text, 
-                          { 
-                            timestamp: data.timestamp, 
-                            sourceId: data.sourceId, 
-                            sourcePage: data.pageNumber, 
+                          data.text,
+                          {
+                            timestamp: data.timestamp,
+                            sourceId: data.sourceId,
+                            sourcePage: data.pageNumber,
                             sourceText: data.text,
                             sourceType: 'pdf',
-                          }, 
+                          },
                           { x: canvasX, y: canvasY }
                         );
                         handled = true;
@@ -2970,8 +3017,8 @@ function StudioPageContent() {
                         );
                         handled = true;
                       }
-                    } catch(err) { 
-                      console.error(err); 
+                    } catch (err) {
+                      console.error(err);
                     }
                   }
 
@@ -2981,440 +3028,440 @@ function StudioPageContent() {
                       handleCreateCard(text, undefined, { x: canvasX, y: canvasY });
                     }
                   }
-              }
+                }
 
-              setIsDraggingFromPdf(false);
-              setDragPreview(null);
-            }}
-          >
-            {/* Floating Toolbar */}
-            {(selectedNodeId || selectedNodeIds.size > 0) && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 20,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 1000,
-                  display: 'flex',
-                  gap: 1,
-                  alignItems: 'center',
-                  bgcolor: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(8px)',
-                  borderRadius: 2,
-                  p: 1,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  transition: 'opacity 0.2s, transform 0.2s',
-                }}
-              >
-                {selectedNodeIds.size === 2 ? (
-                  // Smart Fusion button when exactly 2 nodes selected
-                  <Button
-                    variant="contained"
-                    startIcon={<SparklesIcon size={18} />}
-                    onClick={() => {
-                      const ids = Array.from(selectedNodeIds);
-                      if (ids.length === 2) {
-                        handleFuseNodes(ids[0], ids[1]);
-                      }
-                    }}
-                    disabled={isAiProcessing}
-                    sx={{
-                      bgcolor: '#9333EA',
-                      color: 'white',
-                      '&:hover': { bgcolor: '#7E22CE' },
-                      minWidth: 140,
-                    }}
-                  >
-                    {isAiProcessing ? <CircularProgress size={16} /> : 'Smart Fusion'}
-                  </Button>
-                ) : (
-                  // Single node actions
-                  <>
-                    {(() => {
-                      const nodeId = selectedNodeId || Array.from(selectedNodeIds)[0];
-                      const node = canvasNodes.find(n => n.id === nodeId);
-                      if (!node) return null;
-                      
-                      return (
-                        <>
-                          {!node.isSimplified && (
-                            <Tooltip title="AI Simplify">
+                setIsDraggingFromPdf(false);
+                setDragPreview(null);
+              }}
+            >
+              {/* Floating Toolbar */}
+              {(selectedNodeId || selectedNodeIds.size > 0) && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 20,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    display: 'flex',
+                    gap: 1,
+                    alignItems: 'center',
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    borderRadius: 2,
+                    p: 1,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    transition: 'opacity 0.2s, transform 0.2s',
+                  }}
+                >
+                  {selectedNodeIds.size === 2 ? (
+                    // Smart Fusion button when exactly 2 nodes selected
+                    <Button
+                      variant="contained"
+                      startIcon={<SparklesIcon size={18} />}
+                      onClick={() => {
+                        const ids = Array.from(selectedNodeIds);
+                        if (ids.length === 2) {
+                          handleFuseNodes(ids[0], ids[1]);
+                        }
+                      }}
+                      disabled={isAiProcessing}
+                      sx={{
+                        bgcolor: '#9333EA',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#7E22CE' },
+                        minWidth: 140,
+                      }}
+                    >
+                      {isAiProcessing ? <CircularProgress size={16} /> : 'Smart Fusion'}
+                    </Button>
+                  ) : (
+                    // Single node actions
+                    <>
+                      {(() => {
+                        const nodeId = selectedNodeId || Array.from(selectedNodeIds)[0];
+                        const node = canvasNodes.find(n => n.id === nodeId);
+                        if (!node) return null;
+
+                        return (
+                          <>
+                            {!node.isSimplified && (
+                              <Tooltip title="AI Simplify">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleSimplifyNode(nodeId)}
+                                  disabled={isAiProcessing}
+                                  sx={{ color: 'primary.main' }}
+                                >
+                                  {isAiProcessing ? <CircularProgress size={16} /> : <Wand2 size={18} />}
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            <Tooltip title="AI Critique">
                               <IconButton
                                 size="small"
-                                onClick={() => handleSimplifyNode(nodeId)}
+                                onClick={() => handleCritiqueNode(nodeId)}
                                 disabled={isAiProcessing}
-                                sx={{ color: 'primary.main' }}
+                                sx={{ color: 'error.main' }}
                               >
-                                {isAiProcessing ? <CircularProgress size={16} /> : <Wand2 size={18} />}
+                                {isAiProcessing ? <CircularProgress size={16} /> : <AlertCircle size={18} />}
                               </IconButton>
                             </Tooltip>
-                          )}
-                          <Tooltip title="AI Critique">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleCritiqueNode(nodeId)}
-                              disabled={isAiProcessing}
-                              sx={{ color: 'error.main' }}
-                            >
-                              {isAiProcessing ? <CircularProgress size={16} /> : <AlertCircle size={18} />}
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      );
-                    })()}
-                  </>
-                )}
-                {/* Delete button for any selection */}
-                <Tooltip title="Delete">
-                  <IconButton
-                    size="small"
-                    onClick={handleDeleteSelectedNodes}
-                    sx={{ color: 'error.main' }}
-                  >
-                    <Trash2 size={18} />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            )}
-            
-            {/* Infinite Grid Background - Static (no recalc on viewport change) */}
-            <Box 
-              sx={{ 
-                position: 'absolute', 
-                inset: 0, 
-                opacity: 0.3, 
-                backgroundImage: 'radial-gradient(#CBD5E1 1px, transparent 1px)', 
-                backgroundSize: '24px 24px',
-                pointerEvents: 'none',
-                // Use transform for better performance
-                transform: `translate3d(${viewport.x % 24}px, ${viewport.y % 24}px, 0) scale(${viewport.scale})`,
-                transformOrigin: '0 0',
-              }} 
-            />
-            
-            {/* Focus Mode Overlay */}
-            {focusMode && (
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                  {/* Delete button for any selection */}
+                  <Tooltip title="Delete">
+                    <IconButton
+                      size="small"
+                      onClick={handleDeleteSelectedNodes}
+                      sx={{ color: 'error.main' }}
+                    >
+                      <Trash2 size={18} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
+
+              {/* Infinite Grid Background - Static (no recalc on viewport change) */}
               <Box
                 sx={{
                   position: 'absolute',
                   inset: 0,
-                  bgcolor: 'rgba(0, 0, 0, 0.3)',
-                  zIndex: 5,
+                  opacity: 0.3,
+                  backgroundImage: 'radial-gradient(#CBD5E1 1px, transparent 1px)',
+                  backgroundSize: '24px 24px',
                   pointerEvents: 'none',
-                  transition: 'background-color 0.3s',
+                  // Use transform for better performance
+                  transform: `translate3d(${viewport.x % 24}px, ${viewport.y % 24}px, 0) scale(${viewport.scale})`,
+                  transformOrigin: '0 0',
                 }}
               />
-            )}
-            
-            {/* Canvas Content Container - Transformed */}
-            <Box 
-            sx={{ 
-                transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`,
-                transformOrigin: '0 0',
-                willChange: isPanning || draggingNodeId ? 'transform' : 'auto',
-                position: 'absolute',
-                top: 0, 
-                left: 0,
-                // Performance: Force GPU layer
-                backfaceVisibility: 'hidden',
-                perspective: 1000,
-              }}
-            >
-              {/* Drag Preview for AI Insights */}
-              {dragPreview && (
+
+              {/* Focus Mode Overlay */}
+              {focusMode && (
                 <Box
                   sx={{
                     position: 'absolute',
-                    top: dragPreview.y - 80,
-                    left: dragPreview.x - 140,
-                    width: 280,
+                    inset: 0,
+                    bgcolor: 'rgba(0, 0, 0, 0.3)',
+                    zIndex: 5,
                     pointerEvents: 'none',
-                    opacity: 0.7,
-                    zIndex: 20,
+                    transition: 'background-color 0.3s',
                   }}
-                >
-                  <Paper
-                    elevation={6}
+                />
+              )}
+
+              {/* Canvas Content Container - Transformed */}
+              <Box
+                sx={{
+                  transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.scale})`,
+                  transformOrigin: '0 0',
+                  willChange: isPanning || draggingNodeId ? 'transform' : 'auto',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  // Performance: Force GPU layer
+                  backfaceVisibility: 'hidden',
+                  perspective: 1000,
+                }}
+              >
+                {/* Drag Preview for AI Insights */}
+                {dragPreview && (
+                  <Box
                     sx={{
-                      borderRadius: 3,
-                      border: '1px dashed',
-                      borderColor: 'primary.main',
-                      bgcolor: 'background.paper',
-                      p: 2,
+                      position: 'absolute',
+                      top: dragPreview.y - 80,
+                      left: dragPreview.x - 140,
+                      width: 280,
+                      pointerEvents: 'none',
+                      opacity: 0.7,
+                      zIndex: 20,
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <Bot size={14} className="text-blue-600" />
-                      <Typography variant="caption" fontWeight="bold" color="primary.main">
-                        AI Insight (Preview)
-                      </Typography>
-                    </Box>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
+                    <Paper
+                      elevation={6}
                       sx={{
-                        maxHeight: 72,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
+                        borderRadius: 3,
+                        border: '1px dashed',
+                        borderColor: 'primary.main',
+                        bgcolor: 'background.paper',
+                        p: 2,
                       }}
                     >
-                      {dragPreview.content}
-                    </Typography>
-                  </Paper>
-                </Box>
-              )}
-                  {/* SVG Connections - Render lines between connected nodes (only visible) */}
-              <svg style={{ 
-                position: 'absolute', 
-                top: 0, 
-                left: 0, 
-                width: 10000, 
-                height: 10000, 
-                overflow: 'visible', 
-                pointerEvents: 'visiblePainted',
-                shapeRendering: 'geometricPrecision',
-              }}>
-                {/* Background rect to pass through events */}
-                <rect width="10000" height="10000" fill="transparent" style={{ pointerEvents: 'none' }} />
-                    {/* Existing Connections - only render visible ones */}
-                    {visibleConnections.map(({ source: node, target, connectionId }) => {
-                        // Start from right edge of source, end at left edge of target
-                        const x1 = node.x + 280; // Right edge (card width)
-                        const y1 = node.y + 60;  // Vertical center approx
-                        const x2 = target.x;     // Left edge
-                        const y2 = target.y + 60;
-                        
-                        const dx = Math.abs(x2 - x1);
-                        const controlX = Math.max(dx * 0.4, 50);
-                        const isSelected = selectedConnectionId === connectionId;
-                        
-                        // Hover highlight: check if connection is related to hovered node
-                        const isHovered = hoveredNodeId === node.id || hoveredNodeId === target.id;
-                        const shouldHighlight = showAllConnections || isHovered || isSelected;
-                        let opacity = shouldHighlight ? 1 : (hoveredNodeId ? 0.2 : 1); // Dim non-hovered when hovering
-                        
-                        // Focus mode: dim connections not in focus
-                        if (focusMode) {
-                          const isInFocus = focusNeighbors.has(node.id) && focusNeighbors.has(target.id);
-                          opacity = isInFocus ? opacity : opacity * 0.2;
-                        }
-                        
-                        // Learning path: check if this connection is the next step
-                        const activePath = learningPaths.find(p => p.id === activeLearningPath);
-                        const isNextStepConnection = activePath && 
-                          activePath.currentStep < activePath.nodeIds.length - 1 &&
-                          node.id === activePath.nodeIds[activePath.currentStep] &&
-                          target.id === activePath.nodeIds[activePath.currentStep + 1];
-                        
-                        // Apply connection LOD: simplified mode uses straight line
-                        const pathD = connectionLOD === 'simplified' 
-                          ? `M ${x1} ${y1} L ${x2} ${y2}`  // Straight line
-                          : `M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`; // Curved
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Bot size={14} className="text-blue-600" />
+                        <Typography variant="caption" fontWeight="bold" color="primary.main">
+                          AI Insight (Preview)
+                        </Typography>
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          maxHeight: 72,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {dragPreview.content}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                )}
+                {/* SVG Connections - Render lines between connected nodes (only visible) */}
+                <svg style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: 10000,
+                  height: 10000,
+                  overflow: 'visible',
+                  pointerEvents: 'visiblePainted',
+                  shapeRendering: 'geometricPrecision',
+                }}>
+                  {/* Background rect to pass through events */}
+                  <rect width="10000" height="10000" fill="transparent" style={{ pointerEvents: 'none' }} />
+                  {/* Existing Connections - only render visible ones */}
+                  {visibleConnections.map(({ source: node, target, connectionId }) => {
+                    // Start from right edge of source, end at left edge of target
+                    const x1 = node.x + 280; // Right edge (card width)
+                    const y1 = node.y + 60;  // Vertical center approx
+                    const x2 = target.x;     // Left edge
+                    const y2 = target.y + 60;
 
-                        return (
-                            <g key={connectionId}>
-                              {/* Invisible wider path for easier clicking */}
-                              <path 
-                                d={pathD}
-                                stroke="transparent" 
-                                strokeWidth="12" 
-                                fill="none"
-                                style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedConnectionId(connectionId);
-                                  setSelectedNodeId(null);
-                                }}
-                              />
-                              {/* Visible path with LOD and hover highlight */}
-                              <path 
-                                d={pathD}
-                                stroke={
-                                  isSelected ? "#EF4444" : 
-                                  isNextStepConnection ? "#10B981" : // Green for next step
-                                  isHovered ? "#3B82F6" :
-                                  selectedNodeId === node.id || selectedNodeId === target.id ? "#3B82F6" : 
-                                  "#94A3B8"
-                                } 
-                                strokeWidth={
-                                  connectionLOD === 'simplified' ? 1 : 
-                                  (isSelected ? 3 : isNextStepConnection ? 3 : isHovered ? 2.5 : 2)
+                    const dx = Math.abs(x2 - x1);
+                    const controlX = Math.max(dx * 0.4, 50);
+                    const isSelected = selectedConnectionId === connectionId;
+
+                    // Hover highlight: check if connection is related to hovered node
+                    const isHovered = hoveredNodeId === node.id || hoveredNodeId === target.id;
+                    const shouldHighlight = showAllConnections || isHovered || isSelected;
+                    let opacity = shouldHighlight ? 1 : (hoveredNodeId ? 0.2 : 1); // Dim non-hovered when hovering
+
+                    // Focus mode: dim connections not in focus
+                    if (focusMode) {
+                      const isInFocus = focusNeighbors.has(node.id) && focusNeighbors.has(target.id);
+                      opacity = isInFocus ? opacity : opacity * 0.2;
+                    }
+
+                    // Learning path: check if this connection is the next step
+                    const activePath = learningPaths.find(p => p.id === activeLearningPath);
+                    const isNextStepConnection = activePath &&
+                      activePath.currentStep < activePath.nodeIds.length - 1 &&
+                      node.id === activePath.nodeIds[activePath.currentStep] &&
+                      target.id === activePath.nodeIds[activePath.currentStep + 1];
+
+                    // Apply connection LOD: simplified mode uses straight line
+                    const pathD = connectionLOD === 'simplified'
+                      ? `M ${x1} ${y1} L ${x2} ${y2}`  // Straight line
+                      : `M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`; // Curved
+
+                    return (
+                      <g key={connectionId}>
+                        {/* Invisible wider path for easier clicking */}
+                        <path
+                          d={pathD}
+                          stroke="transparent"
+                          strokeWidth="12"
+                          fill="none"
+                          style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedConnectionId(connectionId);
+                            setSelectedNodeId(null);
+                          }}
+                        />
+                        {/* Visible path with LOD and hover highlight */}
+                        <path
+                          d={pathD}
+                          stroke={
+                            isSelected ? "#EF4444" :
+                              isNextStepConnection ? "#10B981" : // Green for next step
+                                isHovered ? "#3B82F6" :
+                                  selectedNodeId === node.id || selectedNodeId === target.id ? "#3B82F6" :
+                                    "#94A3B8"
+                          }
+                          strokeWidth={
+                            connectionLOD === 'simplified' ? 1 :
+                              (isSelected ? 3 : isNextStepConnection ? 3 : isHovered ? 2.5 : 2)
+                          }
+                          fill="none"
+                          style={{
+                            pointerEvents: 'none',
+                            opacity: connectionLOD === 'simplified' ? 0.6 * opacity : opacity,
+                            transition: 'opacity 0.2s, stroke-width 0.2s',
+                            ...(isNextStepConnection && {
+                              strokeDasharray: '8 4',
+                              animation: 'dash 1s linear infinite',
+                            }),
+                          }}
+                        />
+                        {/* Next step label on connection */}
+                        {isNextStepConnection && (
+                          <text
+                            x={(x1 + x2) / 2}
+                            y={(y1 + y2) / 2 - 10}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fill="#10B981"
+                            fontSize="12"
+                            fontWeight="bold"
+                            style={{ pointerEvents: 'none' }}
+                          >
+                            Next →
+                          </text>
+                        )}
+                        {/* Delete indicator when selected - clickable */}
+                        {isSelected && (
+                          <g
+                            style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              // Delete this connection - split only on last '-'
+                              const lastDashIndex = connectionId.lastIndexOf('-');
+                              const srcId = connectionId.substring(0, lastDashIndex);
+                              const tgtId = connectionId.substring(lastDashIndex + 1);
+                              console.log('Deleting connection from', srcId, 'to', tgtId);
+                              setCanvasNodes(prev => prev.map(n => {
+                                if (n.id === srcId && n.connections) {
+                                  return { ...n, connections: n.connections.filter(id => id !== tgtId) };
                                 }
-                                fill="none"
-                                style={{ 
-                                  pointerEvents: 'none', 
-                                  opacity: connectionLOD === 'simplified' ? 0.6 * opacity : opacity,
-                                  transition: 'opacity 0.2s, stroke-width 0.2s',
-                                  ...(isNextStepConnection && {
-                                    strokeDasharray: '8 4',
-                                    animation: 'dash 1s linear infinite',
-                                  }),
-                                }}
-                              />
-                              {/* Next step label on connection */}
-                              {isNextStepConnection && (
-                                <text
-                                  x={(x1 + x2) / 2}
-                                  y={(y1 + y2) / 2 - 10}
-                                  textAnchor="middle"
-                                  dominantBaseline="middle"
-                                  fill="#10B981"
-                                  fontSize="12"
-                                  fontWeight="bold"
-                                  style={{ pointerEvents: 'none' }}
-                                >
-                                  Next →
-                                </text>
-                              )}
-                              {/* Delete indicator when selected - clickable */}
-                              {isSelected && (
-                                <g 
-                                  style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-                                  onMouseDown={(e) => {
-                                    e.stopPropagation();
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    // Delete this connection - split only on last '-'
-                                    const lastDashIndex = connectionId.lastIndexOf('-');
-                                    const srcId = connectionId.substring(0, lastDashIndex);
-                                    const tgtId = connectionId.substring(lastDashIndex + 1);
-                                    console.log('Deleting connection from', srcId, 'to', tgtId);
-                                    setCanvasNodes(prev => prev.map(n => {
-                                      if (n.id === srcId && n.connections) {
-                                        return { ...n, connections: n.connections.filter(id => id !== tgtId) };
-                                      }
-                                      return n;
-                                    }));
-                                    setSelectedConnectionId(null);
-                                  }}
-                                >
-                                  <circle 
-                                    cx={(x1 + x2) / 2} 
-                                    cy={(y1 + y2) / 2} 
-                                    r="12" 
-                                    fill="#EF4444"
-                                  />
-                                  <text 
-                                    x={(x1 + x2) / 2} 
-                                    y={(y1 + y2) / 2 + 1} 
-                                    textAnchor="middle" 
-                                    dominantBaseline="middle" 
-                                    fill="white" 
-                                    fontSize="14"
-                                    fontWeight="bold"
-                                  >
-                                    ×
-                                  </text>
-                                </g>
-                              )}
-                            </g>
-                        );
+                                return n;
+                              }));
+                              setSelectedConnectionId(null);
+                            }}
+                          >
+                            <circle
+                              cx={(x1 + x2) / 2}
+                              cy={(y1 + y2) / 2}
+                              r="12"
+                              fill="#EF4444"
+                            />
+                            <text
+                              x={(x1 + x2) / 2}
+                              y={(y1 + y2) / 2 + 1}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              fill="white"
+                              fontSize="14"
+                              fontWeight="bold"
+                            >
+                              ×
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    );
+                  })}
+
+                  {/* Temporary Connection Line (When Dragging) */}
+                  {connectingNodeId && tempLineEnd && (
+                    (() => {
+                      const sourceNode = canvasNodes.find(n => n.id === connectingNodeId);
+                      if (!sourceNode) return null;
+
+                      const x1 = sourceNode.x + 280; // Right edge
+                      const y1 = sourceNode.y + 50;
+                      const x2 = tempLineEnd.x;
+                      const y2 = tempLineEnd.y;
+
+                      const dx = Math.abs(x2 - x1);
+                      const controlX = Math.max(dx * 0.5, 50);
+
+                      return (
+                        <path
+                          d={`M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`}
+                          stroke="#3B82F6"
+                          strokeWidth="2"
+                          fill="none"
+                          strokeDasharray="5,5"
+                        />
+                      );
+                    })()
+                  )}
+                </svg>
+
+                {/* Render groups first (if any) */}
+                {nodeGroups.map(group => {
+                  if (group.collapsed) {
+                    // Render collapsed group as a single box
+                    return (
+                      <Box
+                        key={group.id}
+                        onClick={() => handleToggleGroup(group.id)}
+                        sx={{
+                          position: 'absolute',
+                          top: group.position.y,
+                          left: group.position.x,
+                          width: group.bounds.width,
+                          height: group.bounds.height,
+                          border: `2px dashed ${group.color}`,
+                          borderRadius: 2,
+                          bgcolor: `${group.color}15`,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 1,
+                          '&:hover': {
+                            bgcolor: `${group.color}25`,
+                          },
+                        }}
+                      >
+                        <Typography variant="caption" fontWeight="bold" sx={{ color: group.color }}>
+                          {group.title} (Click to expand)
+                        </Typography>
+                      </Box>
+                    );
+                  }
+                  return null; // Expanded groups show their nodes
                 })}
 
-                {/* Temporary Connection Line (When Dragging) */}
-                {connectingNodeId && tempLineEnd && (
-                    (() => {
-                        const sourceNode = canvasNodes.find(n => n.id === connectingNodeId);
-                        if (!sourceNode) return null;
+                {/* Render Canvas Nodes - only visible ones */}
+                {visibleNodes.map(node => {
+                  // Check if node is in a collapsed group
+                  const inCollapsedGroup = nodeGroups.some(g => g.collapsed && g.nodeIds.includes(node.id));
+                  if (inCollapsedGroup) return null; // Don't render nodes in collapsed groups
 
-                        const x1 = sourceNode.x + 280; // Right edge
-                        const y1 = sourceNode.y + 50;
-                        const x2 = tempLineEnd.x;
-                        const y2 = tempLineEnd.y;
+                  // Progressive disclosure: check if node is locked
+                  const isLocked = progressiveMode && !unlockedNodes.has(node.id) && node.title !== 'SOURCE PDF' && node.type !== 'group';
 
-                        const dx = Math.abs(x2 - x1);
-                        const controlX = Math.max(dx * 0.5, 50);
+                  // Check if node is in active learning path
+                  const activePath = learningPaths.find(p => p.id === activeLearningPath);
+                  const isInPath = activePath?.nodeIds.includes(node.id);
+                  const isCurrentStep = activePath && activePath.nodeIds[activePath.currentStep] === node.id;
+                  const isNextStep = activePath && activePath.currentStep < activePath.nodeIds.length - 1 &&
+                    activePath.nodeIds[activePath.currentStep + 1] === node.id;
 
-                        return (
-                            <path 
-                                d={`M ${x1} ${y1} C ${x1 + controlX} ${y1}, ${x2 - controlX} ${y2}, ${x2} ${y2}`}
-                                stroke="#3B82F6" 
-                                strokeWidth="2" 
-                                fill="none" 
-                                strokeDasharray="5,5" 
-                            />
-                        );
-                    })()
-                )}
-              </svg>
+                  // Focus mode: dim nodes not in focus
+                  const isInFocus = focusMode ? focusNeighbors.has(node.id) : true;
+                  const focusOpacity = focusMode && !isInFocus ? 0.2 : 1;
 
-              {/* Render groups first (if any) */}
-              {nodeGroups.map(group => {
-                if (group.collapsed) {
-                  // Render collapsed group as a single box
+                  // Use LOD rendering for far nodes, full rendering for close nodes
+                  const lodNode = currentLOD !== 'full' ? renderNodeWithLOD(node, currentLOD) : null;
+                  if (lodNode) return lodNode;
+
                   return (
-                    <Box
-                      key={group.id}
-                      onClick={() => handleToggleGroup(group.id)}
-                      sx={{
-                        position: 'absolute',
-                        top: group.position.y,
-                        left: group.position.x,
-                        width: group.bounds.width,
-                        height: group.bounds.height,
-                        border: `2px dashed ${group.color}`,
-                        borderRadius: 2,
-                        bgcolor: `${group.color}15`,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1,
-                        '&:hover': {
-                          bgcolor: `${group.color}25`,
-                        },
-                      }}
-                    >
-                      <Typography variant="caption" fontWeight="bold" sx={{ color: group.color }}>
-                        {group.title} (Click to expand)
-                      </Typography>
-                    </Box>
-                  );
-                }
-                return null; // Expanded groups show their nodes
-              })}
-              
-              {/* Render Canvas Nodes - only visible ones */}
-              {visibleNodes.map(node => {
-                // Check if node is in a collapsed group
-                const inCollapsedGroup = nodeGroups.some(g => g.collapsed && g.nodeIds.includes(node.id));
-                if (inCollapsedGroup) return null; // Don't render nodes in collapsed groups
-                
-                // Progressive disclosure: check if node is locked
-                const isLocked = progressiveMode && !unlockedNodes.has(node.id) && node.title !== 'SOURCE PDF' && node.type !== 'group';
-                
-                // Check if node is in active learning path
-                const activePath = learningPaths.find(p => p.id === activeLearningPath);
-                const isInPath = activePath?.nodeIds.includes(node.id);
-                const isCurrentStep = activePath && activePath.nodeIds[activePath.currentStep] === node.id;
-                const isNextStep = activePath && activePath.currentStep < activePath.nodeIds.length - 1 && 
-                                  activePath.nodeIds[activePath.currentStep + 1] === node.id;
-                
-                // Focus mode: dim nodes not in focus
-                const isInFocus = focusMode ? focusNeighbors.has(node.id) : true;
-                const focusOpacity = focusMode && !isInFocus ? 0.2 : 1;
-                
-                // Use LOD rendering for far nodes, full rendering for close nodes
-                const lodNode = currentLOD !== 'full' ? renderNodeWithLOD(node, currentLOD) : null;
-                if (lodNode) return lodNode;
-                
-                return (
-                <Paper 
-                  key={node.id}
-                  elevation={(selectedNodeId === node.id || selectedNodeIds.has(node.id)) ? 8 : 3} 
-                  onMouseDown={(e) => {
-                      e.stopPropagation(); // CRITICAL: Prevent parent from starting pan
-                      
-                      // Only start dragging if NOT clicking on the connection handle
-                      if (!(e.target as HTMLElement).closest('.connection-handle')) {
+                    <Paper
+                      key={node.id}
+                      elevation={(selectedNodeId === node.id || selectedNodeIds.has(node.id)) ? 8 : 3}
+                      onMouseDown={(e) => {
+                        e.stopPropagation(); // CRITICAL: Prevent parent from starting pan
+
+                        // Only start dragging if NOT clicking on the connection handle
+                        if (!(e.target as HTMLElement).closest('.connection-handle')) {
                           // Handle multi-select with Shift
                           if (e.shiftKey) {
                             setSelectedNodeIds(prev => {
@@ -3441,947 +3488,947 @@ function StudioPageContent() {
                             setSelectedNodeId(node.id);
                             setSelectedNodeIds(new Set([node.id]));
                           }
-                          
+
                           setDraggingNodeId(node.id);
                           setSelectedConnectionId(null); // Deselect any connection
                           lastMousePos.current = { x: e.clientX, y: e.clientY };
                           dragStartPos.current = { x: e.clientX, y: e.clientY };
-                      }
-                  }}
-                  onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      setInspectorOpen(true);
-                  }}
-                  onMouseUp={(e) => {
-                      e.stopPropagation();
-                      
-                      // Handle connection completion - drop on this card
-                      if (connectingNodeId && connectingNodeId !== node.id) {
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setInspectorOpen(true);
+                      }}
+                      onMouseUp={(e) => {
+                        e.stopPropagation();
+
+                        // Handle connection completion - drop on this card
+                        if (connectingNodeId && connectingNodeId !== node.id) {
                           console.log('Completing connection from', connectingNodeId, 'to', node.id);
                           setCanvasNodes(prev => prev.map(n => {
-                              if (n.id === connectingNodeId) {
-                                  const existingConnections = n.connections || [];
-                                  if (existingConnections.includes(node.id)) {
-                                      return n;
-                                  }
-                                  return { ...n, connections: [...existingConnections, node.id] };
+                            if (n.id === connectingNodeId) {
+                              const existingConnections = n.connections || [];
+                              if (existingConnections.includes(node.id)) {
+                                return n;
                               }
-                              return n;
+                              return { ...n, connections: [...existingConnections, node.id] };
+                            }
+                            return n;
                           }));
-                      }
-                      
-                      // Clean up all states
-                      setConnectingNodeId(null);
-                      setTempLineEnd(null);
-                      setDraggingNodeId(null);
-                      dragStartPos.current = null;
-                  }}
-                  onMouseEnter={() => setHoveredNodeId(node.id)}
-                  onMouseLeave={() => setHoveredNodeId(null)}
-                  sx={{ 
-                    position: 'absolute', 
-                    top: 0,
-                    left: 0,
-                    transform: `translate(${node.x}px, ${node.y}px)`,
-                    width: 280, 
-                    p: node.type === 'card' && node.title === 'SOURCE PDF' ? 2 : 0, 
-                    borderRadius: 4, 
-                    border: '2px solid', 
-                    borderColor: connectingNodeId && connectingNodeId !== node.id 
-                        ? '#10B981' // Green highlight when can receive connection
-                        : isCurrentStep
-                        ? '#10B981' // Green for current step in learning path
-                        : isNextStep
-                        ? '#F59E0B' // Amber for next step
-                        : (selectedNodeId === node.id || selectedNodeIds.has(node.id))
-                        ? 'primary.main' // Selected border
-                        : node.type === 'critique'
-                        ? '#EF4444' // Red for critique nodes
-                        : (node.color === 'blue' ? '#3B82F6' : 'transparent'),
-                    overflow: 'visible', // Allow handle to overflow
-                    cursor: isSpacePressed ? 'grab' : 'grab',
-                    transition: 'box-shadow 0.2s ease-out, border-color 0.2s ease-out, opacity 0.2s ease-out',
-                    opacity: isLocked ? 0.3 : focusOpacity,
-                    filter: isLocked ? 'blur(2px)' : (focusMode && !isInFocus ? 'blur(1px)' : 'none'),
-                    willChange: draggingNodeId === node.id ? 'transform' : 'auto',
-                    // Glassmorphism effect for selected nodes
-                    ...(selectedNodeId === node.id || selectedNodeIds.has(node.id) ? {
-                      background: 'rgba(255, 255, 255, 0.95)',
-                      backdropFilter: 'blur(12px)',
-                      // Halo effect - colorful gradient glow
-                      boxShadow: `
+                        }
+
+                        // Clean up all states
+                        setConnectingNodeId(null);
+                        setTempLineEnd(null);
+                        setDraggingNodeId(null);
+                        dragStartPos.current = null;
+                      }}
+                      onMouseEnter={() => setHoveredNodeId(node.id)}
+                      onMouseLeave={() => setHoveredNodeId(null)}
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        transform: `translate(${node.x}px, ${node.y}px)`,
+                        width: 280,
+                        p: node.type === 'card' && node.title === 'SOURCE PDF' ? 2 : 0,
+                        borderRadius: 4,
+                        border: '2px solid',
+                        borderColor: connectingNodeId && connectingNodeId !== node.id
+                          ? '#10B981' // Green highlight when can receive connection
+                          : isCurrentStep
+                            ? '#10B981' // Green for current step in learning path
+                            : isNextStep
+                              ? '#F59E0B' // Amber for next step
+                              : (selectedNodeId === node.id || selectedNodeIds.has(node.id))
+                                ? 'primary.main' // Selected border
+                                : node.type === 'critique'
+                                  ? '#EF4444' // Red for critique nodes
+                                  : (node.color === 'blue' ? '#3B82F6' : 'transparent'),
+                        overflow: 'visible', // Allow handle to overflow
+                        cursor: isSpacePressed ? 'grab' : 'grab',
+                        transition: 'box-shadow 0.2s ease-out, border-color 0.2s ease-out, opacity 0.2s ease-out',
+                        opacity: isLocked ? 0.3 : focusOpacity,
+                        filter: isLocked ? 'blur(2px)' : (focusMode && !isInFocus ? 'blur(1px)' : 'none'),
+                        willChange: draggingNodeId === node.id ? 'transform' : 'auto',
+                        // Glassmorphism effect for selected nodes
+                        ...(selectedNodeId === node.id || selectedNodeIds.has(node.id) ? {
+                          background: 'rgba(255, 255, 255, 0.95)',
+                          backdropFilter: 'blur(12px)',
+                          // Halo effect - colorful gradient glow
+                          boxShadow: `
                         0 0 0 1px rgba(255, 255, 255, 0.2),
                         0 0 20px rgba(99, 102, 241, 0.4),
                         0 0 40px rgba(168, 85, 247, 0.3),
                         0 0 60px rgba(236, 72, 153, 0.2),
                         0 8px 32px rgba(0, 0, 0, 0.12)
                       `,
-                    } : {}),
-                    '&:active': { cursor: 'grabbing' },
-                    '&:hover': { 
-                      boxShadow: (selectedNodeId === node.id || selectedNodeIds.has(node.id)) 
-                        ? `
+                        } : {}),
+                        '&:active': { cursor: 'grabbing' },
+                        '&:hover': {
+                          boxShadow: (selectedNodeId === node.id || selectedNodeIds.has(node.id))
+                            ? `
                           0 0 0 1px rgba(255, 255, 255, 0.2),
                           0 0 25px rgba(99, 102, 241, 0.5),
                           0 0 50px rgba(168, 85, 247, 0.4),
                           0 0 75px rgba(236, 72, 153, 0.3),
                           0 12px 40px rgba(0, 0, 0, 0.15)
                         `
-                        : '0 8px 16px rgba(0,0,0,0.12)',
-                    },
-                    // Highlight current step in learning path
-                    ...(isCurrentStep && {
-                      boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.2)',
-                      animation: 'pulse 2s infinite',
-                    }),
-                  }}
-                >
-                  {/* Focus Mode Button */}
-                  {/* Simplified Badge */}
-                  {node.isSimplified && (
-                    <Badge
-                      badgeContent="简化"
-                      color="success"
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        zIndex: 10,
-                      }}
-                    />
-                  )}
-                  
-                  {(selectedNodeId === node.id || selectedNodeIds.has(node.id)) && !focusMode && (
-                    <Box
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEnterFocusMode(node.id);
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        left: -10,
-                        top: -10,
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        bgcolor: '#10B981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                        zIndex: 20,
-                        transition: 'transform 0.2s, background-color 0.2s',
-                        '&:hover': {
-                          bgcolor: '#059669',
-                          transform: 'scale(1.1)'
-                        }
-                      }}
-                      title="Enter Focus Mode"
-                    >
-                      <Zap size={12} style={{ color: 'white' }} />
-                    </Box>
-                  )}
-                  
-                  {/* Exit Focus Mode Button */}
-                  {focusMode && focusNodeId === node.id && (
-                    <Box
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExitFocusMode();
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        left: -10,
-                        top: -10,
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        bgcolor: '#EF4444',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                        zIndex: 20,
-                        transition: 'transform 0.2s, background-color 0.2s',
-                        '&:hover': {
-                          bgcolor: '#DC2626',
-                          transform: 'scale(1.1)'
-                        }
-                      }}
-                      title="Exit Focus Mode"
-                    >
-                      <X size={12} style={{ color: 'white' }} />
-                    </Box>
-                  )}
-                  
-                  {/* Delete Button - Top right corner when selected */}
-                  {(selectedNodeId === node.id || selectedNodeIds.has(node.id)) && !focusMode && (
-                    <Box
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Delete node and all its connections
-                        setCanvasNodes(prev => {
-                          const filtered = prev.filter(n => n.id !== node.id);
-                          return filtered.map(n => ({
-                            ...n,
-                            connections: n.connections?.filter(id => id !== node.id)
-                          }));
-                        });
-                        setSelectedNodeId(null);
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        right: -10,
-                        top: -10,
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        bgcolor: '#EF4444',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                        zIndex: 20,
-                        transition: 'transform 0.2s, background-color 0.2s',
-                        '&:hover': {
-                          bgcolor: '#DC2626',
-                          transform: 'scale(1.1)'
-                        }
-                      }}
-                    >
-                      <Typography sx={{ color: 'white', fontSize: 16, fontWeight: 'bold', lineHeight: 1 }}>×</Typography>
-                    </Box>
-                  )}
-                  
-                  {/* Connection Handle - Right side */}
-                  <Box
-                    className="connection-handle"
-                    onMouseDown={(e) => {
-                        e.stopPropagation();
-                        setConnectingNodeId(node.id);
-                        mousePos.current = { x: e.clientX, y: e.clientY };
-                    }}
-                    sx={{
-                        position: 'absolute',
-                        right: -8,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: 16,
-                        height: 16,
-                        borderRadius: '50%',
-                        bgcolor: '#3B82F6',
-                        border: '2px solid white',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                        cursor: 'crosshair',
-                        opacity: (hoveredNodeId === node.id || connectingNodeId === node.id) ? 1 : 0,
-                        transition: 'opacity 0.2s, transform 0.2s',
-                        '&:hover': {
-                            transform: 'translateY(-50%) scale(1.2)',
-                            bgcolor: '#2563EB'
+                            : '0 8px 16px rgba(0,0,0,0.12)',
                         },
-                        zIndex: 10
-                    }}
-                  />
-                  
-                  {/* Left Connection Handle - for receiving */}
-                  {connectingNodeId && connectingNodeId !== node.id && (
-                    <Box
-                      sx={{
+                        // Highlight current step in learning path
+                        ...(isCurrentStep && {
+                          boxShadow: '0 0 0 4px rgba(16, 185, 129, 0.2)',
+                          animation: 'pulse 2s infinite',
+                        }),
+                      }}
+                    >
+                      {/* Focus Mode Button */}
+                      {/* Simplified Badge */}
+                      {node.isSimplified && (
+                        <Badge
+                          badgeContent="简化"
+                          color="success"
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            zIndex: 10,
+                          }}
+                        />
+                      )}
+
+                      {(selectedNodeId === node.id || selectedNodeIds.has(node.id)) && !focusMode && (
+                        <Box
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEnterFocusMode(node.id);
+                          }}
+                          sx={{
+                            position: 'absolute',
+                            left: -10,
+                            top: -10,
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            bgcolor: '#10B981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            zIndex: 20,
+                            transition: 'transform 0.2s, background-color 0.2s',
+                            '&:hover': {
+                              bgcolor: '#059669',
+                              transform: 'scale(1.1)'
+                            }
+                          }}
+                          title="Enter Focus Mode"
+                        >
+                          <Zap size={12} style={{ color: 'white' }} />
+                        </Box>
+                      )}
+
+                      {/* Exit Focus Mode Button */}
+                      {focusMode && focusNodeId === node.id && (
+                        <Box
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExitFocusMode();
+                          }}
+                          sx={{
+                            position: 'absolute',
+                            left: -10,
+                            top: -10,
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            bgcolor: '#EF4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            zIndex: 20,
+                            transition: 'transform 0.2s, background-color 0.2s',
+                            '&:hover': {
+                              bgcolor: '#DC2626',
+                              transform: 'scale(1.1)'
+                            }
+                          }}
+                          title="Exit Focus Mode"
+                        >
+                          <X size={12} style={{ color: 'white' }} />
+                        </Box>
+                      )}
+
+                      {/* Delete Button - Top right corner when selected */}
+                      {(selectedNodeId === node.id || selectedNodeIds.has(node.id)) && !focusMode && (
+                        <Box
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Delete node and all its connections
+                            setCanvasNodes(prev => {
+                              const filtered = prev.filter(n => n.id !== node.id);
+                              return filtered.map(n => ({
+                                ...n,
+                                connections: n.connections?.filter(id => id !== node.id)
+                              }));
+                            });
+                            setSelectedNodeId(null);
+                          }}
+                          sx={{
+                            position: 'absolute',
+                            right: -10,
+                            top: -10,
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            bgcolor: '#EF4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            zIndex: 20,
+                            transition: 'transform 0.2s, background-color 0.2s',
+                            '&:hover': {
+                              bgcolor: '#DC2626',
+                              transform: 'scale(1.1)'
+                            }
+                          }}
+                        >
+                          <Typography sx={{ color: 'white', fontSize: 16, fontWeight: 'bold', lineHeight: 1 }}>×</Typography>
+                        </Box>
+                      )}
+
+                      {/* Connection Handle - Right side */}
+                      <Box
+                        className="connection-handle"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setConnectingNodeId(node.id);
+                          mousePos.current = { x: e.clientX, y: e.clientY };
+                        }}
+                        sx={{
                           position: 'absolute',
-                          left: -8,
+                          right: -8,
                           top: '50%',
                           transform: 'translateY(-50%)',
                           width: 16,
                           height: 16,
                           borderRadius: '50%',
-                          bgcolor: '#10B981',
+                          bgcolor: '#3B82F6',
                           border: '2px solid white',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                          animation: 'pulse 1s infinite',
+                          cursor: 'crosshair',
+                          opacity: (hoveredNodeId === node.id || connectingNodeId === node.id) ? 1 : 0,
+                          transition: 'opacity 0.2s, transform 0.2s',
+                          '&:hover': {
+                            transform: 'translateY(-50%) scale(1.2)',
+                            bgcolor: '#2563EB'
+                          },
                           zIndex: 10
-                      }}
-                    />
-                  )}
-                  
-                  {node.title === 'SOURCE PDF' ? (
-                    <Box sx={{ p: 2 }}>
-              <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">{node.content}</Typography></Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
-                    </Box>
-                  ) : node.type === 'thinking_step' ? (
-                    /* Thinking Step Node - Structured Display */
-                    <Box 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Click to set as active context (fork point)
-                        setActiveThinkingId(node.id);
-                        setSelectedNodeId(node.id);
-                      }}
-                      sx={{ 
-                        overflow: 'hidden', 
-                        borderRadius: 3,
-                        // Active Thinking Context Highlight
-                        boxShadow: activeThinkingId === node.id 
-                          ? '0 0 0 3px rgba(168, 85, 247, 0.4), 0 8px 16px rgba(0,0,0,0.1)' 
-                          : 'none',
-                        transition: 'box-shadow 0.2s ease'
-                      }}
-                    >
-                      <Box sx={{ 
-                        height: 6, 
-                        bgcolor: node.isDraft ? '#A855F7' : '#3B82F6',
-                        background: node.isDraft 
-                          ? 'linear-gradient(90deg, #A855F7, #EC4899)' 
-                          : 'linear-gradient(90deg, #3B82F6, #8B5CF6)'
-                      }} />
-                      <Box sx={{ p: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                          <Box sx={{ 
-                            width: 24, height: 24, borderRadius: '50%', 
-                            bgcolor: node.isDraft ? '#A855F7' : '#3B82F6',
-                            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 12, fontWeight: 600
-                          }}>
-                            {node.thinkingStepIndex || '?'}
-                          </Box>
-                          <Typography variant="subtitle2" fontWeight="bold" sx={{ flex: 1 }}>
-                            {node.title}
-                          </Typography>
-                          {activeThinkingId === node.id && (
-                            <Chip label="Active" size="small" sx={{ height: 18, fontSize: 10, bgcolor: '#F3E8FF', color: '#7C3AED' }} />
-                          )}
-                          {node.isDraft && (
-                            <Chip label="Draft" size="small" sx={{ height: 18, fontSize: 10, bgcolor: '#F3E8FF', color: '#7C3AED' }} />
-                          )}
+                        }}
+                      />
+
+                      {/* Left Connection Handle - for receiving */}
+                      {connectingNodeId && connectingNodeId !== node.id && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: -8,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            bgcolor: '#10B981',
+                            border: '2px solid white',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            animation: 'pulse 1s infinite',
+                            zIndex: 10
+                          }}
+                        />
+                      )}
+
+                      {node.title === 'SOURCE PDF' ? (
+                        <Box sx={{ p: 2 }}>
+                          <Typography variant="caption" color="text.disabled" fontWeight="bold" sx={{ mb: 1, display: 'block' }}>SOURCE PDF</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}><FileText size={18} className="text-red-500" /><Typography variant="subtitle2" fontWeight="600">{node.content}</Typography></Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}><LinkIcon size={14} /><Typography variant="caption">Connected to 3 concepts</Typography></Box>
                         </Box>
-                        
-                        {/* Claim */}
-                        <Box sx={{ mb: 1.5 }}>
-                          <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ display: 'block', mb: 0.5 }}>
-                            CLAIM
-                          </Typography>
-                          <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
-                            {node.thinkingFields?.claim || node.content}
-                          </Typography>
-                        </Box>
-                        
-                        {/* Show other fields only if not draft */}
-                        {!node.isDraft && node.thinkingFields?.reason && (
-                          <>
-                            <Box sx={{ mb: 1, p: 1, bgcolor: '#F0FDF4', borderRadius: 1, border: '1px solid #BBF7D0' }}>
-                              <Typography variant="caption" color="success.dark" fontWeight="600" sx={{ display: 'block', mb: 0.25 }}>
-                                DECISION
-                              </Typography>
-                              <Typography variant="caption" color="success.dark" sx={{ lineHeight: 1.4 }}>
-                                {node.thinkingFields.decision}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                              <Chip label="Reason" size="small" sx={{ height: 18, fontSize: 9, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
-                              <Chip label="Evidence" size="small" sx={{ height: 18, fontSize: 9, bgcolor: '#FEF3C7', color: '#B45309' }} />
-                            </Box>
-                          </>
-                        )}
-                        
-                        {/* Click to scroll to chat */}
-                        {node.sourceMessageId && (
-                          <Box
-                            sx={{
-                              display: 'inline-flex', alignItems: 'center', gap: 0.5,
-                              px: 1, py: 0.25, mt: 1.5, bgcolor: '#EEF2FF', borderRadius: 1,
-                              cursor: 'pointer', '&:hover': { bgcolor: '#E0E7FF' }
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (node.sourceMessageId) {
-                                scrollToChatMessage(node.sourceMessageId);
-                              }
-                            }}
-                          >
-                            <Bot size={10} />
-                            <Typography variant="caption" color="primary.main" fontSize={10}>
-                              View in chat
-                            </Typography>
-                          </Box>
-                        )}
-                      </Box>
-                    </Box>
-                  ) : node.type === 'thinking_branch' ? (
-                    /* Thinking Branch Node - Compact Display */
-                    <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
-                      <Box sx={{ 
-                        height: 4, 
-                        bgcolor: node.branchType === 'alternative' ? '#F59E0B' 
-                          : node.branchType === 'question' ? '#06B6D4' 
-                          : '#EC4899'
-                      }} />
-                      <Box sx={{ p: 1.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <Typography variant="caption" fontWeight="bold" sx={{ 
-                            color: node.branchType === 'alternative' ? '#B45309' 
-                              : node.branchType === 'question' ? '#0891B2' 
-                              : '#BE185D',
-                            textTransform: 'uppercase', fontSize: 10
-                          }}>
-                            {node.branchType}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5, fontSize: 12 }}>
-                          {node.content}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
-                      <Box sx={{ height: 6, bgcolor: node.color === 'blue' ? '#3B82F6' : 'grey.300' }} />
-                      <Box sx={{ p: 2 }}>
-                        <Typography 
-                          variant="subtitle1" 
-                          fontWeight="bold" 
-                          gutterBottom
-                          sx={{ fontSize: textLOD.fontSize + 2 }}
+                      ) : node.type === 'thinking_step' ? (
+                        /* Thinking Step Node - Structured Display */
+                        <Box
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Click to set as active context (fork point)
+                            setActiveThinkingId(node.id);
+                            setSelectedNodeId(node.id);
+                          }}
+                          sx={{
+                            overflow: 'hidden',
+                            borderRadius: 3,
+                            // Active Thinking Context Highlight
+                            boxShadow: activeThinkingId === node.id
+                              ? '0 0 0 3px rgba(168, 85, 247, 0.4), 0 8px 16px rgba(0,0,0,0.1)'
+                              : 'none',
+                            transition: 'box-shadow 0.2s ease'
+                          }}
                         >
-                          {node.title}
-                        </Typography>
-                        {textLOD.showContent && node.content && (
-                          <Typography 
-                            variant="body2" 
-                            color="text.secondary" 
-                            sx={{ lineHeight: 1.6, mb: 2, fontSize: textLOD.fontSize }}
-                          >
-                            {node.content}
-                          </Typography>
-                        )}
-                        
-                        {node.timestamp && node.sourceType === 'pdf' && (
-                          <Box 
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 1, 
-                              mt: 1, 
-                              mb: 2, 
-                              bgcolor: '#F3F4F6', 
-                              p: 1, 
-                              borderRadius: 1, 
-                              width: 'fit-content', 
-                              cursor: 'pointer', 
-                              '&:hover': { bgcolor: '#E5E7EB' } 
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNodeToSource(node);
-                            }}
-                          >
-                            <PlayCircle size={16} className="text-blue-600" />
-                            <Typography variant="caption" fontWeight="bold" color="primary.main">
-                              {node.timestamp}
+                          <Box sx={{
+                            height: 6,
+                            bgcolor: node.isDraft ? '#A855F7' : '#3B82F6',
+                            background: node.isDraft
+                              ? 'linear-gradient(90deg, #A855F7, #EC4899)'
+                              : 'linear-gradient(90deg, #3B82F6, #8B5CF6)'
+                          }} />
+                          <Box sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                              <Box sx={{
+                                width: 24, height: 24, borderRadius: '50%',
+                                bgcolor: node.isDraft ? '#A855F7' : '#3B82F6',
+                                color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 12, fontWeight: 600
+                              }}>
+                                {node.thinkingStepIndex || '?'}
+                              </Box>
+                              <Typography variant="subtitle2" fontWeight="bold" sx={{ flex: 1 }}>
+                                {node.title}
+                              </Typography>
+                              {activeThinkingId === node.id && (
+                                <Chip label="Active" size="small" sx={{ height: 18, fontSize: 10, bgcolor: '#F3E8FF', color: '#7C3AED' }} />
+                              )}
+                              {node.isDraft && (
+                                <Chip label="Draft" size="small" sx={{ height: 18, fontSize: 10, bgcolor: '#F3E8FF', color: '#7C3AED' }} />
+                              )}
+                            </Box>
+
+                            {/* Claim */}
+                            <Box sx={{ mb: 1.5 }}>
+                              <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ display: 'block', mb: 0.5 }}>
+                                CLAIM
+                              </Typography>
+                              <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.5 }}>
+                                {node.thinkingFields?.claim || node.content}
+                              </Typography>
+                            </Box>
+
+                            {/* Show other fields only if not draft */}
+                            {!node.isDraft && node.thinkingFields?.reason && (
+                              <>
+                                <Box sx={{ mb: 1, p: 1, bgcolor: '#F0FDF4', borderRadius: 1, border: '1px solid #BBF7D0' }}>
+                                  <Typography variant="caption" color="success.dark" fontWeight="600" sx={{ display: 'block', mb: 0.25 }}>
+                                    DECISION
+                                  </Typography>
+                                  <Typography variant="caption" color="success.dark" sx={{ lineHeight: 1.4 }}>
+                                    {node.thinkingFields.decision}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                  <Chip label="Reason" size="small" sx={{ height: 18, fontSize: 9, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
+                                  <Chip label="Evidence" size="small" sx={{ height: 18, fontSize: 9, bgcolor: '#FEF3C7', color: '#B45309' }} />
+                                </Box>
+                              </>
+                            )}
+
+                            {/* Click to scroll to chat */}
+                            {node.sourceMessageId && (
+                              <Box
+                                sx={{
+                                  display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                                  px: 1, py: 0.25, mt: 1.5, bgcolor: '#EEF2FF', borderRadius: 1,
+                                  cursor: 'pointer', '&:hover': { bgcolor: '#E0E7FF' }
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (node.sourceMessageId) {
+                                    scrollToChatMessage(node.sourceMessageId);
+                                  }
+                                }}
+                              >
+                                <Bot size={10} />
+                                <Typography variant="caption" color="primary.main" fontSize={10}>
+                                  View in chat
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        </Box>
+                      ) : node.type === 'thinking_branch' ? (
+                        /* Thinking Branch Node - Compact Display */
+                        <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
+                          <Box sx={{
+                            height: 4,
+                            bgcolor: node.branchType === 'alternative' ? '#F59E0B'
+                              : node.branchType === 'question' ? '#06B6D4'
+                                : '#EC4899'
+                          }} />
+                          <Box sx={{ p: 1.5 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <Typography variant="caption" fontWeight="bold" sx={{
+                                color: node.branchType === 'alternative' ? '#B45309'
+                                  : node.branchType === 'question' ? '#0891B2'
+                                    : '#BE185D',
+                                textTransform: 'uppercase', fontSize: 10
+                              }}>
+                                {node.branchType}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5, fontSize: 12 }}>
+                              {node.content}
                             </Typography>
                           </Box>
-                        )}
-
-                        {/* Chat source badge (AI insight) */}
-                        {node.sourceType === 'chat' && node.sourceQuery && (
-                          <Box
-                            sx={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 0.5,
-                              px: 1,
-                              py: 0.5,
-                              mb: 2,
-                              bgcolor: '#EEF2FF',
-                              borderRadius: 1,
-                              cursor: 'pointer',
-                              '&:hover': { bgcolor: '#E0E7FF' },
-                              maxWidth: '100%',
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNodeToSource(node);
-                            }}
-                          >
-                            <Bot size={12} className="text-blue-600" />
+                        </Box>
+                      ) : (
+                        <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
+                          <Box sx={{ height: 6, bgcolor: node.color === 'blue' ? '#3B82F6' : 'grey.300' }} />
+                          <Box sx={{ p: 2 }}>
                             <Typography
-                              variant="caption"
-                              color="primary.main"
-                              sx={{
-                                maxWidth: 200,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
+                              variant="subtitle1"
+                              fontWeight="bold"
+                              gutterBottom
+                              sx={{ fontSize: textLOD.fontSize + 2 }}
                             >
-                              Q: {node.sourceQuery}
+                              {node.title}
                             </Typography>
-                          </Box>
-                        )}
+                            {textLOD.showContent && node.content && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ lineHeight: 1.6, mb: 2, fontSize: textLOD.fontSize }}
+                              >
+                                {node.content}
+                              </Typography>
+                            )}
 
-                        {node.tags && (
-                          <Box sx={{ display: 'flex', gap: 1, mb: 0 }}>
-                            {node.tags.map(tag => (
-                              <Chip key={tag} label={tag} size="small" sx={{ borderRadius: 1, bgcolor: 'grey.100', fontSize: 11 }} />
-                            ))}
-                          </Box>
-                        )}
-                        
-                        {/* Source navigation button */}
-                        {node.sourceId && (
-                          <Button
-                            size="small"
-                            startIcon={<FileText size={12} />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNodeToSource(node);
-                            }}
-                            sx={{ 
-                              mt: 1, 
-                              fontSize: 10, 
-                              textTransform: 'none',
-                              bgcolor: 'primary.50',
-                              color: 'primary.main',
-                              '&:hover': { bgcolor: 'primary.100' }
-                            }}
-                          >
-                            View Source {node.sourcePage && `(Page ${node.sourcePage})`}
-                          </Button>
-                        )}
-                      </Box>
-                      <Box sx={{ position: 'absolute', bottom: 12, right: 12 }}>
-                        <Avatar sx={{ 
-                          width: 24, 
-                          height: 24, 
-                          fontSize: 10, 
-                          bgcolor: node.type === 'source' ? 'blue.100' : 
-                                   node.type === 'concept' ? 'purple.100' : 
-                                   node.type === 'application' ? 'green.100' : 
-                                   node.type === 'ai_insight' ? 'grey.900' : 'pink.100',
-                          color: node.type === 'source' ? 'blue.500' : 
-                                 node.type === 'concept' ? 'purple.500' : 
-                                 node.type === 'application' ? 'green.500' : 
-                                 node.type === 'ai_insight' ? 'white' : 'pink.500'
-                        }}>
-                          {node.type === 'source' ? 'S' : node.type === 'concept' ? 'C' : node.type === 'application' ? 'A' : 'AI'}
-                        </Avatar>
-                      </Box>
-                    </Box>
-                  )}
-            </Paper>
-                );
-              })}
+                            {node.timestamp && node.sourceType === 'pdf' && (
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                  mt: 1,
+                                  mb: 2,
+                                  bgcolor: '#F3F4F6',
+                                  p: 1,
+                                  borderRadius: 1,
+                                  width: 'fit-content',
+                                  cursor: 'pointer',
+                                  '&:hover': { bgcolor: '#E5E7EB' }
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNodeToSource(node);
+                                }}
+                              >
+                                <PlayCircle size={16} className="text-blue-600" />
+                                <Typography variant="caption" fontWeight="bold" color="primary.main">
+                                  {node.timestamp}
+                                </Typography>
+                              </Box>
+                            )}
 
-              {/* SVG Connections - also in transformed space */}
-              {/* Removed static SVG example */}
-            </Box>
-            
-            {/* Context Drop Zone - Only visible when dragging */}
-            <Box 
-              sx={{ 
-                position: 'absolute', 
-                bottom: 40, 
-                left: '50%', 
-                transform: isDraggingFromPdf ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(100px)', 
-                opacity: isDraggingFromPdf ? 1 : 0,
-                pointerEvents: 'none', // Just visual now, drop handled by container
-                width: 400, 
-                height: 60, 
-                border: '2px dashed', 
-                borderColor: !centerVisible ? 'primary.main' : 'divider', 
-                borderRadius: 4, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                gap: 1, 
-                bgcolor: !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)', 
-                backdropFilter: 'blur(4px)', 
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                zIndex: 20 
-              }}
-            >
-              <Plus size={16} className={!centerVisible ? "text-primary-600" : "text-gray-400"} />
-              <Typography variant="body2" color={!centerVisible ? "primary.main" : "text.secondary"}>
-                {`Drop ${activeResource.type === 'pdf' ? 'text' : 'transcript'} from ${activeResource.type}`}
-              </Typography>
-            </Box>
-            
-            {/* Minimap - Bottom Right */}
-            {canvasViewMode === 'canvas' && canvasNodes.length > 0 && (
+                            {/* Chat source badge (AI insight) */}
+                            {node.sourceType === 'chat' && node.sourceQuery && (
+                              <Box
+                                sx={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  px: 1,
+                                  py: 0.5,
+                                  mb: 2,
+                                  bgcolor: '#EEF2FF',
+                                  borderRadius: 1,
+                                  cursor: 'pointer',
+                                  '&:hover': { bgcolor: '#E0E7FF' },
+                                  maxWidth: '100%',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNodeToSource(node);
+                                }}
+                              >
+                                <Bot size={12} className="text-blue-600" />
+                                <Typography
+                                  variant="caption"
+                                  color="primary.main"
+                                  sx={{
+                                    maxWidth: 200,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  Q: {node.sourceQuery}
+                                </Typography>
+                              </Box>
+                            )}
+
+                            {node.tags && (
+                              <Box sx={{ display: 'flex', gap: 1, mb: 0 }}>
+                                {node.tags.map(tag => (
+                                  <Chip key={tag} label={tag} size="small" sx={{ borderRadius: 1, bgcolor: 'grey.100', fontSize: 11 }} />
+                                ))}
+                              </Box>
+                            )}
+
+                            {/* Source navigation button */}
+                            {node.sourceId && (
+                              <Button
+                                size="small"
+                                startIcon={<FileText size={12} />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNodeToSource(node);
+                                }}
+                                sx={{
+                                  mt: 1,
+                                  fontSize: 10,
+                                  textTransform: 'none',
+                                  bgcolor: 'primary.50',
+                                  color: 'primary.main',
+                                  '&:hover': { bgcolor: 'primary.100' }
+                                }}
+                              >
+                                View Source {node.sourcePage && `(Page ${node.sourcePage})`}
+                              </Button>
+                            )}
+                          </Box>
+                          <Box sx={{ position: 'absolute', bottom: 12, right: 12 }}>
+                            <Avatar sx={{
+                              width: 24,
+                              height: 24,
+                              fontSize: 10,
+                              bgcolor: node.type === 'source' ? 'blue.100' :
+                                node.type === 'concept' ? 'purple.100' :
+                                  node.type === 'application' ? 'green.100' :
+                                    node.type === 'ai_insight' ? 'grey.900' : 'pink.100',
+                              color: node.type === 'source' ? 'blue.500' :
+                                node.type === 'concept' ? 'purple.500' :
+                                  node.type === 'application' ? 'green.500' :
+                                    node.type === 'ai_insight' ? 'white' : 'pink.500'
+                            }}>
+                              {node.type === 'source' ? 'S' : node.type === 'concept' ? 'C' : node.type === 'application' ? 'A' : 'AI'}
+                            </Avatar>
+                          </Box>
+                        </Box>
+                      )}
+                    </Paper>
+                  );
+                })}
+
+                {/* SVG Connections - also in transformed space */}
+                {/* Removed static SVG example */}
+              </Box>
+
+              {/* Context Drop Zone - Only visible when dragging */}
               <Box
                 sx={{
                   position: 'absolute',
-                  bottom: 20,
-                  right: 20,
-                  width: 200,
-                  height: 150,
-                  bgcolor: 'rgba(255, 255, 255, 0.95)',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 2,
-                  p: 1,
-                  zIndex: 15,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  backdropFilter: 'blur(8px)',
+                  bottom: 40,
+                  left: '50%',
+                  transform: isDraggingFromPdf ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(100px)',
+                  opacity: isDraggingFromPdf ? 1 : 0,
+                  pointerEvents: 'none', // Just visual now, drop handled by container
+                  width: 400,
+                  height: 60,
+                  border: '2px dashed',
+                  borderColor: !centerVisible ? 'primary.main' : 'divider',
+                  borderRadius: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                  bgcolor: !centerVisible ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.6)',
+                  backdropFilter: 'blur(4px)',
+                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  zIndex: 20
                 }}
               >
-                <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5, display: 'block' }}>
-                  Minimap
+                <Plus size={16} className={!centerVisible ? "text-primary-600" : "text-gray-400"} />
+                <Typography variant="body2" color={!centerVisible ? "primary.main" : "text.secondary"}>
+                  {`Drop ${activeResource.type === 'pdf' ? 'text' : 'transcript'} from ${activeResource.type}`}
                 </Typography>
+              </Box>
+
+              {/* Minimap - Bottom Right */}
+              {canvasViewMode === 'canvas' && canvasNodes.length > 0 && (
                 <Box
                   sx={{
-                    position: 'relative',
-                    width: '100%',
-                    height: 'calc(100% - 20px)',
-                    bgcolor: '#F9FAFB',
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                  }}
-                  onMouseDown={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const minimapX = (e.clientX - rect.left) / rect.width;
-                    const minimapY = (e.clientY - rect.top) / rect.height;
-                    
-                    // Calculate canvas bounds
-                    const canvasRect = canvasRef.current?.getBoundingClientRect();
-                    if (!canvasRect) return;
-                    
-                    const minX = Math.min(...canvasNodes.map(n => n.x));
-                    const maxX = Math.max(...canvasNodes.map(n => n.x + 280));
-                    const minY = Math.min(...canvasNodes.map(n => n.y));
-                    const maxY = Math.max(...canvasNodes.map(n => n.y + 200));
-                    
-                    const canvasWidth = maxX - minX + 500;
-                    const canvasHeight = maxY - minY + 500;
-                    
-                    // Calculate new viewport position
-                    const newX = minX + minimapX * canvasWidth - canvasRect.width / 2 / viewport.scale;
-                    const newY = minY + minimapY * canvasHeight - canvasRect.height / 2 / viewport.scale;
-                    
-                    setViewport(prev => ({
-                      ...prev,
-                      x: -newX * prev.scale + canvasRect.width / 2,
-                      y: -newY * prev.scale + canvasRect.height / 2,
-                    }));
+                    position: 'absolute',
+                    bottom: 20,
+                    right: 20,
+                    width: 200,
+                    height: 150,
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    p: 1,
+                    zIndex: 15,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    backdropFilter: 'blur(8px)',
                   }}
                 >
-                  {/* Render nodes as dots in minimap */}
-                  {canvasNodes.map(node => {
-                    const minX = Math.min(...canvasNodes.map(n => n.x));
-                    const maxX = Math.max(...canvasNodes.map(n => n.x + 280));
-                    const minY = Math.min(...canvasNodes.map(n => n.y));
-                    const maxY = Math.max(...canvasNodes.map(n => n.y + 200));
-                    
-                    const canvasWidth = maxX - minX + 500;
-                    const canvasHeight = maxY - minY + 500;
-                    
-                    const x = ((node.x - minX) / canvasWidth) * 100;
-                    const y = ((node.y - minY) / canvasHeight) * 100;
-                    
-                    return (
-                      <Box
-                        key={node.id}
-                        sx={{
-                          position: 'absolute',
-                          left: `${x}%`,
-                          top: `${y}%`,
-                          width: 3,
-                          height: 3,
-                          borderRadius: '50%',
-                          bgcolor: node.color || '#94A3B8',
-                          transform: 'translate(-50%, -50%)',
-                        }}
-                      />
-                    );
-                  })}
-                  
-                  {/* Viewport indicator */}
-                  {(() => {
-                    const canvasRect = canvasRef.current?.getBoundingClientRect();
-                    if (!canvasRect) return null;
-                    
-                    const minX = Math.min(...canvasNodes.map(n => n.x));
-                    const maxX = Math.max(...canvasNodes.map(n => n.x + 280));
-                    const minY = Math.min(...canvasNodes.map(n => n.y));
-                    const maxY = Math.max(...canvasNodes.map(n => n.y + 200));
-                    
-                    const canvasWidth = maxX - minX + 500;
-                    const canvasHeight = maxY - minY + 500;
-                    
-                    const viewportLeft = (-viewport.x) / viewport.scale;
-                    const viewportTop = (-viewport.y) / viewport.scale;
-                    const viewportWidth = canvasRect.width / viewport.scale;
-                    const viewportHeight = canvasRect.height / viewport.scale;
-                    
-                    const x = ((viewportLeft - minX) / canvasWidth) * 100;
-                    const y = ((viewportTop - minY) / canvasHeight) * 100;
-                    const width = (viewportWidth / canvasWidth) * 100;
-                    const height = (viewportHeight / canvasHeight) * 100;
-                    
-                    return (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          left: `${x}%`,
-                          top: `${y}%`,
-                          width: `${width}%`,
-                          height: `${height}%`,
-                          border: '2px solid',
-                          borderColor: 'primary.main',
-                          bgcolor: 'rgba(59, 130, 246, 0.1)',
-                          pointerEvents: 'none',
-                        }}
-                      />
-                    );
-                  })()}
-                </Box>
-              </Box>
-            )}
-            
-            {/* Canvas Copilot / Magic Tools */}
-            <Box sx={{ position: 'absolute', bottom: 40, right: 40, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, zIndex: 10 }}>
-              {isCanvasAiOpen && (
-                <Paper elevation={4} sx={{ width: 320, p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', animation: 'fadeIn 0.2s ease-out' }}>
-                  <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ mb: 1.5, display: 'block', letterSpacing: 0.5 }}>CANVAS COPILOT</Typography>
-                  
-                  {/* View Mode Switcher */}
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>VIEW MODE</Typography>
-                    <ToggleButtonGroup
-                      value={canvasViewMode}
-                      exclusive
-                      onChange={(e, newMode) => newMode && setCanvasViewMode(newMode)}
-                      size="small"
-                      sx={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
-                    >
-                      <ToggleButton value="canvas" sx={{ flex: 1, minWidth: 80 }}>
-                        <Layout size={12} style={{ marginRight: 4 }} />
-                        Canvas
-                      </ToggleButton>
-                      <ToggleButton value="list" sx={{ flex: 1, minWidth: 80 }}>
-                        <ListIcon size={12} style={{ marginRight: 4 }} />
-                        List
-                      </ToggleButton>
-                      <ToggleButton value="hierarchical" sx={{ flex: 1, minWidth: 80 }}>
-                        <Network size={12} style={{ marginRight: 4 }} />
-                        Groups
-                      </ToggleButton>
-                    </ToggleButtonGroup>
-                  </Box>
-                  
-                  {/* Quick Actions */}
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                      <Chip 
-                      label="Auto Layout" 
-                        size="small" 
-                      onClick={() => { handleAutoLayout(); setIsCanvasAiOpen(false); }}
-                        icon={<Sparkles size={12} />}
-                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
-                      />
-                    <Chip 
-                      label={isLayoutFrozen ? "Unfreeze Layout" : "Freeze Layout"} 
-                      size="small" 
-                      onClick={() => { handleToggleLayoutFreeze(); setIsCanvasAiOpen(false); }}
-                      icon={isLayoutFrozen ? <Zap size={12} /> : <Zap size={12} />}
-                      sx={{ 
-                        bgcolor: isLayoutFrozen ? 'success.50' : 'white', 
-                        border: '1px solid', 
-                        borderColor: isLayoutFrozen ? 'success.main' : 'divider', 
-                        cursor: 'pointer', 
-                        color: isLayoutFrozen ? 'success.main' : 'inherit',
-                        '&:hover': { bgcolor: isLayoutFrozen ? 'success.100' : 'primary.50', borderColor: isLayoutFrozen ? 'success.main' : 'primary.main' } 
-                      }} 
-                    />
-                    <Chip 
-                      label="Detect Communities" 
-                      size="small" 
-                      onClick={() => { handleDetectCommunities(); setIsCanvasAiOpen(false); }}
-                      icon={<Network size={12} />}
-                      sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
-                    />
-                    <Chip 
-                      label="Semantic Clustering" 
-                      size="small" 
-                      onClick={() => { handleSemanticClustering(); setIsCanvasAiOpen(false); }}
-                      icon={<BrainCircuit size={12} />}
-                      sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
-                    />
-                    <Chip 
-                      label="Clear Colors" 
-                      size="small" 
-                      onClick={() => { handleClearClustering(); setIsCanvasAiOpen(false); }}
-                      icon={<X size={12} />}
-                      sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'error.50', borderColor: 'error.main', color: 'error.main' } }} 
-                    />
-                    <Chip 
-                      label="Group by Community" 
-                      size="small" 
-                      onClick={() => { handleGroupByCommunity(); setIsCanvasAiOpen(false); }}
-                      icon={<FolderOpen size={12} />}
-                      sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
-                    />
-                    {nodeGroups.length > 0 && (
-                      <>
-                        <Chip 
-                          label="Collapse All" 
-                          size="small" 
-                          onClick={() => { handleCollapseAll(); setIsCanvasAiOpen(false); }}
-                          icon={<ChevronDown size={12} />}
-                          sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
-                        />
-                        <Chip 
-                          label="Expand All" 
-                          size="small" 
-                          onClick={() => { handleExpandAll(); setIsCanvasAiOpen(false); }}
-                          icon={<ChevronUp size={12} />}
-                          sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
-                        />
-                      </>
-                    )}
-                  </Box>
+                  <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5, display: 'block' }}>
+                    Minimap
+                  </Typography>
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      width: '100%',
+                      height: 'calc(100% - 20px)',
+                      bgcolor: '#F9FAFB',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                    }}
+                    onMouseDown={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const minimapX = (e.clientX - rect.left) / rect.width;
+                      const minimapY = (e.clientY - rect.top) / rect.height;
 
-                  {/* Thinking Path Section */}
-                  <Box sx={{ mb: 2, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>THINKING PATH</Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      <Chip 
-                        label={thinkingPathEnabled ? "Thinking Path ON" : "Thinking Path OFF"} 
-                        size="small" 
-                        onClick={() => { setThinkingPathEnabled(!thinkingPathEnabled); }}
-                        icon={<Route size={12} />}
-                        sx={{ 
-                          bgcolor: thinkingPathEnabled ? 'purple.50' : 'white', 
-                          border: '1px solid', 
-                          borderColor: thinkingPathEnabled ? 'purple.main' : 'divider', 
-                          cursor: 'pointer', 
-                          color: thinkingPathEnabled ? 'purple.main' : 'inherit',
-                          '&:hover': { bgcolor: thinkingPathEnabled ? 'purple.100' : 'primary.50', borderColor: thinkingPathEnabled ? 'purple.main' : 'primary.main' } 
-                        }} 
-                      />
-                      <Chip 
-                        label="New Topic" 
-                        size="small" 
-                        onClick={() => { setActiveThinkingId(null); setIsCanvasAiOpen(false); }}
-                        icon={<Plus size={12} />}
-                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'purple.50', borderColor: 'purple.main', color: 'purple.main' } }} 
-                      />
-                      <Chip 
-                        label="Reorganize Path" 
-                        size="small" 
-                        onClick={() => { reorganizeThinkingPath(); setIsCanvasAiOpen(false); }}
-                        icon={<Sparkles size={12} />}
-                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'purple.50', borderColor: 'purple.main', color: 'purple.main' } }} 
-                      />
-                      {canvasNodes.filter(n => n.type === 'thinking_step' || n.type === 'thinking_branch').length > 0 && (
-                        <Typography variant="caption" color="text.secondary" sx={{ width: '100%', mt: 0.5 }}>
-                          {activeThinkingId ? "Follow-up Mode" : "New Topic Mode"}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
+                      // Calculate canvas bounds
+                      const canvasRect = canvasRef.current?.getBoundingClientRect();
+                      if (!canvasRect) return;
 
-                  {/* Learning Path Section */}
-                  <Box sx={{ mb: 2, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>LEARNING</Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      <Chip 
-                        label={progressiveMode ? "Disable Progressive" : "Enable Progressive"} 
-                        size="small" 
-                        onClick={() => { handleToggleProgressiveMode(); setIsCanvasAiOpen(false); }}
-                        icon={<BrainCircuit size={12} />}
-                        sx={{ 
-                          bgcolor: progressiveMode ? 'success.50' : 'white', 
-                          border: '1px solid', 
-                          borderColor: progressiveMode ? 'success.main' : 'divider', 
-                          cursor: 'pointer', 
-                          color: progressiveMode ? 'success.main' : 'inherit',
-                          '&:hover': { bgcolor: progressiveMode ? 'success.100' : 'primary.50', borderColor: progressiveMode ? 'success.main' : 'primary.main' } 
-                        }} 
-                      />
-                      <Chip 
-                        label="Create Learning Path" 
-                        size="small" 
-                        onClick={() => { handleCreateLearningPath(); setIsCanvasAiOpen(false); }}
-                        icon={<ArrowRight size={12} />}
-                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }} 
-                      />
-                      {activeLearningPath && (
-                        <>
-                          <Chip 
-                            label="Next Step" 
-                            size="small" 
-                            onClick={() => { handleUnlockNext(); setIsCanvasAiOpen(false); }}
-                            icon={<ArrowRight size={12} />}
-                            sx={{ bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main', cursor: 'pointer', color: 'success.main', '&:hover': { bgcolor: 'success.100' } }} 
-                          />
-                          {!isTourActive ? (
-                            <Chip 
-                              label="Start Tour" 
-                              size="small" 
-                              onClick={() => { handleStartTour(); setIsCanvasAiOpen(false); }}
-                              icon={<PlayCircle size={12} />}
-                              sx={{ bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.main', cursor: 'pointer', color: 'primary.main', '&:hover': { bgcolor: 'primary.100' } }} 
-                            />
-                          ) : (
-                            <Chip 
-                              label="Stop Tour" 
-                              size="small" 
-                              onClick={() => { handleStopTour(); setIsCanvasAiOpen(false); }}
-                              icon={<Pause size={12} />}
-                              sx={{ bgcolor: 'error.50', border: '1px solid', borderColor: 'error.main', cursor: 'pointer', color: 'error.main', '&:hover': { bgcolor: 'error.100' } }} 
-                            />
-                          )}
-                        </>
-                      )}
-                    </Box>
-                    {activeLearningPath && (() => {
-                      const path = learningPaths.find(p => p.id === activeLearningPath);
-                      if (!path) return null;
+                      const minX = Math.min(...canvasNodes.map(n => n.x));
+                      const maxX = Math.max(...canvasNodes.map(n => n.x + 280));
+                      const minY = Math.min(...canvasNodes.map(n => n.y));
+                      const maxY = Math.max(...canvasNodes.map(n => n.y + 200));
+
+                      const canvasWidth = maxX - minX + 500;
+                      const canvasHeight = maxY - minY + 500;
+
+                      // Calculate new viewport position
+                      const newX = minX + minimapX * canvasWidth - canvasRect.width / 2 / viewport.scale;
+                      const newY = minY + minimapY * canvasHeight - canvasRect.height / 2 / viewport.scale;
+
+                      setViewport(prev => ({
+                        ...prev,
+                        x: -newX * prev.scale + canvasRect.width / 2,
+                        y: -newY * prev.scale + canvasRect.height / 2,
+                      }));
+                    }}
+                  >
+                    {/* Render nodes as dots in minimap */}
+                    {canvasNodes.map(node => {
+                      const minX = Math.min(...canvasNodes.map(n => n.x));
+                      const maxX = Math.max(...canvasNodes.map(n => n.x + 280));
+                      const minY = Math.min(...canvasNodes.map(n => n.y));
+                      const maxY = Math.max(...canvasNodes.map(n => n.y + 200));
+
+                      const canvasWidth = maxX - minX + 500;
+                      const canvasHeight = maxY - minY + 500;
+
+                      const x = ((node.x - minX) / canvasWidth) * 100;
+                      const y = ((node.y - minY) / canvasHeight) * 100;
+
                       return (
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                          Step {path.currentStep + 1} of {path.nodeIds.length}: {path.name}
-                        </Typography>
+                        <Box
+                          key={node.id}
+                          sx={{
+                            position: 'absolute',
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            width: 3,
+                            height: 3,
+                            borderRadius: '50%',
+                            bgcolor: node.color || '#94A3B8',
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        />
+                      );
+                    })}
+
+                    {/* Viewport indicator */}
+                    {(() => {
+                      const canvasRect = canvasRef.current?.getBoundingClientRect();
+                      if (!canvasRect) return null;
+
+                      const minX = Math.min(...canvasNodes.map(n => n.x));
+                      const maxX = Math.max(...canvasNodes.map(n => n.x + 280));
+                      const minY = Math.min(...canvasNodes.map(n => n.y));
+                      const maxY = Math.max(...canvasNodes.map(n => n.y + 200));
+
+                      const canvasWidth = maxX - minX + 500;
+                      const canvasHeight = maxY - minY + 500;
+
+                      const viewportLeft = (-viewport.x) / viewport.scale;
+                      const viewportTop = (-viewport.y) / viewport.scale;
+                      const viewportWidth = canvasRect.width / viewport.scale;
+                      const viewportHeight = canvasRect.height / viewport.scale;
+
+                      const x = ((viewportLeft - minX) / canvasWidth) * 100;
+                      const y = ((viewportTop - minY) / canvasHeight) * 100;
+                      const width = (viewportWidth / canvasWidth) * 100;
+                      const height = (viewportHeight / canvasHeight) * 100;
+
+                      return (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            width: `${width}%`,
+                            height: `${height}%`,
+                            border: '2px solid',
+                            borderColor: 'primary.main',
+                            bgcolor: 'rgba(59, 130, 246, 0.1)',
+                            pointerEvents: 'none',
+                          }}
+                        />
                       );
                     })()}
                   </Box>
-
-                  {/* Input Area */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'white', border: '1px solid', borderColor: 'primary.main', borderRadius: 2, px: 1.5, py: 0.5, boxShadow: '0 2px 4px rgba(59,130,246,0.1)' }}>
-                    <Wand2 size={16} className="text-primary-500" />
-                    <TextField 
-                      fullWidth 
-                      variant="standard" 
-                      placeholder="Ask AI to edit canvas..." 
-                      value={canvasAiQuery}
-                      onChange={(e) => setCanvasAiQuery(e.target.value)}
-                      onKeyDown={(e) => { if(e.key === 'Enter') { setIsCanvasAiOpen(false); setCanvasAiQuery(''); } }}
-                      autoFocus
-                      InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} 
-                    />
-                    <IconButton size="small" onClick={() => { setIsCanvasAiOpen(false); setCanvasAiQuery(''); }} color="primary"><ArrowRight size={16} /></IconButton>
-                  </Box>
-            </Paper>
+                </Box>
               )}
 
-              <IconButton 
-                onClick={() => setIsCanvasAiOpen(!isCanvasAiOpen)}
-                sx={{ 
-                  bgcolor: isCanvasAiOpen ? '#fff' : '#171717', 
-                  color: isCanvasAiOpen ? '#171717' : '#fff', 
-                  width: 48, height: 48, 
-                  border: isCanvasAiOpen ? '1px solid' : 'none',
-                  borderColor: 'divider',
-                  boxShadow: isCanvasAiOpen ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.3)',
-                  '&:hover': { bgcolor: isCanvasAiOpen ? '#f5f5f5' : '#000' },
-                  transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                }}
-              >
-                {isCanvasAiOpen ? <CloseIcon size={20} /> : <Sparkles size={20} />}
-              </IconButton>
-            </Box>
+              {/* Canvas Copilot / Magic Tools */}
+              <Box sx={{ position: 'absolute', bottom: 40, right: 40, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, zIndex: 10 }}>
+                {isCanvasAiOpen && (
+                  <Paper elevation={4} sx={{ width: 320, p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', animation: 'fadeIn 0.2s ease-out' }}>
+                    <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ mb: 1.5, display: 'block', letterSpacing: 0.5 }}>CANVAS COPILOT</Typography>
+
+                    {/* View Mode Switcher */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>VIEW MODE</Typography>
+                      <ToggleButtonGroup
+                        value={canvasViewMode}
+                        exclusive
+                        onChange={(e, newMode) => newMode && setCanvasViewMode(newMode)}
+                        size="small"
+                        sx={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+                      >
+                        <ToggleButton value="canvas" sx={{ flex: 1, minWidth: 80 }}>
+                          <Layout size={12} style={{ marginRight: 4 }} />
+                          Canvas
+                        </ToggleButton>
+                        <ToggleButton value="list" sx={{ flex: 1, minWidth: 80 }}>
+                          <ListIcon size={12} style={{ marginRight: 4 }} />
+                          List
+                        </ToggleButton>
+                        <ToggleButton value="hierarchical" sx={{ flex: 1, minWidth: 80 }}>
+                          <Network size={12} style={{ marginRight: 4 }} />
+                          Groups
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                    </Box>
+
+                    {/* Quick Actions */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                      <Chip
+                        label="Auto Layout"
+                        size="small"
+                        onClick={() => { handleAutoLayout(); setIsCanvasAiOpen(false); }}
+                        icon={<Sparkles size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }}
+                      />
+                      <Chip
+                        label={isLayoutFrozen ? "Unfreeze Layout" : "Freeze Layout"}
+                        size="small"
+                        onClick={() => { handleToggleLayoutFreeze(); setIsCanvasAiOpen(false); }}
+                        icon={isLayoutFrozen ? <Zap size={12} /> : <Zap size={12} />}
+                        sx={{
+                          bgcolor: isLayoutFrozen ? 'success.50' : 'white',
+                          border: '1px solid',
+                          borderColor: isLayoutFrozen ? 'success.main' : 'divider',
+                          cursor: 'pointer',
+                          color: isLayoutFrozen ? 'success.main' : 'inherit',
+                          '&:hover': { bgcolor: isLayoutFrozen ? 'success.100' : 'primary.50', borderColor: isLayoutFrozen ? 'success.main' : 'primary.main' }
+                        }}
+                      />
+                      <Chip
+                        label="Detect Communities"
+                        size="small"
+                        onClick={() => { handleDetectCommunities(); setIsCanvasAiOpen(false); }}
+                        icon={<Network size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }}
+                      />
+                      <Chip
+                        label="Semantic Clustering"
+                        size="small"
+                        onClick={() => { handleSemanticClustering(); setIsCanvasAiOpen(false); }}
+                        icon={<BrainCircuit size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }}
+                      />
+                      <Chip
+                        label="Clear Colors"
+                        size="small"
+                        onClick={() => { handleClearClustering(); setIsCanvasAiOpen(false); }}
+                        icon={<X size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'error.50', borderColor: 'error.main', color: 'error.main' } }}
+                      />
+                      <Chip
+                        label="Group by Community"
+                        size="small"
+                        onClick={() => { handleGroupByCommunity(); setIsCanvasAiOpen(false); }}
+                        icon={<FolderOpen size={12} />}
+                        sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }}
+                      />
+                      {nodeGroups.length > 0 && (
+                        <>
+                          <Chip
+                            label="Collapse All"
+                            size="small"
+                            onClick={() => { handleCollapseAll(); setIsCanvasAiOpen(false); }}
+                            icon={<ChevronDown size={12} />}
+                            sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }}
+                          />
+                          <Chip
+                            label="Expand All"
+                            size="small"
+                            onClick={() => { handleExpandAll(); setIsCanvasAiOpen(false); }}
+                            icon={<ChevronUp size={12} />}
+                            sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }}
+                          />
+                        </>
+                      )}
+                    </Box>
+
+                    {/* Thinking Path Section */}
+                    <Box sx={{ mb: 2, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>THINKING PATH</Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        <Chip
+                          label={thinkingPathEnabled ? "Thinking Path ON" : "Thinking Path OFF"}
+                          size="small"
+                          onClick={() => { setThinkingPathEnabled(!thinkingPathEnabled); }}
+                          icon={<Route size={12} />}
+                          sx={{
+                            bgcolor: thinkingPathEnabled ? 'purple.50' : 'white',
+                            border: '1px solid',
+                            borderColor: thinkingPathEnabled ? 'purple.main' : 'divider',
+                            cursor: 'pointer',
+                            color: thinkingPathEnabled ? 'purple.main' : 'inherit',
+                            '&:hover': { bgcolor: thinkingPathEnabled ? 'purple.100' : 'primary.50', borderColor: thinkingPathEnabled ? 'purple.main' : 'primary.main' }
+                          }}
+                        />
+                        <Chip
+                          label="New Topic"
+                          size="small"
+                          onClick={() => { setActiveThinkingId(null); setIsCanvasAiOpen(false); }}
+                          icon={<Plus size={12} />}
+                          sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'purple.50', borderColor: 'purple.main', color: 'purple.main' } }}
+                        />
+                        <Chip
+                          label="Reorganize Path"
+                          size="small"
+                          onClick={() => { reorganizeThinkingPath(); setIsCanvasAiOpen(false); }}
+                          icon={<Sparkles size={12} />}
+                          sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'purple.50', borderColor: 'purple.main', color: 'purple.main' } }}
+                        />
+                        {canvasNodes.filter(n => n.type === 'thinking_step' || n.type === 'thinking_branch').length > 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ width: '100%', mt: 0.5 }}>
+                            {activeThinkingId ? "Follow-up Mode" : "New Topic Mode"}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* Learning Path Section */}
+                    <Box sx={{ mb: 2, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>LEARNING</Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        <Chip
+                          label={progressiveMode ? "Disable Progressive" : "Enable Progressive"}
+                          size="small"
+                          onClick={() => { handleToggleProgressiveMode(); setIsCanvasAiOpen(false); }}
+                          icon={<BrainCircuit size={12} />}
+                          sx={{
+                            bgcolor: progressiveMode ? 'success.50' : 'white',
+                            border: '1px solid',
+                            borderColor: progressiveMode ? 'success.main' : 'divider',
+                            cursor: 'pointer',
+                            color: progressiveMode ? 'success.main' : 'inherit',
+                            '&:hover': { bgcolor: progressiveMode ? 'success.100' : 'primary.50', borderColor: progressiveMode ? 'success.main' : 'primary.main' }
+                          }}
+                        />
+                        <Chip
+                          label="Create Learning Path"
+                          size="small"
+                          onClick={() => { handleCreateLearningPath(); setIsCanvasAiOpen(false); }}
+                          icon={<ArrowRight size={12} />}
+                          sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider', cursor: 'pointer', '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main', color: 'primary.main' } }}
+                        />
+                        {activeLearningPath && (
+                          <>
+                            <Chip
+                              label="Next Step"
+                              size="small"
+                              onClick={() => { handleUnlockNext(); setIsCanvasAiOpen(false); }}
+                              icon={<ArrowRight size={12} />}
+                              sx={{ bgcolor: 'success.50', border: '1px solid', borderColor: 'success.main', cursor: 'pointer', color: 'success.main', '&:hover': { bgcolor: 'success.100' } }}
+                            />
+                            {!isTourActive ? (
+                              <Chip
+                                label="Start Tour"
+                                size="small"
+                                onClick={() => { handleStartTour(); setIsCanvasAiOpen(false); }}
+                                icon={<PlayCircle size={12} />}
+                                sx={{ bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.main', cursor: 'pointer', color: 'primary.main', '&:hover': { bgcolor: 'primary.100' } }}
+                              />
+                            ) : (
+                              <Chip
+                                label="Stop Tour"
+                                size="small"
+                                onClick={() => { handleStopTour(); setIsCanvasAiOpen(false); }}
+                                icon={<Pause size={12} />}
+                                sx={{ bgcolor: 'error.50', border: '1px solid', borderColor: 'error.main', cursor: 'pointer', color: 'error.main', '&:hover': { bgcolor: 'error.100' } }}
+                              />
+                            )}
+                          </>
+                        )}
+                      </Box>
+                      {activeLearningPath && (() => {
+                        const path = learningPaths.find(p => p.id === activeLearningPath);
+                        if (!path) return null;
+                        return (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                            Step {path.currentStep + 1} of {path.nodeIds.length}: {path.name}
+                          </Typography>
+                        );
+                      })()}
+                    </Box>
+
+                    {/* Input Area */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'white', border: '1px solid', borderColor: 'primary.main', borderRadius: 2, px: 1.5, py: 0.5, boxShadow: '0 2px 4px rgba(59,130,246,0.1)' }}>
+                      <Wand2 size={16} className="text-primary-500" />
+                      <TextField
+                        fullWidth
+                        variant="standard"
+                        placeholder="Ask AI to edit canvas..."
+                        value={canvasAiQuery}
+                        onChange={(e) => setCanvasAiQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { setIsCanvasAiOpen(false); setCanvasAiQuery(''); } }}
+                        autoFocus
+                        InputProps={{ disableUnderline: true, style: { fontSize: 14 } }}
+                      />
+                      <IconButton size="small" onClick={() => { setIsCanvasAiOpen(false); setCanvasAiQuery(''); }} color="primary"><ArrowRight size={16} /></IconButton>
+                    </Box>
+                  </Paper>
+                )}
+
+                <IconButton
+                  onClick={() => setIsCanvasAiOpen(!isCanvasAiOpen)}
+                  sx={{
+                    bgcolor: isCanvasAiOpen ? '#fff' : '#171717',
+                    color: isCanvasAiOpen ? '#171717' : '#fff',
+                    width: 48, height: 48,
+                    border: isCanvasAiOpen ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                    boxShadow: isCanvasAiOpen ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.3)',
+                    '&:hover': { bgcolor: isCanvasAiOpen ? '#f5f5f5' : '#000' },
+                    transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                  }}
+                >
+                  {isCanvasAiOpen ? <CloseIcon size={20} /> : <Sparkles size={20} />}
+                </IconButton>
+              </Box>
             </Box>
           </Box>
         );
@@ -4391,128 +4438,128 @@ function StudioPageContent() {
   return (
     <GlobalLayout>
       <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', bgcolor: 'background.paper' }}>
-        
+
         {/* LEFT & CENTER COLUMN (Keep existing code structure) */}
         <Box ref={leftColumnRef} sx={{ width: leftVisible ? leftWidth : 48, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: 'divider', transition: resizingCol ? 'none' : 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)', overflow: 'hidden', position: 'relative', bgcolor: 'background.paper' }}>
-           {leftVisible ? (
-             <>
+          {leftVisible ? (
+            <>
               <Box sx={{ height: isReaderExpanded ? 0 : `${splitRatio * 100}%`, display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: isVerticalDragging ? 'none' : 'height 0.3s ease' }}>
-                 <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" sx={{ color: 'primary.main' }}><FolderOpen size={18} /></Box><Typography variant="subtitle2" fontWeight="bold">Research_v1</Typography></Box>
-                   <Box sx={{ display: 'flex', gap: 0.5 }}><Box sx={{ bgcolor: '#F3F4F6', borderRadius: 1, p: 0.5, display: 'flex' }}><IconButton size="small" onClick={() => setViewMode('list')} sx={{ p: 0.5, bgcolor: viewMode === 'list' ? '#fff' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', borderRadius: 1 }}><ListIcon size={14} /></IconButton><IconButton size="small" onClick={() => setViewMode('grid')} sx={{ p: 0.5, bgcolor: viewMode === 'grid' ? '#fff' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', borderRadius: 1 }}><LayoutGrid size={14} /></IconButton></Box><Tooltip title="Collapse Sidebar (Cmd+\)"><IconButton size="small" onClick={() => setLeftVisible(false)}><PanelLeftClose size={16} /></IconButton></Tooltip></Box>
-                 </Box>
-                 <Box sx={{ px: 2, mb: 2 }}><Button fullWidth variant="contained" startIcon={<Plus size={16} />} sx={{ bgcolor: '#0F172A', color: '#fff', textTransform: 'none', borderRadius: 2, py: 1, '&:hover': { bgcolor: '#1E293B' } }}>Add Resource</Button></Box>
-                 <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 2 }}>
-                   <Box sx={{ mb: 3 }}>
-                     <Box 
-                       onClick={() => setPapersExpanded(!papersExpanded)}
-                       sx={{ 
-                         display: 'flex', 
-                         alignItems: 'center', 
-                         gap: 1, 
-                         mb: 1.5, 
-                         color: 'text.secondary',
-                         cursor: 'pointer',
-                         userSelect: 'none',
-                         '&:hover': { color: 'text.primary' }
-                       }}
-                     >
-                       {papersExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-                       <Typography variant="caption" fontWeight="bold">PAPERS ({SAMPLE_RESOURCES.length})</Typography>
-                     </Box>
-                     <Collapse in={papersExpanded}>
-                       <Box sx={{ display: viewMode === 'grid' ? 'grid' : 'block', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.5 }}>
-                         {SAMPLE_RESOURCES.map(renderResource)}
-                       </Box>
-                     </Collapse>
-                   </Box>
-                   <Box>
-                     <Box 
-                       onClick={() => setMediaExpanded(!mediaExpanded)}
-                       sx={{ 
-                         display: 'flex', 
-                         alignItems: 'center', 
-                         gap: 1, 
-                         mb: 1.5, 
-                         color: 'text.secondary',
-                         cursor: 'pointer',
-                         userSelect: 'none',
-                         '&:hover': { color: 'text.primary' }
-                       }}
-                     >
-                       {mediaExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-                       <Typography variant="caption" fontWeight="bold">MEDIA & LINKS ({SAMPLE_MEDIA.length})</Typography>
-                     </Box>
-                     <Collapse in={mediaExpanded}>
-                       <Box sx={{ display: viewMode === 'grid' ? 'grid' : 'block', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.5 }}>
-                         {SAMPLE_MEDIA.map(renderResource)}
-                       </Box>
-                     </Collapse>
-                   </Box>
+                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box component="span" sx={{ color: 'primary.main' }}><FolderOpen size={18} /></Box><Typography variant="subtitle2" fontWeight="bold">Research_v1</Typography></Box>
+                  <Box sx={{ display: 'flex', gap: 0.5 }}><Box sx={{ bgcolor: '#F3F4F6', borderRadius: 1, p: 0.5, display: 'flex' }}><IconButton size="small" onClick={() => setViewMode('list')} sx={{ p: 0.5, bgcolor: viewMode === 'list' ? '#fff' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', borderRadius: 1 }}><ListIcon size={14} /></IconButton><IconButton size="small" onClick={() => setViewMode('grid')} sx={{ p: 0.5, bgcolor: viewMode === 'grid' ? '#fff' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', borderRadius: 1 }}><LayoutGrid size={14} /></IconButton></Box><Tooltip title="Collapse Sidebar (Cmd+\)"><IconButton size="small" onClick={() => setLeftVisible(false)}><PanelLeftClose size={16} /></IconButton></Tooltip></Box>
+                </Box>
+                <Box sx={{ px: 2, mb: 2 }}><Button fullWidth variant="contained" startIcon={<Plus size={16} />} sx={{ bgcolor: '#0F172A', color: '#fff', textTransform: 'none', borderRadius: 2, py: 1, '&:hover': { bgcolor: '#1E293B' } }}>Add Resource</Button></Box>
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 2 }}>
+                  <Box sx={{ mb: 3 }}>
+                    <Box
+                      onClick={() => setPapersExpanded(!papersExpanded)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        mb: 1.5,
+                        color: 'text.secondary',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { color: 'text.primary' }
+                      }}
+                    >
+                      {papersExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                      <Typography variant="caption" fontWeight="bold">PAPERS ({SAMPLE_RESOURCES.length})</Typography>
+                    </Box>
+                    <Collapse in={papersExpanded}>
+                      <Box sx={{ display: viewMode === 'grid' ? 'grid' : 'block', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.5 }}>
+                        {SAMPLE_RESOURCES.map(renderResource)}
+                      </Box>
+                    </Collapse>
+                  </Box>
+                  <Box>
+                    <Box
+                      onClick={() => setMediaExpanded(!mediaExpanded)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        mb: 1.5,
+                        color: 'text.secondary',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { color: 'text.primary' }
+                      }}
+                    >
+                      {mediaExpanded ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                      <Typography variant="caption" fontWeight="bold">MEDIA & LINKS ({SAMPLE_MEDIA.length})</Typography>
+                    </Box>
+                    <Collapse in={mediaExpanded}>
+                      <Box sx={{ display: viewMode === 'grid' ? 'grid' : 'block', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1.5 }}>
+                        {SAMPLE_MEDIA.map(renderResource)}
+                      </Box>
+                    </Collapse>
+                  </Box>
                 </Box>
               </Box>
               {renderContentViewer()}
-             </>
-           ) : (
-             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-               <Box sx={{ height: 56, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
-                 <Tooltip title="Expand Source (Cmd+\)" placement="right">
-                   <IconButton onClick={() => setLeftVisible(true)} size="small">
-                     <PanelLeftOpen size={20} />
-                   </IconButton>
-                 </Tooltip>
-               </Box>
-               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2 }}>
-                 {/* Divider removed as we have borderBottom now, or keep if spacing is needed. Let's keep it for visual separation from header if preferred, but usually border is enough. Let's remove explicit Divider and rely on spacing. Actually, let's keep the logic clean. */}
-                 <Tooltip title={activeResource.title} placement="right">
-                   <Box 
-                     sx={{ 
-                       p: 1, 
-                       borderRadius: 1, 
-                       bgcolor: activeResource.id === activeResource.id ? '#EFF6FF' : 'transparent', 
-                       color: activeResource.type === 'pdf' ? 'primary.main' : 
-                              activeResource.type === 'video' ? 'primary.main' : 
-                              activeResource.type === 'audio' ? 'purple.500' : 'blue.500',
-                       cursor: 'pointer',
-                       '&:hover': { bgcolor: 'action.hover' }
-                     }} 
-                     onClick={() => setLeftVisible(true)}
-                   >
-                     {activeResource.type === 'pdf' && <FileText size={18} />}
-                     {activeResource.type === 'video' && <Video size={18} />}
-                     {activeResource.type === 'audio' && <Music size={18} />}
-                     {activeResource.type === 'link' && <LinkIcon size={18} />}
-                   </Box>
-                 </Tooltip>
-               </Box>
-             </Box>
-           )}
+            </>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+              <Box sx={{ height: 56, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Tooltip title="Expand Source (Cmd+\)" placement="right">
+                  <IconButton onClick={() => setLeftVisible(true)} size="small">
+                    <PanelLeftOpen size={20} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2 }}>
+                {/* Divider removed as we have borderBottom now, or keep if spacing is needed. Let's keep it for visual separation from header if preferred, but usually border is enough. Let's remove explicit Divider and rely on spacing. Actually, let's keep the logic clean. */}
+                <Tooltip title={activeResource.title} placement="right">
+                  <Box
+                    sx={{
+                      p: 1,
+                      borderRadius: 1,
+                      bgcolor: activeResource.id === activeResource.id ? '#EFF6FF' : 'transparent',
+                      color: activeResource.type === 'pdf' ? 'primary.main' :
+                        activeResource.type === 'video' ? 'primary.main' :
+                          activeResource.type === 'audio' ? 'purple.500' : 'blue.500',
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'action.hover' }
+                    }}
+                    onClick={() => setLeftVisible(true)}
+                  >
+                    {activeResource.type === 'pdf' && <FileText size={18} />}
+                    {activeResource.type === 'video' && <Video size={18} />}
+                    {activeResource.type === 'audio' && <Music size={18} />}
+                    {activeResource.type === 'link' && <LinkIcon size={18} />}
+                  </Box>
+                </Tooltip>
+              </Box>
+            </Box>
+          )}
         </Box>
         {leftVisible && <VerticalResizeHandle onMouseDown={handleHorizontalMouseDown('left')} />}
 
         <Box sx={{ width: centerVisible ? centerWidth : 0, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: centerVisible ? '1px solid' : 'none', borderColor: 'divider', transition: resizingCol ? 'none' : 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)', bgcolor: '#F9FAFB', overflow: 'hidden', position: 'relative' }}>
-            <Box sx={{ height: 56, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between', minWidth: 300 }}>
+          <Box sx={{ height: 56, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 2, justifyContent: 'space-between', minWidth: 300 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#10B981' }} /><Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>Assistant</Typography></Box>
             <Box sx={{ display: 'flex', gap: 0.5 }}><Tooltip title={quietMode ? "Show All" : "Quiet Mode"}><IconButton size="small" onClick={() => setQuietMode(!quietMode)} sx={{ bgcolor: quietMode ? 'primary.main' : 'transparent', color: quietMode ? '#fff' : 'text.secondary', '&:hover': { bgcolor: quietMode ? 'primary.dark' : 'action.hover' } }}><Filter size={14} /></IconButton></Tooltip><Tooltip title="Collapse Processor (Cmd+.)"><IconButton size="small" onClick={() => setCenterVisible(false)}><PanelRightClose size={16} /></IconButton></Tooltip></Box>
           </Box>
-          
+
           {/* Chat Messages Area */}
-          <Box 
+          <Box
             ref={chatContainerRef}
             sx={{ p: 2, overflowY: 'auto', flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 300 }}
           >
             {chatMessages.map((msg) => (
-              <Box 
-                key={msg.id} 
-                ref={(el) => { if (el) chatMessageRefs.current[msg.id] = el; }} 
+              <Box
+                key={msg.id}
+                ref={(el) => { if (el) chatMessageRefs.current[msg.id] = el; }}
                 sx={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}
               >
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
-                    bgcolor: msg.role === 'user' ? 'primary.main' : 'white', 
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: msg.role === 'user' ? 'primary.main' : 'white',
                     color: msg.role === 'user' ? 'white' : 'text.primary',
                     border: msg.role === 'ai' ? '1px solid' : 'none',
                     borderColor: 'divider'
@@ -4528,8 +4575,8 @@ function StudioPageContent() {
                       <Tooltip title="Drag answer to Canvas">
                         <IconButton
                           size="small"
-                          sx={{ 
-                            cursor: 'grab', 
+                          sx={{
+                            cursor: 'grab',
                             color: 'text.secondary',
                             '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
                           }}
@@ -4537,7 +4584,7 @@ function StudioPageContent() {
                           onDragStart={(e) => {
                             // Prefer any selected text; fallback to full message
                             const selection = window.getSelection();
-                            const selectedText = selection && selection.toString().trim().length > 0 
+                            const selectedText = selection && selection.toString().trim().length > 0
                               ? selection.toString()
                               : undefined;
                             const content = selectedText || msg.content;
@@ -4575,9 +4622,9 @@ function StudioPageContent() {
                       </Tooltip>
                     </Box>
                   )}
-                  
+
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{msg.content}</Typography>
-                  
+
                   {msg.type === 'rag_result' && msg.sources && (
                     <Box sx={{ mt: 1.5 }}>
                       <Button
@@ -4600,12 +4647,12 @@ function StudioPageContent() {
                       >
                         {msg.sources.length} {msg.sources.length === 1 ? 'source' : 'sources'}
                       </Button>
-                      
+
                       <Collapse in={expandedSources.has(msg.id)}>
                         <Box sx={{ mt: 1, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                        {msg.sources.map((source, idx) => (
+                          {msg.sources.map((source, idx) => (
                             <Box
-                            key={idx} 
+                              key={idx}
                               onClick={() => navigateToSource(source.id, source.page_number, source.snippet)}
                               sx={{
                                 display: 'flex',
@@ -4663,7 +4710,7 @@ function StudioPageContent() {
                                   {source.page_number && (
                                     <Chip
                                       label={`Page ${source.page_number}`}
-                            size="small" 
+                                      size="small"
                                       sx={{
                                         height: 20,
                                         fontSize: '0.65rem',
@@ -4688,19 +4735,19 @@ function StudioPageContent() {
                                 </Box>
                               </Box>
                             </Box>
-                        ))}
-                      </Box>
+                          ))}
+                        </Box>
                       </Collapse>
-                      
-                      <Button 
-                        fullWidth 
-                        size="small" 
-                        variant="outlined" 
+
+                      <Button
+                        fullWidth
+                        size="small"
+                        variant="outlined"
                         startIcon={<Layout size={14} />}
                         onClick={() => handleAddRagToCanvas(msg)}
-                        sx={{ 
+                        sx={{
                           mt: 1.5,
-                          borderColor: 'primary.main', 
+                          borderColor: 'primary.main',
                           color: 'primary.main',
                           '&:hover': { bgcolor: 'primary.50' }
                         }}
@@ -4710,13 +4757,13 @@ function StudioPageContent() {
                     </Box>
                   )}
                 </Paper>
-                <Typography 
-                  variant="caption" 
-                  color="text.disabled" 
+                <Typography
+                  variant="caption"
+                  color="text.disabled"
                   sx={{ mt: 0.5, display: 'block', textAlign: msg.role === 'user' ? 'right' : 'left', fontSize: 10 }}
                   suppressHydrationWarning
                 >
-                  {typeof msg.timestamp === 'string' 
+                  {typeof msg.timestamp === 'string'
                     ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
                     : msg.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
                   }
@@ -4733,12 +4780,82 @@ function StudioPageContent() {
           </Box>
 
           {/* Chat Input Area */}
-          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', minWidth: 300 }}>
+          <Box
+            sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', minWidth: 300 }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.currentTarget.style.backgroundColor = '#EEF2FF';
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#fff';
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.style.backgroundColor = '#fff';
+
+              // Try to parse JSON data (from sources or nodes)
+              const jsonData = e.dataTransfer.getData('application/json');
+              const textData = e.dataTransfer.getData('text/plain');
+
+              if (jsonData) {
+                try {
+                  const payload = JSON.parse(jsonData);
+                  // Check if it's not an ai_response (those go to canvas, not chat)
+                  if (payload.type !== 'ai_response') {
+                    const newItem = {
+                      id: payload.id || Date.now().toString(),
+                      type: payload.type === 'node' ? 'node' as const : 'source' as const,
+                      title: payload.title || payload.name || 'Unknown',
+                      content: payload.content || textData || ''
+                    };
+                    // Avoid duplicates
+                    setChatContextItems(prev => {
+                      if (prev.some(item => item.id === newItem.id)) return prev;
+                      return [...prev, newItem];
+                    });
+                  }
+                } catch (err) {
+                  console.warn('Failed to parse dropped data:', err);
+                }
+              } else if (textData) {
+                // Plain text drop - create a text context item
+                const newItem = {
+                  id: Date.now().toString(),
+                  type: 'source' as const,
+                  title: textData.slice(0, 30) + (textData.length > 30 ? '...' : ''),
+                  content: textData
+                };
+                setChatContextItems(prev => [...prev, newItem]);
+              }
+            }}
+          >
+            {/* Context chips */}
+            {chatContextItems.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
+                {chatContextItems.map(item => (
+                  <Chip
+                    key={item.id}
+                    label={item.title}
+                    size="small"
+                    onDelete={() => removeContextItem(item.id)}
+                    sx={{
+                      bgcolor: item.type === 'node' ? 'primary.50' : 'grey.100',
+                      color: item.type === 'node' ? 'primary.main' : 'text.primary',
+                      '& .MuiChip-deleteIcon': {
+                        color: 'text.secondary',
+                        '&:hover': { color: 'text.primary' }
+                      }
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#F3F4F6', px: 2, py: 1, borderRadius: 2 }}>
-              <TextField 
-                fullWidth 
-                placeholder="Ask about your documents..." 
-                variant="standard" 
+              <TextField
+                fullWidth
+                placeholder={chatContextItems.length > 0 ? "Ask about this context..." : "Ask about your documents..."}
+                variant="standard"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -4747,7 +4864,7 @@ function StudioPageContent() {
                     handleSendMessage();
                   }
                 }}
-                InputProps={{ disableUnderline: true, style: { fontSize: 14 } }} 
+                InputProps={{ disableUnderline: true, style: { fontSize: 14 } }}
               />
               <IconButton size="small" color={chatInput.trim() ? "primary" : "default"} onClick={handleSendMessage} disabled={!chatInput.trim() || isTyping}>
                 <ArrowRight size={18} />
@@ -4766,11 +4883,11 @@ function StudioPageContent() {
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2, gap: 2 }}>
             <Tooltip title={quietMode ? "AI Assistant (Focus Mode)" : "AI Assistant (Ready)"} placement="right">
-              <Box 
+              <Box
                 onClick={() => setCenterVisible(true)}
-                sx={{ 
-                  p: 1, 
-                  borderRadius: 1, 
+                sx={{
+                  p: 1,
+                  borderRadius: 1,
                   cursor: 'pointer',
                   color: quietMode ? 'text.disabled' : 'primary.main',
                   bgcolor: quietMode ? 'transparent' : 'primary.50',
@@ -4789,10 +4906,10 @@ function StudioPageContent() {
 
         {/* ================= RIGHT COLUMN: Output OS (Tabs + Launcher) ================= */}
         <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          
+
           {/* Header (Tab Bar) */}
-          <Box sx={{ 
-            height: 56, borderBottom: '1px solid', borderColor: 'divider', 
+          <Box sx={{
+            height: 56, borderBottom: '1px solid', borderColor: 'divider',
             display: 'flex', alignItems: 'flex-end', px: 2, justifyContent: 'space-between', bgcolor: '#F9FAFB'
           }}>
             {/* Tabs Container */}
@@ -4817,12 +4934,12 @@ function StudioPageContent() {
                     '&:hover': { bgcolor: activeTabId === tab.id ? '#fff' : 'rgba(0,0,0,0.03)' }
                   }}
                 >
-                  {tab.status === 'generating' ? <Loader2 size={14} className="animate-spin text-blue-600" /> : 
-                   tab.type === 'podcast' ? <Mic size={14} className="text-purple-500" /> :
-                   tab.type === 'flashcards' ? <BrainCircuit size={14} className="text-orange-500" /> :
-                   tab.type === 'ppt' ? <Presentation size={14} className="text-pink-500" /> :
-                   tab.type === 'writer' ? <PenTool size={14} className="text-green-600" /> :
-                   <Layout size={14} className="text-gray-500" />
+                  {tab.status === 'generating' ? <Loader2 size={14} className="animate-spin text-blue-600" /> :
+                    tab.type === 'podcast' ? <Mic size={14} className="text-purple-500" /> :
+                      tab.type === 'flashcards' ? <BrainCircuit size={14} className="text-orange-500" /> :
+                        tab.type === 'ppt' ? <Presentation size={14} className="text-pink-500" /> :
+                          tab.type === 'writer' ? <PenTool size={14} className="text-green-600" /> :
+                            <Layout size={14} className="text-gray-500" />
                   }
                   <Typography variant="caption" fontWeight={activeTabId === tab.id ? 600 : 400} noWrap sx={{ flex: 1 }}>{tab.title}</Typography>
                   <IconButton size="small" onClick={(e) => handleTabClose(e, tab.id)} sx={{ p: 0.5, opacity: 0.6, '&:hover': { opacity: 1, bgcolor: 'error.lighter', color: 'error.main' } }}>
@@ -4830,7 +4947,7 @@ function StudioPageContent() {
                   </IconButton>
                 </Box>
               ))}
-              
+
               {/* Add Tab Button */}
               <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)} sx={{ mb: 1, ml: 0.5 }}>
                 <Plus size={16} />
@@ -4882,7 +4999,7 @@ function StudioPageContent() {
           {/* Active Tab Content */}
           {renderTabContent()}
 
-          </Box>
+        </Box>
       </Box>
       <CurriculumPreviewModal
         open={isCurriculumModalOpen}
@@ -4898,11 +5015,36 @@ function StudioPageContent() {
         isOpen={inspectorOpen && selectedNodeId !== null}
         onClose={() => setInspectorOpen(false)}
         onUpdate={(nodeId, updates) => {
-          setCanvasNodes(prev => prev.map(n => 
+          setCanvasNodes(prev => prev.map(n =>
             n.id === nodeId ? { ...n, ...updates } : n
           ));
         }}
       />
+
+      {/* Floating "Ask AI" button when Assistant panel is collapsed */}
+      {!centerVisible && (
+        <Tooltip title="Ask AI" placement="left">
+          <Fab
+            color="primary"
+            onClick={() => setCenterVisible(true)}
+            sx={{
+              position: 'fixed',
+              bottom: 24,
+              right: 24,
+              zIndex: 1300,
+              background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                transform: 'scale(1.05)',
+              },
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <Sparkles size={24} />
+          </Fab>
+        </Tooltip>
+      )}
     </GlobalLayout>
   );
 }
