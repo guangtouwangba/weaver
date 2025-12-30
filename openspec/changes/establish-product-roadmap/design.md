@@ -1,33 +1,29 @@
 # Design: Product Roadmap 2025
 
-## Competitive Analysis & "Why Me?"
-The Knowledge Tool market is crowded (NotebookLM, YouMind, Heptabase). We win by solving the **"Closed World"** and **"Passive Tool"** problems.
+## Competitive DNA Analysis
+To survive, we must build what they *cannot* build due to their structural DNA.
 
-### The Landscape
-*   **NotebookLM (Google)**: Best for **Consumption**. "Chat with *your* docs." Excellent for verifying facts in uploaded PDFs. *Limitation*: Cannot find new information; purely reactive.
-*   **YouMind**: Best for **Creation**. "Turn bookmarks into posts." Good linear workflow. *Limitation*: Focuses on content output, not deep problem solving.
+### 1. The "Session" Trap (NotebookLM's Weakness)
+*   **Their DNA**: "Chat". Interaction is ephemeral. You ask, it answers, you leave.
+*   **Our Moat**: **Persistence**. Our Agents have "Object Permanence". They remember the goal you set 3 days ago.
+    *   *Feature*: **"The Long-Running Research Task"**. You tell the system "Track developments in Fusion Energy," and it updates the graph *every week* without you asking. NotebookLM cannot do this; it has no concept of time or persistent goal state.
 
-### Our Thesis: "The Agentic Workbench"
-We are not building a "Knowledge Base" or a "Chatbot". We are building a **Co-Thinking Partner** that acts with agency.
-1.  **Breaking the "Closed World"**: Unlike NotebookLM, we don't just answer from your files. If the answer is missing, our **Deep Research Agent** goes to the web, finds the missing puzzle piece, and adds it to the board.
-    *   *Feature*: "Deep Think" button is not a chat—it's a mission dispatcher.
-2.  **Active Sensemaking**: Unlike YouMind's static mind maps, our **Canvas** is a shared workspace. The AI doesn't just "generate" a map; it *works* on it. It groups similar notes, draws connection lines, and flags contradictions in real-time.
-    *   *Feature*: "Auto-Cluster" and "Suggest Link" interactions.
+### 2. The "Editor" Trap (YouMind/Notion's Weakness)
+*   **Their DNA**: "Document". The AI is a helper *inside* your cursor. It waits for you to type.
+*   **Our Moat**: **Autonomy**. The AI is a **"Junior Analyst"**. It works in the background.
+    *   *Feature*: **"The Night Shift"**. While you sleep, the agent clusters your logic, flags contradictions, and hunts for missing citations. When you wake up, the board has *evolved*. Editor apps can't do this because user-agent collision in a doc is bad UX; but on a *Canvas*, it's natural collaborative work.
 
-## Phasing Strategy (Value-Driven)
+## Phasing Strategy: The "Analyst" Evolution
 
 ### Phase 1: The "Research Assistant" (Capture & Triage)
-*   **Goal**: Solve Fragmentation. "Capture Everything, Miss Nothing."
-*   **Differentiation**:
-    *   **Agentic Triage**: We don't just save the URL. We auto-extract entities (People, Companies) to populate the Graph immediately.
+*   **Value**: "Don't just File it; Process it."
+*   **Critical Feature**: **Entity Resolution Layer**. Unlike a bookmark manager, we resolve "Elon Musk" in Article A to the same node as "Elon" in Article B. We build a *Database*, they build a *List*.
 
 ### Phase 2: The "Thinking Partner" (Connect & Visualize)
-*   **Goal**: Solve Complexity. "See the Unseen Patterns."
-*   **Differentiation**:
-    *   **Deep Research**: The ability to *expand* the knowledge graph autonomously. "I see you have 3 papers on Transformers. I found 2 newer ones that contradict paper #1. Shall I add them?"
-    *   **Spatial Reasoning**: AI operations happen on the Canvas (Visually), not in a hidden chat window.
+*   **Value**: "Work While I Sleep."
+*   **Critical Feature**: **Asynchronous Graph Maintenance**. The system proactively suggests: "These two clusters contradict each other. I created a 'Conflict' node linking them."
+    *   *Why they can't copy*: "Clippy" interrupting you in Notion is annoying. A "Conflict Node" appearing on a Canvas is helpful context. The UX form factor allows agency.
 
 ### Phase 3: The "Content Studio" (Synthesize & Publish)
-*   **Goal**: Solve Production Bottlenecks. "Turn Thoughts into Deliverables."
-*   **Differentiation**:
-    *   **Grounded Synthesis**: Writing is backed by specific nodes on the canvas. Clicking a sentence in the draft highlights the source node on the board (bi-directional linking).
+*   **Value**: "Living Reports."
+*   **Critical Feature**: **Dynamic Synthesis**. The report updates when the graph updates. It's not a snapshot; it's a view on the living database.
