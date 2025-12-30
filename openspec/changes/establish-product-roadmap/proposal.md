@@ -1,12 +1,14 @@
 # Establish Product Roadmap 2025
 
 ## Goal Description
-Establish a product roadmap that defines a defensible strategic moat based on **Proactive Agency**. We are moving beyond "AI Features" (which are commodities) to a "System of Intelligence" where the AI acts as a persistent, asynchronous researcher—a fundamental shift that "Job-to-be-Done" tools (like editors or archivers) cannot easily copy without destroying their existing UX.
+Avoid the "Solution In Search of a Problem" (SISP) trap. Instead of building "cool AI agents," we focus on solving the **"10-Hour Research Slog."** The goal is to reduce the time-to-insight for knowledge workers who currently spend 80% of their time just *gathering* and *formatting* data, leaving only 20% for thinking.
 
-## The Strategic Moat: "The Junior Analyst" (Why they can't copy us)
-*   **NotebookLM** cannot pivot here because they are optimized for **Veracity & Safety**. Their brand promise is "Grounded in *Your* Docs". Introducing autonomous web agents that introduce *new, unverified* information breaks their core trust model.
-*   **YouMind/Notion** cannot pivot here because they are optimized for **Human Authorship**. Their unified state is "The Document". To make AI a pro-active co-author that works while you sleep requires re-architecting their entire CRDT/Sync engine to support "Agentic State", not just "Text State".
+## The "Hair on Fire" Problem
+Knowledge workers (Analysts, Researchers, Creators) are drowning, not just "fragmented."
+*   **The Pain**: "I have to read 100 tabs and 5 PDFs to write ONE email."
+*   **The Cost**: It takes 3 days to produce a briefing that should take 3 hours.
+*   **The Solution (Hidden)**: It's not "Agents"—it's **"Compression"**. We compress the time between "Curiosity" and "Understanding."
 
 ## User Review Required
 > [!IMPORTANT]
-> The roadmap now focuses on features that enable **Long-Horizon Asynchronous Work** (Agents that remember and work over time), rather than real-time "Copilot" features.
+> The roadmap has been renamed to focus on **Outcomes** (e.g., "Instant Briefing") rather than **Mechanisms** (e.g., "Deep Research"). Use Agency only as a means to an end.
