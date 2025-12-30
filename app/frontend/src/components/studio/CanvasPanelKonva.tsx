@@ -8,11 +8,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Box, Chip, CircularProgress } from '@mui/material';
 import { useStudio } from '@/contexts/StudioContext';
-import { canvasApi } from '@/lib/api';
+import { canvasApi, chatApi } from '@/lib/api';
 import KonvaCanvas from './KonvaCanvas';
 import CanvasSidebar from './CanvasSidebar';
 import ThinkingPathGenerator from './ThinkingPathGenerator';
 import CanvasToolbar, { ToolMode } from './CanvasToolbar';
+import ChatOverlay from './ChatOverlay';
 
 export default function CanvasPanelKonva() {
   const {
@@ -32,6 +33,10 @@ export default function CanvasPanelKonva() {
     navigateToMessage,
     navigateToSource,  // Phase 1: For opening source documents
     isGenerating,
+    chatMessages,
+    setChatMessages,
+    activeSessionId,
+    activeDocumentId,
   } = useStudio();
 
 
@@ -102,6 +107,78 @@ export default function CanvasPanelKonva() {
     // This is a placeholder - actual deletion is handled in KonvaCanvas via keyboard
     // We could add a ref or callback to trigger deletion from toolbar
   }, []);
+
+  // Handle chat message from overlay
+  const handleSendMessage = useCallback(async (message: string) => {
+    if (!message.trim()) return;
+
+    const userMsg = {
+      id: Date.now().toString(),
+      role: 'user' as const,
+      content: message,
+      timestamp: new Date(),
+    };
+
+    const aiMsgId = (Date.now() + 1).toString();
+
+    // Add user message
+    setChatMessages(prev => [...prev, userMsg]);
+
+    try {
+      // Prepare AI message placeholder
+      setChatMessages(prev => [...prev, {
+        id: aiMsgId,
+        role: 'ai',
+        content: '',
+        timestamp: new Date(),
+        query: message,
+      }]);
+
+      // Stream response
+      for await (const chunk of chatApi.stream(projectId, {
+        message: message,
+        document_id: activeDocumentId || undefined,
+        session_id: activeSessionId || undefined,
+      })) {
+        if (chunk.type === 'token' && chunk.content) {
+          setChatMessages(prev => prev.map(m =>
+            m.id === aiMsgId
+              ? { ...m, content: (m.content || '') + chunk.content }
+              : m
+          ));
+        } else if (chunk.type === 'sources') {
+          setChatMessages(prev => prev.map(m =>
+            m.id === aiMsgId ? { ...m, sources: chunk.sources } : m
+          ));
+        } else if (chunk.type === 'citation' && chunk.data) {
+          setChatMessages(prev => prev.map(m =>
+            m.id === aiMsgId
+              ? { ...m, citations: [...(m.citations || []), chunk.data as any] }
+              : m
+          ));
+        } else if (chunk.type === 'citations' && chunk.citations) {
+          setChatMessages(prev => prev.map(m =>
+            m.id === aiMsgId
+              ? { ...m, citations: chunk.citations }
+              : m
+          ));
+        } else if (chunk.type === 'error') {
+          setChatMessages(prev => prev.map(m =>
+            m.id === aiMsgId
+              ? { ...m, content: (m.content || '') + `\n\n[Error: ${chunk.content || 'Unknown error'}]` }
+              : m
+          ));
+        }
+      }
+    } catch (err) {
+      console.error("Chat error:", err);
+      setChatMessages(prev => prev.map(m =>
+        m.id === aiMsgId
+          ? { ...m, content: (m.content || '') + `\n\nSorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}` }
+          : m
+      ));
+    }
+  }, [projectId, activeSessionId, activeDocumentId, setChatMessages]);
 
   // Auto-save on change (debounced)
   useEffect(() => {
@@ -189,6 +266,9 @@ export default function CanvasPanelKonva() {
 
       <CanvasSidebar />
       <ThinkingPathGenerator />
+      
+      {/* Chat Overlay at Bottom */}
+      <ChatOverlay onSendMessage={handleSendMessage} />
     </Box>
   );
 }

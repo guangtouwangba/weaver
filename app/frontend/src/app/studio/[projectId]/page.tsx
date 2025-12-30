@@ -15,12 +15,13 @@ import {
   ShareIcon,
   SearchIcon,
   ChevronLeftIcon,
-  ExpandMoreIcon
+  ExpandMoreIcon,
 } from '@/components/ui/icons';
 import NotificationsMui from '@mui/icons-material/Notifications';
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { useStudio, StudioProvider } from "@/contexts/StudioContext";
 import ResourceSidebar from "@/components/studio/ResourceSidebar";
+import AssistantPanel from "@/components/studio/AssistantPanel";
 import KonvaCanvas from "@/components/studio/KonvaCanvas";
 import CanvasControls from "@/components/studio/CanvasControls";
 import ImportSourceDialog from "@/components/dialogs/ImportSourceDialog";
@@ -51,8 +52,6 @@ export default function StudioPage() {
 
 function StudioPageContent() {
   const {
-    project,
-    messages,
     canvasNodes,
     setCanvasNodes,
     canvasEdges,
@@ -63,9 +62,11 @@ function StudioPageContent() {
     documents,
     setDocuments,
     addNodeToCanvas,
-    openDocumentPreview
+    openDocumentPreview,
+    navigateToSource,
   } = useStudio();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>('select');
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
@@ -137,14 +138,12 @@ function StudioPageContent() {
                   <ChevronLeftIcon size="md" />
                 </IconButton>
               </Tooltip>
-              {project && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Typography variant="subtitle2" fontWeight="600">
-                    {project.name}
-                  </Typography>
-                  <ExpandMoreIcon size="sm" sx={{ color: 'grey.400' }} />
-                </Box>
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="subtitle2" fontWeight="600">
+                  Project {projectId.substring(0, 8)}...
+                </Typography>
+                <ExpandMoreIcon size="sm" sx={{ color: 'grey.400' }} />
+              </Box>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -175,11 +174,14 @@ function StudioPageContent() {
               onNodesChange={setCanvasNodes}
               onEdgesChange={setCanvasEdges}
               onViewportChange={setCanvasViewport}
-              onNodeAdd={addNodeToCanvas}
+              onNodeAdd={(node) => addNodeToCanvas(node as any)}
               onOpenImport={() => setIsImportDialogOpen(true)}
               toolMode={interactionMode === 'pan' ? 'hand' : 'select'}
               onToolChange={(tool) => setInteractionMode(tool === 'hand' ? 'pan' : 'select')}
-              onOpenSource={openDocumentPreview}
+              onOpenSource={(id, page) => {
+                if (page) navigateToSource(id, page);
+                openDocumentPreview(id);
+              }}
             />
 
 
@@ -194,6 +196,13 @@ function StudioPageContent() {
               onDelete={handleDelete}
               hasSelection={selectedNodeIds.size > 0}
             />
+
+            {/* Right: Assistant Panel (Overlay) */}
+            <AssistantPanel
+              visible={isChatOpen}
+              width={400}
+              onToggle={() => setIsChatOpen(!isChatOpen)}
+            />
           </Box>
         </Box>
       </Box>
@@ -207,6 +216,6 @@ function StudioPageContent() {
       />
 
       <PDFPreviewModal />
-    </GlobalLayout>
+    </GlobalLayout >
   );
 }

@@ -4,13 +4,18 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Box, Menu, MenuItem, TextField, Button, IconButton, Paper, Snackbar, Alert, Slide, Tooltip } from '@mui/material';
 import { EditIcon, DeleteIcon, CloseIcon, ErrorIcon } from '@/components/ui/icons';
 import { highlightsApi } from '@/lib/api'; // Removed HighlightResponse from import as we use local type extending it
-import { PDFViewerWrapper } from './PDFViewerWrapper';
+import dynamic from 'next/dynamic';
 import { SelectionManager } from './SelectionManager';
 import { HighlightOverlay } from './HighlightOverlay';
 import { SelectionToolbar } from './SelectionToolbar';
 import { createDragHandler } from './DragHandler';
 import { TextSelection, Highlight, HighlightColor, ToolMode, AnnotationColor } from './types';
 import '@/styles/pdf-viewer.css';
+
+const PDFViewerWrapper = dynamic(
+  () => import('./PDFViewerWrapper').then((mod) => mod.PDFViewerWrapper),
+  { ssr: false }
+);
 
 interface PDFViewerProps {
   documentId: string;

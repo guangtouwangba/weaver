@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Paper, Typography, List, ListItem, ListItemButton, ListItemIcon, ListItemText, IconButton, CircularProgress, Tooltip } from '@mui/material';
-import { Plus, Music, Mic, CreditCard, Layout, Zap, PlayCircle, Sparkles, Send, Brain, MessageSquare, FileText, Network, HelpCircle } from 'lucide-react';
+import { Plus, Music, Mic, CreditCard, Layout, Zap, PlayCircle, Sparkles, Send, Brain, MessageSquare, FileText, Network, HelpCircle, GripVertical } from 'lucide-react';
 import { Node, Edge } from '@/app/prototype/freeform/page';
 import SynthesisOrb, { SynthesisAction } from './SynthesisOrb';
 import { TopicCard, MindMapCard, PodcastCard, DataCard, BriefCard, FlashcardNode } from './cards';
@@ -313,6 +313,34 @@ export default function Canvas({
             onSelectNodes([]);
             onFocusNode(null);
         }
+    };
+
+    // Handle dragging nodes OUT of the canvas (e.g. to chat)
+    const handleExternalDragStart = (e: React.DragEvent, node: Node) => {
+        e.stopPropagation();
+        const payload = {
+            id: node.id,
+            type: 'node',
+            title: node.name || node.title || 'Untitled Node',
+            content: node.content || node.description || '',
+            nodeType: node.type
+        };
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('application/json', JSON.stringify(payload));
+        e.dataTransfer.setData('text/plain', node.name || node.title || 'Untitled Node');
+
+        // Create a nice drag ghost
+        const ghost = document.createElement('div');
+        ghost.textContent = node.name || 'Node';
+        ghost.style.background = 'white';
+        ghost.style.padding = '8px 12px';
+        ghost.style.border = `1px solid ${projectColor}`;
+        ghost.style.borderRadius = '4px';
+        ghost.style.position = 'absolute';
+        ghost.style.top = '-1000px';
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 0, 0);
+        setTimeout(() => document.body.removeChild(ghost), 0);
     };
 
     // Calculate connection path (curvy line)
@@ -645,9 +673,39 @@ export default function Canvas({
                                     transform: isParentOfHoveredSynth ? 'translate(-50%, -50%) scale(1.15)' : 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isParentOfHoveredSynth) ? 10 : 1,
                                     pointerEvents: 'auto',
-                                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        right: 0,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <Paper
                                     elevation={isSelected ? 12 : 6}
                                     sx={{
@@ -712,9 +770,39 @@ export default function Canvas({
                                     transform: isParentOfHoveredSynth ? 'translate(-50%, -50%) scale(1.15)' : 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected || isParentOfHoveredSynth) ? 10 : 1,
                                     pointerEvents: 'auto',
-                                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <Paper
                                     elevation={isSelected || isPreviewSelected ? 8 : 2}
                                     sx={{
@@ -757,9 +845,39 @@ export default function Canvas({
                                     top: node.y,
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected) ? 10 : 1,
-                                    pointerEvents: 'auto'
+                                    pointerEvents: 'auto',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <TopicCard
                                     id={node.id}
                                     name={node.name}
@@ -794,9 +912,39 @@ export default function Canvas({
                                     top: node.y,
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected) ? 10 : 1,
-                                    pointerEvents: 'auto'
+                                    pointerEvents: 'auto',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <MindMapCard
                                     id={node.id}
                                     name={node.name}
@@ -832,9 +980,39 @@ export default function Canvas({
                                     top: node.y,
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected) ? 10 : 1,
-                                    pointerEvents: 'auto'
+                                    pointerEvents: 'auto',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <PodcastCard
                                     id={node.id}
                                     name={node.name}
@@ -868,9 +1046,39 @@ export default function Canvas({
                                     top: node.y,
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected) ? 10 : 1,
-                                    pointerEvents: 'auto'
+                                    pointerEvents: 'auto',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <DataCard
                                     id={node.id}
                                     name={node.name}
@@ -904,9 +1112,39 @@ export default function Canvas({
                                     top: node.y,
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected) ? 10 : 1,
-                                    pointerEvents: 'auto'
+                                    pointerEvents: 'auto',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <BriefCard
                                     id={node.id}
                                     name={node.name}
@@ -942,9 +1180,39 @@ export default function Canvas({
                                     top: node.y,
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected) ? 10 : 1,
-                                    pointerEvents: 'auto'
+                                    pointerEvents: 'auto',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <FlashcardNode
                                     id={node.id}
                                     term={node.term || node.name}
@@ -992,9 +1260,39 @@ export default function Canvas({
                                     top: node.y,
                                     transform: 'translate(-50%, -50%)',
                                     zIndex: (isSelected || isPreviewSelected) ? 10 : 1,
-                                    pointerEvents: 'auto'
+                                    pointerEvents: 'auto',
+                                    '&:hover .drag-handle': { opacity: 1 }
                                 }}
                             >
+                                {/* External Drag Handle */}
+                                <Box
+                                    className="drag-handle"
+                                    draggable
+                                    onDragStart={(e) => handleExternalDragStart(e, node)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: -10,
+                                        right: -10,
+                                        zIndex: 20,
+                                        bgcolor: 'white',
+                                        borderRadius: '50%',
+                                        p: 0.5,
+                                        width: 24,
+                                        height: 24,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        border: `1px solid ${projectColor}`,
+                                        cursor: 'grab',
+                                        opacity: 0,
+                                        transition: 'all 0.2s',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                        '&:hover': { transform: 'scale(1.1)' }
+                                    }}
+                                >
+                                    <GripVertical size={14} color={projectColor} />
+                                </Box>
                                 <Paper
                                     elevation={isSelected || isPreviewSelected ? 12 : 4}
                                     sx={{
@@ -1503,11 +1801,11 @@ export default function Canvas({
                     }}
                 >
                     {availableFiles && availableFiles.length > 0 ? (
-                        <Box sx={{ 
-                            pointerEvents: 'auto', 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            alignItems: 'center', 
+                        <Box sx={{
+                            pointerEvents: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
                             gap: 3,
                             animation: 'fadeIn 0.5s ease-out'
                         }}>
@@ -1565,9 +1863,9 @@ export default function Canvas({
                                                     '&:active': { transform: 'scale(0.98)' }
                                                 }}
                                             >
-                                                <Box sx={{ 
-                                                    p: 1, 
-                                                    borderRadius: '12px', 
+                                                <Box sx={{
+                                                    p: 1,
+                                                    borderRadius: '12px',
                                                     bgcolor: 'white',
                                                     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                                                     display: 'flex',
@@ -1600,11 +1898,11 @@ export default function Canvas({
                                 >
                                     {/* Action 1: Summary */}
                                     <Tooltip title="Generate Executive Summary" placement="top" arrow>
-                                        <IconButton 
+                                        <IconButton
                                             onClick={() => onSmartStart?.(availableFiles[0].id, 'summarize')}
-                                            sx={{ 
-                                                width: 64, 
-                                                height: 64, 
+                                            sx={{
+                                                width: 64,
+                                                height: 64,
                                                 borderRadius: '16px',
                                                 bgcolor: 'grey.50',
                                                 border: '1px solid',
@@ -1612,10 +1910,10 @@ export default function Canvas({
                                                 flexDirection: 'column',
                                                 gap: 0.5,
                                                 transition: 'all 0.2s',
-                                                '&:hover': { 
-                                                    bgcolor: `${projectColor}11`, 
+                                                '&:hover': {
+                                                    bgcolor: `${projectColor}11`,
                                                     borderColor: projectColor,
-                                                    transform: 'translateY(-2px)' 
+                                                    transform: 'translateY(-2px)'
                                                 }
                                             }}
                                         >
@@ -1626,11 +1924,11 @@ export default function Canvas({
 
                                     {/* Action 2: Concept Map */}
                                     <Tooltip title="Extract Concept Map" placement="top" arrow>
-                                        <IconButton 
+                                        <IconButton
                                             onClick={() => onSmartStart?.(availableFiles[0].id, 'map')}
-                                            sx={{ 
-                                                width: 64, 
-                                                height: 64, 
+                                            sx={{
+                                                width: 64,
+                                                height: 64,
                                                 borderRadius: '16px',
                                                 bgcolor: 'grey.50',
                                                 border: '1px solid',
@@ -1638,10 +1936,10 @@ export default function Canvas({
                                                 flexDirection: 'column',
                                                 gap: 0.5,
                                                 transition: 'all 0.2s',
-                                                '&:hover': { 
-                                                    bgcolor: '#10B98111', 
+                                                '&:hover': {
+                                                    bgcolor: '#10B98111',
                                                     borderColor: '#10B981',
-                                                    transform: 'translateY(-2px)' 
+                                                    transform: 'translateY(-2px)'
                                                 }
                                             }}
                                         >
@@ -1652,11 +1950,11 @@ export default function Canvas({
 
                                     {/* Action 3: More / Close */}
                                     <Tooltip title={showMoreActions ? "Close" : "More Actions"} placement="top" arrow>
-                                        <IconButton 
+                                        <IconButton
                                             onClick={() => setShowMoreActions(!showMoreActions)}
-                                            sx={{ 
-                                                width: 64, 
-                                                height: 64, 
+                                            sx={{
+                                                width: 64,
+                                                height: 64,
                                                 borderRadius: '16px',
                                                 border: '1px dashed',
                                                 borderColor: showMoreActions ? projectColor : 'divider',

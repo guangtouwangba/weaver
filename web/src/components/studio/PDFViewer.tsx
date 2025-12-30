@@ -15,6 +15,7 @@ type Highlight = HighlightResponse & {
 interface PDFViewerProps {
   documentId: string;
   content: React.ReactNode; // PDF 内容（可以是文本或其他格式）
+  highlightText?: string; // 用于高亮引用文本的字符串
   onHighlightCreate?: (highlight: Highlight) => void;
   onHighlightUpdate?: (highlight: Highlight) => void;
   onHighlightDelete?: (highlightId: string) => void;
@@ -23,6 +24,7 @@ interface PDFViewerProps {
 export default function PDFViewer({
   documentId,
   content,
+  highlightText,
   onHighlightCreate,
   onHighlightUpdate,
   onHighlightDelete,
@@ -44,6 +46,88 @@ export default function PDFViewer({
     text: string;
     position: HighlightPosition;
   } | null>(null);
+
+  // Citation highlight state - for temporary highlight when navigating from citations
+  const [citationHighlightRects, setCitationHighlightRects] = useState<DOMRect[]>([]);
+
+  // Effect to highlight citation text when highlightText prop changes
+  useEffect(() => {
+    if (!highlightText || !containerRef.current) {
+      setCitationHighlightRects([]);
+      return;
+    }
+
+    // Find and highlight the text using the browser's find-in-page API simulation
+    // We search for the text in the container and visually highlight it
+    const findAndHighlightText = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const treeWalker = document.createTreeWalker(
+        container,
+        NodeFilter.SHOW_TEXT,
+        null
+      );
+
+      const rects: DOMRect[] = [];
+      let node: Text | null;
+
+      while ((node = treeWalker.nextNode() as Text | null)) {
+        const text = node.textContent || '';
+        const index = text.toLowerCase().indexOf(highlightText.toLowerCase());
+
+        if (index !== -1) {
+          // Create a range to get the position of the matched text
+          const range = document.createRange();
+          range.setStart(node, index);
+          range.setEnd(node, index + highlightText.length);
+
+          const containerRect = container.getBoundingClientRect();
+          const scrollLeft = container.scrollLeft;
+          const scrollTop = container.scrollTop;
+
+          // Get all client rects and convert to container-relative coordinates
+          const clientRects = range.getClientRects();
+          for (let i = 0; i < clientRects.length; i++) {
+            const clientRect = clientRects[i];
+            const relativeRect = new DOMRect(
+              clientRect.left - containerRect.left + scrollLeft,
+              clientRect.top - containerRect.top + scrollTop,
+              clientRect.width,
+              clientRect.height
+            );
+            rects.push(relativeRect);
+          }
+
+          // Scroll the first match into view
+          if (rects.length > 0) {
+            const firstRect = clientRects[0];
+            if (firstRect) {
+              node.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+
+          // Only highlight first occurrence
+          break;
+        }
+      }
+
+      setCitationHighlightRects(rects);
+    };
+
+    // Small delay to ensure content is rendered
+    const timeoutId = setTimeout(findAndHighlightText, 100);
+
+    // Auto-clear citation highlight after 5 seconds
+    const clearTimeoutId = setTimeout(() => {
+      setCitationHighlightRects([]);
+    }, 5000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(clearTimeoutId);
+    };
+  }, [highlightText]);
 
   // 加载高亮列表
   useEffect(() => {
@@ -96,7 +180,7 @@ export default function PDFViewer({
         // clientRect 是相对于视口的 -> 转换为相对于容器内容的位置（加上当前滚动偏移）
         const relativeLeft = clientRect.left - containerRect.left + scrollLeft;
         const relativeTop = clientRect.top - containerRect.top + scrollTop;
-        
+
         const relativeRect = new DOMRect(
           relativeLeft,
           relativeTop,
@@ -200,7 +284,7 @@ export default function PDFViewer({
 
       // 立即更新状态，让高亮立即显示
       setHighlights((prev) => [...prev, highlightWithRects]);
-      
+
       // 清除选择
       window.getSelection()?.removeAllRanges();
       setToolbarPosition(null);
@@ -270,8 +354,8 @@ export default function PDFViewer({
           const errorMsg = error.status === 404
             ? '高亮功能暂不可用'
             : error.status >= 500
-            ? '服务器错误，请稍后重试'
-            : error.message || '创建高亮失败，请稍后重试';
+              ? '服务器错误，请稍后重试'
+              : error.message || '创建高亮失败，请稍后重试';
 
           setErrorMessage(errorMsg);
         }
@@ -285,10 +369,10 @@ export default function PDFViewer({
   // 处理添加批注
   const handleAddNote = useCallback(() => {
     if (!selectedText || !toolbarPosition) return;
-    
+
     const position = calculateSelectionPosition();
     if (!position) return;
-    
+
     // 保存选中信息，以便在对话框打开后即使选择被清除也能使用
     setPendingNoteSelection({
       text: selectedText,
@@ -394,8 +478,8 @@ export default function PDFViewer({
         const errorMsg = error.status === 404
           ? '高亮功能暂不可用'
           : error.status >= 500
-          ? '服务器错误，请稍后重试'
-          : error.message || '创建高亮失败，请稍后重试';
+            ? '服务器错误，请稍后重试'
+            : error.message || '创建高亮失败，请稍后重试';
 
         setErrorMessage(errorMsg);
       }
@@ -515,8 +599,8 @@ export default function PDFViewer({
       const errorMsg = error.status === 404
         ? '高亮功能暂不可用'
         : error.status >= 500
-        ? '服务器错误，批注修改已回滚'
-        : error.message || '保存批注失败，已回滚';
+          ? '服务器错误，批注修改已回滚'
+          : error.message || '保存批注失败，已回滚';
 
       setErrorMessage(errorMsg);
     }
@@ -546,8 +630,8 @@ export default function PDFViewer({
       const errorMsg = error.status === 404
         ? '高亮功能暂不可用'
         : error.status >= 500
-        ? '服务器错误，删除操作已回滚'
-        : error.message || '删除高亮失败，已回滚';
+          ? '服务器错误，删除操作已回滚'
+          : error.message || '删除高亮失败，已回滚';
 
       setErrorMessage(errorMsg);
     }
@@ -615,8 +699,8 @@ export default function PDFViewer({
         const errorMsg = error.status === 404
           ? '高亮颜色修改暂不可用'
           : error.status >= 500
-          ? '服务器错误，颜色修改已回滚'
-          : error.message || '更新高亮颜色失败，已回滚';
+            ? '服务器错误，颜色修改已回滚'
+            : error.message || '更新高亮颜色失败，已回滚';
         setErrorMessage(errorMsg);
       }
     },
@@ -669,6 +753,47 @@ export default function PDFViewer({
           handleHighlightClick(highlight, event);
         }}
       />
+
+      {/* Citation highlight overlay - temporary highlight when navigating from citations */}
+      {citationHighlightRects.length > 0 && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: 'none',
+            zIndex: 5,
+          }}
+        >
+          {citationHighlightRects.map((rect, index) => (
+            <Box
+              key={index}
+              sx={{
+                position: 'absolute',
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height,
+                backgroundColor: 'rgba(99, 102, 241, 0.3)',
+                borderRadius: '2px',
+                animation: 'citationPulse 1.5s ease-in-out infinite',
+                '@keyframes citationPulse': {
+                  '0%, 100%': {
+                    backgroundColor: 'rgba(99, 102, 241, 0.3)',
+                    boxShadow: '0 0 0 0 rgba(99, 102, 241, 0.4)',
+                  },
+                  '50%': {
+                    backgroundColor: 'rgba(99, 102, 241, 0.5)',
+                    boxShadow: '0 0 8px 2px rgba(99, 102, 241, 0.3)',
+                  },
+                },
+              }}
+            />
+          ))}
+        </Box>
+      )}
 
       {/* 选择工具栏 */}
       {toolbarPosition && (
@@ -748,10 +873,10 @@ export default function PDFViewer({
                   color === 'yellow'
                     ? '#FFEB3B'
                     : color === 'green'
-                    ? '#4CAF50'
-                    : color === 'blue'
-                    ? '#2196F3'
-                    : '#E91E63',
+                      ? '#4CAF50'
+                      : color === 'blue'
+                        ? '#2196F3'
+                        : '#E91E63',
                 border: '1.5px solid',
                 borderColor:
                   selectedHighlight?.color === color ? '#171717' : 'transparent',
@@ -762,10 +887,10 @@ export default function PDFViewer({
                     color === 'yellow'
                       ? '#FFD700'
                       : color === 'green'
-                      ? '#45A049'
-                      : color === 'blue'
-                      ? '#1976D2'
-                      : '#C2185B',
+                        ? '#45A049'
+                        : color === 'blue'
+                          ? '#1976D2'
+                          : '#C2185B',
                   borderColor: '#171717',
                   transform: 'scale(1.08)',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -995,11 +1120,11 @@ export default function PDFViewer({
                     pendingHighlights.forEach(({ highlight }, tempId) => {
                       const position = highlight.rects?.[0]
                         ? {
-                            pageNumber: highlight.pageNumber,
-                            startOffset: highlight.startOffset,
-                            endOffset: highlight.endOffset,
-                            rects: highlight.rects,
-                          }
+                          pageNumber: highlight.pageNumber,
+                          startOffset: highlight.startOffset,
+                          endOffset: highlight.endOffset,
+                          rects: highlight.rects,
+                        }
                         : null;
 
                       if (position) {

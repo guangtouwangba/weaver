@@ -124,6 +124,7 @@ interface StudioContextType {
   // Message <-> Node Navigation
   navigateToMessage: (messageId: string) => void;
   highlightedMessageId: string | null;
+  setHighlightedMessageId: (id: string | null) => void;
   navigateToNode: (nodeId: string) => void;
   highlightedNodeId: string | null;
 
@@ -995,6 +996,7 @@ export function StudioProvider({
     setAutoThinkingPathEnabled,
     navigateToMessage,
     highlightedMessageId,
+    setHighlightedMessageId,
     navigateToNode,
     highlightedNodeId,
     // Thinking Graph

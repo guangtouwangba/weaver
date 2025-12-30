@@ -19,7 +19,8 @@ export default function PDFPreviewModal() {
         documents,
         projectId,
         addNodeToCanvas,
-        viewport
+        viewport,
+        sourceNavigation
     } = useStudio();
 
     const [pageNumber, setPageNumber] = useState(1);
@@ -45,11 +46,15 @@ export default function PDFPreviewModal() {
     // Reset state when opening a new document
     useEffect(() => {
         if (isPreviewModalOpen) {
-            setPageNumber(1);
+            if (sourceNavigation && sourceNavigation.documentId === previewDocumentId) {
+                setPageNumber(sourceNavigation.pageNumber);
+            } else {
+                setPageNumber(1);
+            }
             setScale(1.0);
             // Highlights will be loaded by the specific effect below
         }
-    }, [isPreviewModalOpen, previewDocumentId]);
+    }, [isPreviewModalOpen, previewDocumentId, sourceNavigation]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -293,6 +298,7 @@ export default function PDFPreviewModal() {
                                 onHighlightCreate={handleHighlightCreate}
                                 onHighlightUpdate={handleHighlightUpdate}
                                 onHighlightDelete={handleHighlightDelete}
+                                highlightText={sourceNavigation?.documentId === activeDocument.id ? sourceNavigation.searchText : undefined}
                             />
                         ) : (
                             <div className="flex items-center justify-center h-full text-gray-400">
