@@ -1,13 +1,14 @@
 # Establish Product Roadmap 2025
 
 ## Goal Description
-Formalize the product roadmap for the production application (`app/frontend` + `app/backend`). This roadmap prioritizes the development of the core "Studio" experience, intelligent research workflows, and preparing for multi-user/production deployment.
+Establish a value-driven product roadmap that aligns development with the core user journey: **From Information Overload to Structured Insight**. This roadmap prioritizes features that deliver tangible business value at each stage of the research workflow.
 
-## Impact Analysis
-- **Features**: Focuses on implementing the `Studio` (Canvas, Graph, Synthesis) from the ground up in the production stack.
-- **Workflow**: Completes the end-to-end user journey: "Collect (Inbox) -> Analyze (Studio) -> Synthesize (Writer/Podcast)".
-- **Infrastructure**: Prepares for robust integrations including Chrome Extensions, Deep Research agents, and Supabase Auth.
+## Business Value Analysis
+The product addresses three critical pain points in knowledge work:
+1.  **Fragmentation**: Information is scattered across tabs, PDFs, and notes. -> **Value: Unified Ingestion**.
+2.  **Complexity**: Connecting dots across massive datasets is cognitively exhausting. -> **Value: AI-Augmented Sensemaking**.
+3.  **Production Bottleneck**: Transforming research into deliverables (reports, content) is slow. -> **Value: Assisted Synthesis**.
 
-## User Review Required
-> [!IMPORTANT]
-> The roadmap now treats the `web` directory as a prototype and is not a migration path. It assumes Greenfield development in `app/frontend` for all upcoming modules.
+## User Guidelines
+> [!TIP]
+> Each phase corresponds to a distinct "Job to be Done" for the user. We only move to the next phase when the current loop is frictionless.

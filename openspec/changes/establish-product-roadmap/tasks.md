@@ -1,28 +1,23 @@
 # tasks.md
 
-## Phase 1: Studio Core
-- [ ] **Spatial Canvas**
-    - [ ] Implement `CanvasComponent` using `react-konva` in `app/frontend`.
-    - [ ] Add basic node CRUD (Note, Image, Link).
-    - [ ] Implement WebSocket sync for real-time state.
+## Phase 1: The "Research Assistant" (Capture & Triage)
+- [ ] **Unified Ingestion**
+    - [ ] **Chrome Extension**: "Save to RAG" button. Captures URL, HTML content, and screenshot.
+    - [ ] **Auto-Triage**: Backend job to process Inbox items (Summarize, Tag, Extract Entities).
+    - [ ] **Smart Search**: Semantic search over Inbox to find "that thing I read last week".
+- [ ] **Inbox UX**
+    - [ ] "Inbox Zero" Workflow: Swipe to Archive, Drag to Project.
+
+## Phase 2: The "Thinking Partner" (Connect & Visualize)
+- [ ] **Spatial Workbench (Canvas)**
+    - [ ] **Semantic Clustering**: Drag 10 items to canvas -> "Auto-Group" button arranges them by topic.
+    - [ ] **Agentic Tools**: "Research this Card" button triggers a web search agent to expand context.
 - [ ] **Knowledge Graph**
-    - [ ] Implement `GraphComponent` using D3 or Cosmos.
-    - [ ] Connect graph nodes to existing project documents.
-- [ ] **Interaction Layer**
-    - [ ] Implement Drag-and-Drop from Project Sidebar to Canvas.
+    - [ ] **Entity Explorer**: Click a node (e.g., "Elon Musk") to see all connected documents and events.
 
-## Phase 2: Intelligent Loops
-- [ ] **Ecosystem Capture**
-    - [ ] Scaffold Chrome Extension.
-    - [ ] Connect Extension to `POST /api/v1/inbox/collect`.
-- [ ] **AI Synthesis**
-    - [ ] Implement `WriterView` (Markdown editor + AI Copilot).
-    - [ ] Implement `PodcastView` (Audio player + Script preview).
-- [ ] **Deep Thinking**
-    - [ ] Implement "Deep Think" trigger in Studio to invoke Backend Thinking Agents.
-
-## Phase 3: Deployment Prep
-- [ ] **Auth & Users**
-    - [ ] Integrate Supabase Auth.
-- [ ] **Sharing**
-    - [ ] Implement Project sharing links.
+## Phase 3: The "Content Studio" (Synthesize & Publish)
+- [ ] **Writer Mode**
+    - [ ] **Canvas-to-Doc**: "Generate Report" button that creates a Markdown draft based on Canvas layout.
+    - [ ] **Citation Engine**: AI inserts `[Source]` links automatically.
+- [ ] **Podcast Mode**
+    - [ ] **Audio Synthesis**: Convert written report to 2-host dialogue (NotebookLM style).
