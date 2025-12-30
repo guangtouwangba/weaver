@@ -1,33 +1,30 @@
 # Design: Product Roadmap 2025
 
-## Current State Analysis
-*   **Prototype (`web`)**: Contains advanced features (Canvas, Graph View, Writer Mode, Podcast Mode) but relies on mock data and monolithic structure.
-*   **Implementation (`app/frontend` + `app/backend`)**:
-    *   **Frontend**: Clean Next.js 15 App Router structure. Implemented `Dashboard`, `Inbox`, `Settings`. `Studio` is partial.
-    *   **Backend**: Robust modular monolith. Supports RAG, Canvas ops, Document processing.
+## Development Strategy
+The roadmap follows a "Core -> Intelligence -> Multi-user" progression, focused entirely on the production stack (`app/frontend` and `app/backend`).
 
 ## Phasing Strategy
 
-### Phase 1: Consolidation (The "Great Migration")
-*   **Goal**: Retire `web` directory.
+### Phase 1: Studio Core (Spatial & Visual Thinking)
+*   **Goal**: Establish the primary workspace for knowledge work.
 *   **Scope**:
-    *   Migrate `Studio` features:
-        *   **Canvas**: Port Konva-based canvas with real WebSocket sync.
-        *   **Graph View**: Port force-directed graph (Cosmos/D3).
-        *   **Writer/Podcast**: Port these views as sub-routes or modals in Studio.
-    *   Verify `Brain` logic is moved to Backend `ThinkingPath` service.
-    *   Delete `web`.
+    *   **KonvaCanvas**: Implement a high-performance spatial workbench in `app/frontend`.
+    *   **GraphView**: Force-directed visualization of project entities.
+    *   **Real-time Sync**: Full WebSocket integration between Frontend Canvas and Backend state.
+    *   **Drag-to-Focus**: Interaction model to pull items from the Project sidebar into the Canvas.
 
-### Phase 2: Core Loop Refinement
-*   **Goal**: Seamless "Collect -> Analyze -> Create" loop.
+### Phase 2: Intelligent Workflows (Synthesis & Capture)
+*   **Goal**: Close the loop between ingestion and creation.
 *   **Scope**:
-    *   **Collection**: Chrome Extension (using existing API).
-    *   **Analysis**: "Deep Research" agent integration (Backend ready).
-    *   **Creation**: Structured output generation (Reports, Slide decks).
+    *   **Collection Ecosystem**: Release the Chrome Extension for structured web capture to `Inbox`.
+    *   **Deep Research Integration**: Connect the Frontend "Deep Think" interface to the Backend `ThinkingPath` agent.
+    *   **Synthesis Engines**: 
+        *   **WriterMode**: AI-assisted structured document generation.
+        *   **PodcastMode**: Audio summary generation and playback interface.
 
-### Phase 3: Ecosystem & Scale
-*   **Goal**: Multi-user & Production.
+### Phase 3: Production Foundation
+*   **Goal**: Scalable and collaborative foundation.
 *   **Scope**:
-    *   Auth (Supabase).
-    *   Multi-project/Multi-user support.
-    *   Deployment templates.
+    *   **Identity**: Auth & User Profiles via Supabase.
+    *   **Persistence**: Robust multi-project state management.
+    *   **Collaboration**: Real-time collaborative canvas (CRDTs).

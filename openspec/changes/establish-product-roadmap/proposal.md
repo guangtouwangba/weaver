@@ -1,13 +1,13 @@
 # Establish Product Roadmap 2025
 
 ## Goal Description
-Formalize the product roadmap to transition `research-agent-rag` from a prototype (`web` directory) to a production-ready application (`app/frontend` + `app/backend`). This roadmap prioritizes code consolidation, feature parity, and preparing for ecosystem expansion.
+Formalize the product roadmap for the production application (`app/frontend` + `app/backend`). This roadmap prioritizes the development of the core "Studio" experience, intelligent research workflows, and preparing for multi-user/production deployment.
 
 ## Impact Analysis
-- **Codebase**: Consolidates frontend code into `app/frontend`, removing the deprecated `web` directory.
-- **Features**: Ensures `Studio` (Canvas, Graph, Writer) features are fully migrated and integrated with the Backend API.
-- **Infrastructure**: Sets the stage for authentic integrations (Supabase) and external tools (Chrome Extension).
+- **Features**: Focuses on implementing the `Studio` (Canvas, Graph, Synthesis) from the ground up in the production stack.
+- **Workflow**: Completes the end-to-end user journey: "Collect (Inbox) -> Analyze (Studio) -> Synthesize (Writer/Podcast)".
+- **Infrastructure**: Prepares for robust integrations including Chrome Extensions, Deep Research agents, and Supabase Auth.
 
 ## User Review Required
 > [!IMPORTANT]
-> This proposal solicits agreement on the phasing module.
+> The roadmap now treats the `web` directory as a prototype and is not a migration path. It assumes Greenfield development in `app/frontend` for all upcoming modules.
