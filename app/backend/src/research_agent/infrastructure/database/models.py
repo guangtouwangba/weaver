@@ -722,3 +722,89 @@ class OutputModel(Base):
 
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel")
+
+
+# =============================================================================
+# Inbox & Collection Models
+# =============================================================================
+
+
+class TagModel(Base):
+    """Tag ORM model for categorizing inbox items."""
+
+    __tablename__ = "tags"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    color: Mapped[str] = mapped_column(String(20), nullable=False, default="blue")
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (UniqueConstraint("name", "user_id", name="uq_tags_name_user"),)
+
+    # Relationships
+    inbox_items: Mapped[List["InboxItemModel"]] = relationship(
+        "InboxItemModel", secondary="inbox_item_tags", back_populates="tags"
+    )
+
+
+class InboxItemModel(Base):
+    """Inbox Item ORM model."""
+
+    __tablename__ = "inbox_items"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)  # link, pdf, note, video, article
+    source_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # extension, manual, upload
+    meta_data: Mapped[Dict[str, Any]] = mapped_column(
+        JSONB, server_default="{}", nullable=False, default=dict
+    )
+    collected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    is_read: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    is_processed: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Relationships
+    tags: Mapped[List["TagModel"]] = relationship(
+        "TagModel", secondary="inbox_item_tags", back_populates="inbox_items"
+    )
+
+
+class InboxItemTagModel(Base):
+    """Association table for inbox items and tags."""
+
+    __tablename__ = "inbox_item_tags"
+
+    inbox_item_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("inbox_items.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class ApiKeyModel(Base):
+    """API Key ORM model for external collection access."""
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(10), nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
