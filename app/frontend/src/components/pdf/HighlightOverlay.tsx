@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Paper, Typography } from '@mui/material';
 import { DescriptionIcon } from '@/components/ui/icons';
-import { TextSelection, Highlight } from './types';
+import { TextAnnotation, Highlight, TextSelection } from './types';
 
 interface HighlightOverlayProps {
-  highlights?: Highlight[];
+  highlights?: (Highlight | TextAnnotation)[];
   selection: TextSelection | null;
   searchHighlight?: {
     text: string;
@@ -20,6 +20,21 @@ const colorMap: Record<string, string> = {
   green: '#4CAF5040',
   blue: '#2196F340',
   pink: '#E91E6340',
+  red: '#EF444440',
+  orange: '#F9731640',
+  purple: '#A855F740',
+  black: '#1F293740',
+};
+
+const solidColorMap: Record<string, string> = {
+  yellow: '#FFEB3B',
+  green: '#4CAF50',
+  blue: '#2196F3',
+  pink: '#E91E63',
+  red: '#EF4444',
+  orange: '#F97316',
+  purple: '#A855F7',
+  black: '#1F2937',
 };
 
 export function HighlightOverlay({
@@ -47,16 +62,16 @@ export function HighlightOverlay({
     // We need to convert them to be relative to the container *content* (including scroll) if the overlay is inside the scrollable area.
     // However, usually the overlay is position:absolute inside a relative container.
     // If the container scrolls, and the overlay is inside, we just need coords relative to the container's top-left.
-    
+
     // SelectionManager returns client rects.
     const adjustedRects = selection.rects.map(rect => {
-       // Convert client rect to offset relative to container
-       return new DOMRect(
-         rect.left - containerRect.left + scrollLeft,
-         rect.top - containerRect.top + scrollTop,
-         rect.width,
-         rect.height
-       );
+      // Convert client rect to offset relative to container
+      return new DOMRect(
+        rect.left - containerRect.left + scrollLeft,
+        rect.top - containerRect.top + scrollTop,
+        rect.width,
+        rect.height
+      );
     });
     setHighlightRects(adjustedRects);
   }, [selection, containerRef]);
@@ -93,12 +108,12 @@ export function HighlightOverlay({
       {/* Saved Highlights */}
       {highlights.map((highlight) => {
         if (!highlight.rects || highlight.rects.length === 0) return null;
-        
+
         return highlight.rects.map((rect, index) => {
-           const isFirstRect = index === 0;
-           const hasNote = highlight.note && highlight.note.trim().length > 0;
-           
-           return (
+          const isFirstRect = index === 0;
+          const hasNote = highlight.note && highlight.note.trim().length > 0;
+
+          return (
             <Box
               key={`${highlight.id}-${index}`}
               onClick={(e) => {
@@ -121,14 +136,28 @@ export function HighlightOverlay({
                 top: rect.top,
                 width: rect.width,
                 height: rect.height,
-                backgroundColor: colorMap[highlight.color] || colorMap.yellow,
-                borderRadius: '2px',
-                pointerEvents: 'auto', // Important for click handling
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-                '&:hover': {
-                  backgroundColor: colorMap[highlight.color]?.replace('40', '60') || colorMap.yellow.replace('40', '60'),
-                },
+                // Style based on annotation type
+                ...((highlight as TextAnnotation).type === 'underline' ? {
+                  borderBottom: `2px solid ${solidColorMap[highlight.color] || solidColorMap.yellow}`,
+                  backgroundColor: 'transparent !important',
+                } : (highlight as TextAnnotation).type === 'strike' ? {
+                  // Strikethrough using a pseudo-element logic or just linear-gradient to simulate line through center
+                  background: `linear-gradient(to bottom, transparent 45%, ${solidColorMap[highlight.color] || solidColorMap.yellow} 45%, ${solidColorMap[highlight.color] || solidColorMap.yellow} 55%, transparent 55%)`,
+                } : {
+                  // Default Highlight
+                  backgroundColor: colorMap[highlight.color] || colorMap.yellow,
+                  '&:hover': {
+                    backgroundColor: colorMap[highlight.color]?.replace('40', '60') || colorMap.yellow.replace('40', '60'),
+                  },
+                }),
+
+                // Common hover effect for non-fill types
+                ...((highlight as TextAnnotation).type === 'underline' || (highlight as TextAnnotation).type === 'strike' ? {
+                  '&:hover': {
+                    backgroundColor: `${colorMap[highlight.color] || colorMap.yellow} !important`, // Show light wash on hover
+                    opacity: 0.5
+                  }
+                } : {}),
               }}
             >
               {/* Note Icon */}
@@ -156,25 +185,25 @@ export function HighlightOverlay({
                 </Box>
               )}
             </Box>
-           );
+          );
         });
       })}
 
-       {/* Note Preview Cards */}
+      {/* Note Preview Cards */}
       {highlights.map((highlight) => {
         const hasNote = highlight.note && highlight.note.trim().length > 0;
         const isHovered = hoveredHighlightId === highlight.id;
-        
+
         if (!hasNote || !isHovered || !highlight.rects || highlight.rects.length === 0) {
           return null;
         }
-        
+
         const firstRect = highlight.rects[0];
         const noteText = highlight.note || '';
-        const notePreview = noteText.length > 100 
-          ? `${noteText.substring(0, 100)}...` 
+        const notePreview = noteText.length > 100
+          ? `${noteText.substring(0, 100)}...`
           : noteText;
-        
+
         return (
           <Paper
             key={`note-${highlight.id}`}
@@ -197,8 +226,8 @@ export function HighlightOverlay({
               cursor: 'default',
             }}
             onClick={(e) => {
-                e.stopPropagation();
-                onHighlightClick?.(highlight, e.nativeEvent);
+              e.stopPropagation();
+              onHighlightClick?.(highlight, e.nativeEvent);
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
@@ -222,20 +251,20 @@ export function HighlightOverlay({
 
       {/* Search Highlight */}
       {searchHighlight && searchHighlight.rects && searchHighlight.rects.map((rect, index) => (
-          <Box
-            key={`search-${index}`}
-            className="search-highlight" // Use CSS animation defined in global css
-            sx={{
-                position: 'absolute',
-                left: rect.left,
-                top: rect.top,
-                width: rect.width,
-                height: rect.height,
-                bgcolor: 'rgba(255, 235, 59, 0.4)',
-                borderRadius: '2px',
-                pointerEvents: 'none',
-            }}
-          />
+        <Box
+          key={`search-${index}`}
+          className="search-highlight" // Use CSS animation defined in global css
+          sx={{
+            position: 'absolute',
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+            bgcolor: 'rgba(255, 235, 59, 0.4)',
+            borderRadius: '2px',
+            pointerEvents: 'none',
+          }}
+        />
       ))}
     </Box>
   );

@@ -112,6 +112,9 @@ class DocumentModel(Base):
     highlights: Mapped[List["HighlightModel"]] = relationship(
         "HighlightModel", back_populates="document", cascade="all, delete-orphan"
     )
+    comments: Mapped[List["CommentModel"]] = relationship(
+        "CommentModel", back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 class DocumentChunkModel(Base):
@@ -167,6 +170,10 @@ class HighlightModel(Base):
     color: Mapped[str] = mapped_column(
         String(20), nullable=False, default="yellow"
     )  # yellow, green, blue, pink
+    type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="highlight"
+    )  # highlight, underline, strike, pen, etc.
+    text_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Selected text
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     rects: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSONB, nullable=True
@@ -180,6 +187,44 @@ class HighlightModel(Base):
 
     # Relationships
     document: Mapped["DocumentModel"] = relationship("DocumentModel", back_populates="highlights")
+
+
+class CommentModel(Base):
+    """Comment ORM model for document comments/discussions."""
+
+    __tablename__ = "comments"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    document_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+    )
+    parent_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("comments.id", ondelete="CASCADE"), nullable=True
+    )  # For threaded replies
+    page_number: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )  # Optional page anchor
+    highlight_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("highlights.id", ondelete="SET NULL"), nullable=True
+    )  # Optional annotation anchor
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    author_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # For future auth
+    author_name: Mapped[str] = mapped_column(String(255), nullable=False, default="Anonymous")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    document: Mapped["DocumentModel"] = relationship("DocumentModel", back_populates="comments")
+    parent: Mapped[Optional["CommentModel"]] = relationship(
+        "CommentModel", remote_side="CommentModel.id", back_populates="replies"
+    )
+    replies: Mapped[List["CommentModel"]] = relationship(
+        "CommentModel", back_populates="parent", cascade="all, delete-orphan"
+    )
 
 
 class CanvasModel(Base):

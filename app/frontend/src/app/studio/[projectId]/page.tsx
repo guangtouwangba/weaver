@@ -24,6 +24,7 @@ import ResourceSidebar from "@/components/studio/ResourceSidebar";
 import KonvaCanvas from "@/components/studio/KonvaCanvas";
 import CanvasControls from "@/components/studio/CanvasControls";
 import ImportSourceDialog from "@/components/dialogs/ImportSourceDialog";
+import PDFPreviewModal from "@/components/pdf/PDFPreviewModal";
 import { documentsApi } from "@/lib/api";
 
 export default function StudioPage() {
@@ -61,7 +62,8 @@ function StudioPageContent() {
     projectId,
     documents,
     setDocuments,
-    addNodeToCanvas
+    addNodeToCanvas,
+    openDocumentPreview
   } = useStudio();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -177,6 +179,7 @@ function StudioPageContent() {
               onOpenImport={() => setIsImportDialogOpen(true)}
               toolMode={interactionMode === 'pan' ? 'hand' : 'select'}
               onToolChange={(tool) => setInteractionMode(tool === 'hand' ? 'pan' : 'select')}
+              onOpenSource={openDocumentPreview}
             />
 
 
@@ -202,6 +205,8 @@ function StudioPageContent() {
         onFileSelect={handleFileSelect}
         onUrlImport={handleUrlImport}
       />
+
+      <PDFPreviewModal />
     </GlobalLayout>
   );
 }

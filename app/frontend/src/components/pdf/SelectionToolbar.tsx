@@ -154,7 +154,7 @@ export function SelectionToolbar({
             },
           }}
         >
-          <X size={14} />
+          <CloseIcon size={14} />
         </IconButton>
       </Tooltip>
     </Paper>
