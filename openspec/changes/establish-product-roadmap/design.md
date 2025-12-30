@@ -1,25 +1,30 @@
 # Design: Product Roadmap 2025
 
-## SISP Analysis (Self-Correction)
-*   *Old Pitfall*: "Look, our AI works while you sleep!" (Who cares? Maybe I don't want it to.)
-*   *New Focus*: "Get me to the 'Aha!' moment before I burn out."
+## Competitive DNA Analysis
+To survive, we must build what they *cannot* build due to their structural DNA.
 
-## Phasing Strategy: The "Unblocking" Evolution
+### 1. The "Session" Trap (NotebookLM / Perplexity / OpenAI Deep Research)
+*   **Their DNA**: "Chat". Interaction is ephemeral. You ask, it answers, you leave. Even with "Collections", the context is linear and search-biased.
+*   **Our Moat**: **Project State**. We are not a search engine; we are a **Knowledge Operating System**.
+    *   *Differentiation*: OpenAI gives you a *report* (a dead artifact). We give you a *Living Graph*.
+    *   *Feature*: **"The Long-Running Research Task"**. You tell the system "Track developments in Fusion Energy," and it updates the graph *every week* without you asking. Chatbots cannot do this; they live in the "Now". We live in "Time".
 
-### Phase 1: Unblock **Reading** (The "Instant Briefing" Tool)
-*   **The Pain**: "TL;DR." I have 20 tabs open. I physically cannot read them all.
-*   **The Fix**: **One-Click Synthesis**.
-    *   *Feature*: **Chrome Extension** that doesn't just "Save"—it **"Reads"**. You click it, and it tells you: "This article claims X, which contradicts your project's premise Y."
-    *   *Value*: Turns 20 minutes of reading into 30 seconds of assessing.
+### 2. The "Editor" Trap (YouMind / Notion)
+*   **Their DNA**: "Document". The AI is a helper *inside* your cursor. It waits for you to type.
+*   **Our Moat**: **Autonomy**. The AI is a **"Junior Analyst"**. It works in the background.
+    *   *Feature*: **"The Night Shift"**. While you sleep, the agent clusters your logic, flags contradictions, and hunts for missing citations. When you wake up, the board has *evolved*. Editor apps can't do this because user-agent collision in a doc is bad UX; but on a *Canvas*, it's natural collaborative work.
 
-### Phase 2: Unblock **Hunting** (The "Missing Link" Finder)
-*   **The Pain**: "Dead Ends." I found a fact, but I don't know if it's true, or I'm missing the source. I spend 2 hours falling down rabbit holes.
-*   **The Fix**: **Automated Due Diligence**.
-    *   *Feature*: Select a claim -> Click **"Verify"**. The Agent checks 10 sources and returns a "True/False/Nuanced" verdict with links.
-    *   *Value*: Turns 2 hours of Googling into 1 click.
+## Phasing Strategy: The "Analyst" Evolution
 
-### Phase 3: Unblock **Writing** (The "Blank Page" Killer)
-*   **The Pain**: "Synthesis Paralysis." I have all the notes, but I don't know how to structure the report.
-*   **The Fix**: **Structured Drafting**.
-    *   *Feature*: **"Draft from Graph"**. The system looks at your clusters and proposes: "It looks like you have 3 main arguments. Shall I generate an outline?"
-    *   *Value*: Turns 4 hours of staring at a blank screen into 1 hour of editing.
+### Phase 1: The "Research Assistant" (Capture & Triage)
+*   **Value**: "Don't just File it; Process it."
+*   **Critical Feature**: **Entity Resolution Layer**. Unlike a bookmark manager, we resolve "Elon Musk" in Article A to the same node as "Elon" in Article B. We build a *Database*, they build a *List*.
+
+### Phase 2: The "Thinking Partner" (Connect & Visualize)
+*   **Value**: "Work While I Sleep."
+*   **Critical Feature**: **Asynchronous Graph Maintenance**. The system proactively suggests: "These two clusters contradict each other. I created a 'Conflict' node linking them."
+    *   *Why they can't copy*: "Clippy" interrupting you in Notion is annoying. A "Conflict Node" appearing on a Canvas is helpful context. The UX form factor allows agency.
+
+### Phase 3: The "Content Studio" (Synthesize & Publish)
+*   **Value**: "Living Reports."
+*   **Critical Feature**: **Dynamic Synthesis**. The report updates when the graph updates. It's not a snapshot; it's a view on the living database.

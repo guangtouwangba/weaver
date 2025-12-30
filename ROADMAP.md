@@ -1,53 +1,48 @@
 # Research Agent RAG - Product Roadmap 2025
 
-> **Strategic Goal**: Transition from "Passive Knowledge Tool" to "**Agentic Workbench**".
-> **North Star**: Building a "Junior Analyst" that pro-actively collects, connects, and synthesizes information asynchronously.
+> **Product Philosophy**: "Deep Research" is a commodity. **"Deep Understanding"** is the asset.
+> **The Promise**: Don't just *find* the answer. *Keep* the answer and build on it.
 
-## Strategic Differentiators
-1.  **Proactive Agency (vs. NotebookLM)**
-    Your competitors (NotebookLM) act as "Safe Archives"—they only answer questions based on what you upload.
-    **Our Moat**: We break the "Closed World" assumption. Our agents autonomously perform **Deep Research** on the open web to verify claims and find missing connections.
+## Strategic Differentiators (Revised)
+1.  **State vs. Session (The "Amnesia" Moat)**
+    *   **Competitors (OpenAI / Perplexity)**: They are brilliant at *fetching* information, but they have "Session Amnesia". Once you close the tab, the mental model is gone.
+    *   **Us**: We are **Persistence-First**. The value isn't the search; it's the **Graph** that remains after the search. We turn "Search Results" into "Knowledge Assets".
 
-2.  **Asymptotic State (vs. YouMind/Notion)**
-    Your competitors act as "Editors"—they only change state when you type.
-    **Our Moat**: The **"Night Shift"**. Our agents work while you sleep, clustering concepts, identifying contradictions, and preparing synthesis. The Canvas evolves over time.
-
----
-
-## 🗺️ Roadmap Phases
-
-### Phase 1: The "Research Assistant" (Capture & Structure)
-**Objective**: Solve the "Fragmentation" problem. "Capture Everything, Miss Nothing."
-
-- **Unified Ingestion**:
-    - [ ] **Chrome Extension**: One-click capture of URL, HTML, and Screenshots to the Inbox.
-    - [ ] **Entity Resolution Engine**: Backend service to deduplicate entities (People, Companies) across disparate documents. (Turning a "List" into a "Database").
-    - [ ] **Auto-Triage**: Semantic classification of incoming inbox items.
-- **Inbox UX**:
-    - [ ] Swipe-based triage (Archive vs. Project Assignment).
-
-### Phase 2: The "Thinking Partner" (Agency & connection)
-**Objective**: Solve the "Complexity" problem. "See the Unseen Patterns."
-
-- **Spatial Workbench (Canvas)**:
-    - [ ] **Auto-Cluster**: "Tidy Up" button that spatially groups related notes based on embedding proximity.
-    - [ ] **Agentic Suggestion**: Visual badges on nodes indicating "I found related info on the web".
-- **Deep Research Integration**:
-    - [ ] **"Find Missing Link"**: Select two disparate nodes -> Agent triggers web search to find the connective tissue.
-    - [ ] **The "Conflict Detector"**: Background job that identifies opposing claims between sources and generates "Insight Nodes".
-- **UX**:
-    - [ ] **Agent Activity Feed**: A notification center showing what the AI did while you were away.
-
-### Phase 3: The "Content Studio" (Synthesis & Impact)
-**Objective**: Solve the "Production" problem. "Turn Thoughts into Deliverables."
-
-- **Grounded Writer**:
-    - [ ] **Canvas-to-Outline**: Generate a structured outline based on spatial grouping.
-    - [ ] **Active Citation**: Drag a node into the editor to insert a cited block.
-    - [ ] **Bi-Directional Highlighting**: Click a sentence in the draft to zoom to the source node on the Canvas.
-- **Multimodal Output**:
-    - [ ] **Podcast Generation**: Convert the report into a 2-host audio dialogue.
-    - [ ] **Slide Deck Builder**: structured export from Canvas groups.
+2.  **Async Agency (The "Night Shift" Moat)**
+    *   **Competitors**: Reactive. They wait for you to prompt.
+    *   **Us**: **Proactive**. Our agents wake up when sources change. If a new paper drops that contradicts your thesis, the Graph updates itself.
 
 ---
-*Last Updated: 2025-12-30*
+
+## 🗺️ Roadmap Phases (Pain-Driven)
+
+### Phase 1: The "Reading Unblocker" (Stop Drowning)
+**Pain Point**: "I have too many tabs and zero time."
+**Solution**: **Instant Context**, not just storage.
+
+- [ ] **Active Capture Extension**:
+    - [ ] **"The Executive Summary"**: When capturing a page, instantly generate a 3-bullet summary relative to the *current project*. (e.g. "This argues against your thesis on X").
+    - [ ] **Entity Tagger**: Auto-extract "Who/What/When" so I don't have to organize it manually.
+- [ ] **Smart Inbox**:
+    - [ ] **"The Daily Brief"**: A morning summary of everything captured yesterday, grouped by topic.
+
+### Phase 2: The "Rabbit Hole Unblocker" (Stop Searching)
+**Pain Point**: "I spend hours verifying facts and finding sources."
+**Solution**: **Automated Grunt Work**.
+
+- [ ] **Targeted Research Ops**:
+    - [ ] **"Fact Check This"**: Select text -> AI validates against the open web.
+    - [ ] **"Fill the Gap"**: "I'm missing data on Q3 revenue." -> AI finds it and adds a node.
+- [ ] **Visual Clarity**:
+    - [ ] **"Noise Filter"**: One-click to hide all "Generic/Repeated" info on the canvas, leaving only novel insights.
+
+### Phase 3: The "Writing Unblocker" (Stop Stalling)
+**Pain Point**: "I can't turn this mess of notes into a report."
+**Solution**: **The 'Rough Draft' Machine**.
+
+- [ ] **Contextual Writer**:
+    - [ ] **"Argument Builder"**: Convert a cluster of nodes into a structured paragraph with citations.
+    - [ ] **"Devil's Advocate"**: AI reviews your draft and comments: "You missed this counter-argument from Source B."
+
+---
+*Last Updated: 2025-12-30 | Adjusted for 'Deep Research' Commoditization*
