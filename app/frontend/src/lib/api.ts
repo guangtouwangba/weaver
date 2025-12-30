@@ -1065,3 +1065,101 @@ export const outputsApi = {
     }),
 };
 
+// =============================================================================
+// Inbox Types & API
+// =============================================================================
+
+export interface InboxTag {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
+export interface InboxItem {
+  id: string;
+  title: string | null;
+  type: 'article' | 'video' | 'note' | 'pdf' | 'link';
+  source_url: string | null;
+  content: string | null;
+  thumbnail_url: string | null;
+  source_type: string; // 'extension', 'manual', 'upload'
+  meta_data: Record<string, unknown>;
+  collected_at: string;
+  is_read: boolean;
+  is_processed: boolean;
+  tags: InboxTag[];
+}
+
+export interface InboxItemListResponse {
+  items: InboxItem[];
+  total: number;
+}
+
+export interface InboxItemCreate {
+  title?: string;
+  type: string;
+  source_url?: string;
+  content?: string;
+  thumbnail_url?: string;
+  source_type: string;
+  meta_data?: Record<string, unknown>;
+  is_read?: boolean;
+  is_processed?: boolean;
+  tag_ids?: string[];
+}
+
+// Inbox API
+export const inboxApi = {
+  list: (params?: {
+    skip?: number;
+    limit?: number;
+    is_processed?: boolean;
+    type?: string;
+    tag_id?: string;
+    q?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.skip !== undefined) searchParams.set('skip', params.skip.toString());
+    if (params?.limit !== undefined) searchParams.set('limit', params.limit.toString());
+    if (params?.is_processed !== undefined) searchParams.set('is_processed', params.is_processed.toString());
+    if (params?.type) searchParams.set('type', params.type);
+    if (params?.tag_id) searchParams.set('tag_id', params.tag_id);
+    if (params?.q) searchParams.set('q', params.q);
+
+    const query = searchParams.toString();
+    return fetchApi<InboxItemListResponse>(`/api/v1/inbox/items${query ? `?${query}` : ''}`);
+  },
+
+  get: (itemId: string) =>
+    fetchApi<InboxItem>(`/api/v1/inbox/items/${itemId}`),
+
+  delete: (itemId: string) =>
+    fetchApi<void>(`/api/v1/inbox/items/${itemId}`, { method: 'DELETE' }),
+
+  assignToProject: (itemId: string, projectId: string) =>
+    fetchApi<void>(`/api/v1/inbox/items/${itemId}/assign/${projectId}`, { method: 'POST' }),
+
+  // For internal use (manual item creation)
+  create: (item: InboxItemCreate) =>
+    fetchApi<InboxItem>('/api/v1/inbox/items', {
+      method: 'POST',
+      body: JSON.stringify(item),
+    }),
+};
+
+// Tags API
+export const tagsApi = {
+  list: () =>
+    fetchApi<{ items: InboxTag[] }>('/api/v1/tags'),
+
+  create: (name: string, color: string = 'blue') =>
+    fetchApi<InboxTag>('/api/v1/tags', {
+      method: 'POST',
+      body: JSON.stringify({ name, color }),
+    }),
+
+  delete: (tagId: string) =>
+    fetchApi<void>(`/api/v1/tags/${tagId}`, { method: 'DELETE' }),
+};
+

@@ -56,6 +56,7 @@ import HelpOutlineMui from '@mui/icons-material/HelpOutline';
 import HistoryMui from '@mui/icons-material/History';
 import HomeMui from '@mui/icons-material/Home';
 import ImageSearchMui from '@mui/icons-material/ImageSearch';
+import InboxMui from '@mui/icons-material/Inbox';
 import LayersMui from '@mui/icons-material/Layers';
 import LinkMui from '@mui/icons-material/Link';
 import LocalParkingMui from '@mui/icons-material/LocalParking';
@@ -117,6 +118,7 @@ export const ExpandLessIcon = createIcon(ExpandLessMui, 'ExpandLessIcon');
 export const ExpandMoreIcon = createIcon(ExpandMoreMui, 'ExpandMoreIcon');
 export const MenuOpenIcon = createIcon(MenuOpenMui, 'MenuOpenIcon');
 export const HomeIcon = createIcon(HomeMui, 'HomeIcon');
+export const InboxIcon = createIcon(InboxMui, 'InboxIcon');
 export const KeyboardArrowDownIcon = createIcon(KeyboardArrowDownMui, 'KeyboardArrowDownIcon');
 
 // File/Folder icons

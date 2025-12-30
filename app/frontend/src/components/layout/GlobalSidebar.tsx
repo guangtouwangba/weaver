@@ -2,11 +2,12 @@
 
 import React from 'react';
 import { Box, IconButton, Avatar, Tooltip } from '@mui/material';
-import { 
+import {
   HomeIcon,
   GridViewIcon,
   SettingsIcon,
-  Grid4x4Icon
+  Grid4x4Icon,
+  InboxIcon
 } from '@/components/ui/icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -32,15 +33,15 @@ const NavItem = ({ icon: Icon, label, href, isActive }: NavItemProps) => {
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: '16px', // Rounded square like image
-            backgroundColor: isActive 
+            backgroundColor: isActive
               ? '#eff6ff' // Light blue/indigo background
               : 'transparent',
-            color: isActive 
+            color: isActive
               ? '#4f46e5' // Indigo icon
               : '#64748b', // Slate-500 for inactive
             '&:hover': {
-              backgroundColor: isActive 
-                ? '#eff6ff' 
+              backgroundColor: isActive
+                ? '#eff6ff'
                 : 'rgba(0, 0, 0, 0.04)',
               color: isActive ? '#4f46e5' : '#1e293b',
             },
@@ -60,6 +61,7 @@ export default function GlobalSidebar() {
 
   const isStudioActive = pathname.startsWith('/studio');
   const isDashboardActive = pathname === '/dashboard' || pathname === '/';
+  const isInboxActive = pathname.startsWith('/inbox');
   const isSettingsActive = pathname.startsWith('/settings');
 
   return (
@@ -110,24 +112,31 @@ export default function GlobalSidebar() {
       </Box>
 
       {/* Main Navigation */}
-      <NavItem 
-        icon={HomeIcon} 
-        label="Dashboard" 
-        href="/dashboard" 
+      <NavItem
+        icon={HomeIcon}
+        label="Dashboard"
+        href="/dashboard"
         isActive={isDashboardActive}
       />
-      
-      <NavItem 
-        icon={GridViewIcon} 
-        label="Studio" 
-        href="/studio" 
+
+      <NavItem
+        icon={InboxIcon}
+        label="Inbox"
+        href="/inbox"
+        isActive={isInboxActive}
+      />
+
+      <NavItem
+        icon={GridViewIcon}
+        label="Studio"
+        href="/studio"
         isActive={isStudioActive}
       />
 
-      <NavItem 
-        icon={SettingsIcon} 
-        label="Settings" 
-        href="/settings" 
+      <NavItem
+        icon={SettingsIcon}
+        label="Settings"
+        href="/settings"
         isActive={isSettingsActive}
       />
 
@@ -136,15 +145,15 @@ export default function GlobalSidebar() {
 
       {/* User Zone */}
       <Tooltip title="User Profile" placement="right">
-        <IconButton 
-          component={Link} 
+        <IconButton
+          component={Link}
           href="/settings"
           sx={{ mb: 2, p: 0.5 }}
         >
-          <Avatar 
-            sx={{ 
-              width: 40, 
-              height: 40, 
+          <Avatar
+            sx={{
+              width: 40,
+              height: 40,
               bgcolor: '#8b5cf6', // Purple
               fontSize: 14,
               fontWeight: 600,
