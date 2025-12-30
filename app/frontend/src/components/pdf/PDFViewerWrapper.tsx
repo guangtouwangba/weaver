@@ -68,16 +68,18 @@ export function PDFViewerWrapper({
     });
 
     eventBus.on('pagechanging', (evt: any) => {
-        if (evt.pageNumber !== pageNumber) {
-            onPageChange(evt.pageNumber);
-        }
+      if (evt.pageNumber !== pageNumber) {
+        onPageChange(evt.pageNumber);
+      }
     });
 
     // Load PDF
     const loadDocument = async () => {
+      console.log('[PDFViewerWrapper] Loading PDF:', fileUrl);
       try {
         const loadingTask = pdfjsLib.getDocument(fileUrl);
         const pdf = await loadingTask.promise;
+        console.log('[PDFViewerWrapper] PDF loaded, pages:', pdf.numPages);
         viewer.setDocument(pdf);
         linkService.setDocument(pdf);
         onDocumentLoad(pdf.numPages);
@@ -100,10 +102,10 @@ export function PDFViewerWrapper({
   // Handle page jump
   useEffect(() => {
     if (viewerRef.current && pageNumber > 0) {
-       // Avoid loop if already on page
-       if (viewerRef.current.currentPageNumber !== pageNumber) {
-           viewerRef.current.currentPageNumber = pageNumber;
-       }
+      // Avoid loop if already on page
+      if (viewerRef.current.currentPageNumber !== pageNumber) {
+        viewerRef.current.currentPageNumber = pageNumber;
+      }
     }
   }, [pageNumber]);
 
@@ -126,7 +128,7 @@ export function PDFViewerWrapper({
   }, [highlightText]);
 
   return (
-    <div ref={containerRef} className="pdf-viewer-container" style={{ position: 'absolute', width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div ref={containerRef} className="pdf-viewer-container" style={{ position: 'absolute', width: '100%', height: '100%', overflow: 'auto' }}>
       <div className="pdfViewer" />
     </div>
   );

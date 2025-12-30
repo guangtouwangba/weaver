@@ -886,3 +886,243 @@ async def delete_highlight(
 
     await highlight_repo.delete(highlight_id)
     await session.commit()
+
+
+# ===================
+# Comments API
+# ===================
+
+
+class CommentCreateRequest(BaseModel):
+    """Request model for creating a comment."""
+
+    content: str = Field(..., min_length=1)
+    parent_id: Optional[UUID] = None
+    page_number: Optional[int] = None
+    highlight_id: Optional[UUID] = None
+    author_name: str = Field(default="Anonymous", max_length=255)
+
+
+class CommentUpdateRequest(BaseModel):
+    """Request model for updating a comment."""
+
+    content: str = Field(..., min_length=1)
+
+
+class CommentResponse(BaseModel):
+    """Response model for a comment."""
+
+    id: UUID
+    document_id: UUID
+    parent_id: Optional[UUID]
+    page_number: Optional[int]
+    highlight_id: Optional[UUID]
+    content: str
+    author_name: str
+    created_at: str
+    updated_at: str
+    reply_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class CommentListResponse(BaseModel):
+    """Response model for listing comments."""
+
+    comments: List[CommentResponse]
+    total: int
+
+
+def get_comment_repo(session: AsyncSession = Depends(get_db)):
+    """Dependency for getting comment repository."""
+    from research_agent.infrastructure.database.repositories.sqlalchemy_comment_repo import (
+        SQLAlchemyCommentRepository,
+    )
+
+    return SQLAlchemyCommentRepository(session)
+
+
+@router.get("/documents/{document_id}/comments", response_model=CommentListResponse)
+async def list_comments(
+    document_id: UUID,
+    session: AsyncSession = Depends(get_db),
+    comment_repo=Depends(get_comment_repo),
+) -> CommentListResponse:
+    """List all top-level comments for a document."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    comments = await comment_repo.list_by_document(document_id)
+    total = await comment_repo.count_by_document(document_id)
+
+    response_comments = []
+    for c in comments:
+        replies = await comment_repo.list_replies(c.id)
+        response_comments.append(
+            CommentResponse(
+                id=c.id,
+                document_id=c.document_id,
+                parent_id=c.parent_id,
+                page_number=c.page_number,
+                highlight_id=c.highlight_id,
+                content=c.content,
+                author_name=c.author_name,
+                created_at=c.created_at.isoformat(),
+                updated_at=c.updated_at.isoformat(),
+                reply_count=len(replies),
+            )
+        )
+
+    return CommentListResponse(comments=response_comments, total=total)
+
+
+@router.post("/documents/{document_id}/comments", response_model=CommentResponse, status_code=201)
+async def create_comment(
+    document_id: UUID,
+    request: CommentCreateRequest,
+    session: AsyncSession = Depends(get_db),
+    comment_repo=Depends(get_comment_repo),
+) -> CommentResponse:
+    """Create a new comment."""
+    from uuid import uuid4
+
+    from research_agent.infrastructure.database.models import CommentModel
+
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Verify parent exists if provided
+    if request.parent_id:
+        parent = await comment_repo.find_by_id(request.parent_id)
+        if not parent:
+            raise HTTPException(
+                status_code=404, detail=f"Parent comment {request.parent_id} not found"
+            )
+
+    comment = CommentModel(
+        id=uuid4(),
+        document_id=document_id,
+        parent_id=request.parent_id,
+        page_number=request.page_number,
+        highlight_id=request.highlight_id,
+        content=request.content,
+        author_name=request.author_name,
+    )
+
+    created = await comment_repo.create(comment)
+    await session.commit()
+
+    return CommentResponse(
+        id=created.id,
+        document_id=created.document_id,
+        parent_id=created.parent_id,
+        page_number=created.page_number,
+        highlight_id=created.highlight_id,
+        content=created.content,
+        author_name=created.author_name,
+        created_at=created.created_at.isoformat(),
+        updated_at=created.updated_at.isoformat(),
+        reply_count=0,
+    )
+
+
+@router.get(
+    "/documents/{document_id}/comments/{comment_id}/replies", response_model=List[CommentResponse]
+)
+async def list_comment_replies(
+    document_id: UUID,
+    comment_id: UUID,
+    session: AsyncSession = Depends(get_db),
+    comment_repo=Depends(get_comment_repo),
+) -> List[CommentResponse]:
+    """List replies to a comment."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    replies = await comment_repo.list_replies(comment_id)
+
+    return [
+        CommentResponse(
+            id=r.id,
+            document_id=r.document_id,
+            parent_id=r.parent_id,
+            page_number=r.page_number,
+            highlight_id=r.highlight_id,
+            content=r.content,
+            author_name=r.author_name,
+            created_at=r.created_at.isoformat(),
+            updated_at=r.updated_at.isoformat(),
+            reply_count=0,
+        )
+        for r in replies
+    ]
+
+
+@router.put("/documents/{document_id}/comments/{comment_id}", response_model=CommentResponse)
+async def update_comment(
+    document_id: UUID,
+    comment_id: UUID,
+    request: CommentUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+    comment_repo=Depends(get_comment_repo),
+) -> CommentResponse:
+    """Update a comment."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    comment = await comment_repo.find_by_id(comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail=f"Comment {comment_id} not found")
+
+    comment.content = request.content
+    updated = await comment_repo.update(comment)
+    await session.commit()
+
+    replies = await comment_repo.list_replies(comment_id)
+
+    return CommentResponse(
+        id=updated.id,
+        document_id=updated.document_id,
+        parent_id=updated.parent_id,
+        page_number=updated.page_number,
+        highlight_id=updated.highlight_id,
+        content=updated.content,
+        author_name=updated.author_name,
+        created_at=updated.created_at.isoformat(),
+        updated_at=updated.updated_at.isoformat(),
+        reply_count=len(replies),
+    )
+
+
+@router.delete("/documents/{document_id}/comments/{comment_id}", status_code=204)
+async def delete_comment(
+    document_id: UUID,
+    comment_id: UUID,
+    session: AsyncSession = Depends(get_db),
+    comment_repo=Depends(get_comment_repo),
+) -> None:
+    """Delete a comment and all its replies."""
+    # Verify document exists
+    document_repo = SQLAlchemyDocumentRepository(session)
+    document = await document_repo.find_by_id(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    comment = await comment_repo.find_by_id(comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail=f"Comment {comment_id} not found")
+
+    await comment_repo.delete(comment_id)
+    await session.commit()

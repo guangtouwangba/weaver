@@ -87,7 +87,7 @@ const SkeletonBar = ({ width, height = 16, sx = {} }: { width: string | number, 
 );
 
 export default function ResourceSidebar({ width = 300, collapsed = false, onToggle }: ResourceSidebarProps) {
-  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId } = useStudio();
+  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, openDocumentPreview } = useStudio();
 
   // Subscribe to document status updates
   useDocumentWebSocket(projectId, documents, setDocuments);
@@ -298,7 +298,12 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                 document={doc}
                 isActive={activeDocumentId === doc.id}
                 isDeleting={deletingIds.has(doc.id)}
-                onSelect={() => setActiveDocumentId(doc.id)}
+                onSelect={() => {
+                  setActiveDocumentId(doc.id);
+                  if (doc.filename.toLowerCase().endsWith('.pdf')) {
+                    openDocumentPreview(doc.id);
+                  }
+                }}
                 onDelete={(e) => handleDeleteDocument(doc.id, e)}
               />
             ))}

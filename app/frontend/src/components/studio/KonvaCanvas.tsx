@@ -2295,6 +2295,12 @@ export default function KonvaCanvas({
                 <KnowledgeNode
                   key={node.id}
                   node={node}
+                  onDoubleClick={() => {
+                    if (node.subType === 'source' && node.fileMetadata?.fileType === 'pdf') {
+                      onOpenSource?.(node.sourceId || node.id);
+                    }
+                    onNodeDoubleClick?.(node);
+                  }}
                   isSelected={selectedNodeIds.has(node.id)}
                   isHighlighted={highlightedNodeId === node.id}
                   isHovered={hoveredNodeId === node.id}

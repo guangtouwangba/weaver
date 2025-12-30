@@ -838,6 +838,8 @@ export interface HighlightCreateRequest {
   startOffset: number;
   endOffset: number;
   color: 'yellow' | 'green' | 'blue' | 'pink';
+  type?: string; // highlight, underline, strike, etc.
+  textContent?: string;
   note?: string;
   rects?: Array<{
     left: number;
@@ -861,6 +863,8 @@ export interface HighlightResponse {
   startOffset: number;
   endOffset: number;
   color: 'yellow' | 'green' | 'blue' | 'pink';
+  type?: string;
+  textContent?: string;
   note?: string;
   rects?: Array<{
     left: number;
@@ -893,6 +897,59 @@ export const highlightsApi = {
 
   delete: (documentId: string, highlightId: string) =>
     fetchApi<void>(`/api/v1/documents/${documentId}/highlights/${highlightId}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Comment Types
+export interface CommentCreateRequest {
+  content: string;
+  parent_id?: string;
+  page_number?: number;
+  highlight_id?: string;
+  author_name?: string;
+}
+
+export interface CommentResponse {
+  id: string;
+  document_id: string;
+  parent_id?: string;
+  page_number?: number;
+  highlight_id?: string;
+  content: string;
+  author_name: string;
+  created_at: string;
+  updated_at: string;
+  reply_count: number;
+}
+
+export interface CommentListResponse {
+  comments: CommentResponse[];
+  total: number;
+}
+
+// Comments API
+export const commentsApi = {
+  list: (documentId: string) =>
+    fetchApi<CommentListResponse>(`/api/v1/documents/${documentId}/comments`),
+
+  create: (documentId: string, data: CommentCreateRequest) =>
+    fetchApi<CommentResponse>(`/api/v1/documents/${documentId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  listReplies: (documentId: string, commentId: string) =>
+    fetchApi<CommentResponse[]>(`/api/v1/documents/${documentId}/comments/${commentId}/replies`),
+
+  update: (documentId: string, commentId: string, content: string) =>
+    fetchApi<CommentResponse>(`/api/v1/documents/${documentId}/comments/${commentId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }),
+
+  delete: (documentId: string, commentId: string) =>
+    fetchApi<void>(`/api/v1/documents/${documentId}/comments/${commentId}`, {
       method: 'DELETE',
     }),
 };

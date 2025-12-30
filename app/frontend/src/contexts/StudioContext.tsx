@@ -144,6 +144,12 @@ interface StudioContextType {
   isInspirationDockVisible: boolean;
   setInspirationDockVisible: (visible: boolean) => void;
 
+  // === PDF Preview Modal ===
+  isPreviewModalOpen: boolean;
+  previewDocumentId: string | null;
+  openDocumentPreview: (documentId: string) => void;
+  closeDocumentPreview: () => void;
+
   // === Concurrent Generation Tasks ===
   generationTasks: Map<string, GenerationTask>;
   startGeneration: (type: GenerationType, position: { x: number; y: number }) => string; // Returns task ID
@@ -268,6 +274,20 @@ export function StudioProvider({
 
   // Inspiration Dock state
   const [isInspirationDockVisible, setInspirationDockVisible] = useState(true);
+
+  // === PDF Preview Modal State ===
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
+
+  const openDocumentPreview = useCallback((documentId: string) => {
+    setPreviewDocumentId(documentId);
+    setIsPreviewModalOpen(true);
+  }, []);
+
+  const closeDocumentPreview = useCallback(() => {
+    setIsPreviewModalOpen(false);
+    setPreviewDocumentId(null);
+  }, []);
 
   // === Concurrent Generation Tasks State ===
   const [generationTasks, setGenerationTasks] = useState<Map<string, GenerationTask>>(new Map());
@@ -1010,6 +1030,12 @@ export function StudioProvider({
     setMindmapResult,
     showMindmapOverlay,
     setShowMindmapOverlay,
+
+    // PDF Preview
+    isPreviewModalOpen,
+    previewDocumentId,
+    openDocumentPreview,
+    closeDocumentPreview,
   };
 
   return (
