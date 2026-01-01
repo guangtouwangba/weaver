@@ -44,13 +44,13 @@ interface DragPosition {
 }
 
 // Loading placeholder card for generating tasks
-function LoadingCard({ 
-  task, 
+function LoadingCard({
+  task,
   viewport,
   onDragStart,
   isDragging,
-}: { 
-  task: GenerationTask; 
+}: {
+  task: GenerationTask;
   viewport: { x: number; y: number; scale: number };
   onDragStart: (e: React.MouseEvent, taskId: string) => void;
   isDragging: boolean;
@@ -60,14 +60,14 @@ function LoadingCard({
   const screenY = task.position.y * viewport.scale + viewport.y;
 
   const isMindmap = task.type === 'mindmap';
-  const gradientColor = isMindmap 
+  const gradientColor = isMindmap
     ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
     : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)';
   const typeLabel = isMindmap ? 'MINDMAP' : 'SUMMARY';
   const TypeIcon = isMindmap ? AccountTreeIcon : AutoAwesomeIcon;
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    console.log('[LoadingCard] handleMouseDown', { 
+    console.log('[LoadingCard] handleMouseDown', {
       isDragHandle: !!(e.target instanceof HTMLElement && e.target.closest('.drag-handle')),
       isButton: !!(e.target instanceof HTMLElement && e.target.closest('button'))
     });
@@ -97,8 +97,8 @@ function LoadingCard({
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: 'white',
-        boxShadow: isDragging 
-          ? '0 12px 40px rgba(139, 92, 246, 0.25)' 
+        boxShadow: isDragging
+          ? '0 12px 40px rgba(139, 92, 246, 0.25)'
           : '0 4px 20px rgba(0,0,0,0.08)',
         cursor: isDragging ? 'grabbing' : 'default',
         transition: isDragging ? 'none' : 'box-shadow 0.2s, transform 0.2s',
@@ -113,12 +113,12 @@ function LoadingCard({
       }}
     >
       {/* Header - entire header is draggable */}
-      <Box 
+      <Box
         className="drag-handle"
-        sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 1, 
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
           mb: 2,
           cursor: 'grab',
           '&:active': { cursor: 'grabbing' },
@@ -126,12 +126,12 @@ function LoadingCard({
         }}
       >
         {/* Drag Indicator Icon */}
-        <Box 
-          sx={{ 
+        <Box
+          sx={{
             p: 0.5,
             borderRadius: 1,
             color: 'text.disabled',
-            '&:hover': { 
+            '&:hover': {
               color: 'text.secondary',
               bgcolor: 'grey.100'
             },
@@ -139,7 +139,7 @@ function LoadingCard({
         >
           <OpenWithIcon size={14} />
         </Box>
-        
+
         {/* Icon */}
         <Box
           sx={{
@@ -169,11 +169,11 @@ function LoadingCard({
       </Box>
 
       {/* Loading Content */}
-      <Box 
-        sx={{ 
-          display: 'flex', 
+      <Box
+        sx={{
+          display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center', 
+          alignItems: 'center',
           justifyContent: 'center',
           py: 4,
           bgcolor: '#F8FAFC',
@@ -181,11 +181,11 @@ function LoadingCard({
           gap: 1.5,
         }}
       >
-        <CircularProgress 
-          size={32} 
-          sx={{ 
-            color: isMindmap ? '#10B981' : '#8B5CF6' 
-          }} 
+        <CircularProgress
+          size={32}
+          sx={{
+            color: isMindmap ? '#10B981' : '#8B5CF6'
+          }}
         />
         <Typography variant="body2" color="text.secondary" fontWeight={500}>
           Generating...
@@ -199,25 +199,26 @@ function LoadingCard({
 }
 
 export default function GenerationOutputsOverlay({ viewport }: GenerationOutputsOverlayProps) {
-  const { 
-    generationTasks, 
+  const {
+    generationTasks,
     removeGenerationTask,
     updateGenerationTaskPosition,
+    saveGenerationOutput,
   } = useStudio();
 
   // Drag state - only tracks if drag is active and initial conditions
   const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  
+
   // === Performance Optimization: Drag position tracked via refs, not state ===
   // This prevents React re-renders during drag
   const dragPositionRef = useRef<DragPosition | null>(null);
   const rafIdRef = useRef<number | null>(null);
-  
+
   // Render tracking
   const renderCountRef = useRef(0);
   renderCountRef.current++;
-  
+
   // Log render count periodically (every 10 renders during drag)
   useEffect(() => {
     if (dragState && renderCountRef.current % 10 === 0) {
@@ -248,8 +249,8 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     console.log('[Overlay] handleDragStart called', { taskId, clientX: e.clientX, clientY: e.clientY });
     const task = generationTasks.get(taskId);
     if (!task) {
-        console.warn('[Overlay] Task not found for dragging', taskId);
-        return;
+      console.warn('[Overlay] Task not found for dragging', taskId);
+      return;
     }
 
     e.preventDefault();
@@ -264,15 +265,15 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     };
     console.log('[Overlay] Setting drag state', newState);
     setDragState(newState);
-    
+
     // Initialize drag position ref with current position
     dragPositionRef.current = { x: task.position.x, y: task.position.y };
-    
+
     // Reset performance counters
     frameCountRef.current = 0;
     lastFrameTimeRef.current = performance.now();
     dragStartTimeRef.current = performance.now();
-    
+
     console.log(`[Perf] Drag start took ${(performance.now() - startTime).toFixed(2)}ms`);
   }, [generationTasks]);
 
@@ -283,11 +284,11 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     const handleMouseMove = (e: MouseEvent) => {
       // RAF throttling: skip if we already have a pending frame
       if (rafIdRef.current !== null) return;
-      
+
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = null;
         frameCountRef.current++;
-        
+
         // Calculate delta in screen pixels
         const deltaScreenX = e.clientX - dragState.startMouseX;
         const deltaScreenY = e.clientY - dragState.startMouseY;
@@ -299,10 +300,10 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
         // Calculate new position
         const newX = dragState.startPositionX + deltaCanvasX;
         const newY = dragState.startPositionY + deltaCanvasY;
-        
+
         // Store position in ref (no React re-render)
         dragPositionRef.current = { x: newX, y: newY };
-        
+
         // === Direct DOM manipulation for smooth 60fps drag ===
         // Find the dragged element and update its position via CSS transform
         const element = document.querySelector(`[data-task-id="${dragState.taskId}"]`) as HTMLElement;
@@ -331,18 +332,18 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
-      
+
       const totalDragTime = performance.now() - dragStartTimeRef.current;
       const avgFps = (frameCountRef.current / totalDragTime) * 1000;
       console.log(`[Perf] Drag ended. Total frames: ${frameCountRef.current}, Duration: ${totalDragTime.toFixed(0)}ms, Avg FPS: ${avgFps.toFixed(1)}`);
       console.log('[Overlay] Drag end (mouseup)');
-      
+
       // === Commit final position to React state on drag end ===
       // This is the only state update during the entire drag operation
       if (dragPositionRef.current) {
         updateGenerationTaskPosition(dragState.taskId, dragPositionRef.current);
       }
-      
+
       dragPositionRef.current = null;
       setDragState(null);
     };
@@ -382,7 +383,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
       {renderableTasks.map(task => {
         const handleClose = () => removeGenerationTask(task.id);
         const isDragging = dragState?.taskId === task.id;
-        
+
         // Show loading card for pending/generating tasks without result
         if ((task.status === 'pending' || task.status === 'generating') && !task.result) {
           return (
@@ -395,7 +396,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
             />
           );
         }
-        
+
         if (task.type === 'summary' && task.result) {
           return (
             <SummaryCanvasNode
@@ -413,7 +414,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
             />
           );
         }
-        
+
         if (task.type === 'mindmap' && task.result) {
           return (
             <MindMapCanvasNode
@@ -429,10 +430,11 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
               onDragStart={(e) => handleDragStart(e, task.id)}
               onDragEnd={() => setDragState(null)}
               isDragging={isDragging}
+              onDataChange={(newData) => saveGenerationOutput(task.id, newData as Record<string, unknown>, task.title)}
             />
           );
         }
-        
+
         // For other types, we could add more canvas node types here
         // For now, just return null for unsupported types
         return null;

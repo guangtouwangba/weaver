@@ -26,8 +26,8 @@ interface RichMindMapNodeProps {
   isSelected?: boolean;
   lodLevel?: 'full' | 'labels' | 'simple';
   shouldAnimate?: boolean;
-  onClick?: (nodeId: string) => void;
   onDoubleClick?: (nodeId: string) => void;
+  onClick?: (nodeId: string, e: Konva.KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (nodeId: string, x: number, y: number) => void;
 }
 
@@ -46,7 +46,7 @@ const ProcessingDots: React.FC<{ x: number; y: number; color: string }> = ({ x, 
   useEffect(() => {
     const animate = (ref: React.RefObject<Konva.Circle | null>, delay: number) => {
       if (!ref.current) return;
-      
+
       const anim = () => {
         ref.current?.to({
           opacity: 0.3,
@@ -62,7 +62,7 @@ const ProcessingDots: React.FC<{ x: number; y: number; color: string }> = ({ x, 
           },
         });
       };
-      
+
       setTimeout(anim, delay * 1000);
     };
 
@@ -90,7 +90,7 @@ const SkeletonBars: React.FC<{ x: number; y: number; width: number }> = ({ x, y,
   useEffect(() => {
     const animate = (ref: React.RefObject<Konva.Rect | null>) => {
       if (!ref.current) return;
-      
+
       const pulse = () => {
         ref.current?.to({
           opacity: 0.3,
@@ -169,8 +169,8 @@ const CheckmarkIcon: React.FC<{ x: number; y: number; size?: number }> = ({ x, y
 /**
  * Brain icon for root node (simplified)
  */
-const BrainIcon: React.FC<{ x: number; y: number; size?: number; color?: string }> = ({ 
-  x, y, size = 32, color = tokens.root.iconColor 
+const BrainIcon: React.FC<{ x: number; y: number; size?: number; color?: string }> = ({
+  x, y, size = 32, color = tokens.root.iconColor
 }) => {
   // Simplified brain icon using basic shapes
   return (
@@ -195,15 +195,15 @@ const BrainIcon: React.FC<{ x: number; y: number; size?: number; color?: string 
 /**
  * Tag/Chip component for categorical data
  */
-const TagChip: React.FC<{ 
-  x: number; 
-  y: number; 
-  text: string; 
+const TagChip: React.FC<{
+  x: number;
+  y: number;
+  text: string;
   maxWidth?: number;
 }> = ({ x, y, text, maxWidth = 80 }) => {
   const displayText = text.length > 12 ? text.slice(0, 10) + '...' : text;
   const chipWidth = Math.min(displayText.length * 7 + 16, maxWidth);
-  
+
   return (
     <Group x={x} y={y}>
       <Rect
@@ -235,17 +235,17 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
   isSelected = false,
   lodLevel = 'full',
   shouldAnimate = true,
-  onClick,
   onDoubleClick,
+  onClick,
   onDragEnd,
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const glowRef = useRef<Konva.Rect>(null);
-  
+
   const width = node.width || 200;
   const height = node.height || 80;
   const isRoot = node.depth === 0;
-  
+
   // Determine node variant based on status and depth
   const variant: NodeVariant = useMemo(() => {
     if (isRoot) return 'root';
@@ -277,7 +277,7 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
   // Growth animation on mount
   useEffect(() => {
     if (!groupRef.current || !shouldAnimate) return;
-    
+
     groupRef.current.scale({ x: 0, y: 0 });
     groupRef.current.to({
       scaleX: 1,
@@ -290,7 +290,7 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
   // Root node glow animation
   useEffect(() => {
     if (variant !== 'root' || !glowRef.current || !shouldAnimate) return;
-    
+
     const pulseGlow = () => {
       glowRef.current?.to({
         shadowOpacity: 0.5,
@@ -369,8 +369,8 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
         x={node.x}
         y={node.y}
         draggable
-        onClick={() => onClick?.(node.id)}
-        onTap={() => onClick?.(node.id)}
+        onClick={(e) => onClick?.(node.id, e)}
+        onTap={(e) => onClick?.(node.id, e)}
         onDragEnd={(e) => onDragEnd?.(node.id, e.target.x(), e.target.y())}
       >
         <Rect
@@ -392,8 +392,8 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
       x={node.x}
       y={node.y}
       draggable
-      onClick={() => onClick?.(node.id)}
-      onTap={() => onClick?.(node.id)}
+      onClick={(e) => onClick?.(node.id, e)}
+      onTap={(e) => onClick?.(node.id, e)}
       onDblClick={() => onDoubleClick?.(node.id)}
       onDblTap={() => onDoubleClick?.(node.id)}
       onDragEnd={(e) => onDragEnd?.(node.id, e.target.x(), e.target.y())}
@@ -439,7 +439,7 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
             size={40}
             color={tokens.root.iconColor}
           />
-          
+
           {/* Title */}
           <Text
             x={16}
@@ -462,8 +462,8 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
             height={24}
             fill={
               node.status === 'error' ? tokens.status.errorBg :
-              node.status === 'complete' ? tokens.status.successBg :
-              tokens.status.processingBg
+                node.status === 'complete' ? tokens.status.successBg :
+                  tokens.status.processingBg
             }
             cornerRadius={6}
           />
@@ -472,15 +472,15 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
             y={finalHeight - 31}
             text={
               node.status === 'error' ? 'ERROR' :
-              node.status === 'complete' ? 'READY' :
-              'PROCESSING'
+                node.status === 'complete' ? 'READY' :
+                  'PROCESSING'
             }
             fontSize={10}
             fontStyle="600"
             fill={
               node.status === 'error' ? tokens.status.error :
-              node.status === 'complete' ? tokens.status.success :
-              tokens.status.processing
+                node.status === 'complete' ? tokens.status.success :
+                  tokens.status.processing
             }
             letterSpacing={0.5}
           />
@@ -498,7 +498,7 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
       {variant === 'generating' && (
         <>
           <SkeletonBars x={16} y={16} width={finalWidth - 32} />
-          
+
           {/* Small generating indicator */}
           <Text
             x={16}

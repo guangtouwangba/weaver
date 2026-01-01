@@ -1071,6 +1071,16 @@ export const outputsApi = {
     fetchApi<void>(`/api/v1/projects/${projectId}/outputs/tasks/${taskId}/cancel`, {
       method: 'POST',
     }),
+
+  update: (
+    projectId: string,
+    outputId: string,
+    updates: { title?: string; data?: Record<string, unknown> }
+  ) =>
+    fetchApi<OutputResponse>(`/api/v1/projects/${projectId}/outputs/${outputId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
 };
 
 // =============================================================================

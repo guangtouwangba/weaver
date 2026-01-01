@@ -49,7 +49,8 @@ import {
 import { MindmapData, MindmapNode, MindmapEdge } from '@/lib/api';
 import { RichMindMapNode } from './RichMindMapNode';
 import { CurvedMindMapEdge } from './CurvedMindMapEdge';
-import { applyLayout, LayoutType } from './layoutAlgorithms';
+import { applyLayout, resolveOverlaps, LayoutType } from './layoutAlgorithms';
+import { useHistory } from '@/hooks/useHistory';
 
 // ============================================================================
 // Types
@@ -375,11 +376,21 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
 }) => {
   // State
   // Initialize with deduplicated nodes to prevent unique key errors
-  const [data, setData] = useState<MindmapData>(() => ({
-    ...initialData,
-    nodes: deduplicateNodes(initialData.nodes)
-  }));
-  
+  const {
+    state: data,
+    set: setData,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    reset: resetData
+  } = useHistory<MindmapData>(
+    {
+      ...initialData,
+      nodes: deduplicateNodes(initialData.nodes)
+    }
+  );
+
   // Sync with external data updates (e.g. streaming) and deduplicate
   useEffect(() => {
     setData((prev) => {
@@ -390,7 +401,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
 
       const existingNodesMap = new Map(prev.nodes.map(n => [n.id, n]));
       const uniqueNewNodes = deduplicateNodes(initialData.nodes);
-      
+
       const mergedNodes = uniqueNewNodes.map(newNode => {
         const existingNode = existingNodesMap.get(newNode.id);
         if (existingNode) {
@@ -409,9 +420,11 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
         nodes: mergedNodes
       };
     });
-  }, [initialData]);
+  }, [initialData, setData]); // Added setData to deps
 
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  // Helper for single selection compatibility if needed
+  const selectedNodeId = selectedNodeIds.size === 1 ? Array.from(selectedNodeIds)[0] : null;
   const [layoutType, setLayoutType] = useState<LayoutType>('balanced');
   const [viewport, setViewport] = useState<ViewportState>({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
@@ -468,7 +481,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     // Check if we need layout (unpositioned nodes or explicit layout request)
     // We strictly check for nodes that don't have x/y coordinates
     const needsLayout = data.nodes.some(n => typeof n.x !== 'number' || typeof n.y !== 'number');
-    
+
     // If all nodes are positioned and we've done initial layout, skip
     // Unless this is a resize event (handled by dependency change)
     if (!needsLayout && initialLayoutDone.current) {
@@ -480,12 +493,12 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     setIsCalculatingLayout(true);
     const timeoutId = setTimeout(() => {
       const result = applyLayout(
-        data, 
-        layoutType, 
-        debouncedContainerSize.width || 1200, 
+        data,
+        layoutType,
+        debouncedContainerSize.width || 1200,
         debouncedContainerSize.height || 800
       );
-      
+
       setData(prev => ({ ...prev, nodes: result.nodes }));
       initialLayoutDone.current = true;
       setIsCalculatingLayout(false);
@@ -494,18 +507,47 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     return () => clearTimeout(timeoutId);
   }, [debouncedContainerSize.width, debouncedContainerSize.height, data.nodes.length, layoutType]);
 
-  // Throttled node position update
-  const handleNodeDragEnd = useThrottledCallback(
+  // Node position update
+  const handleNodeDragEnd = useCallback(
     (nodeId: string, x: number, y: number) => {
-      setData((prev) => ({
-        ...prev,
-        nodes: prev.nodes.map((n) =>
+      setData((prev) => {
+        const oldNode = prev.nodes.find((n) => n.id === nodeId);
+        // If node not found or position didn't effectively change (optimization), return prev
+        if (!oldNode) return prev;
+
+        // Bulk Move Logic
+        if (selectedNodeIds.has(nodeId) && selectedNodeIds.size > 1) {
+          const dx = x - oldNode.x;
+          const dy = y - oldNode.y;
+
+          if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return prev;
+
+          const newNodes = prev.nodes.map((n) => {
+            if (selectedNodeIds.has(n.id)) {
+              return { ...n, x: n.x + dx, y: n.y + dy };
+            }
+            return n;
+          });
+
+          return { ...prev, nodes: newNodes };
+        }
+
+        // Single Move Logic
+        const nodesWithMove = prev.nodes.map((n) =>
           n.id === nodeId ? { ...n, x, y } : n
-        ),
-      }));
+        );
+
+        // Resolve overlaps
+        const resolvedNodes = resolveOverlaps(nodesWithMove, nodeId);
+
+        return {
+          ...prev,
+          nodes: resolvedNodes,
+        };
+      });
       setHasChanges(true);
     },
-    16 // ~60fps
+    [setData, selectedNodeIds]
   );
 
   // Zoom handlers
@@ -559,18 +601,21 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   const handleDragStart = useCallback(() => setIsDragging(true), []);
   const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     setIsDragging(false);
-    setViewport((v) => ({
-      ...v,
-      x: e.target.x(),
-      y: e.target.y(),
-    }));
+    // Only update viewport if the stage itself was dragged
+    if (e.target === stageRef.current) {
+      setViewport((v) => ({
+        ...v,
+        x: e.target.x(),
+        y: e.target.y(),
+      }));
+    }
   }, []);
 
   // Layout change - async to not block UI
   const handleLayoutChange = useCallback((newLayout: LayoutType) => {
     setLayoutType(newLayout);
     setIsCalculatingLayout(true);
-    
+
     // Defer layout calculation
     setTimeout(() => {
       const result = applyLayout(data, newLayout, debouncedContainerSize.width, debouncedContainerSize.height);
@@ -581,8 +626,25 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   }, [data, debouncedContainerSize]);
 
   // Node selection
-  const handleNodeSelect = useCallback((nodeId: string) => {
-    setSelectedNodeId(nodeId);
+  const handleNodeSelect = useCallback((nodeId: string, e?: Konva.KonvaEventObject<MouseEvent>) => {
+    const isMultiSelect = e?.evt.shiftKey || e?.evt.metaKey || e?.evt.ctrlKey;
+
+    setSelectedNodeIds(prev => {
+      // If clicking inside a set without modifiers, keeping it selected
+      // But if we have multiple and click one without modifier, we select just that one
+      if (isMultiSelect) {
+        const newSet = new Set(prev);
+        if (newSet.has(nodeId)) {
+          newSet.delete(nodeId);
+        } else {
+          newSet.add(nodeId);
+        }
+        return newSet;
+      } else {
+        // Single select
+        return new Set([nodeId]);
+      }
+    });
   }, []);
 
   // Node double-click (edit)
@@ -605,7 +667,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
 
   // Delete node
   const handleDeleteNode = useCallback(() => {
-    if (!selectedNodeId) return;
+    if (selectedNodeIds.size === 0) return;
 
     // Find all descendants to delete
     const toDelete = new Set<string>();
@@ -615,7 +677,10 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
         .filter((n) => n.parentId === nodeId)
         .forEach((child) => findDescendants(child.id));
     };
-    findDescendants(selectedNodeId);
+
+    selectedNodeIds.forEach(id => {
+      findDescendants(id);
+    });
 
     setData({
       nodes: data.nodes.filter((n) => !toDelete.has(n.id)),
@@ -624,9 +689,9 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
       ),
       rootId: data.rootId,
     });
-    setSelectedNodeId(null);
+    setSelectedNodeIds(new Set());
     setHasChanges(true);
-  }, [selectedNodeId, data]);
+  }, [selectedNodeIds, data, setData]);
 
   // Edit node
   const handleEditNode = useCallback(() => {
@@ -730,10 +795,97 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     if (e.target === e.currentTarget || e.target.getClassName() === 'Rect') {
       const clickedOnBackground = e.target.attrs?.name === 'background';
       if (clickedOnBackground || e.target === stageRef.current) {
-        setSelectedNodeId(null);
+        setSelectedNodeIds(new Set());
       }
     }
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if dialog is open or typing in an input
+      if (editDialogOpen) return;
+      if (
+        document.activeElement instanceof HTMLInputElement ||
+        document.activeElement instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      // Undo/Redo
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          if (canRedo) redo();
+        } else {
+          if (canUndo) undo();
+        }
+        return;
+      }
+
+      // Delete
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        if (selectedNodeIds.size > 0) {
+          e.preventDefault();
+          handleDeleteNode();
+        }
+        return;
+      }
+
+      // Add Child (Tab)
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (selectedNodeIds.size === 1) {
+          handleAddNode();
+        }
+        return;
+      }
+
+      // Add Sibling (Enter)
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedNodeIds.size === 1) {
+          const id = Array.from(selectedNodeIds)[0];
+          const node = data.nodes.find(n => n.id === id);
+          if (node && node.parentId) { // Can't add sibling to root
+            // We reuse handleAddNode logic but hacked:
+            // handleAddNode adds to *selectedNodeId*.
+            // For sibling, we want to add to *node.parentId*.
+            // So we would need to selects Parent -> Add -> Select new.
+            // But switching selection is jarring.
+            // Better: Invoke a new handleAddSibling? 
+            // For MVP, letting Enter do nothing or just focus edit?
+            // Users expect Enter to add sibling.
+            // I'll leave Enter empty or implement specific logic later.
+            // Let's implement basic Add Sibling logic here if simple.
+            // It requires opening dialog. Dialog uses `selectedNodeId` as parent.
+            // So I can't reuse `handleAddNode` easily without state dance.
+            // I'll skip Enter for now or just map it to Edit?
+            // XMind: Space is Edit.
+            handleNodeDoubleClick(id); // Enter to Edit is also common alternative configuration.
+          }
+        }
+        return;
+      }
+
+      // Navigation (Arrows) - Placeholder
+      // Implementing spatial navigation is complex. 
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    editDialogOpen,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    selectedNodeIds,
+    handleDeleteNode,
+    handleAddNode,
+    data.nodes,
+    handleNodeDoubleClick
+  ]);
 
   const selectedNode = useMemo(
     () => data.nodes.find((n) => n.id === selectedNodeId),
@@ -885,7 +1037,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
               <RichMindMapNode
                 key={node.id}
                 node={node}
-                isSelected={node.id === selectedNodeId}
+                isSelected={selectedNodeIds.has(node.id)}
                 lodLevel={lodLevel}
                 shouldAnimate={shouldAnimate}
                 onClick={handleNodeSelect}

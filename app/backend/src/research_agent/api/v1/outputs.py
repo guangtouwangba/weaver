@@ -17,6 +17,7 @@ from research_agent.application.dto.output import (
     NodeActionResponse,
     OutputListResponse,
     OutputResponse,
+    UpdateOutputRequest,
 )
 from research_agent.application.services.output_generation_service import (
     output_generation_service,
@@ -182,6 +183,46 @@ async def delete_output(
         raise HTTPException(status_code=404, detail="Output not found")
 
 
+@router.patch(
+    "/projects/{project_id}/outputs/{output_id}",
+    response_model=OutputResponse,
+)
+async def update_output(
+    project_id: UUID,
+    output_id: UUID,
+    request: UpdateOutputRequest,
+    session: AsyncSession = Depends(get_db),
+) -> OutputResponse:
+    """
+    Update an output's title and/or data.
+
+    This is used to persist user edits to generated content (e.g., mindmap changes).
+    """
+    updated = await output_generation_service.update_output(
+        project_id=project_id,
+        output_id=output_id,
+        title=request.title,
+        data=request.data,
+        session=session,
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Output not found")
+
+    return OutputResponse(
+        id=updated.id,
+        project_id=updated.project_id,
+        output_type=updated.output_type.value,
+        document_ids=updated.document_ids,
+        status=updated.status.value,
+        title=updated.title,
+        data=updated.data,
+        error_message=updated.error_message,
+        created_at=updated.created_at,
+        updated_at=updated.updated_at,
+    )
+
+
 # =============================================================================
 # Node Actions
 # =============================================================================
@@ -327,4 +368,3 @@ async def cancel_task(
 
     if not success:
         raise HTTPException(status_code=404, detail="Task not found or already completed")
-

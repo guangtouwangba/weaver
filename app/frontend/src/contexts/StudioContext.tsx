@@ -161,6 +161,7 @@ interface StudioContextType {
   removeGenerationTask: (taskId: string) => void;
   getActiveGenerationsOfType: (type: GenerationType) => GenerationTask[];
   hasActiveGenerations: () => boolean;
+  saveGenerationOutput: (taskId: string, data: Record<string, unknown>, title?: string) => Promise<void>;
 
   // Legacy Generation State (for backward compatibility during transition)
   isGenerating: boolean;
@@ -382,6 +383,35 @@ export function StudioProvider({
       t => t.status === 'pending' || t.status === 'generating'
     );
   }, [generationTasks]);
+
+  // Save updated output data to the backend and update local state
+  const saveGenerationOutput = useCallback(async (
+    taskId: string,
+    data: Record<string, unknown>,
+    title?: string
+  ): Promise<void> => {
+    const task = generationTasks.get(taskId);
+    if (!task || !task.outputId) {
+      console.warn('[StudioContext] Cannot save output: Task or outputId not found', taskId);
+      return;
+    }
+
+    try {
+      await outputsApi.update(projectId, task.outputId, { data, title });
+      // Update local state
+      setGenerationTasks(prev => {
+        const t = prev.get(taskId);
+        if (!t) return prev;
+        const next = new Map(prev);
+        next.set(taskId, { ...t, result: data, title: title ?? t.title });
+        return next;
+      });
+      console.log('[StudioContext] Successfully saved output', taskId);
+    } catch (error) {
+      console.error('[StudioContext] Failed to save output:', error);
+      // Could show a toast or error state here in the future
+    }
+  }, [generationTasks, projectId]);
 
   // Legacy Generation State (for backward compatibility during transition)
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1019,6 +1049,7 @@ export function StudioProvider({
     removeGenerationTask,
     getActiveGenerationsOfType,
     hasActiveGenerations,
+    saveGenerationOutput,
     // Legacy Generation State (backward compatibility)
     isGenerating,
     setIsGenerating,
