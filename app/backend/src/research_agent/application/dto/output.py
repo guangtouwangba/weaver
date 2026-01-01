@@ -6,7 +6,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # Request DTOs
 # =============================================================================
@@ -55,6 +54,20 @@ class ExpandNodeRequest(BaseModel):
     existing_children: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="Existing child nodes to avoid duplicates",
+    )
+
+
+class UpdateOutputRequest(BaseModel):
+    """Request to update an existing output's data or title."""
+
+    title: Optional[str] = Field(
+        None,
+        description="New title for the output",
+        max_length=255,
+    )
+    data: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Updated output data (e.g., mindmap nodes/edges)",
     )
 
 
@@ -119,4 +132,3 @@ class NodeActionResponse(BaseModel):
         ...,
         description="Action being performed (explain, expand)",
     )
-

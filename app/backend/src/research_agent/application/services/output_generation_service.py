@@ -195,9 +195,7 @@ class OutputGenerationService:
                 from research_agent.infrastructure.database.session import get_async_session
 
                 async with get_async_session() as session:
-                    document_content = await self._load_document_content(
-                        document_ids, session
-                    )
+                    document_content = await self._load_document_content(document_ids, session)
 
                     if not document_content:
                         raise ValueError("No document content available")
@@ -344,8 +342,7 @@ class OutputGenerationService:
         )
 
         logger.info(
-            f"[OutputService] Mindmap task complete: {task_id}, "
-            f"nodes={len(mindmap_data.nodes)}"
+            f"[OutputService] Mindmap task complete: {task_id}, " f"nodes={len(mindmap_data.nodes)}"
         )
 
     async def _run_summary_generation(
@@ -466,9 +463,7 @@ class OutputGenerationService:
                 f"cards={len(flashcard_data.cards)}"
             )
         else:
-            logger.error(
-                f"[OutputService] Flashcard generation returned no data: {task_id}"
-            )
+            logger.error(f"[OutputService] Flashcard generation returned no data: {task_id}")
 
     async def _load_document_content(
         self,
@@ -543,6 +538,47 @@ class OutputGenerationService:
             return False
 
         return await output_repo.delete(output_id)
+
+    async def update_output(
+        self,
+        project_id: UUID,
+        output_id: UUID,
+        title: Optional[str],
+        data: Optional[Dict[str, Any]],
+        session: AsyncSession,
+    ) -> Optional[Output]:
+        """
+        Update an existing output's title and/or data.
+
+        Args:
+            project_id: Project ID (for ownership verification)
+            output_id: Output ID to update
+            title: New title (if provided)
+            data: New data blob (if provided)
+            session: Database session
+
+        Returns:
+            Updated Output or None if not found / not authorized
+        """
+        output_repo = SQLAlchemyOutputRepository(session)
+        output = await output_repo.find_by_id(output_id)
+
+        # Verify project ownership
+        if not output or output.project_id != project_id:
+            return None
+
+        # Build update dict
+        update_data: Dict[str, Any] = {}
+        if title is not None:
+            update_data["title"] = title
+        if data is not None:
+            update_data["data"] = data
+
+        if not update_data:
+            return output  # Nothing to update
+
+        updated = await output_repo.update(output_id, update_data)
+        return updated
 
     async def start_explain_node(
         self,
@@ -843,12 +879,8 @@ class OutputGenerationService:
 
     def get_active_task_count(self, project_id: str) -> int:
         """Get number of active tasks for a project."""
-        return sum(
-            1 for t in self._active_tasks.values()
-            if t.project_id == project_id
-        )
+        return sum(1 for t in self._active_tasks.values() if t.project_id == project_id)
 
 
 # Singleton instance
 output_generation_service = OutputGenerationService()
-

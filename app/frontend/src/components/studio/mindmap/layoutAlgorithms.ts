@@ -31,7 +31,7 @@ interface LayoutResult {
  */
 function buildTree(nodes: MindmapNode[]): Map<string, MindmapNode[]> {
   const childrenMap = new Map<string, MindmapNode[]>();
-  
+
   nodes.forEach(node => {
     const parentId = node.parentId || 'root';
     if (!childrenMap.has(parentId)) {
@@ -41,7 +41,7 @@ function buildTree(nodes: MindmapNode[]): Map<string, MindmapNode[]> {
       childrenMap.get(parentId)!.push(node);
     }
   });
-  
+
   return childrenMap;
 }
 
@@ -91,7 +91,7 @@ export function radialLayout(data: MindmapData, options: LayoutOptions): LayoutR
 
   // BFS to position each level
   const queue: { node: MindmapNode; startAngle: number; endAngle: number; level: number }[] = [];
-  
+
   const rootChildren = childrenMap.get(root.id) || [];
   if (rootChildren.length > 0) {
     const anglePerChild = (2 * Math.PI) / rootChildren.length;
@@ -169,7 +169,7 @@ export function treeLayout(data: MindmapData, options: LayoutOptions): LayoutRes
   function getSubtreeHeight(nodeId: string): number {
     const children = childrenMap.get(nodeId) || [];
     if (children.length === 0) return nodeHeight;
-    
+
     const childrenHeight = children.reduce(
       (sum, child) => sum + getSubtreeHeight(child.id) + verticalSpacing,
       -verticalSpacing
@@ -245,7 +245,7 @@ export function balancedLayout(data: MindmapData, options: LayoutOptions): Layou
   positioned.set(root.id, { x: centerX - nodeWidth / 2, y: centerY - nodeHeight / 2 });
 
   const rootChildren = childrenMap.get(root.id) || [];
-  
+
   // Split children into left and right groups
   const leftChildren: MindmapNode[] = [];
   const rightChildren: MindmapNode[] = [];
@@ -261,7 +261,7 @@ export function balancedLayout(data: MindmapData, options: LayoutOptions): Layou
   function getSubtreeHeight(nodeId: string): number {
     const children = childrenMap.get(nodeId) || [];
     if (children.length === 0) return nodeHeight;
-    
+
     const childrenHeight = children.reduce(
       (sum, child) => sum + getSubtreeHeight(child.id) + verticalSpacing,
       -verticalSpacing
@@ -284,15 +284,15 @@ export function balancedLayout(data: MindmapData, options: LayoutOptions): Layou
     );
 
     let currentY = baseY - totalHeight / 2;
-    const xOffset = direction === 'right' 
-      ? nodeWidth + horizontalSpacing 
+    const xOffset = direction === 'right'
+      ? nodeWidth + horizontalSpacing
       : -(nodeWidth + horizontalSpacing);
 
     children.forEach(child => {
       const subtreeHeight = getSubtreeHeight(child.id);
       const childY = currentY + subtreeHeight / 2 - nodeHeight / 2;
       const childX = baseX + xOffset;
-      
+
       positioned.set(child.id, { x: childX, y: childY });
 
       // Recursively position grandchildren (same direction)
@@ -406,3 +406,117 @@ export function applyLayout(
   }
 }
 
+/**
+ * Resolve overlaps after moving a node
+ * 
+ * When a node is moved, check if it overlaps with others.
+ * If so, push the other nodes away to make space.
+ * 
+ * Strategy:
+ * 1. Check intersection between sourceNode and others
+ * 2. If overlap, calculate push vector (away from sourceNode center)
+ * 3. Move overlapped node AND its entire subtree by that vector
+ */
+export function resolveOverlaps(
+  nodes: MindmapNode[],
+  movedNodeId: string,
+  nodeWidth: number = 200,
+  nodeHeight: number = 80,
+  padding: number = 20
+): MindmapNode[] {
+  let updatedNodes = [...nodes];
+  const movedNode = updatedNodes.find(n => n.id === movedNodeId);
+
+  if (!movedNode) return nodes;
+
+  const childrenMap = buildTree(updatedNodes);
+
+  // Helper to get all descendants of a node to move them together
+  const getSubtree = (rootId: string): string[] => {
+    const subtreeIds: string[] = [rootId];
+    const children = childrenMap.get(rootId) || [];
+    children.forEach(child => {
+      subtreeIds.push(...getSubtree(child.id));
+    });
+    return subtreeIds;
+  };
+
+  // Check for collisions
+  // We iterate a few times to resolve cascading overlaps
+  for (let iter = 0; iter < 2; iter++) {
+    let hasChanges = false;
+
+    // We only check collisions against the moved node (or nodes that were pushed)
+    // But for simplicity in this MVP, we mainly check against the movedNode
+    // and let the user do fine-tuning if complex chains happen.
+
+    for (const node of updatedNodes) {
+      if (node.id === movedNodeId) continue;
+
+      // Specialized AABB collision check with padding
+      const isOverlapping =
+        movedNode.x < node.x + nodeWidth + padding &&
+        movedNode.x + nodeWidth + padding > node.x &&
+        movedNode.y < node.y + nodeHeight + padding &&
+        movedNode.y + nodeHeight + padding > node.y;
+
+      if (isOverlapping) {
+        // Calculate push vector
+        const dx = (node.x + nodeWidth / 2) - (movedNode.x + nodeWidth / 2);
+        const dy = (node.y + nodeHeight / 2) - (movedNode.y + nodeHeight / 2);
+
+        // Normalize
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1; // Avoid div by zero
+
+        // Push direction - prioritize horizontal separation for mind maps
+        const pushX = (dx / dist) * (nodeWidth + padding);
+        const pushY = (dy / dist) * (nodeHeight + padding);
+
+        // If centers are too close, force a default direction (usually down or right)
+        const separationX = Math.abs(dx) < 10 ? (nodeWidth + padding) : pushX;
+        const separationY = Math.abs(dy) < 10 ? (nodeHeight + padding) : pushY;
+
+        // Apply push to the node and its subtree
+        const subtreeIds = getSubtree(node.id);
+
+        updatedNodes = updatedNodes.map(n => {
+          if (subtreeIds.includes(n.id)) {
+            // Determine mainly-horizontal or mainly-vertical push
+            // For tree layouts, usually we want to push down or sideways
+            let moveX = 0;
+            let moveY = 0;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+              // Push mainly horizontally
+              moveX = dx > 0 ? (nodeWidth + padding) - Math.abs(dx) : -((nodeWidth + padding) - Math.abs(dx));
+              // Add a bit of extra space
+              moveX *= 1.2;
+            } else {
+              // Push mainly vertically
+              moveY = dy > 0 ? (nodeHeight + padding) - Math.abs(dy) : -((nodeHeight + padding) - Math.abs(dy));
+              moveY *= 1.2;
+            }
+
+            // If centers are identical, just push down
+            if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+              moveY = nodeHeight + padding;
+            }
+
+            return {
+              ...n,
+              x: n.x + moveX,
+              y: n.y + moveY
+            };
+          }
+          return n;
+        });
+
+        hasChanges = true;
+      }
+    }
+
+    if (!hasChanges) break;
+  }
+
+  return updatedNodes;
+}
