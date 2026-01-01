@@ -1,14 +1,15 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useStudio, GenerationType } from '@/contexts/StudioContext';
-import { 
-  CanvasNode, 
-  CanvasEdge, 
-  outputsApi, 
-  SummaryData, 
-  MindmapData, 
-  MindmapNode, 
+import {
+  CanvasNode,
+  CanvasEdge,
+  outputsApi,
+  canvasApi,
+  SummaryData,
+  MindmapData,
+  MindmapNode,
   MindmapEdge,
-  getWebSocketUrl 
+  getWebSocketUrl
 } from '@/lib/api';
 import { applyLayout } from '@/components/studio/mindmap/layoutAlgorithms';
 
@@ -20,11 +21,12 @@ interface UseCanvasActionsProps {
 }
 
 export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
-  const { 
-    addNodeToCanvas, 
-    documents, 
-    projectId, 
+  const {
+    addNodeToCanvas,
+    documents,
+    projectId,
     selectedDocumentIds,
+    canvasNodes,
     setCanvasNodes,
     setCanvasEdges,
     canvasViewport,
@@ -61,7 +63,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
   }, []);
 
   const handleAddNode = useCallback((
-    type: 'default' | 'sticky' | 'source' | 'insight', 
+    type: 'default' | 'sticky' | 'source' | 'insight',
     position: { x: number, y: number },
     content: string = 'New Node'
   ) => {
@@ -76,7 +78,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       color: type === 'sticky' ? '#fef3c7' : 'white',
       viewType: 'free',
     };
-    
+
     addNodeToCanvas(node);
   }, [addNodeToCanvas]);
 
@@ -102,7 +104,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
     // Initialize empty mindmap data and show overlay immediately
     const streamingData: MindmapData = { nodes: [], edges: [] };
-    
+
     setMindmapResult({
       data: { ...streamingData },
       title: docTitle
@@ -120,7 +122,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
         ws.onopen = () => {
           console.log('[Mindmap WS] Connected');
-          
+
           // Start ping interval
           pingIntervalRef.current = setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {
@@ -141,12 +143,12 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                 if (data.nodeData) {
                   const node = data.nodeData as MindmapNode;
                   streamingData.nodes.push(node);
-                  
+
                   // Update result with new node - create new object for React to detect change
                   setMindmapResult({
-                    data: { 
-                      nodes: [...streamingData.nodes], 
-                      edges: [...streamingData.edges] 
+                    data: {
+                      nodes: [...streamingData.nodes],
+                      edges: [...streamingData.edges]
                     },
                     title: docTitle
                   });
@@ -157,12 +159,12 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                 if (data.edgeData) {
                   const edge = data.edgeData as MindmapEdge;
                   streamingData.edges.push(edge);
-                  
+
                   // Update result with new edge
                   setMindmapResult({
-                    data: { 
-                      nodes: [...streamingData.nodes], 
-                      edges: [...streamingData.edges] 
+                    data: {
+                      nodes: [...streamingData.nodes],
+                      edges: [...streamingData.edges]
                     },
                     title: docTitle
                   });
@@ -180,21 +182,21 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
               case 'generation_complete':
                 console.log('[Mindmap] Generation complete:', data.message);
-                
+
                 // Apply layout to final data before setting result
                 if (streamingData.nodes.length > 0) {
                   const layoutResult = applyLayout(streamingData, 'balanced', 1200, 800);
                   setMindmapResult({
-                    data: { 
-                      nodes: layoutResult.nodes, 
-                      edges: [...streamingData.edges] 
+                    data: {
+                      nodes: layoutResult.nodes,
+                      edges: [...streamingData.edges]
                     },
                     title: docTitle
                   });
                 }
-                
+
                 setIsGenerating(false);
-                
+
                 // Clean up WebSocket
                 if (pingIntervalRef.current) {
                   clearInterval(pingIntervalRef.current);
@@ -202,7 +204,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                 }
                 ws.close();
                 wsRef.current = null;
-                
+
                 resolve();
                 break;
 
@@ -210,7 +212,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                 console.error('[Mindmap] Generation error:', data.errorMessage);
                 setGenerationError(data.errorMessage || 'Generation failed');
                 setIsGenerating(false);
-                
+
                 // Clean up WebSocket
                 if (pingIntervalRef.current) {
                   clearInterval(pingIntervalRef.current);
@@ -218,7 +220,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                 }
                 ws.close();
                 wsRef.current = null;
-                
+
                 reject(new Error(data.errorMessage || 'Generation failed'));
                 break;
             }
@@ -236,13 +238,13 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
         ws.onclose = (event) => {
           console.log('[Mindmap WS] Disconnected:', event.code, event.reason);
-          
+
           if (pingIntervalRef.current) {
             clearInterval(pingIntervalRef.current);
             pingIntervalRef.current = null;
           }
           wsRef.current = null;
-          
+
           // If closed unexpectedly before completion, fall back to polling
           if (event.code !== 1000 && streamingData.nodes.length === 0) {
             console.log('[Mindmap WS] Falling back to polling...');
@@ -270,14 +272,14 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
     let attempts = 0;
     const maxAttempts = 300; // 5 minutes timeout for fallback
-    
+
     while (attempts < maxAttempts) {
       await sleep(1000);
       const output = await outputsApi.get(projectId, outputId);
-      
+
       if (output.status === 'complete') {
         console.log(`${type} generation complete (polling):`, output);
-        
+
         if (type === 'mindmap' && output.data) {
           const mindmapData = output.data as MindmapData;
           setMindmapResult({
@@ -297,7 +299,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
           console.log('Flashcards generated:', flashcardData.cards);
           alert(`Generated ${flashcardData.cards.length} flashcards! View them in the console.`);
         }
-        
+
         setIsGenerating(false);
         return;
       } else if (output.status === 'error') {
@@ -307,7 +309,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
         setIsGenerating(false);
         throw new Error(errMsg);
       }
-      
+
       attempts++;
     }
 
@@ -338,8 +340,8 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     setShowMindmapOverlay(false);
 
     try {
-      const targetDocumentIds = selectedDocumentIds.size > 0 
-        ? Array.from(selectedDocumentIds) 
+      const targetDocumentIds = selectedDocumentIds.size > 0
+        ? Array.from(selectedDocumentIds)
         : documents.map(d => d.id);
 
       const firstDocId = targetDocumentIds[0];
@@ -363,7 +365,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
         await handleFallbackPolling(output_id, type, docTitle);
       }
-      
+
     } catch (error) {
       console.error(`Failed to generate ${type}:`, error);
       if (!String(error).includes('timed out') && !String(error).includes('failed')) {
@@ -372,9 +374,9 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       setIsGenerating(false);
     }
   }, [
-    documents, 
-    selectedDocumentIds, 
-    projectId, 
+    documents,
+    selectedDocumentIds,
+    projectId,
     setIsGenerating,
     setGenerationError,
     setSummaryResult,
@@ -402,10 +404,10 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     // We want to find the center of what's currently visible
     const viewportWidth = typeof window !== 'undefined' ? window.innerWidth * 0.6 : 800; // Approximate canvas width
     const viewportHeight = typeof window !== 'undefined' ? window.innerHeight * 0.7 : 600;
-    
+
     const centerX = (-canvasViewport.x + viewportWidth / 2) / canvasViewport.scale;
     const centerY = (-canvasViewport.y + viewportHeight / 2) / canvasViewport.scale;
-    
+
     return { x: centerX, y: centerY };
   }, [canvasViewport]);
 
@@ -430,9 +432,9 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
     // Start a new generation task (non-blocking)
     const taskId = startGeneration(type, position);
-    
-    const targetDocumentIds = selectedDocumentIds.size > 0 
-      ? Array.from(selectedDocumentIds) 
+
+    const targetDocumentIds = selectedDocumentIds.size > 0
+      ? Array.from(selectedDocumentIds)
       : documents.map(d => d.id);
 
     const firstDocId = targetDocumentIds[0];
@@ -454,10 +456,10 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
         );
 
         // Update task with backend IDs
-        updateGenerationTask(taskId, { 
-          taskId: task_id, 
+        updateGenerationTask(taskId, {
+          taskId: task_id,
           outputId: output_id,
-          status: 'generating' 
+          status: 'generating'
         });
 
         // For mindmap, use WebSocket streaming
@@ -496,7 +498,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
       try {
         const ws = new WebSocket(wsUrl);
-        
+
         const pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send('ping');
@@ -519,9 +521,9 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                   streamingData.nodes.push(data.nodeData as MindmapNode);
                   // Update generation task with streaming data for real-time preview
                   updateGenerationTask(localTaskId, {
-                    result: { 
-                      nodes: [...streamingData.nodes], 
-                      edges: [...streamingData.edges] 
+                    result: {
+                      nodes: [...streamingData.nodes],
+                      edges: [...streamingData.edges]
                     },
                     title: docTitle
                   });
@@ -532,9 +534,9 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                 if (data.edgeData) {
                   streamingData.edges.push(data.edgeData as MindmapEdge);
                   updateGenerationTask(localTaskId, {
-                    result: { 
-                      nodes: [...streamingData.nodes], 
-                      edges: [...streamingData.edges] 
+                    result: {
+                      nodes: [...streamingData.nodes],
+                      edges: [...streamingData.edges]
                     },
                     title: docTitle
                   });
@@ -543,17 +545,17 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
               case 'generation_complete':
                 console.log('[Mindmap WS Concurrent] Complete');
-                
+
                 // Apply layout to final data before completing
                 let finalData = streamingData;
                 if (streamingData.nodes.length > 0) {
                   const layoutResult = applyLayout(streamingData, 'balanced', 1200, 800);
-                  finalData = { 
-                    nodes: layoutResult.nodes, 
-                    edges: [...streamingData.edges] 
+                  finalData = {
+                    nodes: layoutResult.nodes,
+                    edges: [...streamingData.edges]
                   };
                 }
-                
+
                 completeGeneration(localTaskId, finalData, docTitle);
                 clearInterval(pingInterval);
                 ws.close();
@@ -612,14 +614,14 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
     let attempts = 0;
     const maxAttempts = 300; // 5 minutes
-    
+
     while (attempts < maxAttempts) {
       await sleep(1000);
       const output = await outputsApi.get(projectId, outputId);
-      
+
       if (output.status === 'complete') {
         console.log(`[Concurrent] ${type} complete`);
-        
+
         // Only update generationTasks, not legacy overlay state
         completeGeneration(localTaskId, output.data, output.title || docTitle);
         return;
@@ -628,7 +630,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
         failGeneration(localTaskId, errMsg);
         throw new Error(errMsg);
       }
-      
+
       attempts++;
     }
 
@@ -636,8 +638,51 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     throw new Error('Generation timed out');
   }, [projectId, completeGeneration, failGeneration]);
 
+  /**
+   * Delete a canvas node
+   */
+  const handleDeleteNode = useCallback(async (nodeId: string) => {
+    if (!projectId) {
+      console.error('No project ID');
+      return;
+    }
+
+    try {
+      // Optimistically remove node from local state
+      const nodeToDelete = canvasNodes.find(n => n.id === nodeId);
+      if (!nodeToDelete) {
+        console.warn(`Node ${nodeId} not found`);
+        return;
+      }
+
+      setCanvasNodes(prev => prev.filter(n => n.id !== nodeId));
+      setCanvasEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId));
+
+      // Call backend API
+      await canvasApi.deleteNode(projectId, nodeId);
+
+      console.log(`Node ${nodeId} deleted successfully`);
+    } catch (error) {
+      console.error(`Failed to delete node ${nodeId}:`, error);
+
+      // Rollback on error - re-fetch canvas state
+      try {
+        const canvasRes = await canvasApi.get(projectId);
+        if (canvasRes) {
+          setCanvasNodes(canvasRes.nodes || []);
+          setCanvasEdges(canvasRes.edges || []);
+        }
+      } catch (refetchError) {
+        console.error('Failed to rollback after delete error:', refetchError);
+      }
+
+      throw error; // Re-throw so caller can show error toast
+    }
+  }, [projectId, canvasNodes, setCanvasNodes, setCanvasEdges]);
+
   return {
     handleAddNode,
+    handleDeleteNode,
     handleGenerateContent, // Legacy blocking version
     handleGenerateContentConcurrent, // New concurrent version
     getViewportCenterPosition,
