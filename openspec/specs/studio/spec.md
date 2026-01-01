@@ -791,16 +791,11 @@ The system SHALL provide citations for every answer generated from project docum
 ### Requirement: Drag to Chat Context
 The system SHALL allow users to drag content from the canvas or source list into the chat to use as context for the next query.
 
-#### Scenario: Drag Source Document
-- **WHEN** the user drags a Source Document from the source list
-- **AND** drops it into the Chat Input area
-- **THEN** the document ID SHALL be added to the pending context list
-- **AND** a visual indicator of the attached document SHALL appear in the input area
-
-#### Scenario: Drag Canvas Node
-- **WHEN** the user drags a generic Canvas Node (Note, Text, etc.)
-- **AND** drops it into the Chat Input area
-- **THEN** the text content of the node SHALL be added to the context
+#### Scenario: Visual Integration of Context
+- **WHEN** the user drops a resource into the chat input
+- **THEN** the resource SHALL be displayed as a chip *within* or *visually attached* to the input container
+- **AND** the chat interface SHALL NOT shift position abruptly
+- **AND** the input container SHALL resolve to a cohesive unit containing both context and text input
 
 ### Requirement: Drag Response to Canvas
 The system SHALL allow users to drag AI responses from the chat onto the canvas to create new nodes.
@@ -810,4 +805,32 @@ The system SHALL allow users to drag AI responses from the chat onto the canvas 
 - **AND** drops it onto the Canvas
 - **THEN** a new Note Node SHALL be created at the drop position
 - **AND** the content of the node SHALL be the text of the AI response
+
+### Requirement: Canvas Node Management
+The Studio Canvas SHALL allow users to create, edit, and delete nodes.
+
+#### Scenario: Delete node via context menu
+- **WHEN** a user right-clicks on a canvas node
+- **AND** selects "Delete" from the context menu
+- **THEN** the node SHALL be removed from the canvas
+- **AND** the deletion SHALL be persisted to the backend
+- **AND** a success toast notification SHALL appear
+
+#### Scenario: Delete node via keyboard shortcut
+- **WHEN** a user selects a canvas node
+- **AND** presses the Delete or Backspace key
+- **THEN** the selected node SHALL be removed from the canvas
+- **AND** the deletion SHALL be persisted to the backend
+- **AND** a success toast notification SHALL appear
+
+#### Scenario: Delete generated content
+- **WHEN** AI generates a mindmap or summary node on the canvas
+- **AND** the content contains errors
+- **THEN** the user SHALL be able to delete the generated node using either context menu or keyboard
+- **AND** the canvas workspace SHALL remain clean
+
+#### Scenario: Handle deletion failures
+- **WHEN** node deletion fails due to network error or conflict
+- **THEN** an error toast SHALL be displayed
+- **AND** the node SHALL remain on the canvas (optimistic update rollback)
 

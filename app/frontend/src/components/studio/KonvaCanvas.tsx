@@ -35,8 +35,9 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
 
 import Konva from 'konva';
 import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
-import { ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon } from '@/components/ui/icons';
+import { ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon, DeleteIcon } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
+import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
 import InspirationDock from './InspirationDock';
 import CanvasContextMenu from './CanvasContextMenu';
@@ -898,6 +899,9 @@ export default function KonvaCanvas({
     setCanvasViewport: contextSetViewport,
   } = useStudio();
 
+  // Get handleDeleteNode from useCanvasActions hook
+  const { handleDeleteNode } = useCanvasActions({ onOpenImport });
+
   // Use props if provided, otherwise fall back to context values
   const nodes = propNodes ?? contextNodes ?? [];
   const edges = propEdges ?? contextEdges ?? [];
@@ -996,11 +1000,17 @@ export default function KonvaCanvas({
         setIsSpacePressed(true);
       }
 
-      // Delete / Backspace
+      // Delete / Backspace - Delete selected nodes via API
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedNodeIds.size > 0) {
           e.preventDefault();
-          onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
+          // Delete each selected node via API (handles optimistic updates and rollback)
+          selectedNodeIds.forEach(nodeId => {
+            handleDeleteNode(nodeId).catch(err => {
+              console.error('Failed to delete node:', err);
+              // alert(`Failed to delete node: ${err.message}`); // Minimal visual feedback
+            });
+          });
           setSelectedNodeIds(new Set());
         }
       }
@@ -1984,20 +1994,31 @@ export default function KonvaCanvas({
               <MenuItem
                 onClick={() => {
                   if (contextMenu.nodeId) {
-                    // If the right-clicked node is in selection, delete all selected
+                    // If the right-clicked node is in selection, delete all selected via API
                     // If not, delete only this one
                     if (selectedNodeIds.has(contextMenu.nodeId)) {
-                      onNodesChange(nodes.filter(n => !selectedNodeIds.has(n.id)));
+                      // Delete all selected nodes via API
+                      selectedNodeIds.forEach(nodeId => {
+                        handleDeleteNode(nodeId).catch(err => {
+                          console.error('Failed to delete node:', err);
+                          alert(`Failed to delete node: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                        });
+                      });
                       setSelectedNodeIds(new Set());
                     } else {
-                      onNodesChange(nodes.filter(n => n.id !== contextMenu.nodeId));
+                      // Delete single node via API
+                      handleDeleteNode(contextMenu.nodeId).catch(err => {
+                        console.error('Failed to delete node:', err);
+                        alert(`Failed to delete node: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                      });
                     }
                   }
                   setContextMenu(null);
                 }}
                 sx={{ fontSize: 14, color: 'error.main' }}
               >
-                删除节点 {selectedNodeIds.size > 1 && selectedNodeIds.has(contextMenu.nodeId!) ? `(${selectedNodeIds.size})` : ''}
+                <DeleteIcon size={14} style={{ marginRight: 8 }} />
+                Delete Node {selectedNodeIds.size > 1 && selectedNodeIds.has(contextMenu.nodeId!) ? `(${selectedNodeIds.size})` : ''}
               </MenuItem>
             )}
             {contextMenu.sectionId && (

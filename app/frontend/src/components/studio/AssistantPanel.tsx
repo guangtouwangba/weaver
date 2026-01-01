@@ -55,7 +55,7 @@ import {
   AutoAwesomeIcon,
   ArrowUpwardIcon,
 } from '@/components/ui/icons';
-import { 
+import {
   PictureAsPdf as PdfIcon,
   Close as CloseIcon,
   FlashOn as FlashIcon,
@@ -349,7 +349,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
   // View state: 'chat' or 'history' (instead of collapsible sidebar)
   const [activeView, setActiveView] = useState<'chat' | 'history'>('chat');
-  
+
   // Collapsible Context State
   const [isContextCollapsed, setIsContextCollapsed] = useState(false);
 
@@ -614,9 +614,9 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     return (
       <Box sx={{ position: 'absolute', left: 24, bottom: 24, zIndex: 100 }}>
         <Tooltip title="AI Assistant" placement="right">
-           <Fab color="primary" onClick={onToggle}>
-             <BotIcon size={24} />
-           </Fab>
+          <Fab color="primary" onClick={onToggle}>
+            <BotIcon size={24} />
+          </Fab>
         </Tooltip>
       </Box>
     );
@@ -704,14 +704,14 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   };
 
   return (
-    <Box sx={{ 
-      position: 'absolute', 
-      top: 0, 
+    <Box sx={{
+      position: 'absolute',
+      top: 0,
       left: 0,
-      right: 0, 
-      bottom: 0, 
-      zIndex: 20,
-      pointerEvents: 'none', 
+      right: 0,
+      bottom: 0,
+      zIndex: 900, // Raised to sit above GenerationOutputsOverlay (z-index 50) for drag-drop
+      pointerEvents: 'none',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'flex-end',
@@ -721,11 +721,11 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     }}>
 
       {/* Floating Stack Container */}
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: 2, 
-        width: '100%', 
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        width: '100%',
         maxWidth: '700px',
         alignItems: 'stretch' // Ensure children take full width
       }}>
@@ -733,9 +733,9 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         {/* 1. File Card (Top of Stack) */}
         {activeDocument && (
           <Fade in={true}>
-            <Paper 
+            <Paper
               elevation={2}
-              sx={{ 
+              sx={{
                 pointerEvents: 'auto',
                 p: 2,
                 borderRadius: 3, // Approx 12px
@@ -750,13 +750,13 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                 mb: 1
               }}
             >
-              <Box sx={{ 
-                width: 42, 
-                height: 42, 
-                borderRadius: 1.5, 
+              <Box sx={{
+                width: 42,
+                height: 42,
+                borderRadius: 1.5,
                 bgcolor: '#FEF2F2', // Light red bg
-                display: 'flex', 
-                alignItems: 'center', 
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'center',
                 color: '#EF4444' // Red icon
               }}>
@@ -767,7 +767,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                   {activeDocument.filename}
                 </Typography>
                 <Typography variant="caption" sx={{ color: '#9CA3AF' }}>
-                   2.4 MB
+                  2.4 MB
                 </Typography>
               </Box>
             </Paper>
@@ -775,12 +775,12 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         )}
 
         {/* 2. Recent Context Card (Middle - Collapsible) */}
-        <Paper 
+        <Paper
           elevation={0}
-          sx={{ 
+          sx={{
             pointerEvents: 'auto',
-            display: 'flex', 
-            flexDirection: 'column', 
+            display: 'flex',
+            flexDirection: 'column',
             borderRadius: 4, // More rounded
             bgcolor: 'rgba(255, 255, 255, 0.9)', // Glassmorphism
             backdropFilter: 'blur(12px)',
@@ -791,149 +791,178 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             transition: 'all 0.3s ease'
           }}
         >
-           {/* Header */}
-           <Box 
-             sx={{ 
-               px: 3,
-               py: 2, 
-               display: 'flex',
-               alignItems: 'center',
-               justifyContent: 'space-between',
-               cursor: 'pointer',
-               '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' }
-             }}
-             onClick={() => setIsContextCollapsed(!isContextCollapsed)}
-           >
-              <Typography variant="caption" fontWeight={700} sx={{ color: '#9CA3AF', letterSpacing: '1px' }}>
-                RECENT CONTEXT
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                 <IconButton size="small">
-                   {isContextCollapsed ? <ChevronUpIcon fontSize="small" /> : <ChevronDownIcon fontSize="small" />}
-                 </IconButton>
-                 <IconButton size="small" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
-                   <CloseIcon fontSize="small" sx={{ fontSize: 16 }} />
-                 </IconButton>
-              </Box>
-           </Box>
+          {/* Header */}
+          <Box
+            sx={{
+              px: 3,
+              py: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' }
+            }}
+            onClick={() => setIsContextCollapsed(!isContextCollapsed)}
+          >
+            <Typography variant="caption" fontWeight={700} sx={{ color: '#9CA3AF', letterSpacing: '1px' }}>
+              RECENT CONTEXT
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <IconButton size="small">
+                {isContextCollapsed ? <ChevronUpIcon fontSize="small" /> : <ChevronDownIcon fontSize="small" />}
+              </IconButton>
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+                <CloseIcon fontSize="small" sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Box>
+          </Box>
 
-           {/* Messages (Collapsible Content) */}
-           <Collapse in={!isContextCollapsed}>
-             <Box sx={{ flex: 1, overflowY: 'auto', maxHeight: '350px', px: 3, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {chatMessages.length === 0 && (
-                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2, textAlign: 'center' }}>
-                    No recent context. Drop a file or start typing.
-                  </Typography>
-                )}
-                {chatMessages.slice(-3).map((msg) => ( // Show only recent messages
-                  <Box key={msg.id} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                     {msg.role === 'ai' ? (
-                       <Box sx={{ 
-                         width: 24, height: 24, 
-                         borderRadius: '50%', 
-                         bgcolor: 'primary.main', 
-                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                         flexShrink: 0, mt: 0.5
-                       }}>
-                         <BotIcon size={14} sx={{ color: 'white' }} />
-                       </Box>
-                     ) : (
-                       <Box sx={{ 
-                         width: 24, height: 24, 
-                         borderRadius: '50%', 
-                         bgcolor: 'grey.200', 
-                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                         flexShrink: 0, mt: 0.5
-                       }}>
-                         <Typography variant="caption" fontWeight={700}>AL</Typography>
-                       </Box>
-                     )}
-                     
-                     <Box sx={{ flex: 1 }}>
-                       <MarkdownContent
-                          content={msg.content || (msg.role === 'ai' && isLoading ? 'Thinking...' : '')}
-                          citations={msg.citations}
-                          documents={documents}
-                          onCitationClick={() => {}}
-                       />
-                     </Box>
+          {/* Messages (Collapsible Content) */}
+          <Collapse in={!isContextCollapsed}>
+            <Box sx={{ flex: 1, overflowY: 'auto', maxHeight: '350px', px: 3, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {chatMessages.length === 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2, textAlign: 'center' }}>
+                  No recent context. Drop a file or start typing.
+                </Typography>
+              )}
+              {chatMessages.slice(-3).map((msg) => ( // Show only recent messages
+                <Box key={msg.id} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                  {msg.role === 'ai' ? (
+                    <Box sx={{
+                      width: 24, height: 24,
+                      borderRadius: '50%',
+                      bgcolor: 'primary.main',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0, mt: 0.5
+                    }}>
+                      <BotIcon size={14} sx={{ color: 'white' }} />
+                    </Box>
+                  ) : (
+                    <Box sx={{
+                      width: 24, height: 24,
+                      borderRadius: '50%',
+                      bgcolor: 'grey.200',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0, mt: 0.5
+                    }}>
+                      <Typography variant="caption" fontWeight={700}>AL</Typography>
+                    </Box>
+                  )}
+
+                  <Box sx={{ flex: 1 }}>
+                    <MarkdownContent
+                      content={msg.content || (msg.role === 'ai' && isLoading ? 'Thinking...' : '')}
+                      citations={msg.citations}
+                      documents={documents}
+                      onCitationClick={() => { }}
+                    />
                   </Box>
-                ))}
-             </Box>
-           </Collapse>
+                </Box>
+              ))}
+            </Box>
+          </Collapse>
         </Paper>
 
         {/* 3. Input Pill (Bottom) */}
-      <Paper
-        ref={inputAreaRef}
-        elevation={4}
-        component="div"
-        sx={{
-           pointerEvents: 'auto',
-           p: '4px', // Padding for the pill container
-             display: 'flex',
-             alignItems: 'center',
-             width: '100%',
-             borderRadius: 999, // Pill shape
-             bgcolor: '#F3F4F6', // Light gray bg like in design
-             border: '2px dashed', // Dashed border
-             borderColor: isDragOver ? 'primary.main' : '#6366F1', // Indigo/Blue dashed
-             transition: 'all 0.2s',
-             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+        <Paper
+          ref={inputAreaRef}
+          elevation={4}
+          component="div"
+          sx={{
+            pointerEvents: 'auto',
+            p: '6px',
+            display: 'flex',
+            flexDirection: 'column', // Changed to column to stack chips + input
+            width: '100%',
+            // Smooth transition for border radius: Pill (999) -> Soft Rect (24)
+            borderRadius: contextNodes.length > 0 ? '24px' : '999px',
+            bgcolor: '#fff',
+            borderWidth: '2px',
+            borderStyle: isDragOver ? 'dashed' : 'solid',
+            borderColor: isDragOver ? 'primary.main' : 'rgba(0,0,0,0.08)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: isDragOver
+              ? '0 8px 32px rgba(99, 102, 241, 0.15)'
+              : '0 4px 20px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: isDragOver ? 'primary.main' : 'rgba(0,0,0,0.12)',
+              boxShadow: isDragOver
+                ? '0 8px 32px rgba(99, 102, 241, 0.15)'
+                : '0 8px 24px rgba(0,0,0,0.08)',
+            }
           }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <Box sx={{ 
-            ml: 1,
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            color: '#6366F1' // Icon color
-          }}>
-             <FlashIcon />
-          </Box>
-          
-          <InputBase
-            sx={{ ml: 2, flex: 1, color: '#4B5563', fontWeight: 500 }}
-            placeholder="Drop to analyze..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={isLoading}
-            onKeyDown={handleKeyDown}
-          />
+          {/* Context Nodes (Now Inside Input Container) */}
+          {contextNodes.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', px: 2, pt: 1.5, pb: 0.5, width: '100%' }}>
+              {contextNodes.map(node => (
+                <Chip
+                  key={node.id}
+                  label={node.title}
+                  onDelete={() => removeContextNode(node.id)}
+                  size="small"
+                  sx={{
+                    height: 28,
+                    bgcolor: '#F3F4F6',
+                    border: '1px solid',
+                    borderColor: 'rgba(0,0,0,0.05)',
+                    color: '#374151',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      bgcolor: '#E5E7EB',
+                      borderColor: 'rgba(0,0,0,0.1)',
+                    },
+                    '& .MuiChip-label': { px: 1.5, fontSize: '0.8rem', fontWeight: 500 },
+                    '& .MuiChip-deleteIcon': {
+                      color: 'rgba(0,0,0,0.4)',
+                      '&:hover': { color: '#EF4444' }
+                    }
+                  }}
+                />
+              ))}
+            </Box>
+          )}
 
-          <IconButton 
-             type="button" 
-             sx={{ 
-               bgcolor: '#4F46E5', // Indigo button
-               color: 'white', 
-               width: 40, height: 40,
-               '&:hover': { bgcolor: '#4338CA' },
-               boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)'
-             }} 
-             onClick={handleSend}
-             disabled={!input.trim() && contextNodes.length === 0}
-          >
-            {isLoading ? <CircularProgress size={20} color="inherit" /> : <AddIcon size={24} />}
-          </IconButton>
+          {/* Input Row */}
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <Box sx={{
+              ml: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#6366F1'
+            }}>
+              <FlashIcon />
+            </Box>
+
+            <InputBase
+              sx={{ ml: 2, flex: 1, color: '#4B5563', fontWeight: 500 }}
+              placeholder={contextNodes.length > 0 ? "Ask about these documents..." : "Drop to analyze..."}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isLoading}
+              onKeyDown={handleKeyDown}
+            />
+
+            <IconButton
+              type="button"
+              sx={{
+                bgcolor: '#4F46E5',
+                color: 'white',
+                width: 40, height: 40,
+                '&:hover': { bgcolor: '#4338CA' },
+                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)'
+              }}
+              onClick={handleSend}
+              disabled={!input.trim() && contextNodes.length === 0}
+            >
+              {isLoading ? <CircularProgress size={20} color="inherit" /> : <AddIcon size={24} />}
+            </IconButton>
+          </Box>
         </Paper>
-
-        {/* Context Nodes (Floating above Input if present) */}
-        {contextNodes.length > 0 && (
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: -2, ml: 2 }}>
-            {contextNodes.map(node => (
-              <Chip 
-                key={node.id} 
-                label={node.title} 
-                onDelete={() => removeContextNode(node.id)}
-                size="small"
-                sx={{ bgcolor: 'white', border: '1px solid', borderColor: 'divider' }} 
-              />
-            ))}
-          </Box>
-        )}
 
       </Box>
 
@@ -954,7 +983,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
           <Button onClick={handleDeleteSession} color="error">Delete</Button>
         </DialogActions>
       </Dialog>
-      
+
     </Box>
   );
 }

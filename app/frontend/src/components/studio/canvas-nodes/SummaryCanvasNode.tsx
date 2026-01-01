@@ -11,7 +11,7 @@
 
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { Box, Paper, Typography, IconButton, Chip, Modal, Fade, Backdrop, Button } from '@mui/material';
-import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, DragIndicatorIcon, OpenWithIcon } from '@/components/ui/icons';
+import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, DragIndicatorIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
 import { SummaryData, KeyFinding } from '@/lib/api';
 
 interface SummaryCanvasNodeProps {
@@ -41,11 +41,11 @@ function SummaryCanvasNodeInner({
   isDragging = false, // Controlled by parent (GenerationOutputsOverlay)
 }: SummaryCanvasNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Performance: track renders
   const renderCountRef = useRef(0);
   renderCountRef.current++;
-  
+
   useEffect(() => {
     if (isDragging && renderCountRef.current % 10 === 0) {
       console.log(`[Perf][SummaryNode ${id}] Render count: ${renderCountRef.current}`);
@@ -60,10 +60,10 @@ function SummaryCanvasNodeInner({
   const handleCloseExpanded = () => setIsExpanded(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    console.log('[SummaryNode] MouseDown', { 
-        target: e.target, 
-        isDragHandle: (e.target as HTMLElement).closest('.drag-handle') !== null,
-        isButton: (e.target as HTMLElement).closest('button') !== null,
+    console.log('[SummaryNode] MouseDown', {
+      target: e.target,
+      isDragHandle: (e.target as HTMLElement).closest('.drag-handle') !== null,
+      isButton: (e.target as HTMLElement).closest('button') !== null,
     });
     if (e.target instanceof HTMLElement) {
       // Skip if clicking on buttons (close, expand, copy)
@@ -104,8 +104,8 @@ function SummaryCanvasNodeInner({
           border: '1px solid',
           borderColor: 'divider',
           bgcolor: 'white',
-          boxShadow: isDragging 
-            ? '0 12px 40px rgba(139, 92, 246, 0.25)' 
+          boxShadow: isDragging
+            ? '0 12px 40px rgba(139, 92, 246, 0.25)'
             : '0 4px 20px rgba(0,0,0,0.08)',
           cursor: isDragging ? 'grabbing' : 'default',
           transition: isDragging ? 'none' : 'box-shadow 0.2s, transform 0.2s',
@@ -123,11 +123,11 @@ function SummaryCanvasNodeInner({
         }}
       >
         {/* Header - entire header is draggable */}
-        <Box 
+        <Box
           className="drag-handle"
-          sx={{ 
-            display: 'flex', 
-            alignItems: 'flex-start', 
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
             mb: 1.5,
             cursor: 'grab',
             '&:active': { cursor: 'grabbing' },
@@ -135,13 +135,13 @@ function SummaryCanvasNodeInner({
           }}
         >
           {/* Drag Indicator Icon */}
-          <Box 
-            sx={{ 
+          <Box
+            sx={{
               p: 0.5,
               mr: 1,
               borderRadius: 1,
               color: 'text.disabled',
-              '&:hover': { 
+              '&:hover': {
                 color: 'text.secondary',
                 bgcolor: 'grey.100'
               },
@@ -149,7 +149,7 @@ function SummaryCanvasNodeInner({
           >
             <OpenWithIcon size={14} />
           </Box>
-          
+
           {/* Icon */}
           <Box
             sx={{
@@ -186,48 +186,48 @@ function SummaryCanvasNodeInner({
             <IconButton size="small" onClick={handleExpand} sx={{ color: 'text.secondary', p: 0.5 }}>
               <FullscreenIcon size={14} />
             </IconButton>
-            <IconButton size="small" onClick={onClose} sx={{ color: 'text.secondary', p: 0.5 }}>
-              <CloseIcon size={14} />
+            <IconButton size="small" onClick={onClose} sx={{ color: 'text.secondary', p: 0.5 }} title="Delete">
+              <DeleteIcon size={14} />
             </IconButton>
           </Box>
         </Box>
 
         {/* Tags */}
         <Box sx={{ display: 'flex', gap: 0.5, mb: 1.5 }}>
-          <Chip 
-            label="SUMMARY" 
-            size="small" 
-            sx={{ 
-              bgcolor: '#EEF2FF', 
-              color: '#4F46E5', 
-              fontWeight: 600, 
+          <Chip
+            label="SUMMARY"
+            size="small"
+            sx={{
+              bgcolor: '#EEF2FF',
+              color: '#4F46E5',
+              fontWeight: 600,
               fontSize: '0.6rem',
               height: 18,
               borderRadius: 0.5,
               '& .MuiChip-label': { px: 0.75 }
-            }} 
+            }}
           />
-          <Chip 
-            label="AI GENERATED" 
-            size="small" 
-            sx={{ 
-              bgcolor: '#F5F3FF', 
-              color: '#7C3AED', 
-              fontWeight: 600, 
+          <Chip
+            label="AI GENERATED"
+            size="small"
+            sx={{
+              bgcolor: '#F5F3FF',
+              color: '#7C3AED',
+              fontWeight: 600,
               fontSize: '0.6rem',
               height: 18,
               borderRadius: 0.5,
               '& .MuiChip-label': { px: 0.75 }
-            }} 
+            }}
           />
         </Box>
 
         {/* Content Preview */}
-        <Typography 
-          variant="body2" 
-          color="text.secondary" 
-          sx={{ 
-            mb: 1.5, 
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mb: 1.5,
             fontSize: '0.8rem',
             lineHeight: 1.5,
             display: '-webkit-box',
@@ -309,9 +309,9 @@ function SummaryCanvasNodeInner({
             flexDirection: 'column'
           }}>
             {/* Modal Header */}
-            <Box sx={{ 
-              p: 2.5, 
-              borderBottom: '1px solid', 
+            <Box sx={{
+              p: 2.5,
+              borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
               alignItems: 'center',

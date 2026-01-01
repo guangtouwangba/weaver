@@ -21,7 +21,7 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { Box, Paper, Typography, IconButton, Modal, Chip, CircularProgress } from '@mui/material';
-import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
+import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from '../mindmap/MindMapNode';
 import { MindMapEdge } from '../mindmap/MindMapEdge';
@@ -93,11 +93,11 @@ function MindMapCanvasNodeInner({
   isDragging = false, // Controlled by parent (GenerationOutputsOverlay)
 }: MindMapCanvasNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Performance: track renders
   const renderCountRef = useRef(0);
   renderCountRef.current++;
-  
+
   useEffect(() => {
     if (isDragging && renderCountRef.current % 10 === 0) {
       console.log(`[Perf][MindMapNode ${id}] Render count: ${renderCountRef.current}`);
@@ -111,10 +111,10 @@ function MindMapCanvasNodeInner({
   const nodeCount = data.nodes.length;
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    console.log('[MindMapNode] MouseDown', { 
-        target: e.target, 
-        isDragHandle: (e.target as HTMLElement).closest('.drag-handle') !== null,
-        isButton: (e.target as HTMLElement).closest('button') !== null,
+    console.log('[MindMapNode] MouseDown', {
+      target: e.target,
+      isDragHandle: (e.target as HTMLElement).closest('.drag-handle') !== null,
+      isButton: (e.target as HTMLElement).closest('button') !== null,
     });
     if (e.target instanceof HTMLElement) {
       // Skip if clicking on buttons (close, expand)
@@ -241,8 +241,8 @@ function MindMapCanvasNodeInner({
             >
               <FullscreenIcon size={14} />
             </IconButton>
-            <IconButton size="small" onClick={onClose} sx={{ p: 0.5 }}>
-              <CloseIcon size={14} />
+            <IconButton size="small" onClick={onClose} sx={{ p: 0.5 }} title="Delete">
+              <DeleteIcon size={14} />
             </IconButton>
           </Box>
         </Box>
@@ -318,8 +318,8 @@ function MindMapCanvasNodeInner({
       </Paper>
 
       {/* Expanded Modal - Uses MindMapEditor for full editing capabilities */}
-      <Modal 
-        open={isExpanded} 
+      <Modal
+        open={isExpanded}
         onClose={() => setIsExpanded(false)}
         sx={{
           display: 'flex',

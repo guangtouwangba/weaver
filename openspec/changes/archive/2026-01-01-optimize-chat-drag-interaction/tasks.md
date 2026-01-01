@@ -1,0 +1,9 @@
+- [x] Implementation
+    - [x] Move `contextNodes` rendering logic inside the `Paper` input container in `AssistantPanel.tsx`.
+    - [x] Update `Paper` styles to accommodate stacked content (chips + input) while maintaining rounded aesthetic.
+    - [x] Update drag-and-drop feedback (dashed border) to apply to the unified container.
+    - [x] Verify that adding context expands the container upwards (or internally) without shifting the bottom anchor unnecessarily.
+- [x] Verification
+    - [x] Manual test: Drag a document from the sidebar to the chat input.
+    - [x] Manual test: Drag a canvas node to the chat input.
+    - [x] Check visual layout: Chips should be inside/attached to the input box.
