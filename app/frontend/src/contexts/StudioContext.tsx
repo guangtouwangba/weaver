@@ -296,7 +296,7 @@ export function StudioProvider({
 
   // Start a new generation task
   const startGeneration = useCallback((type: GenerationType, position: { x: number; y: number }): string => {
-    const taskId = `gen-${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const taskId = `gen-${type}-${crypto.randomUUID()}`;
     const task: GenerationTask = {
       id: taskId,
       type,
@@ -467,7 +467,7 @@ export function StudioProvider({
     const newStepIndex = thinkingStepCounter + 1;
     setThinkingStepCounter(newStepIndex);
 
-    const draftNodeId = `tp-draft-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const draftNodeId = `tp-draft-${crypto.randomUUID()}`;
 
     // Calculate position based on active thinking node
     let x = 100;
@@ -602,7 +602,7 @@ export function StudioProvider({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ...node,
-      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `node-${crypto.randomUUID()}`,
     };
     setCanvasNodes(prev => [...prev, newNode]);
   }, [currentView]);
@@ -618,7 +618,7 @@ export function StudioProvider({
     // Create a copy in free canvas view
     const newNode: CanvasNode = {
       ...node,
-      id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `node-${crypto.randomUUID()}`,
       viewType: 'free',
       sectionId: undefined, // Remove section when promoting
       promotedFrom: nodeId, // Keep reference to original

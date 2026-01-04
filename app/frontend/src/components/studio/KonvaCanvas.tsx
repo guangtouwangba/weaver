@@ -34,8 +34,11 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
 };
 
 import Konva from 'konva';
-import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton } from '@mui/material';
-import { ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon, DeleteIcon } from '@/components/ui/icons';
+import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton, CircularProgress, Button } from '@mui/material';
+import {
+  ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon, SearchIcon,
+  EditIcon, DeleteIcon,
+} from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
@@ -46,6 +49,9 @@ import { CanvasNode, CanvasEdge } from '@/lib/api';
 import { useSpatialIndex, SpatialItem } from '@/hooks/useSpatialIndex';
 import { useViewportCulling } from '@/hooks/useViewportCulling';
 import GridBackground from './canvas/GridBackground';
+import SynthesisModeMenu, { SynthesisMode } from './canvas/SynthesisModeMenu';
+import NodeEditor from './canvas/NodeEditor';
+import useOutputWebSocket from '@/hooks/useOutputWebSocket';
 
 interface Viewport {
   x: number;
@@ -437,6 +443,7 @@ const KnowledgeNode = ({
   node,
   isSelected,
   isHighlighted,
+  isMergeTarget,
   isHovered,
   isConnecting,
   isConnectTarget,
@@ -453,14 +460,17 @@ const KnowledgeNode = ({
   onMouseEnter,
   onMouseLeave,
   isDraggable = true,
+  isSynthesisSource = false,
 }: {
   node: CanvasNode;
   isSelected: boolean;
   isHighlighted?: boolean;
+  isMergeTarget?: boolean;            // Synthesis: Show merge target highlight
   isHovered?: boolean;              // Phase 2: Show connection handles
   isConnecting?: boolean;           // Phase 2: Currently dragging a connection from this node
   isConnectTarget?: boolean;        // Phase 2: Currently a potential connection target
   isActiveThinking?: boolean;       // Thinking Graph: Is this the active thinking node (fork point)
+  isSynthesisSource?: boolean;      // Synthesis: This node is being used as input for synthesis
   isDraggable?: boolean;            // Controls whether the node can be dragged
   onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
   onClick?: () => void;
@@ -485,19 +495,25 @@ const KnowledgeNode = ({
   const isThinkingBranch = node.type === 'thinking_branch';
 
   // Highlight animation effect
-  const highlightStrokeWidth = isActiveThinking ? 4 : (isHighlighted ? 3 : (isSelected ? 2 : 1));
-  const highlightStrokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor));
+  const highlightStrokeWidth = isActiveThinking ? 4 : (isMergeTarget ? 3 : (isHighlighted ? 3 : (isSelected ? 2 : 1)));
+  const highlightStrokeColor = isActiveThinking ? '#8B5CF6' : (isMergeTarget ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor)));
+  const highlightShadowColor = isMergeTarget ? '#8B5CF6' : (isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : 'black'));
+  const highlightShadowBlur = isMergeTarget ? 24 : (isActiveThinking ? 20 : (isHighlighted ? 16 : (isSelected ? 12 : 8)));
 
   // Check if this is a source node (for visual distinction)
   const isSourceNode = node.subType === 'source';
   // Check if this node has a source reference (for link-back feature)
   const hasSourceRef = !isSourceNode && node.sourceId;
 
+  // Calculate opacity: reduce if this node is being used as synthesis input
+  const nodeOpacity = isSynthesisSource ? 0.4 : 1;
+
   return (
     <Group
       id={`node-${node.id}`} // Assign ID for finding during bulk drag
       x={node.x}
       y={node.y}
+      opacity={nodeOpacity}
       draggable={isDraggable}
       onClick={(e) => {
         onSelect(e);
@@ -870,6 +886,26 @@ export default function KonvaCanvas({
     position: { x: number; y: number };
   } | null>(null);
 
+  // Merge/Synthesis State
+  const [mergeTargetNodeId, setMergeTargetNodeId] = useState<string | null>(null);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const [pendingSynthesisResult, setPendingSynthesisResult] = useState<{
+    id: string;
+    title: string;
+    content: string;
+    recommendation?: string;
+    keyRisk?: string;
+    confidence?: 'high' | 'medium' | 'low';
+    themes?: string[];
+    sourceNodeIds?: string[];
+    mode: 'connect' | 'inspire' | 'debate';
+    position: { x: number; y: number };
+  } | null>(null);
+
+  // Node Editing State
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+
   // Refs for Drag/Pan
   const lastPosRef = useRef({ x: 0, y: 0 });
   const draggedNodeRef = useRef<string | null>(null);
@@ -878,6 +914,7 @@ export default function KonvaCanvas({
   const {
     dragPreview,
     setDragPreview,
+    projectId, // Get projectId for WebSocket connection
     dragContentRef,
     promoteNode,
     deleteSection,
@@ -899,8 +936,14 @@ export default function KonvaCanvas({
     setCanvasViewport: contextSetViewport,
   } = useStudio();
 
-  // Get handleDeleteNode from useCanvasActions hook
-  const { handleDeleteNode } = useCanvasActions({ onOpenImport });
+  const {
+    handleDeleteNode,
+    handleSynthesizeNodes: synthesizeNodes,
+    handleGenerateContent,
+    handleGenerateContentConcurrent,
+    getViewportCenterPosition,
+    handleImportSource
+  } = useCanvasActions({ onOpenImport });
 
   // Use props if provided, otherwise fall back to context values
   const nodes = propNodes ?? contextNodes ?? [];
@@ -1085,7 +1128,7 @@ export default function KonvaCanvas({
 
           const padding = 24;
           const headerHeight = 48;
-          const sectionId = `section-${Date.now()}`;
+          const sectionId = `section-${crypto.randomUUID()}`;
 
           const newSection = {
             id: sectionId,
@@ -1193,7 +1236,7 @@ export default function KonvaCanvas({
 
       const newStaticNodes = nodesToClone.map(node => ({
         ...node,
-        id: `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-copy`,
+        id: `node-${crypto.randomUUID()}-copy`,
         // Keep original position (this will be the "left behind" copy)
         x: node.x,
         y: node.y,
@@ -1437,6 +1480,260 @@ export default function KonvaCanvas({
     }
   };
 
+  // --- Merge Handlers (Synthesis) ---
+  const MERGE_PROXIMITY_THRESHOLD = 150; // pixels
+
+  // Helper to get raw node ID from event target (traversing up to parent Group if needed)
+  // WebSocket for Synthesis
+  const [synthesisTaskId, setSynthesisTaskId] = useState<string | null>(null);
+
+  useOutputWebSocket({
+    projectId: projectId || '',
+    taskId: synthesisTaskId,
+    enabled: !!projectId && !!synthesisTaskId,
+    onNodeAdded: (nodeId, nodeData) => {
+      console.log('[KonvaCanvas] onNodeAdded:', nodeId, nodeData);
+
+      // Since we are scoped to the task_id, any node added is likely our result.
+      // But we still check if we have a pending result to update.
+      if (pendingSynthesisResult) {
+        // Extract synthesis specific fields from metadata if available
+        const metadata = nodeData.metadata || {};
+
+        // Parse content field which contains Markdown formatted insight
+        // We might want to keep the raw parts if available, but for now we have the full content string
+        // The synthesis agent returns a formatted markdown string in nodeData.content
+
+        setPendingSynthesisResult(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            // Update with real data
+            id: nodeId, // Use server-generated ID
+            title: nodeData.label || prev.title,
+            content: nodeData.content || prev.content,
+            // Try to extract structured data if we can, otherwise these might stay as defaults
+            // The Agent puts them in metadata themes/confidence
+            confidence: (metadata.confidence as any) || 'medium',
+            themes: (metadata.themes as string[]) || [],
+            // Clear the "Processing..." state
+            recommendation: metadata.themes ? undefined : prev.recommendation, // If we have themes, assume real data
+            keyRisk: undefined,
+          };
+        });
+
+        // Clear task ID to satisfy "one-off" synthesis
+        setSynthesisTaskId(null);
+        setIsSynthesizing(false);
+      }
+    },
+    onGenerationError: (error) => {
+      console.error('Synthesis error:', error);
+      setPendingSynthesisResult(prev => prev ? { ...prev, content: `Error: ${error}` } : null);
+      setSynthesisTaskId(null);
+      setIsSynthesizing(false);
+    }
+  });
+
+  const getNodeIdFromEvent = (e: Konva.KonvaEventObject<DragEvent>) => {
+    // The drag event target might be a child element (e.g., Rect inside Group)
+    // We need to traverse up to find the Group with the node-{uuid} ID
+    let target = e.target;
+    while (target) {
+      const id = target.id();
+      if (id && id.startsWith('node-')) {
+        return id.replace('node-', '');
+      }
+      target = target.parent as Konva.Node;
+    }
+    // Fallback: use target directly (shouldn't reach here normally)
+    const id = e.target.id();
+    return id.startsWith('node-') ? id.replace('node-', '') : id;
+  };
+
+
+
+  const handleNodeDragMoveWithMerge = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const nodeId = getNodeIdFromEvent(e);
+      if (!nodeId) {
+        console.warn('[Merge] Could not get nodeId from event');
+        return;
+      }
+
+      const draggedNode = nodes.find((n) => n.id === nodeId);
+      if (!draggedNode) {
+        console.warn('[Merge] Could not find node:', nodeId);
+        return;
+      }
+
+      const draggedWidth = draggedNode.width || 280;
+      const draggedHeight = draggedNode.height || 200;
+
+      // Find the draggable Group element to get its actual position
+      // The event target might be this Group or we need to find the parent Group
+      let groupNode = e.target;
+      while (groupNode && !groupNode.id()?.startsWith('node-')) {
+        groupNode = groupNode.parent as Konva.Node;
+      }
+
+      const x = groupNode ? groupNode.x() : e.target.x();
+      const y = groupNode ? groupNode.y() : e.target.y();
+
+      const draggedCenterX = x + draggedWidth / 2;
+      const draggedCenterY = y + draggedHeight / 2;
+
+      let closestNodeId: string | null = null;
+      let closestDistance = Infinity;
+
+      for (const node of nodes) {
+        if (node.id === nodeId) continue;
+
+        const nodeWidth = node.width || 280;
+        const nodeHeight = node.height || 200;
+        const nodeCenterX = node.x + nodeWidth / 2;
+        const nodeCenterY = node.y + nodeHeight / 2;
+
+        const distance = Math.sqrt(
+          Math.pow(draggedCenterX - nodeCenterX, 2) +
+          Math.pow(draggedCenterY - nodeCenterY, 2)
+        );
+
+        if (distance < closestDistance && distance < MERGE_PROXIMITY_THRESHOLD) {
+          closestDistance = distance;
+          closestNodeId = node.id;
+        }
+      }
+
+      if (closestNodeId && closestNodeId !== mergeTargetNodeId) {
+        console.log('[Merge] Potential merge detected:', nodeId, '->', closestNodeId, 'dist:', Math.round(closestDistance));
+      }
+
+      setMergeTargetNodeId(closestNodeId);
+      if (closestNodeId) setDraggedNodeId(nodeId);
+    },
+    [nodes, mergeTargetNodeId]
+  );
+
+  const handleNodeDragEndWithMerge = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const nodeId = getNodeIdFromEvent(e);
+      const x = e.target.x();
+      const y = e.target.y();
+
+      // Check for merge
+      if (mergeTargetNodeId && draggedNodeId === nodeId) {
+        // Merge detected - keep state for prompt
+      } else {
+        setDraggedNodeId(null);
+        setMergeTargetNodeId(null);
+      }
+
+      // Always update position
+      const targetNode = nodes.find((n) => n.id === nodeId);
+      if (targetNode && onNodesChange) {
+        const updatedNodes = nodes.map((n) =>
+          n.id === nodeId ? { ...n, x, y } : n
+        );
+        onNodesChange(updatedNodes);
+      }
+    },
+    [nodes, onNodesChange, mergeTargetNodeId, draggedNodeId]
+  );
+
+  const handleCancelMerge = () => {
+    setMergeTargetNodeId(null);
+    setDraggedNodeId(null);
+  };
+
+  const handleSynthesize = async (mode: SynthesisMode) => {
+    if (!draggedNodeId || !mergeTargetNodeId) return;
+
+    const sourceNodeIds = [draggedNodeId, mergeTargetNodeId];
+    setIsSynthesizing(true);
+
+    try {
+      const targetNode = nodes.find(n => n.id === mergeTargetNodeId);
+      const draggedNode = nodes.find(n => n.id === draggedNodeId);
+
+      // Calculate position for result card (between the two nodes) - CANVAS coordinates
+      const midX = targetNode && draggedNode
+        ? (targetNode.x + draggedNode.x + (draggedNode.width || 280)) / 2
+        : 400;
+      const maxY = targetNode && draggedNode
+        ? Math.max(targetNode.y + (targetNode.height || 200), draggedNode.y + (draggedNode.height || 200)) + 50
+        : 300;
+
+      // Use canvas coordinates directly (not screen coords) for Konva rendering
+      const resultPosition = { x: midX, y: maxY };
+
+      // Call the synthesis API and get task_id (returned by synthesizeNodes)
+      // The backend will generate the result and we poll/wait for it
+      // For now, we'll extract content from the source nodes and create a mock pending result
+      // This will be replaced with proper WebSocket handling
+
+      const sourceContents = sourceNodeIds.map(id => {
+        const node = nodes.find(n => n.id === id);
+        return { title: node?.title || '', content: node?.content || '' };
+      });
+
+      // Start synthesis via API
+      const response = await synthesizeNodes(sourceNodeIds, resultPosition, mode);
+
+      // Set task ID to enable WebSocket listening
+      if (response && response.task_id) {
+        console.log('[Canvas] Synthesis task started:', response.task_id);
+        setSynthesisTaskId(response.task_id);
+      }
+
+      // Create a pending result to show immediately 
+      // In production, this would come from WebSocket NODE_ADDED event
+      const modeLabels = {
+        connect: 'Connection Found',
+        inspire: 'New Perspective',
+        debate: 'Key Tension Identified',
+      };
+
+      setPendingSynthesisResult({
+        id: `synthesis-${crypto.randomUUID()}`,
+        title: modeLabels[mode],
+        content: `Analyzing "${sourceContents[0].title}" and "${sourceContents[1].title}" to find ${mode === 'connect' ? 'connections' : mode === 'inspire' ? 'new perspectives' : 'tensions'}...`,
+        recommendation: 'Processing...',
+        keyRisk: 'Processing...',
+        confidence: 'medium',
+        themes: [],
+        sourceNodeIds,
+        mode,
+        position: resultPosition,
+      });
+
+      // Note: In full implementation, WebSocket would update this with actual LLM result
+      // For demo, we'll keep the loading state until user discards or adds
+
+    } catch (e) {
+      console.error(e);
+      setPendingSynthesisResult(null);
+    } finally {
+      setIsSynthesizing(false);
+      setMergeTargetNodeId(null);
+      setDraggedNodeId(null);
+    }
+  };
+
+  const handleNodeSave = (nodeId: string, updates: { title?: string; content?: string }) => {
+    if (onNodesChange) {
+      const updatedNodes = nodes.map((n) =>
+        n.id === nodeId ? { ...n, ...updates } : n
+      );
+      onNodesChange(updatedNodes);
+    }
+    setEditingNodeId(null);
+  };
+
+  const handleNodeEditCancel = () => {
+    setEditingNodeId(null);
+  };
+
   const handleStageMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
     // Phase 2: Handle Connection creation
     if (connectingFromNodeId && connectingLineEnd) {
@@ -1469,7 +1766,7 @@ export default function KonvaCanvas({
           if (!edgeExists) {
             // Create new edge with default label
             const newEdge: CanvasEdge = {
-              id: `edge-${Date.now()}`,
+              id: `edge-${crypto.randomUUID()}`,
               source: connectingFromNodeId,
               target: targetNode.id,
               label: '',
@@ -1851,6 +2148,19 @@ export default function KonvaCanvas({
             anchorReference="anchorPosition"
             anchorPosition={contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined}
           >
+            {contextMenu.nodeId && (
+              <MenuItem
+                onClick={() => {
+                  setEditingNodeId(contextMenu.nodeId!);
+                  setContextMenu(null);
+                }}
+                sx={{ fontSize: 14 }}
+              >
+                <EditIcon size="sm" style={{ marginRight: 8 }} />
+                Edit
+              </MenuItem>
+            )}
+
             {contextMenu.nodeId && studioCurrentView === 'thinking' && (
               <MenuItem
                 onClick={() => {
@@ -1897,7 +2207,7 @@ export default function KonvaCanvas({
                       const nodeWidth = 240;
                       const nodeHeight = 160;
 
-                      const nodeId = `insight-${Date.now()}-${index}`;
+                      const nodeId = `insight-${crypto.randomUUID()}-${index}`;
                       const x = centerX + radius * Math.cos(angle) - nodeWidth / 2;
                       const y = centerY + radius * Math.sin(angle) - nodeHeight / 2;
 
@@ -1918,7 +2228,7 @@ export default function KonvaCanvas({
 
                       // Create edge from source to this insight
                       newEdges.push({
-                        id: `edge-${Date.now()}-${index}`,
+                        id: `edge-${crypto.randomUUID()}-${index}`,
                         source: sourceNode.id,
                         target: nodeId,
                         label: index === insights.length - 1 ? '总结' : '',
@@ -1959,7 +2269,7 @@ export default function KonvaCanvas({
                   const headerHeight = 48;
 
                   // Create new section
-                  const sectionId = `section-${Date.now()}`;
+                  const sectionId = `section-${crypto.randomUUID()}`;
                   const newSection = {
                     id: sectionId,
                     title: `组 (${selectedNodes.length} 个节点)`,
@@ -2320,15 +2630,19 @@ export default function KonvaCanvas({
                   onDoubleClick={() => {
                     if (node.subType === 'source' && node.fileMetadata?.fileType === 'pdf') {
                       onOpenSource?.(node.sourceId || node.id);
+                    } else {
+                      setEditingNodeId(node.id);
                     }
                     onNodeDoubleClick?.(node);
                   }}
                   isSelected={selectedNodeIds.has(node.id)}
                   isHighlighted={highlightedNodeId === node.id}
+                  isMergeTarget={mergeTargetNodeId === node.id}
                   isHovered={hoveredNodeId === node.id}
                   isConnecting={connectingFromNodeId === node.id}
                   isConnectTarget={connectingFromNodeId !== null && connectingFromNodeId !== node.id}
                   isActiveThinking={activeThinkingId === node.id}
+                  isSynthesisSource={pendingSynthesisResult?.sourceNodeIds?.includes(node.id) ?? false}
                   isDraggable={toolMode === 'select' && !isSpacePressed}
                   onSelect={(e) => handleNodeSelect(node.id, e)}
                   onClick={() => {
@@ -2342,6 +2656,8 @@ export default function KonvaCanvas({
                     // Phase 1: Handle double-click for source nodes (drill-down)
                     if (node.subType === 'source' && node.sourceId) {
                       onOpenSource?.(node.sourceId, node.sourcePage);
+                    } else {
+                      setEditingNodeId(node.id);
                     }
                     onNodeDoubleClick?.(node);
                   }}
@@ -2352,8 +2668,14 @@ export default function KonvaCanvas({
                     }
                   }}
                   onDragStart={handleNodeDragStart(node.id)}
-                  onDragMove={handleNodeDragMove(node.id)}
-                  onDragEnd={handleNodeDragEnd(node.id)}
+                  onDragMove={(e) => {
+                    handleNodeDragMove(node.id)(e);
+                    handleNodeDragMoveWithMerge(e);
+                  }}
+                  onDragEnd={(e) => {
+                    handleNodeDragEnd(node.id)(e);
+                    handleNodeDragEndWithMerge(e);
+                  }}
                   onContextMenu={(e) => {
                     e.evt.preventDefault();
                     e.cancelBubble = true; // Stop propagation to stage
@@ -2410,7 +2732,233 @@ export default function KonvaCanvas({
               </Group>
             )}
           </Layer>
+
+          {/* Synthesis Connection Lines */}
+          {pendingSynthesisResult && pendingSynthesisResult.sourceNodeIds && (
+            <Layer>
+              {pendingSynthesisResult.sourceNodeIds.map(sourceId => {
+                const sourceNode = nodes.find(n => n.id === sourceId);
+                if (!sourceNode) return null;
+
+                // Position is now in canvas coordinates directly
+                const targetX = pendingSynthesisResult.position.x;
+                const targetY = pendingSynthesisResult.position.y;
+
+                // Source center
+                const sourceX = sourceNode.x + (sourceNode.width || 280) / 2;
+                const sourceY = sourceNode.y + (sourceNode.height || 200) / 2;
+
+                return (
+                  <Line
+                    key={`synthesis-line-${sourceId}`}
+                    points={[sourceX, sourceY, targetX + 160, targetY]}
+                    stroke="#6366F1"
+                    strokeWidth={2}
+                    dash={[10, 10]}
+                    opacity={0.6}
+                    listening={false}
+                  />
+                );
+              })}
+
+              {/* Konva Synthesis Node */}
+              <Group
+                x={pendingSynthesisResult.position.x}
+                y={pendingSynthesisResult.position.y}
+                draggable
+                onDragEnd={(e) => {
+                  setPendingSynthesisResult(prev => prev ? {
+                    ...prev,
+                    position: { x: e.target.x(), y: e.target.y() }
+                  } : null);
+                }}
+              >
+                {/* Card Background */}
+                <Rect
+                  width={320}
+                  height={220}
+                  fill="white"
+                  cornerRadius={16}
+                  stroke="#6366F1"
+                  strokeWidth={2}
+                  shadowColor="rgba(99, 102, 241, 0.3)"
+                  shadowBlur={20}
+                  shadowOffsetY={8}
+                />
+
+                {/* Top Accent Bar */}
+                <Rect
+                  y={0}
+                  width={320}
+                  height={6}
+                  fill="#6366F1"
+                  cornerRadius={[16, 16, 0, 0]}
+                />
+
+                {/* AI Icon Background */}
+                <Rect
+                  x={16}
+                  y={16}
+                  width={36}
+                  height={36}
+                  fill="#EEF2FF"
+                  cornerRadius={8}
+                />
+                <Text
+                  x={22}
+                  y={22}
+                  text="✨"
+                  fontSize={18}
+                />
+
+                {/* Header Text */}
+                <Text
+                  x={60}
+                  y={18}
+                  text="Consolidated Insight"
+                  fontSize={14}
+                  fontStyle="bold"
+                  fill="#1F2937"
+                />
+                <Text
+                  x={60}
+                  y={35}
+                  text="AI GENERATED"
+                  fontSize={10}
+                  fill="#6366F1"
+                  fontStyle="600"
+                />
+
+                {/* Confidence Badge */}
+                <Rect
+                  x={220}
+                  y={20}
+                  width={90}
+                  height={24}
+                  fill="transparent"
+                  stroke={pendingSynthesisResult.confidence === 'high' ? '#059669' : '#D97706'}
+                  strokeWidth={1}
+                  cornerRadius={12}
+                />
+                <Text
+                  x={230}
+                  y={26}
+                  text={`${(pendingSynthesisResult.confidence || 'medium').charAt(0).toUpperCase()}${(pendingSynthesisResult.confidence || 'medium').slice(1)} Conf.`}
+                  fontSize={10}
+                  fill={pendingSynthesisResult.confidence === 'high' ? '#059669' : '#D97706'}
+                />
+
+                {/* Title */}
+                <Text
+                  x={16}
+                  y={65}
+                  width={288}
+                  text={pendingSynthesisResult.title}
+                  fontSize={15}
+                  fontStyle="bold"
+                  fill="#1F2937"
+                  wrap="word"
+                />
+
+                {/* Content */}
+                <Text
+                  x={16}
+                  y={90}
+                  width={288}
+                  height={80}
+                  text={pendingSynthesisResult.content}
+                  fontSize={12}
+                  fill="#4B5563"
+                  wrap="word"
+                  ellipsis
+                />
+
+                {/* Footer */}
+                <Rect
+                  y={180}
+                  width={320}
+                  height={40}
+                  fill="#F9FAFB"
+                  cornerRadius={[0, 0, 16, 16]}
+                />
+                <Text
+                  x={16}
+                  y={193}
+                  text={`📄 Synthesized from ${pendingSynthesisResult.sourceNodeIds?.length || 2} sources`}
+                  fontSize={11}
+                  fill="#6B7280"
+                />
+              </Group>
+            </Layer>
+          )}
         </Stage>
+
+        {/* Merge Prompt Overlay */}
+        {/* Merge Prompt Overlay - Replaced with SynthesisModeMenu */}
+        {/* Merge Prompt Overlay */}
+        {mergeTargetNodeId && draggedNodeId && (() => {
+          const targetNode = nodes.find(n => n.id === mergeTargetNodeId);
+          const draggedNode = nodes.find(n => n.id === draggedNodeId);
+
+          let menuPosition;
+          if (targetNode && draggedNode) {
+            // Calculate midpoint top
+            const targetCenterX = targetNode.x + (targetNode.width || 280) / 2;
+            const draggedCenterX = draggedNode.x + (draggedNode.width || 280) / 2;
+            const midX = (targetCenterX + draggedCenterX) / 2;
+
+            // Use the higher (smaller Y) of the two nodes as the anchor for top
+            const minY = Math.min(targetNode.y, draggedNode.y);
+
+            // Convert to screen coordinates
+            const screenX = midX * viewport.scale + viewport.x;
+            const screenY = minY * viewport.scale + viewport.y - 20; // 20px padding above
+
+            menuPosition = { x: screenX, y: screenY };
+          }
+
+          return (
+            <SynthesisModeMenu
+              isSynthesizing={isSynthesizing}
+              onSelect={handleSynthesize}
+              onCancel={handleCancelMerge}
+              position={menuPosition}
+            />
+          );
+        })()}
+
+        {/* Node Editor Overlay */}
+        {editingNodeId && (() => {
+          const node = nodes.find(n => n.id === editingNodeId);
+          if (!node) return null;
+          return (
+            <NodeEditor
+              key={node.id}
+              node={node}
+              viewport={viewport}
+              onSave={handleNodeSave}
+              onCancel={handleNodeEditCancel}
+            />
+          );
+        })()}
+
+        {/* Loading Overlay for Synthesis */}
+        {isSynthesizing && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              bgcolor: 'rgba(255,255,255,0.6)',
+              backdropFilter: 'blur(2px)',
+              zIndex: 1900,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CircularProgress sx={{ color: '#8B5CF6' }} />
+          </Box>
+        )}
 
         {/* Generation Outputs Overlay - Renders completed generation tasks at their positions */}
         <GenerationOutputsOverlay viewport={viewport} />
@@ -2419,6 +2967,77 @@ export default function KonvaCanvas({
         {visibleNodes.length === 0 && documents.length > 0 && !hasCompletedOutputs && (
           <InspirationDock />
         )}
+
+        {/* Synthesis Connection Lines - Moved inside Stage */}
+
+        {/* Synthesis Action Buttons - Floating overlay anchored to Konva node */}
+        {pendingSynthesisResult && (() => {
+          // Convert canvas position to screen position
+          const screenX = pendingSynthesisResult.position.x * viewport.scale + viewport.x;
+          const screenY = (pendingSynthesisResult.position.y + 220) * viewport.scale + viewport.y; // Below the 220px tall card
+
+          return (
+            <Box
+              sx={{
+                position: 'absolute',
+                left: screenX,
+                top: screenY + 8,
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                gap: 1,
+                zIndex: 2100,
+                bgcolor: 'white',
+                p: 1,
+                borderRadius: 2,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+              }}
+            >
+              <Button
+                size="small"
+                onClick={() => setPendingSynthesisResult(null)}
+                sx={{ textTransform: 'none', color: 'text.secondary' }}
+              >
+                Discard
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => {
+                  // Create a new canvas node from the synthesis result
+                  const newNode: CanvasNode = {
+                    id: pendingSynthesisResult.id,
+                    type: 'synthesis',
+                    title: pendingSynthesisResult.title,
+                    content: pendingSynthesisResult.content +
+                      (pendingSynthesisResult.recommendation ? `\n\n**Recommendation:** ${pendingSynthesisResult.recommendation}` : '') +
+                      (pendingSynthesisResult.keyRisk ? `\n\n**Key Risk:** ${pendingSynthesisResult.keyRisk}` : ''),
+                    x: pendingSynthesisResult.position.x,
+                    y: pendingSynthesisResult.position.y,
+                    width: 320,
+                    height: 220,
+                    color: '#EEF2FF',
+                    tags: pendingSynthesisResult.themes || [],
+                    viewType: 'free',
+                    subType: 'insight',
+                  };
+
+                  if (onNodesChange) {
+                    onNodesChange([...nodes, newNode]);
+                  }
+                  setPendingSynthesisResult(null);
+                }}
+                sx={{
+                  textTransform: 'none',
+                  bgcolor: '#6366F1',
+                  '&:hover': { bgcolor: '#4F46E5' },
+                  borderRadius: 2,
+                }}
+              >
+                Add to Board
+              </Button>
+            </Box>
+          );
+        })()}
       </Box>
     </Box>
   );

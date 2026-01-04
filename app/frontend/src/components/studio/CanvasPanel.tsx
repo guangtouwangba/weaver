@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
+import {
+  Box,
+  Typography,
+  Paper,
   Chip,
   CircularProgress
 } from "@mui/material";
-import { 
-  DashboardIcon, 
+import {
+  DashboardIcon,
   DescriptionIcon,
   LinkIcon,
 } from '@/components/ui/icons';
@@ -19,9 +19,9 @@ import { CanvasNode } from '@/lib/api';
 import ThinkingPathGenerator from './ThinkingPathGenerator';
 
 export default function CanvasPanel() {
-  const { 
-    projectId, 
-    canvasNodes, setCanvasNodes, 
+  const {
+    projectId,
+    canvasNodes, setCanvasNodes,
     canvasEdges, setCanvasEdges,
     canvasViewport: viewport, setCanvasViewport: setViewport,
     saveCanvas,
@@ -37,7 +37,7 @@ export default function CanvasPanel() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [tempLineEnd, setTempLineEnd] = useState<{ x: number, y: number } | null>(null);
-  
+
   const lastMousePos = useRef({ x: 0, y: 0 });
   const mousePos = useRef({ x: 0, y: 0 });
   const dragStartPos = useRef<{ x: number, y: number } | null>(null);
@@ -46,14 +46,14 @@ export default function CanvasPanel() {
   // Auto-save on change (debounced)
   useEffect(() => {
     const timeout = setTimeout(() => {
-        if (canvasNodes.length > 0) {
-            saveCanvas(); // Trigger context save which calls API
-            canvasApi.save(projectId, {
-                nodes: canvasNodes,
-                edges: canvasEdges,
-                viewport: viewport
-            }).catch(err => console.error("Auto-save failed", err));
-        }
+      if (canvasNodes.length > 0) {
+        saveCanvas(); // Trigger context save which calls API
+        canvasApi.save(projectId, {
+          nodes: canvasNodes,
+          edges: canvasEdges,
+          viewport: viewport
+        }).catch(err => console.error("Auto-save failed", err));
+      }
     }, 2000);
     return () => clearTimeout(timeout);
   }, [canvasNodes, canvasEdges, viewport, projectId, saveCanvas]);
@@ -63,12 +63,12 @@ export default function CanvasPanel() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-      
+
       if (e.code === 'Space' && !e.repeat && !isInput) {
-        e.preventDefault(); 
+        e.preventDefault();
         setIsSpacePressed(true);
       }
-      
+
       // Delete selected node or connection
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
         e.preventDefault();
@@ -105,7 +105,7 @@ export default function CanvasPanel() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      
+
       if (e.metaKey || e.ctrlKey) {
         const delta = -e.deltaY * 0.001;
         const newScale = Math.min(Math.max(0.1, viewport.scale * (1 + delta)), 5);
@@ -130,65 +130,65 @@ export default function CanvasPanel() {
     if (rect) {
       const x = (e.clientX - rect.left - viewport.x) / viewport.scale;
       const y = (e.clientY - rect.top - viewport.y) / viewport.scale;
-      
+
       // Try to get custom JSON data first
       const jsonData = e.dataTransfer.getData("application/json");
       if (jsonData) {
         try {
-            const data = JSON.parse(jsonData);
-            if (data.sourceType === 'pdf' && data.content) {
-                addNodeToCanvas({
-                    type: 'card',
-                    title: data.sourceTitle || 'PDF Note',
-                    content: data.content,
-                    x: x - 140,
-                    y: y - 100,
-                    width: 280,
-                    height: 200,
-                    color: 'white',
-                    tags: ['#pdf'],
-                    sourceId: data.sourceId,
-                    sourcePage: data.pageNumber
-                });
-                return;
-            }
-            
-            // Handle citation drop from AI responses
-            if (data.sourceType === 'citation' && data.content) {
-                addNodeToCanvas({
-                    type: 'card',
-                    title: data.sourceTitle || 'Citation',
-                    content: data.content,
-                    x: x - 140,
-                    y: y - 100,
-                    width: 280,
-                    height: 200,
-                    color: 'white',
-                    tags: data.tags || ['#citation'],
-                    sourceId: data.sourceId,
-                    sourcePage: data.pageNumber
-                });
-                return;
-            }
+          const data = JSON.parse(jsonData);
+          if (data.sourceType === 'pdf' && data.content) {
+            addNodeToCanvas({
+              type: 'card',
+              title: data.sourceTitle || 'PDF Note',
+              content: data.content,
+              x: x - 140,
+              y: y - 100,
+              width: 280,
+              height: 200,
+              color: 'white',
+              tags: ['#pdf'],
+              sourceId: data.sourceId,
+              sourcePage: data.pageNumber
+            });
+            return;
+          }
+
+          // Handle citation drop from AI responses
+          if (data.sourceType === 'citation' && data.content) {
+            addNodeToCanvas({
+              type: 'card',
+              title: data.sourceTitle || 'Citation',
+              content: data.content,
+              x: x - 140,
+              y: y - 100,
+              width: 280,
+              height: 200,
+              color: 'white',
+              tags: data.tags || ['#citation'],
+              sourceId: data.sourceId,
+              sourcePage: data.pageNumber
+            });
+            return;
+          }
         } catch (e) {
-            console.error("Failed to parse drop data", e);
+          console.error("Failed to parse drop data", e);
         }
       }
 
       // Fallback to plain text
       const text = e.dataTransfer.getData("text/plain");
-      
+
       if (text) {
         addNodeToCanvas({
-            type: 'card',
-            title: 'New Note',
-            content: text,
-            x: x - 140,
-            y: y - 100,
-            width: 280,
-            height: 200,
-            color: 'white',
-            tags: []
+          type: 'card',
+          title: 'New Note',
+          content: text,
+          x: x - 140,
+          y: y - 100,
+          width: 280,
+          height: 200,
+          color: 'white',
+          tags: []
         });
       }
     }
@@ -201,23 +201,23 @@ export default function CanvasPanel() {
           <DashboardIcon size={14} sx={{ color: 'grey.500' }} />
           <Typography variant="subtitle2" fontWeight="600">Canvas</Typography>
           {isGenerating && (
-            <Chip 
-              size="small" 
-              icon={<CircularProgress size={12} />} 
-              label="Generating..." 
-              sx={{ ml: 2, height: 24, fontSize: '0.75rem' }} 
+            <Chip
+              size="small"
+              icon={<CircularProgress size={12} />}
+              label="Generating..."
+              sx={{ ml: 2, height: 24, fontSize: '0.75rem' }}
             />
           )}
         </Box>
         <Typography variant="caption" color="text.disabled">Auto-saved</Typography>
       </Box>
-      
-      <Box 
+
+      <Box
         ref={canvasRef}
-        sx={{ 
-          flexGrow: 1, 
-          bgcolor: '#FAFAFA', 
-          position: 'relative', 
+        sx={{
+          flexGrow: 1,
+          bgcolor: '#FAFAFA',
+          position: 'relative',
           overflow: 'hidden',
           cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
           touchAction: 'none',
@@ -236,7 +236,7 @@ export default function CanvasPanel() {
         }}
         onMouseMove={(e) => {
           mousePos.current = { x: e.clientX, y: e.clientY };
-          
+
           if (connectingNodeId && canvasRef.current) {
             const rect = canvasRef.current.getBoundingClientRect();
             const x = (e.clientX - rect.left - viewport.x) / viewport.scale;
@@ -244,7 +244,7 @@ export default function CanvasPanel() {
             requestAnimationFrame(() => setTempLineEnd({ x, y }));
             return;
           }
-          
+
           if (draggingNodeId) {
             if (dragStartPos.current) {
               if (Math.abs(e.clientX - dragStartPos.current.x) < 3 && Math.abs(e.clientY - dragStartPos.current.y) < 3) return;
@@ -279,18 +279,18 @@ export default function CanvasPanel() {
         onDrop={handleDrop}
       >
         {/* Grid Background */}
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            inset: 0, 
-            opacity: 0.5, 
-            backgroundImage: 'radial-gradient(#D1D5DB 1px, transparent 1px)', 
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            opacity: 0.5,
+            backgroundImage: 'radial-gradient(#D1D5DB 1px, transparent 1px)',
             backgroundSize: `${20 * viewport.scale}px ${20 * viewport.scale}px`,
             backgroundPosition: `${viewport.x}px ${viewport.y}px`,
             pointerEvents: 'none'
-          }} 
+          }}
         />
-        
+
         {/* Canvas Content */}
         <Box sx={{ transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`, transformOrigin: '0 0', position: 'absolute', top: 0, left: 0 }}>
           {/* SVG Connections */}
@@ -300,7 +300,7 @@ export default function CanvasPanel() {
               const source = canvasNodes.find(n => n.id === edge.source);
               const target = canvasNodes.find(n => n.id === edge.target);
               if (!source || !target) return null;
-              
+
               const x1 = source.x + 280, y1 = source.y + 60; // Simplified anchor points
               const x2 = target.x, y2 = target.y + 60;
               const ctrl = Math.max(Math.abs(x2 - x1) * 0.4, 50);
@@ -308,15 +308,15 @@ export default function CanvasPanel() {
 
               return (
                 <g key={edge.id || `${edge.source}-${edge.target}`}>
-                  <path 
+                  <path
                     d={`M ${x1} ${y1} C ${x1 + ctrl} ${y1}, ${x2 - ctrl} ${y2}, ${x2} ${y2}`}
                     stroke="transparent" strokeWidth="12" fill="none"
                     style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
                     onClick={(e) => { e.stopPropagation(); setSelectedConnectionId(edge.id || null); setSelectedNodeId(null); }}
                   />
-                  <path 
+                  <path
                     d={`M ${x1} ${y1} C ${x1 + ctrl} ${y1}, ${x2 - ctrl} ${y2}, ${x2} ${y2}`}
-                    stroke={isSelected ? "#EF4444" : "#94A3B8"} 
+                    stroke={isSelected ? "#EF4444" : "#94A3B8"}
                     strokeWidth={isSelected ? 3 : 2}
                     fill="none"
                     style={{ pointerEvents: 'none' }}
@@ -337,9 +337,9 @@ export default function CanvasPanel() {
 
           {/* Nodes */}
           {canvasNodes.map(node => (
-            <Paper 
+            <Paper
               key={node.id}
-              elevation={selectedNodeId === node.id ? 8 : 2} 
+              elevation={selectedNodeId === node.id ? 8 : 2}
               draggable
               onDragStart={(e) => {
                 // Set data for dragging to chat input
@@ -352,7 +352,7 @@ export default function CanvasPanel() {
                 };
                 e.dataTransfer.setData('application/json', JSON.stringify(payload));
                 e.dataTransfer.effectAllowed = 'copy';
-                
+
                 // Prevent interfering with internal canvas dragging if needed
                 // But for native drag & drop to another component, we need this event
                 // We'll let the internal onMouseDown handle the internal dragging
@@ -371,7 +371,7 @@ export default function CanvasPanel() {
                 e.stopPropagation();
                 if (connectingNodeId && connectingNodeId !== node.id) {
                   // Create new edge
-                  const newEdge = { source: connectingNodeId, target: node.id, id: `e-${Date.now()}` };
+                  const newEdge = { source: connectingNodeId, target: node.id, id: `e-${crypto.randomUUID()}` };
                   setCanvasEdges(prev => [...prev, newEdge]);
                 }
                 setConnectingNodeId(null);
@@ -381,13 +381,13 @@ export default function CanvasPanel() {
               }}
               onMouseEnter={() => setHoveredNodeId(node.id)}
               onMouseLeave={() => setHoveredNodeId(null)}
-              sx={{ 
-                position: 'absolute', 
-                top: node.y, 
-                left: node.x, 
-                width: 280, 
-                borderRadius: 3, 
-                border: '2px solid', 
+              sx={{
+                position: 'absolute',
+                top: node.y,
+                left: node.x,
+                width: 280,
+                borderRadius: 3,
+                border: '2px solid',
                 borderColor: connectingNodeId && connectingNodeId !== node.id ? '#10B981' : (selectedNodeId === node.id ? 'primary.main' : (node.color === 'blue' ? '#3B82F6' : 'transparent')),
                 overflow: 'visible',
                 cursor: 'grab',
@@ -405,12 +405,12 @@ export default function CanvasPanel() {
                   transition: 'opacity 0.2s', zIndex: 10
                 }}
               />
-              
+
               {/* Receiving Handle */}
               {connectingNodeId && connectingNodeId !== node.id && (
                 <Box sx={{ position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', bgcolor: '#10B981', border: '2px solid white', zIndex: 10 }} />
               )}
-              
+
               {/* Card Content */}
               <Box sx={{ overflow: 'hidden', borderRadius: 2 }}>
                 <Box sx={{ height: 4, bgcolor: node.color === 'blue' ? '#3B82F6' : '#E5E7EB' }} />

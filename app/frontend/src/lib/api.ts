@@ -1030,7 +1030,7 @@ export interface OutputListResponse {
 export const outputsApi = {
   generate: (
     projectId: string,
-    outputType: 'mindmap' | 'summary',
+    outputType: 'mindmap' | 'summary' | 'flashcards' | 'custom',
     documentIds: string[],
     title?: string,
     options?: Record<string, unknown>
@@ -1081,6 +1081,21 @@ export const outputsApi = {
       method: 'PATCH',
       body: JSON.stringify(updates),
     }),
+
+  synthesize: (
+    projectId: string,
+    outputId: string,
+    nodeIds: string[],
+    mode: 'connect' | 'inspire' | 'debate' = 'connect',
+    nodeData?: Array<{ id: string; title: string; content: string }>
+  ) =>
+    fetchApi<{ task_id: string; action: string }>(
+      `/api/v1/projects/${projectId}/outputs/${outputId}/synthesize`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ node_ids: nodeIds, mode, node_data: nodeData }),
+      }
+    ),
 };
 
 // =============================================================================

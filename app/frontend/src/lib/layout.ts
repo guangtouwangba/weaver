@@ -33,7 +33,7 @@ const LAYOUT_CONFIG = {
  *   Q3 ──> A3 ──> I6
  */
 export function layoutThinkingPath(
-  nodes: CanvasNode[], 
+  nodes: CanvasNode[],
   edges: CanvasEdge[],
   options: {
     nodeWidth?: number;
@@ -50,7 +50,7 @@ export function layoutThinkingPath(
   // Build adjacency list (source -> targets)
   const children: Record<string, string[]> = {};
   const parents: Record<string, string[]> = {};
-  
+
   nodes.forEach(n => {
     children[n.id] = [];
     parents[n.id] = [];
@@ -90,7 +90,7 @@ export function layoutThinkingPath(
     processedQuestions.add(question.id);
 
     // Find the answer connected to this question
-    const connectedAnswerIds = children[question.id]?.filter(id => 
+    const connectedAnswerIds = children[question.id]?.filter(id =>
       nodeMap[id]?.type === 'answer'
     ) || [];
 
@@ -112,7 +112,7 @@ export function layoutThinkingPath(
 
       // Calculate insight group height
       const insightCount = connectedInsightIds.length;
-      const insightsHeight = insightCount > 0 
+      const insightsHeight = insightCount > 0
         ? insightCount * nodeHeight + (insightCount - 1) * rowSpacing
         : 0;
 
@@ -127,7 +127,7 @@ export function layoutThinkingPath(
       // Position insights (fanned out vertically, centered around the answer)
       if (insightCount > 0) {
         const insightsStartY = currentY + (groupHeight - insightsHeight) / 2;
-        
+
         connectedInsightIds.forEach((insightId, iIndex) => {
           processedInsights.add(insightId);
           nodeMap[insightId].x = startX + (nodeWidth + columnSpacing) * 2;
@@ -155,7 +155,7 @@ export function layoutThinkingPath(
     ) || [];
 
     const insightCount = connectedInsightIds.length;
-    const insightsHeight = insightCount > 0 
+    const insightsHeight = insightCount > 0
       ? insightCount * nodeHeight + (insightCount - 1) * rowSpacing
       : 0;
 
@@ -199,7 +199,7 @@ export function layoutThinkingPath(
  * Arranges nodes in a Left-to-Right tree structure based on edges
  */
 export function layoutHierarchical(
-  nodes: CanvasNode[], 
+  nodes: CanvasNode[],
   edges: CanvasEdge[],
   options: {
     direction?: 'LR' | 'TB';
@@ -222,7 +222,7 @@ export function layoutHierarchical(
   // Build graph structure
   const adj: Record<string, string[]> = {};
   const inDegree: Record<string, number> = {};
-  
+
   nodes.forEach(n => {
     adj[n.id] = [];
     inDegree[n.id] = 0;
@@ -238,7 +238,7 @@ export function layoutHierarchical(
   // Assign levels (BFS)
   const levels: Record<string, number> = {};
   const queue: string[] = [];
-  
+
   // Find roots (nodes with 0 in-degree)
   const roots = nodes.filter(n => (inDegree[n.id] || 0) === 0);
   if (roots.length === 0 && nodes.length > 0) {
@@ -255,7 +255,7 @@ export function layoutHierarchical(
   while (queue.length > 0) {
     const u = queue.shift()!;
     const uLevel = levels[u];
-    
+
     if (adj[u]) {
       adj[u].forEach(v => {
         if (!visited.has(v)) {
@@ -287,13 +287,13 @@ export function layoutHierarchical(
 
   // Assign coordinates
   const newNodes = nodes.map(n => ({ ...n }));
-  
+
   for (let l = 0; l <= maxLevel; l++) {
     const nodesInLevel = levelNodes[l] || [];
     nodesInLevel.sort((a, b) => a.id.localeCompare(b.id));
 
     let currentOffset = 0;
-    
+
     nodesInLevel.forEach(n => {
       const nodeIndex = newNodes.findIndex(node => node.id === n.id);
       if (nodeIndex === -1) return;
@@ -318,7 +318,7 @@ export function layoutHierarchical(
       levelHeights[l] = count * nodeHeight + (count - 1) * nodeSpacing;
     }
     const maxH = Math.max(...Object.values(levelHeights));
-    
+
     newNodes.forEach(n => {
       const lvl = levels[n.id] || 0;
       const h = levelHeights[lvl];
@@ -386,10 +386,10 @@ export function layoutThinkingGraph(
   const { nodeWidth, levelSpacing, siblingSpacing, startX, startY, branchOffset } = config;
 
   // Filter to thinking graph nodes only
-  const thinkingNodes = nodes.filter(n => 
-    n.viewType === 'thinking' && 
-    (n.type === 'thinking_step' || n.type === 'thinking_branch' || 
-     n.type === 'question' || n.type === 'answer' || n.type === 'insight')
+  const thinkingNodes = nodes.filter(n =>
+    n.viewType === 'thinking' &&
+    (n.type === 'thinking_step' || n.type === 'thinking_branch' ||
+      n.type === 'question' || n.type === 'answer' || n.type === 'insight')
   );
 
   if (thinkingNodes.length === 0) return nodes;
@@ -397,7 +397,7 @@ export function layoutThinkingGraph(
   // Build adjacency maps
   const children: Record<string, string[]> = {};
   const parent: Record<string, string> = {};
-  
+
   thinkingNodes.forEach(n => {
     children[n.id] = [];
     // Also check parentStepId for direct parent reference
@@ -410,11 +410,11 @@ export function layoutThinkingGraph(
   edges.forEach(e => {
     const sourceNode = thinkingNodes.find(n => n.id === e.source);
     const targetNode = thinkingNodes.find(n => n.id === e.target);
-    
+
     if (sourceNode && targetNode) {
       if (!children[e.source]) children[e.source] = [];
       children[e.source].push(e.target);
-      
+
       if (!parent[e.target]) {
         parent[e.target] = e.source;
       }
@@ -423,10 +423,10 @@ export function layoutThinkingGraph(
 
   // Find root nodes (nodes with no parent)
   const roots = thinkingNodes.filter(n => !parent[n.id]);
-  
+
   // If no explicit roots, use nodes with depth === 0 or the first node
-  const effectiveRoots = roots.length > 0 
-    ? roots 
+  const effectiveRoots = roots.length > 0
+    ? roots
     : thinkingNodes.filter(n => n.depth === 0 || n.depth === undefined);
 
   if (effectiveRoots.length === 0 && thinkingNodes.length > 0) {
@@ -464,35 +464,35 @@ export function layoutThinkingGraph(
 
   // Recursive function to position a node and its children
   function positionNode(
-    nodeId: string, 
-    x: number, 
-    yStart: number, 
+    nodeId: string,
+    x: number,
+    yStart: number,
     depth: number
   ): number {
     const node = nodeMap[nodeId];
     if (!node) return yStart;
 
     const nodeChildren = children[nodeId] || [];
-    
+
     // Calculate total height needed for children
     const subtreeHeight = calculateSubtreeHeight(nodeId);
-    
+
     // Position children first to center parent
     let childY = yStart;
     const childPositions: number[] = [];
-    
+
     nodeChildren.forEach((childId, index) => {
       const childNode = nodeMap[childId];
       const isBranch = childNode?.type === 'thinking_branch';
-      
+
       // Branch nodes get a smaller horizontal offset
-      const childX = isBranch 
+      const childX = isBranch
         ? x + nodeWidth + branchOffset
         : x + nodeWidth + levelSpacing - nodeWidth;
-      
+
       childPositions.push(childY);
       childY = positionNode(childId, childX, childY, depth + 1);
-      
+
       if (index < nodeChildren.length - 1) {
         childY += siblingSpacing - config.nodeHeight;
       }
@@ -520,7 +520,7 @@ export function layoutThinkingGraph(
 
   // Position each root tree
   let currentRootY = startY;
-  
+
   effectiveRoots.forEach((root) => {
     const treeHeight = positionNode(root.id, startX, currentRootY, 0);
     currentRootY = treeHeight + siblingSpacing;
@@ -559,7 +559,7 @@ export function calculateThinkingNodePosition(
     if (existingSiblings.length === 0) {
       return { x: startX, y: startY, depth: 0 };
     }
-    
+
     // Find the bottom-most root sibling
     const maxY = Math.max(...existingSiblings.map(n => n.y + nodeHeight));
     return { x: startX, y: maxY + siblingSpacing, depth: 0 };
@@ -568,7 +568,7 @@ export function calculateThinkingNodePosition(
   // Child of existing node
   const parentDepth = parentNode.depth || 0;
   const newDepth = parentDepth + 1;
-  
+
   // Calculate X based on whether this is a branch
   const xOffset = options.isBranch ? branchOffset : levelSpacing;
   const newX = parentNode.x + THINKING_GRAPH_CONFIG.nodeWidth + xOffset - THINKING_GRAPH_CONFIG.nodeWidth;
@@ -639,13 +639,13 @@ export function createParkingSection(
   const nodeCount = parkedNodeIds.length;
   const calculatedHeight = Math.max(
     PARKING_SECTION_CONFIG.minHeight,
-    PARKING_SECTION_CONFIG.headerHeight + 
-    PARKING_SECTION_CONFIG.padding * 2 + 
+    PARKING_SECTION_CONFIG.headerHeight +
+    PARKING_SECTION_CONFIG.padding * 2 +
     nodeCount * (LAYOUT_CONFIG.nodeHeight + PARKING_SECTION_CONFIG.nodeSpacing)
   );
 
   return {
-    id: existingSection?.id || `parking-section-${Date.now()}`,
+    id: existingSection?.id || `parking-section-${crypto.randomUUID()}`,
     title: PARKING_SECTION_CONFIG.title,
     x: PARKING_SECTION_CONFIG.x,
     y: PARKING_SECTION_CONFIG.y,
@@ -672,7 +672,7 @@ export function layoutParkingNodes(
 
   const startX = section.x + PARKING_SECTION_CONFIG.padding;
   const startY = section.y + PARKING_SECTION_CONFIG.headerHeight + PARKING_SECTION_CONFIG.padding;
-  
+
   // Scale down nodes slightly to fit parking area
   const scaledWidth = PARKING_SECTION_CONFIG.width - PARKING_SECTION_CONFIG.padding * 2;
   const scaledHeight = 120; // Smaller height for parked nodes
