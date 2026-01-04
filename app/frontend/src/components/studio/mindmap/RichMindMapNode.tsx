@@ -24,11 +24,13 @@ export type NodeVariant = 'root' | 'generating' | 'complete' | 'pending';
 interface RichMindMapNodeProps {
   node: MindmapNodeType;
   isSelected?: boolean;
+  isMergeTarget?: boolean;
   lodLevel?: 'full' | 'labels' | 'simple';
   shouldAnimate?: boolean;
   onDoubleClick?: (nodeId: string) => void;
   onClick?: (nodeId: string, e: Konva.KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (nodeId: string, x: number, y: number) => void;
+  onDragMove?: (nodeId: string, x: number, y: number) => void;
 }
 
 // ============================================================================
@@ -233,11 +235,13 @@ const TagChip: React.FC<{
 export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
   node,
   isSelected = false,
+  isMergeTarget = false,
   lodLevel = 'full',
   shouldAnimate = true,
   onDoubleClick,
   onClick,
   onDragEnd,
+  onDragMove,
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const glowRef = useRef<Konva.Rect>(null);
@@ -397,7 +401,25 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
       onDblClick={() => onDoubleClick?.(node.id)}
       onDblTap={() => onDoubleClick?.(node.id)}
       onDragEnd={(e) => onDragEnd?.(node.id, e.target.x(), e.target.y())}
+      onDragMove={(e) => onDragMove?.(node.id, e.target.x(), e.target.y())}
     >
+      {/* Merge target indicator (purple glow) */}
+      {isMergeTarget && (
+        <Rect
+          x={-8}
+          y={-8}
+          width={finalWidth + 16}
+          height={finalHeight + 16}
+          stroke="#8B5CF6"
+          strokeWidth={3}
+          cornerRadius={tokens.card.cornerRadius + 8}
+          dash={[12, 6]}
+          shadowColor="#8B5CF6"
+          shadowBlur={20}
+          shadowOpacity={0.6}
+        />
+      )}
+
       {/* Selection indicator */}
       {isSelected && (
         <Rect

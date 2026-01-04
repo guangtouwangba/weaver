@@ -48,3 +48,8 @@ A tool to help users analyze relationships, build knowledge systems, and visuali
 - **LLM Providers:** OpenAI (via OpenRouter or direct).
 - **Supabase:** Database and Auth (optional/configurable).
 - **Modal:** Optional remote execution for heavy OCR tasks.
+
+
+## Structure
+- web folder is a folder for prototype
+- fronend folder is a folder for final product, so normally you should implement feature in this folder

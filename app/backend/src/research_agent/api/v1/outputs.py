@@ -17,6 +17,7 @@ from research_agent.application.dto.output import (
     NodeActionResponse,
     OutputListResponse,
     OutputResponse,
+    SynthesizeNodesRequest,
     UpdateOutputRequest,
 )
 from research_agent.application.services.output_generation_service import (
@@ -345,6 +346,48 @@ async def expand_node(
     except Exception as e:
         logger.error(f"[Outputs API] Expand failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to start expansion")
+
+
+@router.post(
+    "/projects/{project_id}/outputs/{output_id}/synthesize",
+    response_model=NodeActionResponse,
+)
+async def synthesize_nodes(
+    project_id: UUID,
+    output_id: UUID,
+    request: SynthesizeNodesRequest,
+    session: AsyncSession = Depends(get_db),
+) -> NodeActionResponse:
+    """
+    Synthesize multiple nodes into a consolidated insight.
+
+    This endpoint takes 2+ node IDs and generates a new node that
+    consolidates their content with AI-generated insights.
+
+    Returns a task_id. The synthesized node will be streamed via WebSocket
+    as a NODE_ADDED event.
+    """
+    from research_agent.application.dto.output import SynthesizeNodesRequest as SynthReq
+
+    logger.info(f"[Outputs API] Synthesize nodes: output={output_id}, nodes={request.node_ids}")
+
+    try:
+        task_id = await output_generation_service.start_synthesize_nodes(
+            project_id=project_id,
+            output_id=output_id,
+            node_ids=request.node_ids,
+            node_data=request.node_data,
+            session=session,
+            mode=request.mode,
+        )
+
+        return NodeActionResponse(task_id=task_id, action="synthesize")
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"[Outputs API] Synthesize failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to start synthesis")
 
 
 # =============================================================================

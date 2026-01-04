@@ -680,9 +680,65 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     }
   }, [projectId, canvasNodes, setCanvasNodes, setCanvasEdges]);
 
+  /**
+   * Synthesize multiple nodes into a consolidated insight
+   */
+  const handleSynthesizeNodes = useCallback(async (
+    nodeIds: string[],
+    position: { x: number; y: number },
+    mode: 'connect' | 'inspire' | 'debate' = 'connect'
+  ) => {
+    if (!projectId) {
+      console.error('No project ID');
+      return;
+    }
+
+    try {
+      console.log(`[Canvas] Synthesizing nodes (${mode}):`, nodeIds);
+
+      // Step 1: Create a container Output for this synthesis session
+      // We collect unique document IDs from the source nodes if available, or just pass empty
+      const sourceDocumentIds = new Set<string>();
+      canvasNodes.forEach(node => {
+        if (nodeIds.includes(node.id) && node.sourceId) {
+          sourceDocumentIds.add(node.sourceId);
+        }
+      });
+
+      // Use 'custom' output type for ad-hoc synthesis
+      const { output_id } = await outputsApi.generate(
+        projectId,
+        'custom',
+        Array.from(sourceDocumentIds),
+        `Synthesis: ${mode}`,
+        { mode } // custom options
+      );
+
+      console.log(`[Canvas] Created synthesis output: ${output_id}`);
+
+      // Step 2: Build node_data from canvas nodes
+      const nodeData = nodeIds.map(nid => {
+        const node = canvasNodes.find(n => n.id === nid);
+        return {
+          id: nid,
+          title: node?.title || '',
+          content: node?.content || '',
+        };
+      });
+
+      // Step 3: Trigger synthesis action on this output
+      return await outputsApi.synthesize(projectId, output_id, nodeIds, mode, nodeData);
+
+    } catch (error) {
+      console.error('Failed to synthesize nodes:', error);
+      throw error;
+    }
+  }, [projectId, canvasNodes]);
+
   return {
     handleAddNode,
     handleDeleteNode,
+    handleSynthesizeNodes,
     handleGenerateContent, // Legacy blocking version
     handleGenerateContentConcurrent, // New concurrent version
     getViewportCenterPosition,

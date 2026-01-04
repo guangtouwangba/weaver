@@ -881,6 +881,177 @@ class OutputGenerationService:
         """Get number of active tasks for a project."""
         return sum(1 for t in self._active_tasks.values() if t.project_id == project_id)
 
+    async def start_synthesize_nodes(
+        self,
+        project_id: UUID,
+        output_id: UUID,
+        node_ids: List[str],
+        session: AsyncSession,
+        mode: str = "connect",
+        node_data: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """
+        Start synthesizing multiple nodes into a consolidated insight.
+
+        Args:
+            project_id: Project ID
+            output_id: Output ID (for context)
+            node_ids: List of node IDs to synthesize
+            session: Database session
+            mode: Synthesis mode (connect, inspire, debate)
+            node_data: Optional list of node content dicts (for canvas synthesis)
+
+        Returns:
+            task_id for tracking via WebSocket
+        """
+        from research_agent.domain.agents.synthesis_agent import SynthesisAgent
+
+        task_id = str(uuid4())
+        project_id_str = str(project_id)
+
+        # Verify output exists
+        output_repo = SQLAlchemyOutputRepository(session)
+        output = await output_repo.find_by_id(output_id)
+        if not output or output.project_id != project_id:
+            raise ValueError("Output not found")
+
+        # Extract node contents - prefer direct node_data if provided
+        if node_data:
+            # Direct canvas node content
+            node_contents = []
+            for nd in node_data:
+                title = nd.get("title", "")
+                content = nd.get("content", "")
+                combined = f"{title}\n{content}".strip()
+                if combined:
+                    node_contents.append(combined)
+        else:
+            # Fall back to extracting from output's data (mindmap nodes)
+            node_contents = self._extract_node_contents(output, node_ids)
+
+        if len(node_contents) < 2:
+            raise ValueError("At least 2 valid nodes required for synthesis")
+
+        # Create task info
+        task_info = TaskInfo(
+            task_id=task_id,
+            project_id=project_id_str,
+            output_id=output_id,
+            output_type="synthesis",
+            # Store mode in task info if needed, or pass directly
+        )
+
+        async with self._lock:
+            self._active_tasks[task_id] = task_info
+
+        # Start async task
+        asyncio_task = asyncio.create_task(
+            self._run_synthesize(
+                task_info=task_info,
+                output=output,
+                node_ids=node_ids,
+                node_contents=node_contents,
+                mode=mode,
+            )
+        )
+        task_info.asyncio_task = asyncio_task
+
+        return task_id
+
+    def _extract_node_contents(
+        self,
+        output: Output,
+        node_ids: List[str],
+    ) -> List[str]:
+        """Extract content from nodes in the output data."""
+        contents = []
+        data = output.data or {}
+        nodes = data.get("nodes", [])
+
+        node_map = {n.get("id"): n for n in nodes}
+
+        for node_id in node_ids:
+            node = node_map.get(node_id)
+            if node:
+                # Combine label and content for synthesis
+                label = node.get("label", "")
+                content = node.get("content", "")
+                combined = f"{label}\n{content}".strip()
+                if combined:
+                    contents.append(combined)
+
+        return contents
+
+    async def _run_synthesize(
+        self,
+        task_info: TaskInfo,
+        output: Output,
+        node_ids: List[str],
+        node_contents: List[str],
+        mode: str,
+    ) -> None:
+        """Run the synthesis task."""
+        from research_agent.domain.agents.synthesis_agent import SynthesisAgent
+
+        project_id = task_info.project_id
+        task_id = task_info.task_id
+        output_id = task_info.output_id
+
+        try:
+            settings = get_settings()
+            llm_service = OpenRouterLLMService(
+                api_key=settings.openrouter_api_key,
+                model=settings.llm_model,
+                site_name="Research Agent RAG",
+            )
+
+            agent = SynthesisAgent(llm_service=llm_service)
+
+            # Get existing mindmap data
+            mindmap_data = output.get_mindmap_data() or MindmapData()
+
+            async for event in agent.synthesize(
+                input_contents=node_contents,
+                source_ids=node_ids,
+                mode=mode,
+            ):
+                if task_id not in self._active_tasks:
+                    return
+
+                await output_notification_service.notify_event(
+                    project_id=project_id,
+                    task_id=task_id,
+                    event=event,
+                )
+
+                # Add synthesized node to mindmap
+                if event.type == OutputEventType.NODE_ADDED and event.node_data:
+                    node = MindmapNode.from_dict(event.node_data)
+                    mindmap_data.add_node(node)
+
+            # Update output with new synthesized node
+            from research_agent.infrastructure.database.session import get_async_session
+
+            async with get_async_session() as session:
+                output_repo = SQLAlchemyOutputRepository(session)
+                output_updated = await output_repo.find_by_id(output_id)
+                if output_updated:
+                    output_updated.data = mindmap_data.to_dict()
+                    await output_repo.update(output_updated)
+
+        except Exception as e:
+            logger.error(f"[OutputService] Synthesis failed: {e}", exc_info=True)
+            await output_notification_service.notify_generation_error(
+                project_id=project_id,
+                task_id=task_id,
+                error_message=str(e),
+            )
+
+        finally:
+            async with self._lock:
+                self._active_tasks.pop(task_id, None)
+            output_notification_service.cleanup_task(task_id)
+
 
 # Singleton instance
 output_generation_service = OutputGenerationService()

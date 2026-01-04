@@ -20,9 +20,8 @@ class GenerateOutputRequest(BaseModel):
         pattern="^(mindmap|summary|flashcards|podcast|quiz|timeline|compare|custom)$",
     )
     document_ids: List[UUID] = Field(
-        ...,
+        default_factory=list,
         description="List of document IDs to generate output from",
-        min_length=1,
     )
     title: Optional[str] = Field(
         None,
@@ -68,6 +67,30 @@ class UpdateOutputRequest(BaseModel):
     data: Optional[Dict[str, Any]] = Field(
         None,
         description="Updated output data (e.g., mindmap nodes/edges)",
+    )
+
+
+class SynthesizeNodesRequest(BaseModel):
+    """Request to synthesize multiple nodes into a consolidated insight."""
+
+    node_ids: List[str] = Field(
+        ...,
+        description="List of node IDs to synthesize",
+        min_length=2,
+    )
+    mode: str = Field(
+        default="connect",
+        description="Synthesis mode: connect, inspire, or debate",
+        pattern="^(connect|inspire|debate)$",
+    )
+    # Optional: Direct node content for canvas synthesis (bypasses output data lookup)
+    node_data: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Optional list of node content dicts with 'id', 'title', 'content'. "
+            "If provided, these contents are used directly for synthesis instead of "
+            "looking up nodes in the output's data."
+        ),
     )
 
 
