@@ -1,6 +1,10 @@
+'use client';
+
 import React, { useEffect, useRef, useCallback } from 'react';
-import { Box, Paper, Typography, MenuItem, ListItemIcon, ListItemText, Divider, MenuList } from '@mui/material';
-import { AddIcon, StickyNote2Icon, AccountTreeIcon, LayersIcon, DescriptionIcon, UploadFileIcon, AutoAwesomeIcon, PsychologyIcon, CreditCardIcon } from '@/components/ui/icons';
+import { MenuList, Divider } from '@mui/material';
+import { Surface, Stack, Text, Menu, MenuItem, MenuDivider } from '@/components/ui';
+import { colors, radii, shadows, fontSize, fontWeight } from '@/components/ui/tokens';
+import { AddIcon, StickyNote2Icon, AccountTreeIcon, DescriptionIcon, UploadFileIcon, CreditCardIcon } from '@/components/ui/icons';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { GenerationType } from '@/contexts/StudioContext';
 
@@ -20,15 +24,12 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport, v
 
   /**
    * Convert screen coordinates to canvas coordinates
-   * Takes into account the canvas container position, viewport pan offset, and zoom scale
    */
   const screenToCanvasCoords = useCallback((screenX: number, screenY: number): { x: number; y: number } => {
     if (!viewport) {
-      // Fallback: return screen coords as-is (legacy behavior)
       return { x: screenX, y: screenY };
     }
-    
-    // Get canvas container offset
+
     let containerOffsetX = 0;
     let containerOffsetY = 0;
     if (canvasContainerRef?.current) {
@@ -36,11 +37,10 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport, v
       containerOffsetX = rect.left;
       containerOffsetY = rect.top;
     }
-    
-    // Convert: (screenPos - containerOffset - viewportPan) / scale = canvasPos
+
     const canvasX = (screenX - containerOffsetX - viewport.x) / viewport.scale;
     const canvasY = (screenY - containerOffsetY - viewport.y) / viewport.scale;
-    
+
     return { x: canvasX, y: canvasY };
   }, [viewport, canvasContainerRef]);
 
@@ -77,77 +77,63 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport, v
   };
 
   return (
-    <Paper
+    <Surface
       ref={menuRef}
       elevation={4}
+      radius="lg"
       sx={{
         position: 'fixed',
         top: y,
         left: x,
         width: 260,
-        zIndex: 1300, // Above canvas, below some dialogs
-        borderRadius: 3,
+        zIndex: 1300,
         overflow: 'hidden',
-        bgcolor: 'background.paper',
-        boxShadow: '0px 10px 40px -10px rgba(0,0,0,0.1)',
-        border: '1px solid',
-        borderColor: 'divider',
       }}
     >
       <MenuList dense sx={{ py: 1 }}>
-        <MenuItem onClick={() => handleAction(() => handleAddNode('default', { x, y }))}>
-          <ListItemIcon>
-            <AddIcon size={18} />
-          </ListItemIcon>
-          <ListItemText>Add Node</ListItemText>
-        </MenuItem>
-        
-        <MenuItem onClick={() => handleAction(() => handleAddNode('sticky', { x, y }))}>
-          <ListItemIcon>
-            <StickyNote2Icon size={18} />
-          </ListItemIcon>
-          <ListItemText>Add Sticky Note</ListItemText>
+        <MenuItem onClick={() => handleAction(() => handleAddNode('default', { x, y }))} icon={<AddIcon size={18} />}>
+          Add Node
         </MenuItem>
 
-        <Divider sx={{ my: 1 }} />
-        
-        <Box sx={{ px: 2, py: 0.5 }}>
-          <Typography variant="caption" fontWeight={600} color="text.secondary">
+        <MenuItem onClick={() => handleAction(() => handleAddNode('sticky', { x, y }))} icon={<StickyNote2Icon size={18} />}>
+          Add Sticky Note
+        </MenuItem>
+
+        <MenuDivider />
+
+        <Stack sx={{ px: 2, py: 0.5 }}>
+          <Text variant="overline" color="secondary">
             GENERATE CONTENT
-          </Typography>
-        </Box>
+          </Text>
+        </Stack>
 
-        <MenuItem onClick={() => handleAction(() => handleGenerateAtPosition('mindmap'))}>
-          <ListItemIcon>
-            <AccountTreeIcon size={18} sx={{ color: '#6366f1' }} /> {/* Indigo */}
-          </ListItemIcon>
-          <ListItemText>Generate Mind Map</ListItemText>
+        <MenuItem
+          onClick={() => handleAction(() => handleGenerateAtPosition('mindmap'))}
+          icon={<AccountTreeIcon size={18} sx={{ color: colors.primary[500] }} />}
+        >
+          Generate Mind Map
         </MenuItem>
 
-        <MenuItem onClick={() => handleAction(() => handleGenerateAtPosition('flashcards'))}>
-          <ListItemIcon>
-            <CreditCardIcon size={18} sx={{ color: '#f59e0b' }} /> {/* Amber */}
-          </ListItemIcon>
-          <ListItemText>Generate Flashcards</ListItemText>
+        <MenuItem
+          onClick={() => handleAction(() => handleGenerateAtPosition('flashcards'))}
+          icon={<CreditCardIcon size={18} sx={{ color: colors.warning[500] }} />}
+        >
+          Generate Flashcards
         </MenuItem>
 
-        <MenuItem onClick={() => handleAction(() => handleGenerateAtPosition('summary'))}>
-          <ListItemIcon>
-            <DescriptionIcon size={18} sx={{ color: '#3b82f6' }} /> {/* Blue */}
-          </ListItemIcon>
-          <ListItemText>Generate Summary</ListItemText>
+        <MenuItem
+          onClick={() => handleAction(() => handleGenerateAtPosition('summary'))}
+          icon={<DescriptionIcon size={18} sx={{ color: colors.info[500] }} />}
+        >
+          Generate Summary
         </MenuItem>
 
-        <Divider sx={{ my: 1 }} />
+        <MenuDivider />
 
-        <MenuItem onClick={() => handleAction(handleImportSource)}>
-          <ListItemIcon>
-            <UploadFileIcon size={18} />
-          </ListItemIcon>
-          <ListItemText>Import Source...</ListItemText>
+        <MenuItem onClick={() => handleAction(handleImportSource)} icon={<UploadFileIcon size={18} />}>
+          Import Source...
         </MenuItem>
       </MenuList>
-    </Paper>
+    </Surface>
   );
 }
-

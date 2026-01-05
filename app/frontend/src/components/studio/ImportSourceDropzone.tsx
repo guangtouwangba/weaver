@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Stack, Text } from '@/components/ui';
+import { colors, radii } from '@/components/ui/tokens';
 import { AddIcon } from '@/components/ui/icons';
 
 interface ImportSourceDropzoneProps {
@@ -20,7 +23,11 @@ export default function ImportSourceDropzone({
   isDragging = false,
 }: ImportSourceDropzoneProps) {
   return (
-    <Box
+    <Stack
+      direction="column"
+      align="center"
+      justify="center"
+      gap={1}
       onClick={onClick}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
@@ -28,51 +35,43 @@ export default function ImportSourceDropzone({
       onDrop={onDrop}
       sx={{
         border: '2px dashed',
-        borderColor: isDragging ? '#6366F1' : '#E5E7EB', // Indigo-500 : Gray-200
-        borderRadius: 3, // Slightly more rounded (12px)
+        borderColor: isDragging ? colors.primary[500] : colors.border.default,
+        borderRadius: `${radii.lg}px`,
         p: 3,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 1.5,
         cursor: 'pointer',
-        bgcolor: isDragging ? '#EEF2FF' : 'transparent', // Indigo-50 : Transparent
+        bgcolor: isDragging ? colors.primary[50] : 'transparent',
         transition: 'all 0.2s ease-in-out',
-        minHeight: 120, // Match the height in the description/screenshot
+        minHeight: 120,
         '&:hover': {
-          borderColor: '#6366F1', // Indigo-500
-          bgcolor: '#EEF2FF', // Indigo-50
+          borderColor: colors.primary[500],
+          bgcolor: colors.primary[50],
         }
       }}
     >
-      <Box
-        sx={{
+      <div
+        style={{
           width: 48,
           height: 48,
           borderRadius: '50%',
-          bgcolor: '#EEF2FF', // Indigo-50
+          backgroundColor: colors.primary[50],
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#6366F1', // Indigo-500
-          border: '1px solid',
-          borderColor: '#E0E7FF', // Indigo-100
+          color: colors.primary[500],
+          border: `1px solid ${colors.primary[100]}`,
         }}
       >
         <AddIcon size="lg" />
-      </Box>
-      <Typography 
-        variant="body2" 
-        sx={{ 
-          color: '#4B5563', // Gray-600
+      </div>
+      <Text
+        variant="bodySmall"
+        sx={{
+          color: colors.neutral[600],
           fontWeight: 600,
-          fontSize: '0.9rem'
         }}
       >
         Import Source
-      </Typography>
-    </Box>
+      </Text>
+    </Stack>
   );
 }
-
