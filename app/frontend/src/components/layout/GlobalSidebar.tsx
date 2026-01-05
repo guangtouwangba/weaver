@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Box, IconButton, Avatar, Tooltip } from '@mui/material';
+import { Stack, Tooltip, IconButton } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   HomeIcon,
   GridViewIcon,
   SettingsIcon,
-  Grid4x4Icon,
   InboxIcon
 } from '@/components/ui/icons';
 import Link from 'next/link';
@@ -25,32 +25,35 @@ const NavItem = ({ icon: Icon, label, href, isActive }: NavItemProps) => {
   return (
     <Tooltip title={label} placement="right">
       <Link href={href} style={{ textDecoration: 'none' }}>
-        <Box
-          sx={{
+        <div
+          style={{
             width: 48,
             height: 48,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: '16px', // Rounded square like image
-            backgroundColor: isActive
-              ? '#eff6ff' // Light blue/indigo background
-              : 'transparent',
-            color: isActive
-              ? '#4f46e5' // Indigo icon
-              : '#64748b', // Slate-500 for inactive
-            '&:hover': {
-              backgroundColor: isActive
-                ? '#eff6ff'
-                : 'rgba(0, 0, 0, 0.04)',
-              color: isActive ? '#4f46e5' : '#1e293b',
-            },
-            mb: 2,
+            borderRadius: radii.xl,
+            backgroundColor: isActive ? colors.primary[50] : 'transparent',
+            color: isActive ? colors.primary[600] : colors.neutral[500],
+            marginBottom: 16,
             transition: 'all 0.2s ease',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.backgroundColor = colors.neutral[100];
+              e.currentTarget.style.color = colors.neutral[800];
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = colors.neutral[500];
+            }
           }}
         >
-          <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-        </Box>
+          <Icon size={24} />
+        </div>
       </Link>
     </Tooltip>
   );
@@ -65,51 +68,47 @@ export default function GlobalSidebar() {
   const isSettingsActive = pathname.startsWith('/settings');
 
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         width: SIDEBAR_WIDTH,
         height: '100vh',
         position: 'fixed',
         left: 0,
         top: 0,
-        borderRight: '1px solid',
-        borderColor: 'divider',
-        backgroundColor: 'background.default',
+        borderRight: `1px solid ${colors.border.default}`,
+        backgroundColor: colors.background.default,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        py: 4, // Increased padding
+        paddingTop: 32,
+        paddingBottom: 32,
         zIndex: 1200,
       }}
     >
       {/* App Logo - Purple Rounded Square */}
-      <Box sx={{ mb: 6 }}>
+      <div style={{ marginBottom: 48 }}>
         <Tooltip title="Home" placement="right">
           <Link href="/dashboard" style={{ textDecoration: 'none' }}>
-            <Box
-              sx={{
+            <div
+              style={{
                 width: 48,
                 height: 48,
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', // Indigo gradient
+                borderRadius: radii.xl,
+                background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                boxShadow: '0 8px 16px rgba(79, 70, 229, 0.2)',
+                boxShadow: `0 8px 16px rgba(99, 102, 241, 0.2)`,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 12px 20px rgba(79, 70, 229, 0.3)',
-                },
               }}
             >
               <GridViewIcon size="lg" />
-            </Box>
+            </div>
           </Link>
         </Tooltip>
-      </Box>
+      </div>
 
       {/* Main Navigation */}
       <NavItem
@@ -141,31 +140,32 @@ export default function GlobalSidebar() {
       />
 
       {/* Spacer */}
-      <Box sx={{ flexGrow: 1 }} />
+      <div style={{ flexGrow: 1 }} />
 
       {/* User Zone */}
       <Tooltip title="User Profile" placement="right">
-        <IconButton
-          component={Link}
-          href="/settings"
-          sx={{ mb: 2, p: 0.5 }}
-        >
-          <Avatar
-            sx={{
+        <Link href="/settings" style={{ textDecoration: 'none' }}>
+          <div
+            style={{
               width: 40,
               height: 40,
-              bgcolor: '#8b5cf6', // Purple
+              borderRadius: radii.full,
+              backgroundColor: '#8B5CF6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
               fontSize: 14,
               fontWeight: 600,
-              color: 'white',
               border: '2px solid white',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              boxShadow: shadows.sm,
+              cursor: 'pointer',
             }}
           >
             AL
-          </Avatar>
-        </IconButton>
+          </div>
+        </Link>
       </Tooltip>
-    </Box>
+    </div>
   );
 }
