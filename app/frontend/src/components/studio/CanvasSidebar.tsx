@@ -6,7 +6,8 @@
  */
 
 import { useEffect } from 'react';
-import { Box, Tooltip } from '@mui/material';
+import { Stack, Tooltip, IconButton } from '@/components/ui';
+import { colors, radii } from '@/components/ui/tokens';
 import { DashboardIcon, PsychologyIcon } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 
@@ -21,7 +22,7 @@ export default function CanvasSidebar() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if Cmd (Mac) or Ctrl (Windows/Linux) is pressed
       const isModifierPressed = e.metaKey || e.ctrlKey;
-      
+
       if (isModifierPressed && e.key === '1') {
         e.preventDefault();
         switchView('free');
@@ -36,65 +37,53 @@ export default function CanvasSidebar() {
   }, [switchView]);
 
   return (
-    <Box
+    <Stack
+      direction="column"
+      align="center"
+      gap={2}
       sx={{
         width: 48,
-        bgcolor: '#FAFAFA',
-        borderLeft: '1px solid',
-        borderColor: 'divider',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
+        bgcolor: colors.background.subtle,
+        borderLeft: `1px solid ${colors.border.default}`,
         py: 2,
-        gap: 2,
         zIndex: 10,
       }}
     >
       <Tooltip title="自由画布 (⌘1)" placement="left">
-        <Box
+        <IconButton
+          size="sm"
+          variant={currentView === 'free' ? 'default' : 'ghost'}
+          active={currentView === 'free'}
+          onClick={() => switchView('free')}
           sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: currentView === 'free' ? 'primary.main' : 'transparent',
-            color: currentView === 'free' ? 'white' : 'text.secondary',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
+            bgcolor: currentView === 'free' ? colors.primary[500] : 'transparent',
+            color: currentView === 'free' ? 'white' : colors.text.secondary,
             '&:hover': {
-              bgcolor: currentView === 'free' ? 'primary.dark' : 'action.hover',
+              bgcolor: currentView === 'free' ? colors.primary[600] : colors.neutral[100],
             },
           }}
-          onClick={() => switchView('free')}
         >
           <DashboardIcon size={18} />
-        </Box>
+        </IconButton>
       </Tooltip>
 
       <Tooltip title="思考路径 (⌘2)" placement="left">
-        <Box
+        <IconButton
+          size="sm"
+          variant={currentView === 'thinking' ? 'default' : 'ghost'}
+          active={currentView === 'thinking'}
+          onClick={() => switchView('thinking')}
           sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: currentView === 'thinking' ? 'primary.main' : 'transparent',
-            color: currentView === 'thinking' ? 'white' : 'text.secondary',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
+            bgcolor: currentView === 'thinking' ? colors.primary[500] : 'transparent',
+            color: currentView === 'thinking' ? 'white' : colors.text.secondary,
             '&:hover': {
-              bgcolor: currentView === 'thinking' ? 'primary.dark' : 'action.hover',
+              bgcolor: currentView === 'thinking' ? colors.primary[600] : colors.neutral[100],
             },
           }}
-          onClick={() => switchView('thinking')}
         >
           <PsychologyIcon size={18} />
-        </Box>
+        </IconButton>
       </Tooltip>
-    </Box>
+    </Stack>
   );
 }
