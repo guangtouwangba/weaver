@@ -55,7 +55,7 @@
 
 ### 5.3 Large Components (heavy MUI, complex)
 - [ ] 5.3.1 `NodeDetailPanel.tsx` (531 lines) - Slide-over panel (Box, Typography, Button, Chip, TextField). @frontend
-- [ ] 5.3.2 `ResourceSidebar.tsx` (338 lines) - Already partially migrated, finish remaining MUI. @frontend
+- [x] 5.3.2 `ResourceSidebar.tsx` (338 lines) - Already partially migrated, finish remaining MUI. @frontend
 - [ ] 5.3.3 `InspirationDock.tsx` (17KB) - Dock panel (Box, Paper, Tabs). @frontend
 - [ ] 5.3.4 `SourcePanel.tsx` (35KB) - Source viewer (Box, Paper, Tabs, IconButton). @frontend
 - [ ] 5.3.5 `AssistantPanel.tsx` (32KB) - Chat panel (Box, Paper, TextField, IconButton). @frontend
@@ -67,8 +67,8 @@
 - [x] 5.4.3 `canvas/SynthesisModeMenu.tsx` - Menu (Box, Paper, MenuItem). @frontend
 
 ### 5.5 Canvas-Nodes Subdirectory
-- [ ] 5.5.1 `canvas-nodes/MindMapCanvasNode.tsx` - MindMap node (Box, Paper). @frontend
-- [ ] 5.5.2 `canvas-nodes/SummaryCanvasNode.tsx` - Summary node (Box, Paper, Chip). @frontend
+- [x] 5.5.1 `canvas-nodes/MindMapCanvasNode.tsx` - MindMap node (Box, Paper). @frontend
+- [x] 5.5.2 `canvas-nodes/SummaryCanvasNode.tsx` - Summary node (Box, Paper, Chip). @frontend
 
 ### 5.6 MindMap Subdirectory
 - [x] 5.6.1 `mindmap/AIInsightBadge.tsx` - Badge (Konva only, no MUI, skip). @frontend

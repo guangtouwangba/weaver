@@ -1,17 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  IconButton,
-  Paper,
-  LinearProgress,
-  Collapse,
-  CircularProgress,
-  Skeleton,
-  Tooltip
-} from '@mui/material';
+import { Collapse } from '@mui/material';
+import { Stack, Text, IconButton, Tooltip, Spinner } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   DescriptionIcon,
   ExpandMoreIcon,
@@ -69,20 +61,15 @@ const getFileIconProps = (filename: string) => {
 };
 
 // Reusable Skeleton Component
-const SkeletonBar = ({ width, height = 16, sx = {} }: { width: string | number, height?: number, sx?: any }) => (
-  <Box
-    sx={{
-      width,
+const SkeletonBar = ({ width, height = 16, style = {} }: { width: string | number, height?: number, style?: React.CSSProperties }) => (
+  <div
+    style={{
+      width: typeof width === 'number' ? `${width}px` : width,
       height,
-      bgcolor: 'rgba(0,0,0,0.06)',
-      borderRadius: 1,
+      backgroundColor: 'rgba(0,0,0,0.06)',
+      borderRadius: radii.sm,
       animation: 'pulse 1.5s ease-in-out infinite',
-      '@keyframes pulse': {
-        '0%': { opacity: 0.6 },
-        '50%': { opacity: 1 },
-        '100%': { opacity: 0.6 }
-      },
-      ...sx
+      ...style
     }}
   />
 );
@@ -187,57 +174,61 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
 
   if (collapsed) {
     return (
-      <Box
+      <Stack
+        direction="column"
+        align="center"
         sx={{
           width: 48,
           height: '100%',
           flexShrink: 0,
-          borderRight: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          py: 2
+          borderRight: `1px solid ${colors.border.default}`,
+          bgcolor: colors.background.paper,
+          py: 2,
         }}
       >
         <Tooltip title="Expand Sidebar" placement="right">
-          <IconButton onClick={onToggle} size="small">
+          <IconButton size="sm" onClick={onToggle}>
             <MenuOpenIcon size={18} style={{ transform: 'rotate(180deg)' }} />
           </IconButton>
         </Tooltip>
-      </Box>
+      </Stack>
     );
   }
 
   return (
-    <Box
+    <Stack
+      direction="column"
       sx={{
         width,
         minWidth: width,
         flexShrink: 0,
         height: '100%',
-        borderRight: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
-        display: 'flex',
-        flexDirection: 'column'
+        borderRight: `1px solid ${colors.border.default}`,
+        bgcolor: colors.background.paper,
       }}
     >
       {/* Header */}
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="h6" fontWeight="bold">Resources</Typography>
+      <Stack
+        direction="row"
+        align="center"
+        justify="between"
+        sx={{
+          p: 2,
+          borderBottom: `1px solid ${colors.border.default}`,
+        }}
+      >
+        <Text variant="heading" size="sm">Resources</Text>
         <Tooltip title="Collapse Sidebar" placement="left">
-          <IconButton onClick={onToggle} size="small">
+          <IconButton size="sm" onClick={onToggle}>
             <MenuOpenIcon size={18} />
           </IconButton>
         </Tooltip>
-      </Box>
+      </Stack>
 
       {/* Content */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+      <div style={{ flexGrow: 1, overflowY: 'auto', padding: 16 }}>
         {/* Import Source Area */}
-        <Box sx={{ mb: 3 }}>
+        <div style={{ marginBottom: 24 }}>
           <ImportSourceDropzone
             onClick={() => setImportDialogOpen(true)}
             onDragEnter={handleDragEnter}
@@ -246,57 +237,56 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
             onDrop={handleDrop}
             isDragging={isDragging}
           />
-        </Box>
+        </div>
 
         {/* File List */}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, cursor: 'pointer' }} onClick={() => setFilesExpanded(!filesExpanded)}>
+        <Stack
+          direction="row"
+          align="center"
+          sx={{ mb: 2, cursor: 'pointer' }}
+          onClick={() => setFilesExpanded(!filesExpanded)}
+        >
           <ExpandMoreIcon size="sm" style={{ transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
-          <Typography variant="subtitle2" color="text.secondary" sx={{ ml: 1 }}>RECENT UPLOADS</Typography>
-        </Box>
+          <Text variant="overline" color="secondary" sx={{ ml: 1 }}>RECENT UPLOADS</Text>
+        </Stack>
 
         <Collapse in={filesExpanded}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Stack direction="column" gap={1}>
             {/* Uploading Card */}
             {isUploading && (
-              <Box
+              <Stack
+                direction="row"
+                align="center"
+                gap={2}
                 sx={{
                   p: 2,
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: '#E5E7EB', // Gray-200
-                  bgcolor: '#F9FAFB', // Gray-50
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
+                  borderRadius: `${radii.lg}px`,
+                  border: `1px solid ${colors.neutral[200]}`,
+                  bgcolor: colors.neutral[50],
                 }}
               >
-                <Box sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 2,
-                  bgcolor: '#E5E7EB', // Gray-200
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <UploadFileIcon size="lg" sx={{ color: '#6B7280' }} /> {/* Gray-500 */}
-                </Box>
-
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <SkeletonBar width="80%" height={20} sx={{ mb: 1, bgcolor: 'rgba(0, 0, 0, 0.08)' }} />
-                  <SkeletonBar width="50%" height={16} sx={{ bgcolor: 'rgba(0, 0, 0, 0.04)' }} />
-                </Box>
-
-                <CircularProgress
-                  size={20}
-                  thickness={5}
-                  sx={{
-                    color: '#6366F1', // Indigo-500
-                    '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: radii.md,
+                    backgroundColor: colors.neutral[200],
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                   }}
-                />
-              </Box>
+                >
+                  <UploadFileIcon size="lg" sx={{ color: colors.neutral[500] }} />
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <SkeletonBar width="80%" height={20} style={{ marginBottom: 8, backgroundColor: 'rgba(0, 0, 0, 0.08)' }} />
+                  <SkeletonBar width="50%" height={16} style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }} />
+                </div>
+
+                <Spinner size="sm" color="primary" />
+              </Stack>
             )}
 
             {/* Document Cards */}
@@ -317,13 +307,13 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
             ))}
 
             {documents.length === 0 && !isUploading && (
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+              <Text variant="bodySmall" color="secondary" sx={{ textAlign: 'center', py: 2 }}>
                 No documents yet. Import one to get started.
-              </Typography>
+              </Text>
             )}
-          </Box>
+          </Stack>
         </Collapse>
-      </Box>
+      </div>
 
       {/* Import Dialog */}
       <ImportSourceDialog
@@ -331,7 +321,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         onClose={() => setImportDialogOpen(false)}
         onFileSelect={handleFileUpload}
       />
-    </Box>
+
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 0.6; }
+          50% { opacity: 1; }
+          100% { opacity: 0.6; }
+        }
+      `}</style>
+    </Stack>
   );
 }
-
