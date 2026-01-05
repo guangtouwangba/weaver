@@ -342,7 +342,15 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     try {
       const targetDocumentIds = selectedDocumentIds.size > 0
         ? Array.from(selectedDocumentIds)
-        : documents.map(d => d.id);
+        : documents.map(d => d.id).filter(id => id); // Filter out any undefined/null IDs
+
+      // Validate we have document IDs before proceeding
+      if (!targetDocumentIds || targetDocumentIds.length === 0) {
+        console.error('No valid document IDs available for generation');
+        setGenerationError('No documents available. Please upload documents first.');
+        setIsGenerating(false);
+        return;
+      }
 
       const firstDocId = targetDocumentIds[0];
       const firstDoc = documents.find(d => d.id === firstDocId);
@@ -435,7 +443,14 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
     const targetDocumentIds = selectedDocumentIds.size > 0
       ? Array.from(selectedDocumentIds)
-      : documents.map(d => d.id);
+      : documents.map(d => d.id).filter(id => id); // Filter out any undefined/null IDs
+
+    // Validate we have document IDs before proceeding
+    if (!targetDocumentIds || targetDocumentIds.length === 0) {
+      console.error('[Concurrent] No valid document IDs available for generation');
+      failGeneration(taskId, 'No documents available. Please upload documents first.');
+      return taskId;
+    }
 
     const firstDocId = targetDocumentIds[0];
     const firstDoc = documents.find(d => d.id === firstDocId);
@@ -697,7 +712,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       console.log(`[Canvas] Synthesizing nodes (${mode}):`, nodeIds);
 
       // Step 1: Create a container Output for this synthesis session
-      // We collect unique document IDs from the source nodes if available, or just pass empty
+      // We collect unique document IDs from the source nodes if available
       const sourceDocumentIds = new Set<string>();
       canvasNodes.forEach(node => {
         if (nodeIds.includes(node.id) && node.sourceId) {
@@ -705,18 +720,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
         }
       });
 
-      // Use 'custom' output type for ad-hoc synthesis
-      const { output_id } = await outputsApi.generate(
-        projectId,
-        'custom',
-        Array.from(sourceDocumentIds),
-        `Synthesis: ${mode}`,
-        { mode } // custom options
-      );
-
-      console.log(`[Canvas] Created synthesis output: ${output_id}`);
-
-      // Step 2: Build node_data from canvas nodes
+      // Step 1: Build node_data from canvas nodes
       const nodeData = nodeIds.map(nid => {
         const node = canvasNodes.find(n => n.id === nid);
         return {
@@ -725,6 +729,28 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
           content: node?.content || '',
         };
       });
+
+      // For synthesis, collect document IDs if available, but allow empty for canvas-only synthesis
+      let finalDocumentIds = Array.from(sourceDocumentIds);
+      if (finalDocumentIds.length === 0 && documents.length > 0) {
+        // Use all available documents as context for synthesis (optional)
+        finalDocumentIds = documents.map(d => d.id).filter(id => id);
+      }
+
+      // Use 'custom' output type for ad-hoc synthesis
+      // Pass node_data in options so backend can use it if documents are empty
+      const { output_id } = await outputsApi.generate(
+        projectId,
+        'custom',
+        finalDocumentIds, // Can be empty - node_data will be used instead
+        `Synthesis: ${mode}`,
+        { 
+          mode, // synthesis mode
+          node_data: nodeData // canvas node content
+        }
+      );
+
+      console.log(`[Canvas] Created synthesis output: ${output_id}`);
 
       // Step 3: Trigger synthesis action on this output
       return await outputsApi.synthesize(projectId, output_id, nodeIds, mode, nodeData);

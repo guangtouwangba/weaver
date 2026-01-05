@@ -59,6 +59,20 @@ async def generate_output(
         f"type={request.output_type}, docs={request.document_ids}"
     )
 
+    # Validate document_ids is not empty, except for 'custom' type with node_data
+    # Custom type can work with canvas node_data instead of documents
+    is_custom_with_node_data = (
+        request.output_type == "custom" and
+        request.options and
+        (request.options.get("node_data") or request.options.get("mode"))
+    )
+    
+    if not request.document_ids and not is_custom_with_node_data:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one document ID is required for output generation"
+        )
+
     try:
         result = await output_generation_service.start_generation(
             project_id=project_id,
