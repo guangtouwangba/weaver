@@ -1,5 +1,8 @@
+'use client';
+
 import { ReactNode } from 'react';
-import { Paper, Typography, Box } from '@mui/material';
+import { Surface, Stack, Text } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 
 interface TemplateCardProps {
   title: string;
@@ -9,42 +12,38 @@ interface TemplateCardProps {
   onClick: () => void;
 }
 
-export default function TemplateCard({ title, description, icon, color = 'primary.main', onClick }: TemplateCardProps) {
+export default function TemplateCard({ title, description, icon, color, onClick }: TemplateCardProps) {
   return (
-    <Paper
+    <Surface
       elevation={0}
+      radius="lg"
+      bordered
       onClick={onClick}
       sx={{
         p: 3,
         height: '100%',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 3,
         cursor: 'pointer',
         transition: 'all 0.2s',
         display: 'flex',
         flexDirection: 'column',
         '&:hover': {
-          borderColor: 'primary.main',
+          borderColor: colors.primary[500],
           transform: 'translateY(-2px)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+          boxShadow: shadows.md,
         },
       }}
     >
-      <Box sx={{ color: color, mb: 2 }}>
-        {icon}
-      </Box>
-      <Typography variant="subtitle1" fontWeight="600" gutterBottom>
-        {title}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {description}
-      </Typography>
-    </Paper>
+      <Stack direction="column" gap={2}>
+        <div style={{ color: color || colors.primary[500] }}>
+          {icon}
+        </div>
+        <Text variant="h6" color="primary">
+          {title}
+        </Text>
+        <Text variant="bodySmall" color="secondary">
+          {description}
+        </Text>
+      </Stack>
+    </Surface>
   );
 }
-
-
-
-
-
