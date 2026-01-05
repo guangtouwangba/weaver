@@ -47,14 +47,14 @@
 
 ### 5.2 Medium Components (moderate MUI usage)
 - [x] 5.2.1 `DocumentPreviewCard.tsx` - Already uses Tailwind (no MUI, skip). @frontend
-- [ ] 5.2.2 `SummaryCard.tsx` - Summary card (Paper, Modal, Chip, Button). @frontend
+- [x] 5.2.2 `SummaryCard.tsx` - Summary card (Paper, Modal, Chip, Button). @frontend
 - [x] 5.2.3 `CanvasPanel.tsx` - Canvas container (Box, Paper). @frontend
 - [x] 5.2.4 `CanvasPanelKonva.tsx` - Konva wrapper (Box). @frontend
 - [x] 5.2.5 `GenerationOutputsOverlay.tsx` - AI outputs (Box, Paper, Chip). @frontend
 - [x] 5.2.6 `ThinkingPathGenerator.tsx` - Generator UI (Box, Paper, Button). @frontend
 
 ### 5.3 Large Components (heavy MUI, complex)
-- [ ] 5.3.1 `NodeDetailPanel.tsx` (531 lines) - Slide-over panel (Box, Typography, Button, Chip, TextField). @frontend
+- [x] 5.3.1 `NodeDetailPanel.tsx` (531 lines) - Slide-over panel (Box, Typography, Button, Chip, TextField). @frontend
 - [x] 5.3.2 `ResourceSidebar.tsx` (338 lines) - Already partially migrated, finish remaining MUI. @frontend
 - [ ] 5.3.3 `InspirationDock.tsx` (17KB) - Dock panel (Box, Paper, Tabs). @frontend
 - [ ] 5.3.4 `SourcePanel.tsx` (35KB) - Source viewer (Box, Paper, Tabs, IconButton). @frontend
