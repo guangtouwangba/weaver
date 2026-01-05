@@ -254,6 +254,20 @@ export interface CanvasEdge {
 
   // Thinking Path edge types (for styling compatibility)
   type?: 'branch' | 'progression';
+
+  // === Connection Anchor & Routing (P0) ===
+  // Anchor points: N(top), S(bottom), E(right), W(left), auto(calculated)
+  sourceAnchor?: 'N' | 'S' | 'E' | 'W' | 'auto';
+  targetAnchor?: 'N' | 'S' | 'E' | 'W' | 'auto';
+  // Routing algorithm for edge path
+  routingType?: 'straight' | 'bezier' | 'orthogonal';
+
+  // === Visual Customization (P1) ===
+  color?: string;           // Override color
+  strokeWidth?: number;     // Override thickness
+  strokeDash?: number[];    // Custom dash pattern e.g. [5, 5]
+  markerStart?: 'arrow' | 'circle' | 'none';
+  markerEnd?: 'arrow' | 'circle' | 'none';
 }
 
 export interface CanvasSection {
