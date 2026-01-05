@@ -3,7 +3,7 @@
 ## Summary
 Refines the Studio interface to resolve consistency and safety issues found in design review.
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Header Context
 The Studio header MUST display the human-readable Project Name.

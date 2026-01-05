@@ -9,7 +9,8 @@ import {
   LinearProgress,
   Collapse,
   CircularProgress,
-  Skeleton
+  Skeleton,
+  Tooltip
 } from '@mui/material';
 import {
   DescriptionIcon,
@@ -190,6 +191,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         sx={{
           width: 48,
           height: '100%',
+          flexShrink: 0,
           borderRight: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
@@ -199,9 +201,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
           py: 2
         }}
       >
-        <IconButton onClick={onToggle} size="small">
-          <MenuOpenIcon size={18} style={{ transform: 'rotate(180deg)' }} />
-        </IconButton>
+        <Tooltip title="Expand Sidebar" placement="right">
+          <IconButton onClick={onToggle} size="small">
+            <MenuOpenIcon size={18} style={{ transform: 'rotate(180deg)' }} />
+          </IconButton>
+        </Tooltip>
       </Box>
     );
   }
@@ -210,6 +214,8 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
     <Box
       sx={{
         width,
+        minWidth: width,
+        flexShrink: 0,
         height: '100%',
         borderRight: '1px solid',
         borderColor: 'divider',
@@ -221,9 +227,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       {/* Header */}
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography variant="h6" fontWeight="bold">Resources</Typography>
-        <IconButton onClick={onToggle} size="small">
-          <MenuOpenIcon size={18} />
-        </IconButton>
+        <Tooltip title="Collapse Sidebar" placement="left">
+          <IconButton onClick={onToggle} size="small">
+            <MenuOpenIcon size={18} />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* Content */}

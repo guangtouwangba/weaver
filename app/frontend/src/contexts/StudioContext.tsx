@@ -45,6 +45,7 @@ interface ChatMessage {
 interface StudioContextType {
   // Project
   projectId: string;
+  projectTitle: string | null;
 
   // Documents
   documents: ProjectDocument[];
@@ -188,6 +189,7 @@ export function StudioProvider({
   children: ReactNode;
   projectId: string;
 }) {
+  const [projectTitle, setProjectTitle] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
@@ -800,12 +802,17 @@ export function StudioProvider({
     const loadData = async () => {
       setSessionsLoading(true);
       try {
-        const [docsRes, canvasRes, sessionsRes, outputsRes] = await Promise.all([
+        const [docsRes, canvasRes, sessionsRes, outputsRes, projectRes] = await Promise.all([
           documentsApi.list(projectId),
           canvasApi.get(projectId).catch(() => null), // Handle 404 for new canvas
           chatApi.listSessions(projectId).catch(() => null),
           outputsApi.list(projectId).catch(() => null), // Fetch saved outputs
+          projectsApi.get(projectId).catch(() => null),
         ]);
+
+        if (projectRes) {
+          setProjectTitle(projectRes.name);
+        }
 
         if (docsRes) {
           setDocuments(docsRes.items);
@@ -974,6 +981,7 @@ export function StudioProvider({
 
   const value: StudioContextType = {
     projectId,
+    projectTitle,
     documents,
     setDocuments,
     activeDocumentId,
