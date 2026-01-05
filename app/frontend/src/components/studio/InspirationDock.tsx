@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Box, Paper, Typography, IconButton, Tooltip, CircularProgress } from '@mui/material';
+import { Surface, Stack, Text, IconButton, Tooltip, Spinner } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import { BoltIcon, AccountTreeIcon, AddIcon, MicIcon, DashboardIcon, HelpOutlineIcon, AutoAwesomeIcon, CloseIcon, CheckIcon, ErrorIcon } from '@/components/ui/icons';
 import { useStudio, GenerationType } from '@/contexts/StudioContext';
 import SummaryCard from './SummaryCard';
@@ -145,7 +146,6 @@ export default function InspirationDock() {
     <Tooltip
       title={error ? `Error: ${error}` : isGenerating ? `Generating ${label}...` : `Generate ${label}`}
       placement="top"
-      arrow
     >
       <IconButton
         onClick={onClick}
@@ -153,10 +153,10 @@ export default function InspirationDock() {
         sx={{
           width: 64,
           height: 64,
-          borderRadius: '16px',
-          bgcolor: error ? 'error.light' : isComplete ? `${color}22` : 'grey.50',
+          borderRadius: `${radii.lg}px`,
+          bgcolor: error ? colors.error[50] : isComplete ? `${color}22` : colors.neutral[50],
           border: '1px solid',
-          borderColor: error ? 'error.main' : isGenerating ? color : 'divider',
+          borderColor: error ? colors.error[500] : isGenerating ? color : colors.border.default,
           flexDirection: 'column',
           gap: 0.5,
           transition: 'all 0.2s',
@@ -172,46 +172,45 @@ export default function InspirationDock() {
         }}
       >
         {isGenerating ? (
-          <CircularProgress size={24} sx={{ color }} />
+          <Spinner size="sm" color="primary" />
         ) : error ? (
-          <ErrorIcon size="lg" sx={{ color: '#EF4444' }} />
+          <ErrorIcon size="lg" sx={{ color: colors.error[500] }} />
         ) : isComplete ? (
           <CheckIcon size="lg" sx={{ color: color }} />
         ) : (
           icon
         )}
-        <Typography
+        <Text
           variant="caption"
           sx={{
             fontSize: '0.65rem',
             fontWeight: 600,
-            color: error ? 'error.main' : 'text.secondary'
+            color: error ? colors.error[500] : colors.text.secondary
           }}
         >
           {label}
-        </Typography>
+        </Text>
       </IconButton>
     </Tooltip>
   );
 
   return (
-    <Box
+    <Stack
+      direction="column"
+      align="center"
+      justify="center"
       sx={{
         position: 'absolute',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
         zIndex: 100,
         pointerEvents: 'none' // Allow click-through to canvas, but enable on children
       }}
     >
       {/* Summary Card Overlay */}
       {showSummaryOverlay && summaryResult && (
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <div style={{ pointerEvents: 'auto' }}>
           <SummaryCard
             title={summaryResult.title}
             summary={summaryResult.data.summary}
@@ -227,12 +226,12 @@ export default function InspirationDock() {
               }
             }}
           />
-        </Box>
+        </div>
       )}
 
       {/* Mindmap Card Overlay - Uses unified MindMapCanvasNode with overlay mode */}
       {showMindmapOverlay && mindmapResult && (
-        <Box sx={{ pointerEvents: 'auto' }}>
+        <div style={{ pointerEvents: 'auto' }}>
           <MindMapCanvasNode
             id="overlay-mindmap"
             data={mindmapResult.data}
@@ -243,36 +242,27 @@ export default function InspirationDock() {
             onClose={handleCloseMindmap}
             onDataChange={(data) => setMindmapResult({ ...mindmapResult, data })}
           />
-        </Box>
+        </div>
       )}
 
       {/* Dock UI - Hidden during generation */}
       {!showSummaryOverlay && !showMindmapOverlay && !hasActiveGenerations() && (
-        <Box
+        <div
           className="dock-container"
-          sx={{
+          style={{
             pointerEvents: 'auto',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 3,
-            animation: 'fadeIn 0.5s ease-out',
-            '@keyframes fadeIn': {
-              from: { opacity: 0, transform: 'translateY(20px)' },
-              to: { opacity: 1, transform: 'translateY(0)' }
-            },
-            // Show close button on hover
-            '&:hover .close-dock-btn': {
-              opacity: 1,
-              transform: 'translateY(-50%) translateX(0)'
-            }
+            gap: 24,
           }}
         >
-          <Box sx={{ position: 'relative' }}>
+          <div style={{ position: 'relative' }}>
             {/* Mini App Launcher Popover */}
             {showMoreActions && (
-              <Paper
-                elevation={8}
+              <Surface
+                elevation={4}
+                radius="xl"
                 sx={{
                   position: 'absolute',
                   bottom: '120%', // Appear above the dock
@@ -280,7 +270,6 @@ export default function InspirationDock() {
                   transform: 'translateX(-50%)',
                   width: 340,
                   p: 2,
-                  borderRadius: '24px',
                   bgcolor: 'rgba(255,255,255,0.95)',
                   backdropFilter: 'blur(20px)',
                   border: '1px solid rgba(0,0,0,0.08)',
@@ -301,8 +290,11 @@ export default function InspirationDock() {
                   { id: 'timeline', label: 'Timeline', desc: 'Chronology', icon: <AutoAwesomeIcon size="md" sx={{ color: '#EC4899' }} />, color: '#EC4899', isGenerating: isGeneratingTimeline },
                   { id: 'compare', label: 'Compare', desc: 'Diff analysis', icon: <DashboardIcon size="md" sx={{ color: '#10B981' }} />, color: '#10B981', isGenerating: isGeneratingCompare }
                 ].map((action) => (
-                  <Box
+                  <Stack
                     key={action.id}
+                    direction="row"
+                    align="center"
+                    gap={1}
                     onClick={() => {
                       if (!action.isGenerating) {
                         handleAction(action.id as 'podcast' | 'quiz' | 'timeline' | 'compare');
@@ -311,13 +303,10 @@ export default function InspirationDock() {
                     }}
                     sx={{
                       p: 1.5,
-                      borderRadius: '16px',
+                      borderRadius: `${radii.lg}px`,
                       border: '1px solid transparent',
                       cursor: action.isGenerating ? 'wait' : 'pointer',
                       transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
                       opacity: action.isGenerating ? 0.7 : 1,
                       '&:hover': {
                         bgcolor: action.isGenerating ? 'transparent' : `${action.color}11`,
@@ -327,40 +316,42 @@ export default function InspirationDock() {
                       '&:active': { transform: action.isGenerating ? 'none' : 'scale(0.98)' }
                     }}
                   >
-                    <Box sx={{
-                      p: 1,
-                      borderRadius: '12px',
-                      bgcolor: 'white',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
+                    <div
+                      style={{
+                        padding: 8,
+                        borderRadius: radii.md,
+                        backgroundColor: 'white',
+                        boxShadow: shadows.xs,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       {action.isGenerating ? (
-                        <CircularProgress size={20} sx={{ color: action.color }} />
+                        <Spinner size="xs" color="primary" />
                       ) : (
                         action.icon
                       )}
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary', lineHeight: 1.2 }}>
+                    </div>
+                    <div>
+                      <Text variant="bodySmall" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
                         {action.label}
                         {action.isGenerating && '...'}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                      </Text>
+                      <Text variant="caption" color="secondary" sx={{ fontSize: '0.7rem' }}>
                         {action.isGenerating ? 'Generating' : action.desc}
-                      </Typography>
-                    </Box>
-                  </Box>
+                      </Text>
+                    </div>
+                  </Stack>
                 ))}
-              </Paper>
+              </Surface>
             )}
 
-            <Paper
-              elevation={6}
+            <Surface
+              elevation={3}
+              radius="xl"
               sx={{
                 p: 1.5,
-                borderRadius: '24px', // Capsule shape
                 bgcolor: 'rgba(255,255,255,0.9)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(0,0,0,0.08)',
@@ -371,11 +362,11 @@ export default function InspirationDock() {
               }}
             >
               {documents.length === 0 ? (
-                <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                <Stack direction="row" align="center" gap={1} sx={{ px: 2, py: 1 }}>
+                  <Text variant="bodySmall" color="secondary" sx={{ fontWeight: 500 }}>
                     Upload a document to start
-                  </Typography>
-                </Box>
+                  </Text>
+                </Stack>
               ) : (
                 <>
                   {/* Action 1: Summary */}
@@ -403,17 +394,17 @@ export default function InspirationDock() {
                   )}
 
                   {/* Action 3: More / Close */}
-                  <Tooltip title={showMoreActions ? "Close" : "More Actions"} placement="top" arrow>
+                  <Tooltip title={showMoreActions ? "Close" : "More Actions"} placement="top">
                     <IconButton
                       onClick={() => setShowMoreActions(!showMoreActions)}
                       sx={{
                         width: 64,
                         height: 64,
-                        borderRadius: '16px',
+                        borderRadius: `${radii.lg}px`,
                         border: '1px dashed',
-                        borderColor: showMoreActions ? projectColor : 'divider',
+                        borderColor: showMoreActions ? projectColor : colors.border.default,
                         bgcolor: showMoreActions ? `${projectColor}11` : 'transparent',
-                        color: showMoreActions ? projectColor : 'text.secondary',
+                        color: showMoreActions ? projectColor : colors.text.secondary,
                         transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         transform: showMoreActions ? 'rotate(45deg)' : 'rotate(0deg)',
                         '&:hover': {
@@ -428,14 +419,14 @@ export default function InspirationDock() {
                   </Tooltip>
                 </>
               )}
-            </Paper>
+            </Surface>
 
             {/* Close Dock Button - Outside the main paper */}
             {documents.length > 0 && (
-              <Tooltip title="Close Dock" placement="right" arrow>
+              <Tooltip title="Close Dock" placement="right">
                 <IconButton
                   onClick={() => setInspirationDockVisible(false)}
-                  size="small"
+                  size="sm"
                   className="close-dock-btn"
                   sx={{
                     position: 'absolute',
@@ -446,16 +437,15 @@ export default function InspirationDock() {
                     height: 32,
                     bgcolor: 'rgba(255,255,255,0.9)',
                     backdropFilter: 'blur(10px)',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    color: 'text.secondary',
+                    border: `1px solid ${colors.border.default}`,
+                    color: colors.text.secondary,
                     opacity: 0,
                     transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                    boxShadow: shadows.sm,
                     '&:hover': {
                       bgcolor: 'white',
-                      color: 'error.main',
-                      borderColor: 'error.light',
+                      color: colors.error[500],
+                      borderColor: colors.error[200],
                       transform: 'translateY(-50%) scale(1.1) !important'
                     }
                   }}
@@ -464,9 +454,23 @@ export default function InspirationDock() {
                 </IconButton>
               </Tooltip>
             )}
-          </Box>
-        </Box>
+          </div>
+
+          <style>{`
+            .dock-container:hover .close-dock-btn {
+              opacity: 1;
+              transform: translateY(-50%) translateX(0);
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; transform: translateY(20px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            .dock-container {
+              animation: fadeIn 0.5s ease-out;
+            }
+          `}</style>
+        </div>
       )}
-    </Box>
+    </Stack>
   );
 }

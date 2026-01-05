@@ -254,7 +254,7 @@ export default function SummaryCard({
                   <AutoAwesomeIcon size="md" sx={{ fill: 'currentColor' }} />
                 </div>
                 <div>
-                  <Text variant="heading" size="sm">{title}</Text>
+                  <Text variant="h6">{title}</Text>
                   <Text variant="caption" color="secondary">
                     AI Generated Summary
                   </Text>

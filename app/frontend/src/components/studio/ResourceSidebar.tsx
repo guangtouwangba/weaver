@@ -217,7 +217,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
           borderBottom: `1px solid ${colors.border.default}`,
         }}
       >
-        <Text variant="heading" size="sm">Resources</Text>
+        <Text variant="h6">Resources</Text>
         <Tooltip title="Collapse Sidebar" placement="left">
           <IconButton size="sm" onClick={onToggle}>
             <MenuOpenIcon size={18} />

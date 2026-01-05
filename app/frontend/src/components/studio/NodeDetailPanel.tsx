@@ -247,8 +247,7 @@ export default function NodeDetailPanel({
             />
           ) : (
             <Text
-              variant="heading"
-              size="sm"
+              variant="h6"
               sx={{
                 lineHeight: 1.3,
                 mt: 0.5,
