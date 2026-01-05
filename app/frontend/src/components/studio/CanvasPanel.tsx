@@ -1,17 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { Chip } from "@mui/material";
 import {
-  Box,
-  Typography,
-  Paper,
-  Chip,
-  CircularProgress
-} from "@mui/material";
+  Stack,
+  Surface,
+  Text,
+  Spinner,
+} from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   DashboardIcon,
-  DescriptionIcon,
-  LinkIcon,
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
@@ -195,33 +194,53 @@ export default function CanvasPanel() {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-      <Box sx={{ height: 48, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', px: 3, justifyContent: 'space-between', bgcolor: '#FAFAFA', flexShrink: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <DashboardIcon size={14} sx={{ color: 'grey.500' }} />
-          <Typography variant="subtitle2" fontWeight="600">Canvas</Typography>
+    <Stack
+      direction="column"
+      sx={{
+        flexGrow: 1,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      {/* Header */}
+      <Stack
+        direction="row"
+        align="center"
+        justify="between"
+        sx={{
+          height: 48,
+          borderBottom: `1px solid ${colors.border.default}`,
+          px: 3,
+          bgcolor: colors.background.subtle,
+          flexShrink: 0,
+        }}
+      >
+        <Stack direction="row" align="center" gap={1}>
+          <DashboardIcon size={14} sx={{ color: colors.neutral[500] }} />
+          <Text variant="label">Canvas</Text>
           {isGenerating && (
             <Chip
               size="small"
-              icon={<CircularProgress size={12} />}
+              icon={<Spinner size="xs" color="primary" />}
               label="Generating..."
               sx={{ ml: 2, height: 24, fontSize: '0.75rem' }}
             />
           )}
-        </Box>
-        <Typography variant="caption" color="text.disabled">Auto-saved</Typography>
-      </Box>
+        </Stack>
+        <Text variant="caption" color="disabled">Auto-saved</Text>
+      </Stack>
 
-      <Box
+      {/* Canvas Area */}
+      <div
         ref={canvasRef}
-        sx={{
+        style={{
           flexGrow: 1,
-          bgcolor: '#FAFAFA',
+          backgroundColor: colors.background.subtle,
           position: 'relative',
           overflow: 'hidden',
           cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default',
           touchAction: 'none',
-          userSelect: 'none'
+          userSelect: 'none',
         }}
         onMouseDown={(e) => {
           if (isSpacePressed || e.button === 1) {
@@ -279,20 +298,28 @@ export default function CanvasPanel() {
         onDrop={handleDrop}
       >
         {/* Grid Background */}
-        <Box
-          sx={{
+        <div
+          style={{
             position: 'absolute',
             inset: 0,
             opacity: 0.5,
             backgroundImage: 'radial-gradient(#D1D5DB 1px, transparent 1px)',
             backgroundSize: `${20 * viewport.scale}px ${20 * viewport.scale}px`,
             backgroundPosition: `${viewport.x}px ${viewport.y}px`,
-            pointerEvents: 'none'
+            pointerEvents: 'none',
           }}
         />
 
         {/* Canvas Content */}
-        <Box sx={{ transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`, transformOrigin: '0 0', position: 'absolute', top: 0, left: 0 }}>
+        <div
+          style={{
+            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
+            transformOrigin: '0 0',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+        >
           {/* SVG Connections */}
           <svg style={{ position: 'absolute', top: 0, left: 0, width: 10000, height: 10000, overflow: 'visible', pointerEvents: 'visiblePainted' }}>
             <rect width="10000" height="10000" fill="transparent" style={{ pointerEvents: 'none' }} />
@@ -301,7 +328,7 @@ export default function CanvasPanel() {
               const target = canvasNodes.find(n => n.id === edge.target);
               if (!source || !target) return null;
 
-              const x1 = source.x + 280, y1 = source.y + 60; // Simplified anchor points
+              const x1 = source.x + 280, y1 = source.y + 60;
               const x2 = target.x, y2 = target.y + 60;
               const ctrl = Math.max(Math.abs(x2 - x1) * 0.4, 50);
               const isSelected = selectedConnectionId === edge.id;
@@ -316,7 +343,7 @@ export default function CanvasPanel() {
                   />
                   <path
                     d={`M ${x1} ${y1} C ${x1 + ctrl} ${y1}, ${x2 - ctrl} ${y2}, ${x2} ${y2}`}
-                    stroke={isSelected ? "#EF4444" : "#94A3B8"}
+                    stroke={isSelected ? colors.error[500] : colors.neutral[400]}
                     strokeWidth={isSelected ? 3 : 2}
                     fill="none"
                     style={{ pointerEvents: 'none' }}
@@ -331,33 +358,29 @@ export default function CanvasPanel() {
               if (!src) return null;
               const x1 = src.x + 280, y1 = src.y + 50;
               const ctrl = Math.max(Math.abs(tempLineEnd.x - x1) * 0.5, 50);
-              return <path d={`M ${x1} ${y1} C ${x1 + ctrl} ${y1}, ${tempLineEnd.x - ctrl} ${tempLineEnd.y}, ${tempLineEnd.x} ${tempLineEnd.y}`} stroke="#3B82F6" strokeWidth="2" fill="none" strokeDasharray="5,5" />;
+              return <path d={`M ${x1} ${y1} C ${x1 + ctrl} ${y1}, ${tempLineEnd.x - ctrl} ${tempLineEnd.y}, ${tempLineEnd.x} ${tempLineEnd.y}`} stroke={colors.primary[500]} strokeWidth="2" fill="none" strokeDasharray="5,5" />;
             })()}
           </svg>
 
           {/* Nodes */}
           {canvasNodes.map(node => (
-            <Paper
+            <Surface
               key={node.id}
-              elevation={selectedNodeId === node.id ? 8 : 2}
+              elevation={selectedNodeId === node.id ? 4 : 2}
+              radius="lg"
               draggable
-              onDragStart={(e) => {
-                // Set data for dragging to chat input
+              onDragStart={(e: React.DragEvent) => {
                 const payload = {
                   type: 'canvas_node',
                   id: node.id,
                   title: node.title,
                   content: node.content,
-                  sourceMessageId: (node as any).messageIds?.[0] || null // Assuming messageIds might exist on node in future
+                  sourceMessageId: (node as any).messageIds?.[0] || null
                 };
                 e.dataTransfer.setData('application/json', JSON.stringify(payload));
                 e.dataTransfer.effectAllowed = 'copy';
-
-                // Prevent interfering with internal canvas dragging if needed
-                // But for native drag & drop to another component, we need this event
-                // We'll let the internal onMouseDown handle the internal dragging
               }}
-              onMouseDown={(e) => {
+              onMouseDown={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 if (!(e.target as HTMLElement).closest('.conn-handle')) {
                   setDraggingNodeId(node.id);
@@ -367,10 +390,9 @@ export default function CanvasPanel() {
                   dragStartPos.current = { x: e.clientX, y: e.clientY };
                 }
               }}
-              onMouseUp={(e) => {
+              onMouseUp={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 if (connectingNodeId && connectingNodeId !== node.id) {
-                  // Create new edge
                   const newEdge = { source: connectingNodeId, target: node.id, id: `e-${crypto.randomUUID()}` };
                   setCanvasEdges(prev => [...prev, newEdge]);
                 }
@@ -386,50 +408,81 @@ export default function CanvasPanel() {
                 top: node.y,
                 left: node.x,
                 width: 280,
-                borderRadius: 3,
                 border: '2px solid',
-                borderColor: connectingNodeId && connectingNodeId !== node.id ? '#10B981' : (selectedNodeId === node.id ? 'primary.main' : (node.color === 'blue' ? '#3B82F6' : 'transparent')),
+                borderColor: connectingNodeId && connectingNodeId !== node.id
+                  ? colors.success[500]
+                  : (selectedNodeId === node.id
+                    ? colors.primary[500]
+                    : (node.color === 'blue' ? colors.primary[500] : 'transparent')),
                 overflow: 'visible',
                 cursor: 'grab',
-                '&:hover': { boxShadow: 4 }
+                '&:hover': { boxShadow: shadows.lg }
               }}
             >
               {/* Connection Handle */}
-              <Box
+              <div
                 className="conn-handle"
                 onMouseDown={(e) => { e.stopPropagation(); setConnectingNodeId(node.id); }}
-                sx={{
-                  position: 'absolute', right: -6, top: '50%', transform: 'translateY(-50%)',
-                  width: 12, height: 12, borderRadius: '50%', bgcolor: '#3B82F6', border: '2px solid white',
-                  cursor: 'crosshair', opacity: hoveredNodeId === node.id || connectingNodeId === node.id ? 1 : 0,
-                  transition: 'opacity 0.2s', zIndex: 10
+                style={{
+                  position: 'absolute',
+                  right: -6,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  backgroundColor: colors.primary[500],
+                  border: '2px solid white',
+                  cursor: 'crosshair',
+                  opacity: hoveredNodeId === node.id || connectingNodeId === node.id ? 1 : 0,
+                  transition: 'opacity 0.2s',
+                  zIndex: 10,
                 }}
               />
 
               {/* Receiving Handle */}
               {connectingNodeId && connectingNodeId !== node.id && (
-                <Box sx={{ position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', bgcolor: '#10B981', border: '2px solid white', zIndex: 10 }} />
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: -6,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 12,
+                    height: 12,
+                    borderRadius: '50%',
+                    backgroundColor: colors.success[500],
+                    border: '2px solid white',
+                    zIndex: 10,
+                  }}
+                />
               )}
 
               {/* Card Content */}
-              <Box sx={{ overflow: 'hidden', borderRadius: 2 }}>
-                <Box sx={{ height: 4, bgcolor: node.color === 'blue' ? '#3B82F6' : '#E5E7EB' }} />
-                <Box sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>{node.title}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5, mb: 1.5 }}>{node.content}</Typography>
+              <div style={{ overflow: 'hidden', borderRadius: radii.md }}>
+                <div
+                  style={{
+                    height: 4,
+                    backgroundColor: node.color === 'blue' ? colors.primary[500] : colors.neutral[200],
+                  }}
+                />
+                <div style={{ padding: 16 }}>
+                  <Text variant="label" sx={{ mb: 0.5 }}>{node.title}</Text>
+                  <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.5, mb: 1.5 }}>{node.content}</Text>
                   {node.tags && (
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                      {node.tags.map(tag => <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: 10, bgcolor: '#F3F4F6' }} />)}
-                    </Box>
+                    <Stack direction="row" gap={0} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                      {node.tags.map(tag => (
+                        <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: 10, bgcolor: colors.neutral[100] }} />
+                      ))}
+                    </Stack>
                   )}
-                </Box>
-              </Box>
-            </Paper>
+                </div>
+              </div>
+            </Surface>
           ))}
-        </Box>
-      </Box>
+        </div>
+      </div>
       <ThinkingPathGenerator />
-    </Box>
+    </Stack>
   );
 }
-

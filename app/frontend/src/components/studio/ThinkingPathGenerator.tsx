@@ -13,18 +13,21 @@
  */
 
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { Box, Chip, IconButton, Tooltip, CircularProgress, SxProps, Theme } from '@mui/material';
-import { PsychologyIcon, RefreshIcon, LinkIcon, CloseIcon, DashboardIcon, DeleteIcon, LocalParkingIcon } from '@/components/ui/icons';
+import { Chip } from '@mui/material';
+import { Stack, IconButton, Tooltip, Spinner } from '@/components/ui';
+import { colors } from '@/components/ui/tokens';
+import { PsychologyIcon, RefreshIcon, LinkIcon, DashboardIcon, DeleteIcon, LocalParkingIcon } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import useCanvasWebSocket from '@/hooks/useCanvasWebSocket';
 import { CanvasNode, CanvasEdge, CanvasSection, thinkingPathApi } from '@/lib/api';
-import { 
-  layoutThinkingPath, 
+import {
+  layoutThinkingPath,
   PARKING_SECTION_CONFIG,
   createParkingSection,
   layoutParkingNodes,
   ParkingSection,
 } from '@/lib/layout';
+import type { SxProps, Theme } from '@mui/material';
 
 interface ThinkingPathGeneratorProps {
   onStatusChange?: (status: 'idle' | 'analyzing' | 'error') => void;
@@ -66,14 +69,14 @@ export default function ThinkingPathGenerator({
   // Track parked nodes (nodes with 'parks' relation type edges)
   const parkedNodeIds = useMemo(() => {
     const parkedIds = new Set<string>();
-    
+
     // Find all nodes that are targets of 'parks' relation edges
     canvasEdges.forEach(edge => {
       if (edge.relationType === 'parks') {
         parkedIds.add(edge.target);
       }
     });
-    
+
     return Array.from(parkedIds);
   }, [canvasEdges]);
 
@@ -82,12 +85,12 @@ export default function ThinkingPathGenerator({
     if (parkedNodeIds.length > 0) {
       const section = createParkingSection(parkingSection, parkedNodeIds);
       setParkingSection(section);
-      
+
       // Layout parked nodes within the section
       const parkedNodes = canvasNodes.filter(n => parkedNodeIds.includes(n.id));
       if (parkedNodes.length > 0) {
         const layoutedParked = layoutParkingNodes(parkedNodes, section);
-        setCanvasNodes(prev => 
+        setCanvasNodes(prev =>
           prev.map(node => {
             const updated = layoutedParked.find(p => p.id === node.id);
             return updated || node;
@@ -109,7 +112,7 @@ export default function ThinkingPathGenerator({
       relationType: 'parks',
       label: '暂存',
     };
-    
+
     setCanvasEdges(prev => [...prev, parkingEdge]);
     console.log('[ThinkingPath] Node parked:', nodeId);
   }, [setCanvasEdges]);
@@ -126,7 +129,7 @@ export default function ThinkingPathGenerator({
   const handleNodeAdded = useCallback(
     (nodeId: string, nodeData: Partial<CanvasNode>, messageIds?: string[]) => {
       console.log('[ThinkingPath] Node added:', nodeId, messageIds);
-      
+
       // Remove pending node if exists
       if (messageIds?.length) {
         setPendingNodes((prev) => {
@@ -169,7 +172,7 @@ export default function ThinkingPathGenerator({
   const handleNodeUpdated = useCallback(
     (nodeId: string, nodeData: Partial<CanvasNode>) => {
       console.log('[ThinkingPath] Node updated:', nodeId);
-      
+
       setCanvasNodes((prev) =>
         prev.map((node) =>
           node.id === nodeId
@@ -185,7 +188,7 @@ export default function ThinkingPathGenerator({
   const handleNodeDeleted = useCallback(
     (nodeId: string) => {
       console.log('[ThinkingPath] Node deleted:', nodeId);
-      
+
       setCanvasNodes((prev) => prev.filter((node) => node.id !== nodeId));
       setCanvasEdges((prev) =>
         prev.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
@@ -198,16 +201,16 @@ export default function ThinkingPathGenerator({
   const handleEdgeAdded = useCallback(
     (edgeId: string, sourceId: string, targetId: string, edgeData?: Partial<CanvasEdge>) => {
       console.log('[ThinkingPath] Edge added:', edgeId, edgeData?.relationType);
-      
+
       setCanvasEdges((prev) => {
         // Check if edge already exists
         if (prev.some((e) => e.id === edgeId)) {
           return prev;
         }
         // Include full edge data with relationType and label
-        return [...prev, { 
-          id: edgeId, 
-          source: sourceId, 
+        return [...prev, {
+          id: edgeId,
+          source: sourceId,
           target: targetId,
           ...edgeData,  // Include relationType, label, direction, etc.
         }];
@@ -222,7 +225,7 @@ export default function ThinkingPathGenerator({
       console.log('[ThinkingPath] Analyzing:', messageId);
       setIsAnalyzing(true);
       onStatusChange?.('analyzing');
-      
+
       // Add to pending nodes with analyzing status
       setPendingNodes((prev) => {
         const next = new Map(prev);
@@ -248,7 +251,7 @@ export default function ThinkingPathGenerator({
       console.log('[ThinkingPath] Analyzed:', messageId, nodes.length, 'nodes');
       setIsAnalyzing(false);
       onStatusChange?.('idle');
-      
+
       // Remove pending node
       setPendingNodes((prev) => {
         const next = new Map(prev);
@@ -304,7 +307,7 @@ export default function ThinkingPathGenerator({
       console.error('[ThinkingPath] Error:', messageId, error);
       setIsAnalyzing(false);
       onStatusChange?.('error');
-      
+
       // Update pending node with error status
       setPendingNodes((prev) => {
         const next = new Map(prev);
@@ -326,13 +329,13 @@ export default function ThinkingPathGenerator({
   const handleBatchUpdate = useCallback(
     (nodes: CanvasNode[], edges: CanvasEdge[], sections?: CanvasSection[]) => {
       console.log('[ThinkingPath] Batch update:', nodes.length, 'nodes');
-      
+
       // Replace thinking path nodes
       setCanvasNodes((prev) => {
         const nonThinkingNodes = prev.filter(
           (n) => n.viewType !== 'thinking' && !n.tags?.includes('#thinking-path')
         );
-        
+
         // Run auto-layout
         const layoutedNodes = layoutThinkingPath(nodes, edges);
         return [...nonThinkingNodes, ...layoutedNodes];
@@ -379,10 +382,10 @@ export default function ThinkingPathGenerator({
     try {
       setIsAnalyzing(true);
       onStatusChange?.('analyzing');
-      
+
       const result = await thinkingPathApi.analyze(projectId);
       console.log('[ThinkingPath] Manual analysis result:', result);
-      
+
       if (result.error) {
         console.error('[ThinkingPath] Analysis error:', result.error);
         onStatusChange?.('error');
@@ -398,7 +401,7 @@ export default function ThinkingPathGenerator({
   }, [projectId, isAnalyzing, onStatusChange]);
 
   // Connection status indicator (optional, for debugging)
-  const getStatusColor = () => {
+  const getStatusColor = (): 'success' | 'warning' | 'error' | 'default' => {
     switch (connectionStatus) {
       case 'connected':
         return 'success';
@@ -417,14 +420,14 @@ export default function ThinkingPathGenerator({
   }
 
   return (
-    <Box
+    <Stack
+      direction="row"
+      align="center"
+      gap={1}
       sx={{
         position: 'absolute',
         bottom: 16,
         right: 16,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
         zIndex: 1000,
         ...sx,
       }}
@@ -443,7 +446,7 @@ export default function ThinkingPathGenerator({
 
       {/* Analyzing indicator */}
       {isAnalyzing && (
-        <CircularProgress size={16} sx={{ ml: 1 }} />
+        <Spinner size="xs" color="primary" />
       )}
 
       {/* Pending nodes count */}
@@ -461,7 +464,7 @@ export default function ThinkingPathGenerator({
         <Tooltip title={`${parkedNodeIds.length} node(s) in Parking`}>
           <Chip
             size="small"
-            icon={<ParkingCircle size={12} />}
+            icon={<LocalParkingIcon size={12} />}
             label={`${parkedNodeIds.length} parked`}
             color="default"
             variant="outlined"
@@ -473,7 +476,7 @@ export default function ThinkingPathGenerator({
       {/* Reconnect button (if disconnected) */}
       {connectionStatus === 'disconnected' && (
         <Tooltip title="Reconnect WebSocket">
-          <IconButton size="small" onClick={reconnect}>
+          <IconButton size="sm" onClick={reconnect}>
             <RefreshIcon size="sm" />
           </IconButton>
         </Tooltip>
@@ -482,7 +485,7 @@ export default function ThinkingPathGenerator({
       {/* Manual analysis trigger */}
       <Tooltip title="Analyze conversation">
         <IconButton
-          size="small"
+          size="sm"
           onClick={triggerAnalysis}
           disabled={isAnalyzing}
         >
@@ -493,7 +496,7 @@ export default function ThinkingPathGenerator({
       {/* Re-layout trigger */}
       <Tooltip title="Re-organize Layout">
         <IconButton
-          size="small"
+          size="sm"
           onClick={() => {
             setCanvasNodes((prev) => {
               const thinkingNodes = prev.filter(
@@ -502,7 +505,7 @@ export default function ThinkingPathGenerator({
               const otherNodes = prev.filter(
                 (n) => n.viewType !== 'thinking' && !n.tags?.includes('#thinking-path')
               );
-              
+
               if (thinkingNodes.length > 0) {
                 const layoutedNodes = layoutThinkingPath(thinkingNodes, canvasEdges);
                 return [...otherNodes, ...layoutedNodes];
@@ -518,12 +521,12 @@ export default function ThinkingPathGenerator({
       {/* Clear Canvas button */}
       <Tooltip title={`Clear ${currentView === 'thinking' ? 'Thinking Path' : 'Free Canvas'}`}>
         <IconButton
-          size="small"
+          size="sm"
           onClick={async () => {
             // Capture current view at click time to handle tab switching edge case
             const viewToClear = currentView;
             const viewName = viewToClear === 'thinking' ? 'Thinking Path' : 'Free Canvas';
-            
+
             const confirmed = window.confirm(
               `Are you sure you want to clear all nodes from the ${viewName}? This action cannot be undone.`
             );
@@ -535,11 +538,11 @@ export default function ThinkingPathGenerator({
               }
             }
           }}
-          sx={{ color: 'error.main' }}
+          sx={{ color: colors.error[500] }}
         >
           <DeleteIcon size="sm" />
         </IconButton>
       </Tooltip>
-    </Box>
+    </Stack>
   );
 }

@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
-import { Paper, Box, Typography, Stack, IconButton, Divider } from '@mui/material';
+import { Surface, Stack, Text, IconButton } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
     AutoAwesomeIcon,
     LinkIcon,
@@ -24,14 +27,14 @@ export default function SynthesisModeMenu({
 }: SynthesisModeMenuProps) {
 
     // Calculate menu position - if position provided, use it; otherwise center
-    const menuStyle = position ? {
-        position: 'absolute' as const,
+    const menuStyle: React.CSSProperties = position ? {
+        position: 'absolute',
         left: position.x,
         top: position.y,
         transform: 'translate(-50%, -100%)', // Position above and centered on the point
         zIndex: 2000,
     } : {
-        position: 'absolute' as const,
+        position: 'absolute',
         top: '20%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
@@ -40,32 +43,32 @@ export default function SynthesisModeMenu({
 
     if (isSynthesizing) {
         return (
-            <Paper
-                elevation={4}
+            <Surface
+                elevation={3}
+                radius="lg"
                 sx={{
                     ...menuStyle,
                     p: 3,
-                    borderRadius: 3,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: 2,
                 }}
             >
-                <Typography variant="subtitle1" fontWeight={600} color="#8B5CF6">
+                <Text variant="label" sx={{ color: '#8B5CF6' }}>
                     Synthesizing...
-                </Typography>
-            </Paper>
+                </Text>
+            </Surface>
         );
     }
 
     return (
-        <Paper
-            elevation={4}
+        <Surface
+            elevation={3}
+            radius="lg"
             sx={{
                 ...menuStyle,
                 p: 0,
-                borderRadius: 3,
                 overflow: 'hidden',
                 minWidth: 320,
                 animation: 'popIn 0.2s ease-out',
@@ -76,43 +79,52 @@ export default function SynthesisModeMenu({
             }}
         >
             {/* Header */}
-            <Box sx={{ p: 2, bgcolor: '#F9FAFB', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Stack
+                direction="row"
+                justify="between"
+                align="center"
+                sx={{
+                    p: 2,
+                    bgcolor: colors.background.subtle,
+                    borderBottom: `1px solid ${colors.border.default}`,
+                }}
+            >
+                <Stack direction="row" align="center" gap={1}>
                     <AutoAwesomeIcon size="sm" color="warning" />
-                    <Typography variant="subtitle2" fontWeight={600}>
+                    <Text variant="label">
                         Merge with AI
-                    </Typography>
-                </Box>
-                <IconButton size="small" onClick={onCancel}>
+                    </Text>
+                </Stack>
+                <IconButton size="sm" variant="ghost" onClick={onCancel}>
                     <CloseIcon size="xs" />
                 </IconButton>
-            </Box>
+            </Stack>
 
             {/* Options */}
-            <Stack spacing={0} sx={{ p: 1 }}>
+            <Stack gap={0} sx={{ p: 1 }}>
                 <ModeOption
                     icon={<LinkIcon size="md" color="primary" />}
                     title="Connect"
                     description="Find hidden links and commonalities"
                     onClick={() => onSelect('connect')}
-                    color="#EFF6FF"
+                    color={colors.primary[50]}
                 />
                 <ModeOption
                     icon={<AutoAwesomeIcon size="md" color="warning" />}
                     title="Inspire"
                     description="Reframe A with B's perspective"
                     onClick={() => onSelect('inspire')}
-                    color="#FFFBEB"
+                    color={colors.warning[50]}
                 />
                 <ModeOption
                     icon={<BoltIcon size="md" color="error" />}
                     title="Debate"
                     description="Identify conflicts and trade-offs"
                     onClick={() => onSelect('debate')}
-                    color="#FEF2F2"
+                    color={colors.error[50]}
                 />
             </Stack>
-        </Paper>
+        </Surface>
     );
 }
 
@@ -130,14 +142,14 @@ function ModeOption({
     color: string
 }) {
     return (
-        <Box
+        <Stack
+            direction="row"
+            align="center"
+            gap={2}
             onClick={onClick}
             sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
                 p: 2,
-                borderRadius: 2,
+                borderRadius: `${radii.md}px`,
                 cursor: 'pointer',
                 transition: 'all 0.1s',
                 '&:hover': {
@@ -146,27 +158,29 @@ function ModeOption({
                 },
             }}
         >
-            <Box sx={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                bgcolor: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                border: '1px solid #F3F4F6'
-            }}>
+            <div
+                style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    backgroundColor: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: shadows.xs,
+                    border: `1px solid ${colors.neutral[100]}`,
+                }}
+            >
                 {icon}
-            </Box>
-            <Box>
-                <Typography variant="subtitle2" fontWeight={600} color="#1F2937">
+            </div>
+            <div>
+                <Text variant="label" sx={{ color: colors.text.primary }}>
                     {title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
+                </Text>
+                <Text variant="caption" color="secondary">
                     {description}
-                </Typography>
-            </Box>
-        </Box>
+                </Text>
+            </div>
+        </Stack>
     );
 }
