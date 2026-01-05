@@ -11,13 +11,13 @@ function getApiBaseUrl(): string {
   if (_cachedApiUrl) {
     return _cachedApiUrl;
   }
-  
+
   // For browser environments, detect based on current page URL first
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol; // 'https:' or 'http:'
     console.log('[API] Detecting API URL for hostname:', hostname, 'protocol:', protocol);
-    
+
     // If running on Zeabur public domain, auto-detect the API URL
     if (hostname.includes('zeabur.app')) {
       // Replace 'web' or 'frontend' with 'api' in the hostname
@@ -32,7 +32,7 @@ function getApiBaseUrl(): string {
       return _cachedApiUrl;
     }
   }
-  
+
   // Check build-time env var (Next.js replaces this at build time)
   // Skip internal URLs that would cause mixed content issues
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -47,20 +47,20 @@ function getApiBaseUrl(): string {
     console.log('[API] Using env URL:', _cachedApiUrl);
     return _cachedApiUrl;
   }
-  
+
   // Check runtime window config (can be injected via script tag)
   if (typeof window !== 'undefined' && (window as any).__API_URL__) {
     _cachedApiUrl = (window as any).__API_URL__;
     console.log('[API] Using window config URL:', _cachedApiUrl);
     return _cachedApiUrl;
   }
-  
+
   // Default to localhost for development (only on client-side)
   // On server-side (SSR), return empty string to avoid issues
   if (typeof window === 'undefined') {
     return ''; // SSR - will be replaced on client
   }
-  
+
   _cachedApiUrl = 'http://localhost:8000';
   console.log('[API] Using default localhost URL');
   return _cachedApiUrl;
@@ -99,7 +99,7 @@ async function fetchApi<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${getApiUrl()}${endpoint}`;
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -147,6 +147,15 @@ export const canvasApi = {
         body: JSON.stringify({ node1_id: nodeId1, node2_id: nodeId2 }),
       }
     ),
+
+  synthesizeNodes: (projectId: string, outputId: string, nodeIds: string[]) =>
+    fetchApi<{ task_id: string }>(
+      `/api/v1/projects/${projectId}/outputs/${outputId}/synthesize`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ node_ids: nodeIds }),
+      }
+    ),
 };
 
 // Curriculum Types
@@ -168,11 +177,11 @@ export interface Curriculum {
 }
 
 export const curriculumApi = {
-  generate: (projectId: string) => 
+  generate: (projectId: string) =>
     fetchApi<Curriculum>(`/api/v1/projects/${projectId}/curriculum/generate`, {
       method: 'POST'
     }),
-    
+
   save: (projectId: string, steps: CurriculumStep[]) =>
     fetchApi<Curriculum>(`/api/v1/projects/${projectId}/curriculum`, {
       method: 'PUT',

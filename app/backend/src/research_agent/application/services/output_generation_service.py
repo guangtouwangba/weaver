@@ -104,6 +104,17 @@ class OutputGenerationService:
         Returns:
             Dict with task_id and output_id
         """
+        # Validate document_ids is not empty, except for 'custom' type with node_data
+        # Custom type can work with canvas node_data instead of documents
+        is_custom_with_node_data = (
+            output_type == "custom" and
+            options and
+            (options.get("node_data") or options.get("mode"))
+        )
+        
+        if not document_ids and not is_custom_with_node_data:
+            raise ValueError("At least one document ID is required for output generation")
+
         task_id = str(uuid4())
         output_id = uuid4()
         project_id_str = str(project_id)
@@ -195,13 +206,37 @@ class OutputGenerationService:
                 from research_agent.infrastructure.database.session import get_async_session
 
                 async with get_async_session() as session:
-                    document_content = await self._load_document_content(document_ids, session)
-
-                    if not document_content:
-                        raise ValueError("No document content available")
-
                     # Branch based on output type
                     output_type = task_info.output_type
+                    
+                    # For 'custom' type with node_data, skip document loading
+                    is_custom_with_node_data = (
+                        output_type == "custom" and
+                        options and
+                        (options.get("node_data") or options.get("mode"))
+                    )
+                    
+                    if is_custom_with_node_data:
+                        # Use node_data from options instead of documents
+                        node_data = options.get("node_data", [])
+                        if not node_data:
+                            raise ValueError("node_data is required for custom output type without documents")
+                        
+                        # Convert node_data to document_content format for compatibility
+                        document_content = "\n\n---\n\n".join([
+                            f"# {nd.get('title', 'Node')}\n\n{nd.get('content', '')}"
+                            for nd in node_data
+                            if nd.get("content") or nd.get("title")
+                        ])
+                        
+                        if not document_content:
+                            raise ValueError("No valid node content available in node_data")
+                    else:
+                        # Load document content normally
+                        document_content = await self._load_document_content(document_ids, session)
+
+                        if not document_content:
+                            raise ValueError("No document content available")
 
                     if output_type == "summary":
                         # Summary generation
@@ -222,6 +257,18 @@ class OutputGenerationService:
                             output_id=output_id,
                             document_content=document_content,
                             title=title,
+                            llm_service=llm_service,
+                            session=session,
+                        )
+                    elif output_type == "custom" and options.get("mode"):
+                        # Custom type with mode = synthesis
+                        await self._run_custom_synthesis_generation(
+                            task_id=task_id,
+                            project_id=project_id,
+                            output_id=output_id,
+                            document_content=document_content,
+                            title=title,
+                            options=options,
                             llm_service=llm_service,
                             session=session,
                         )
@@ -343,6 +390,78 @@ class OutputGenerationService:
 
         logger.info(
             f"[OutputService] Mindmap task complete: {task_id}, " f"nodes={len(mindmap_data.nodes)}"
+        )
+
+    async def _run_custom_synthesis_generation(
+        self,
+        task_id: str,
+        project_id: str,
+        output_id: UUID,
+        document_content: str,
+        title: Optional[str],
+        options: Dict[str, Any],
+        llm_service: OpenRouterLLMService,
+        session: AsyncSession,
+    ) -> None:
+        """Run custom synthesis generation from canvas nodes."""
+        from research_agent.domain.agents.synthesis_agent import SynthesisAgent
+
+        mode = options.get("mode", "connect")
+        node_data = options.get("node_data", [])
+        
+        # Extract content from node_data (document_content is already formatted from node_data)
+        # Split by "---" separator to get individual node contents
+        node_contents = [content.strip() for content in document_content.split("\n\n---\n\n") if content.strip()]
+        
+        if len(node_contents) < 2:
+            raise ValueError("At least 2 nodes required for synthesis")
+
+        # Create agent
+        agent = SynthesisAgent(llm_service=llm_service)
+
+        # Initialize mindmap data for storing result
+        mindmap_data = MindmapData()
+
+        # Run synthesis and stream events
+        async for event in agent.synthesize(
+            input_contents=node_contents,
+            source_ids=[nd.get("id", "") for nd in node_data if nd.get("id")],
+            mode=mode,
+        ):
+            # Check if task was cancelled
+            if task_id not in self._active_tasks:
+                logger.info(f"[OutputService] Task cancelled: {task_id}")
+                return
+
+            # Stream event to clients
+            await output_notification_service.notify_event(
+                project_id=project_id,
+                task_id=task_id,
+                event=event,
+            )
+
+            # Collect data for storage
+            if event.type == OutputEventType.NODE_ADDED and event.node_data:
+                node = MindmapNode.from_dict(event.node_data)
+                mindmap_data.add_node(node)
+
+        # Save final result
+        output_repo = SQLAlchemyOutputRepository(session)
+        output = await output_repo.find_by_id(output_id)
+        if output:
+            output.mark_complete(mindmap_data.to_dict())
+            await output_repo.update(output)
+
+        # Notify completion
+        await output_notification_service.notify_generation_complete(
+            project_id=project_id,
+            task_id=task_id,
+            output_id=str(output_id),
+            message=f"Synthesis complete with {len(mindmap_data.nodes)} nodes",
+        )
+
+        logger.info(
+            f"[OutputService] Custom synthesis task complete: {task_id}, nodes={len(mindmap_data.nodes)}"
         )
 
     async def _run_summary_generation(

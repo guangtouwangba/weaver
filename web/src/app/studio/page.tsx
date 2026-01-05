@@ -926,69 +926,57 @@ function StudioPageContent() {
     }
   }, [canvasNodes, projectId, isAiProcessing]);
 
-  const handleFuseNodes = useCallback(async (nodeId1: string, nodeId2: string) => {
-    if (isAiProcessing) return;
+  const handleSynthesizeNodes = useCallback(async (nodeIds: string[]) => {
+    if (isAiProcessing || nodeIds.length < 2) return;
 
-    setIsAiProcessing(true);
+    // 1. Optimistic UI: Immediate feedback
+    // Start with minimal blocking (just local state)
+    // We do NOT block interaction, just set a flag for the button state if needed
+    // But we want the user to be able to do other things.
+
+    const nodes = canvasNodes.filter(n => nodeIds.includes(n.id));
+    const avgX = nodes.reduce((sum, n) => sum + n.x, 0) / nodes.length;
+    const avgY = nodes.reduce((sum, n) => sum + n.y, 0) / nodes.length;
+
+    const optimisticId = `synth-${Date.now()}`;
+    const optimisticNode: CanvasNode = {
+      id: optimisticId,
+      type: 'thinking_step',
+      title: 'Synthesizing Insights...',
+      content: 'AI is analyzing connections between your selected concepts. This runs in the background.',
+      x: avgX,
+      y: avgY + 200,
+      color: 'purple',
+      tags: ['#processing'],
+      connections: nodeIds,
+      isDraft: true // Visual indicator of pending state
+    };
+
+    setCanvasNodes(prev => [...prev, optimisticNode]);
+    setSelectedNodeIds(new Set()); // Clear selection immediately so user can continue working
+
+    // 2. Call API in background
     try {
-      // MOCK: Simulate API call for prototype
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+      // Using projectId as outputId for prototype simplicity
+      const response = await canvasApi.synthesizeNodes(projectId, projectId, nodeIds);
+      console.log('Synthesis task started:', response.task_id);
 
-      const node1 = canvasNodes.find(n => n.id === nodeId1);
-      const node2 = canvasNodes.find(n => n.id === nodeId2);
+      // In a full implementation, we would subscribe to WebSocket here.
+      // For this prototype, we'll confirm the task started and let the optimistic node stay.
+      // We could add a "poller" here if we wanted to simulate completion.
 
-      if (!node1 || !node2) {
-        throw new Error('Nodes not found');
-      }
-
-      // Mock fusion result
-      const fusionNode = {
-        id: `fusion_${nodeId1}_${nodeId2}_${Date.now()}`,
-        title: `Connection: ${node1.title} & ${node2.title}`,
-        content: `This fusion explores the relationship between "${node1.title}" and "${node2.title}". \n\nKey insights:\n• Both concepts share common themes\n• They complement each other in the research context\n• Understanding one helps illuminate the other`,
-        x: (node1.x + node2.x) / 2,
-        y: (node1.y + node2.y) / 2,
-        connections: [nodeId1, nodeId2],
-      };
-
-      // Create new fusion node
-      const newFusionNode: CanvasNode = {
-        id: fusionNode.id,
-        type: 'card',
-        title: fusionNode.title,
-        content: fusionNode.content,
-        x: fusionNode.x,
-        y: fusionNode.y,
-        color: 'purple',
-        connections: fusionNode.connections,
-      };
-
-      // Add fusion node and connect both nodes to it
-      setCanvasNodes(prev => {
-        const updated = [...prev, newFusionNode];
-        return updated.map(n => {
-          if (n.id === nodeId1) {
-            const existing = n.connections || [];
-            return { ...n, connections: [...existing, newFusionNode.id] };
-          }
-          if (n.id === nodeId2) {
-            const existing = n.connections || [];
-            return { ...n, connections: [...existing, newFusionNode.id] };
-          }
-          return n;
-        });
-      });
-
-      // Clear selection after fusion
-      setSelectedNodeIds(new Set());
-      setSelectedNodeId(null);
     } catch (error) {
-      console.error('Failed to fuse nodes:', error);
-      // TODO: Show error toast
-    } finally {
-      setIsAiProcessing(false);
+      console.error('Failed to synthesize:', error);
+      // Remove optimistic node on error
+      setCanvasNodes(prev => prev.filter(n => n.id !== optimisticId));
     }
-  }, [canvasNodes, isAiProcessing]);
+    // We don't set isAiProcessing to true globally to avoid blocking other actions
+  }, [canvasNodes, projectId]);
+
+  // Kept for backward compatibility if needed, but redirects to synthesize
+  const handleFuseNodes = useCallback((nodeId1: string, nodeId2: string) => {
+    handleSynthesizeNodes([nodeId1, nodeId2]);
+  }, [handleSynthesizeNodes]);
 
   const handleDeleteSelectedNodes = useCallback(() => {
     if (selectedNodeIds.size > 0) {
@@ -3056,16 +3044,14 @@ function StudioPageContent() {
                     transition: 'opacity 0.2s, transform 0.2s',
                   }}
                 >
-                  {selectedNodeIds.size === 2 ? (
-                    // Smart Fusion button when exactly 2 nodes selected
+                  {selectedNodeIds.size >= 2 ? (
+                    // Multi-node synthesis
                     <Button
                       variant="contained"
                       startIcon={<SparklesIcon size={18} />}
                       onClick={() => {
                         const ids = Array.from(selectedNodeIds);
-                        if (ids.length === 2) {
-                          handleFuseNodes(ids[0], ids[1]);
-                        }
+                        handleSynthesizeNodes(ids);
                       }}
                       disabled={isAiProcessing}
                       sx={{
@@ -3075,7 +3061,7 @@ function StudioPageContent() {
                         minWidth: 140,
                       }}
                     >
-                      {isAiProcessing ? <CircularProgress size={16} /> : 'Smart Fusion'}
+                      {isAiProcessing ? <CircularProgress size={16} /> : 'Synthesize'}
                     </Button>
                   ) : (
                     // Single node actions
