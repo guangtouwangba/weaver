@@ -46,12 +46,12 @@
 - [ ] 5.1.6 `CanvasSection.tsx` - Konva Group (no MUI, skip). @frontend
 
 ### 5.2 Medium Components (moderate MUI usage)
-- [ ] 5.2.1 `DocumentPreviewCard.tsx` - Already uses Tailwind (no MUI, skip). @frontend
+- [x] 5.2.1 `DocumentPreviewCard.tsx` - Already uses Tailwind (no MUI, skip). @frontend
 - [ ] 5.2.2 `SummaryCard.tsx` - Summary card (Paper, Modal, Chip, Button). @frontend
-- [ ] 5.2.3 `CanvasPanel.tsx` - Canvas container (Box, Paper). @frontend
-- [ ] 5.2.4 `CanvasPanelKonva.tsx` - Konva wrapper (Box). @frontend
-- [ ] 5.2.5 `GenerationOutputsOverlay.tsx` - AI outputs (Box, Paper, Chip). @frontend
-- [ ] 5.2.6 `ThinkingPathGenerator.tsx` - Generator UI (Box, Paper, Button). @frontend
+- [x] 5.2.3 `CanvasPanel.tsx` - Canvas container (Box, Paper). @frontend
+- [x] 5.2.4 `CanvasPanelKonva.tsx` - Konva wrapper (Box). @frontend
+- [x] 5.2.5 `GenerationOutputsOverlay.tsx` - AI outputs (Box, Paper, Chip). @frontend
+- [x] 5.2.6 `ThinkingPathGenerator.tsx` - Generator UI (Box, Paper, Button). @frontend
 
 ### 5.3 Large Components (heavy MUI, complex)
 - [ ] 5.3.1 `NodeDetailPanel.tsx` (531 lines) - Slide-over panel (Box, Typography, Button, Chip, TextField). @frontend
@@ -62,23 +62,23 @@
 - [ ] 5.3.6 `KonvaCanvas.tsx` (119KB) - Main canvas (Box only, mostly Konva). @frontend
 
 ### 5.4 Canvas Subdirectory
-- [ ] 5.4.1 `canvas/GridBackground.tsx` - Grid pattern (no MUI, skip). @frontend
-- [ ] 5.4.2 `canvas/NodeEditor.tsx` - Node editor (Box, TextField). @frontend
-- [ ] 5.4.3 `canvas/SynthesisModeMenu.tsx` - Menu (Box, Paper, MenuItem). @frontend
+- [x] 5.4.1 `canvas/GridBackground.tsx` - Grid pattern (no MUI, skip). @frontend
+- [x] 5.4.2 `canvas/NodeEditor.tsx` - Node editor (Box, TextField). @frontend
+- [x] 5.4.3 `canvas/SynthesisModeMenu.tsx` - Menu (Box, Paper, MenuItem). @frontend
 
 ### 5.5 Canvas-Nodes Subdirectory
 - [ ] 5.5.1 `canvas-nodes/MindMapCanvasNode.tsx` - MindMap node (Box, Paper). @frontend
 - [ ] 5.5.2 `canvas-nodes/SummaryCanvasNode.tsx` - Summary node (Box, Paper, Chip). @frontend
 
 ### 5.6 MindMap Subdirectory
-- [ ] 5.6.1 `mindmap/AIInsightBadge.tsx` - Badge (Box, Chip). @frontend
-- [ ] 5.6.2 `mindmap/CurvedMindMapEdge.tsx` - Edge (no MUI, skip). @frontend
-- [ ] 5.6.3 `mindmap/MindMapEdge.tsx` - Edge (no MUI, skip). @frontend
-- [ ] 5.6.4 `mindmap/MindMapNode.tsx` - Node (Box). @frontend
-- [ ] 5.6.5 `mindmap/MindMapViews.tsx` - Views (Box, Paper, Tabs). @frontend
-- [ ] 5.6.6 `mindmap/RichMindMapNode.tsx` (16KB) - Rich node (Box, Paper, IconButton). @frontend
+- [x] 5.6.1 `mindmap/AIInsightBadge.tsx` - Badge (Konva only, no MUI, skip). @frontend
+- [x] 5.6.2 `mindmap/CurvedMindMapEdge.tsx` - Edge (no MUI, skip). @frontend
+- [x] 5.6.3 `mindmap/MindMapEdge.tsx` - Edge (no MUI, skip). @frontend
+- [x] 5.6.4 `mindmap/MindMapNode.tsx` - Node (Konva only, no MUI, skip). @frontend
+- [x] 5.6.5 `mindmap/MindMapViews.tsx` - Views (Modal wrapper). @frontend
+- [x] 5.6.6 `mindmap/RichMindMapNode.tsx` (16KB) - Rich node (Konva only, no MUI, skip). @frontend
 - [ ] 5.6.7 `mindmap/MindMapEditor.tsx` (33KB) - Editor (Box, Paper, Button). @frontend
-- [ ] 5.6.8 `mindmap/layoutAlgorithms.ts` - Pure TS (no MUI, skip). @frontend
+- [x] 5.6.8 `mindmap/layoutAlgorithms.ts` - Pure TS (no MUI, skip). @frontend
 
 ## 6. Other Directories Migration (P2)
 - [ ] 6.1 Migrate `inbox/` components (7 files). @frontend

@@ -18,7 +18,8 @@
  */
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { Box, Paper, Typography, CircularProgress } from '@mui/material';
+import { Surface, Stack, Text, Spinner } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import { useStudio, GenerationType, GenerationTask } from '@/contexts/StudioContext';
 import { SummaryCanvasNode, MindMapCanvasNode } from './canvas-nodes';
 import { SummaryData, MindmapData } from '@/lib/api';
@@ -61,8 +62,8 @@ function LoadingCard({
 
   const isMindmap = task.type === 'mindmap';
   const gradientColor = isMindmap
-    ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-    : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)';
+    ? `linear-gradient(135deg, ${colors.success[500]} 0%, ${colors.success[600]} 100%)`
+    : `linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)`;
   const typeLabel = isMindmap ? 'MINDMAP' : 'SUMMARY';
   const TypeIcon = isMindmap ? AccountTreeIcon : AutoAwesomeIcon;
 
@@ -83,8 +84,10 @@ function LoadingCard({
   };
 
   return (
-    <Paper
+    <Surface
       elevation={0}
+      radius="lg"
+      bordered
       data-task-id={task.id}
       onMouseDown={handleMouseDown}
       sx={{
@@ -93,18 +96,14 @@ function LoadingCard({
         top: screenY,
         width: 320,
         p: 2,
-        borderRadius: 3,
-        border: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'white',
-        boxShadow: isDragging
-          ? '0 12px 40px rgba(139, 92, 246, 0.25)'
-          : '0 4px 20px rgba(0,0,0,0.08)',
         cursor: isDragging ? 'grabbing' : 'default',
         transition: isDragging ? 'none' : 'box-shadow 0.2s, transform 0.2s',
         transform: `scale(${viewport.scale > 0.5 ? 1 : viewport.scale * 2})`,
         transformOrigin: 'top left',
         zIndex: isDragging ? 1000 : 100,
+        boxShadow: isDragging
+          ? '0 12px 40px rgba(139, 92, 246, 0.25)'
+          : shadows.lg,
         animation: 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
         '@keyframes popIn': {
           from: { opacity: 0, transform: 'scale(0.9)' },
@@ -113,12 +112,12 @@ function LoadingCard({
       }}
     >
       {/* Header - entire header is draggable */}
-      <Box
+      <Stack
+        direction="row"
+        align="center"
+        gap={1}
         className="drag-handle"
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
           mb: 2,
           cursor: 'grab',
           '&:active': { cursor: 'grabbing' },
@@ -126,75 +125,68 @@ function LoadingCard({
         }}
       >
         {/* Drag Indicator Icon */}
-        <Box
-          sx={{
-            p: 0.5,
-            borderRadius: 1,
-            color: 'text.disabled',
-            '&:hover': {
-              color: 'text.secondary',
-              bgcolor: 'grey.100'
-            },
+        <div
+          style={{
+            padding: 4,
+            borderRadius: radii.sm,
+            color: colors.text.disabled,
           }}
         >
           <OpenWithIcon size={14} />
-        </Box>
+        </div>
 
         {/* Icon */}
-        <Box
-          sx={{
+        <div
+          style={{
             width: 32,
             height: 32,
-            borderRadius: 2,
+            borderRadius: radii.md,
             background: gradientColor,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: 'white',
-            flexShrink: 0
+            flexShrink: 0,
           }}
         >
           <TypeIcon size="sm" />
-        </Box>
+        </div>
 
         {/* Title Info */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.2, mb: 0.25 }} noWrap>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="label" sx={{ lineHeight: 1.2, mb: 0.25 }} truncate>
             {task.title || `Generating ${task.type}...`}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+          </Text>
+          <Text variant="overline" color="secondary" sx={{ fontSize: '0.65rem' }}>
             {typeLabel}
-          </Typography>
-        </Box>
-      </Box>
+          </Text>
+        </div>
+      </Stack>
 
       {/* Loading Content */}
-      <Box
+      <Stack
+        direction="column"
+        align="center"
+        justify="center"
+        gap={1}
         sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
           py: 4,
-          bgcolor: '#F8FAFC',
-          borderRadius: 2,
-          gap: 1.5,
+          bgcolor: colors.background.subtle,
+          borderRadius: `${radii.md}px`,
         }}
       >
-        <CircularProgress
-          size={32}
-          sx={{
-            color: isMindmap ? '#10B981' : '#8B5CF6'
-          }}
+        <Spinner
+          size="md"
+          color={isMindmap ? 'secondary' : 'primary'}
         />
-        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+        <Text variant="bodySmall" color="secondary" sx={{ fontWeight: 500 }}>
           Generating...
-        </Typography>
-        <Typography variant="caption" color="text.disabled">
+        </Text>
+        <Text variant="caption" color="disabled">
           This may take a moment
-        </Typography>
-      </Box>
-    </Paper>
+        </Text>
+      </Stack>
+    </Surface>
   );
 }
 
@@ -368,18 +360,20 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
   }
 
   return (
-    <Box
+    <div
       ref={overlayRef}
-      sx={{
+      style={{
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none', // Allow click-through to canvas for panning
         zIndex: 50, // Above canvas but below modals
-        '& > *': {
-          pointerEvents: 'auto', // Enable events on children (output cards)
-        },
       }}
     >
+      <style>{`
+        [data-generation-output] {
+          pointer-events: auto;
+        }
+      `}</style>
       {renderableTasks.map(task => {
         const handleClose = () => removeGenerationTask(task.id);
         const isDragging = dragState?.taskId === task.id;
@@ -439,7 +433,6 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
         // For now, just return null for unsupported types
         return null;
       })}
-    </Box>
+    </div>
   );
 }
-

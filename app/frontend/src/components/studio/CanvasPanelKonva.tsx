@@ -6,7 +6,9 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Chip, CircularProgress } from '@mui/material';
+import { Chip } from '@mui/material';
+import { Stack, Spinner } from '@/components/ui';
+import { colors, shadows } from '@/components/ui/tokens';
 import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi, chatApi } from '@/lib/api';
 import KonvaCanvas from './KonvaCanvas';
@@ -198,7 +200,15 @@ export default function CanvasPanelKonva() {
   }, [canvasNodes, canvasEdges, canvasSections, canvasViewport, viewStates, projectId, saveCanvas]);
 
   return (
-    <Box sx={{ display: 'flex', flexGrow: 1, minWidth: 0, overflow: 'hidden', position: 'relative' }}>
+    <Stack
+      direction="row"
+      sx={{
+        flexGrow: 1,
+        minWidth: 0,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
       <KonvaCanvas
         nodes={canvasNodes}
         edges={canvasEdges}
@@ -240,35 +250,34 @@ export default function CanvasPanelKonva() {
 
       {/* Global Loading Indicator */}
       {isGenerating && (
-        <Box
-          sx={{
+        <div
+          style={{
             position: 'absolute',
             top: 20,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1200,
-            pointerEvents: 'none'
+            pointerEvents: 'none',
           }}
         >
           <Chip
-            icon={<CircularProgress size={16} color="inherit" />}
+            icon={<Spinner size="xs" color="inherit" />}
             label="Generating content..."
             sx={{
-              bgcolor: 'background.paper',
-              boxShadow: 3,
-              border: '1px solid',
-              borderColor: 'divider',
+              bgcolor: colors.background.paper,
+              boxShadow: shadows.md,
+              border: `1px solid ${colors.border.default}`,
               fontWeight: 500
             }}
           />
-        </Box>
+        </div>
       )}
 
       <CanvasSidebar />
       <ThinkingPathGenerator />
-      
+
       {/* Chat Overlay at Bottom */}
       <ChatOverlay onSendMessage={handleSendMessage} />
-    </Box>
+    </Stack>
   );
 }

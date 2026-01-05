@@ -1,5 +1,9 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Paper, TextField, IconButton } from '@mui/material';
+import { TextField } from '@mui/material';
+import { Surface, Stack, IconButton } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import { CheckIcon, CloseIcon } from '@/components/ui/icons';
 import { CanvasNode } from '@/lib/api';
 
@@ -59,8 +63,10 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
     const contentFontSize = Math.max(12 * viewport.scale, 10);
 
     return (
-        <Paper
-            elevation={8}
+        <Surface
+            elevation={4}
+            radius="lg"
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
             sx={{
                 position: 'absolute',
                 top: screenY,
@@ -70,22 +76,25 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                 zIndex: 2000,
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: 3,
                 overflow: 'hidden',
-                border: '2px solid',
-                borderColor: 'primary.main',
+                border: `2px solid ${colors.primary[500]}`,
                 animation: 'fadeIn 0.1s ease-out',
                 '@keyframes fadeIn': {
                     from: { opacity: 0, transform: 'scale(0.95)' },
                     to: { opacity: 1, transform: 'scale(1)' },
                 },
             }}
-            onClick={(e) => e.stopPropagation()}
         >
-            {/* Colors matching the node style ideally, but white paper is standard for editing */}
-
             {/* Header / Title */}
-            <Box sx={{ p: 1, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', gap: 1, bgcolor: '#FAFAFA' }}>
+            <Stack
+                direction="row"
+                gap={1}
+                sx={{
+                    p: 1,
+                    borderBottom: `1px solid ${colors.border.default}`,
+                    bgcolor: colors.background.subtle,
+                }}
+            >
                 <TextField
                     inputRef={titleInputRef}
                     value={title}
@@ -99,10 +108,10 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                         style: { fontSize: titleFontSize, fontWeight: 700 }
                     }}
                 />
-            </Box>
+            </Stack>
 
             {/* Content */}
-            <Box sx={{ p: 1, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: 8, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                 <TextField
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
@@ -121,17 +130,41 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                         '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' }
                     }}
                 />
-            </Box>
+            </div>
 
             {/* Actions Footer */}
-            <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', gap: 1, bgcolor: '#FAFAFA', borderTop: '1px solid', borderColor: 'divider' }}>
-                <IconButton size="small" onClick={onCancel} sx={{ color: 'text.secondary', width: 24, height: 24 }}>
+            <Stack
+                direction="row"
+                justify="end"
+                gap={1}
+                sx={{
+                    p: 1,
+                    bgcolor: colors.background.subtle,
+                    borderTop: `1px solid ${colors.border.default}`,
+                }}
+            >
+                <IconButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={onCancel}
+                    sx={{ color: colors.text.secondary, width: 24, height: 24 }}
+                >
                     <CloseIcon size={16} />
                 </IconButton>
-                <IconButton size="small" onClick={handleSave} color="primary" sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, width: 24, height: 24 }}>
+                <IconButton
+                    size="sm"
+                    onClick={handleSave}
+                    sx={{
+                        bgcolor: colors.primary[500],
+                        color: 'white',
+                        '&:hover': { bgcolor: colors.primary[600] },
+                        width: 24,
+                        height: 24,
+                    }}
+                >
                     <CheckIcon size={16} />
                 </IconButton>
-            </Box>
-        </Paper>
+            </Stack>
+        </Surface>
     );
 }
