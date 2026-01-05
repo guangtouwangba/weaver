@@ -46,6 +46,16 @@ import InspirationDock from './InspirationDock';
 import CanvasContextMenu from './CanvasContextMenu';
 import GenerationOutputsOverlay from './GenerationOutputsOverlay';
 import { CanvasNode, CanvasEdge } from '@/lib/api';
+import {
+  getAnchorPoint,
+  resolveAnchor,
+  getStraightPath,
+  getBezierPath,
+  getOrthogonalPath,
+  getArrowPoints,
+  getAllAnchorPoints,
+  AnchorDirection,
+} from '@/lib/connectionUtils';
 import { useSpatialIndex, SpatialItem } from '@/hooks/useSpatialIndex';
 import { useViewportCulling } from '@/hooks/useViewportCulling';
 import GridBackground from './canvas/GridBackground';
@@ -886,6 +896,15 @@ export default function KonvaCanvas({
     position: { x: number; y: number };
   } | null>(null);
 
+  // P1: Edge Selection & Reconnection
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [reconnectingEdge, setReconnectingEdge] = useState<{
+    edgeId: string;
+    type: 'source' | 'target';
+    x?: number;
+    y?: number;
+  } | null>(null);
+
   // Merge/Synthesis State
   const [mergeTargetNodeId, setMergeTargetNodeId] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -1043,18 +1062,30 @@ export default function KonvaCanvas({
         setIsSpacePressed(true);
       }
 
-      // Delete / Backspace - Delete selected nodes via API
+      // Delete / Backspace - Delete selected nodes or edges
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        let deleted = false;
+
         if (selectedNodeIds.size > 0) {
           e.preventDefault();
           // Delete each selected node via API (handles optimistic updates and rollback)
           selectedNodeIds.forEach(nodeId => {
             handleDeleteNode(nodeId).catch(err => {
               console.error('Failed to delete node:', err);
-              // alert(`Failed to delete node: ${err.message}`); // Minimal visual feedback
             });
           });
           setSelectedNodeIds(new Set());
+          deleted = true;
+        }
+
+        if (selectedEdgeId) {
+          e.preventDefault();
+          if (onEdgesChange) {
+            onEdgesChange(edges.filter(edge => edge.id !== selectedEdgeId));
+          }
+          setSelectedEdgeId(null);
+          setEdgeLabelDialog(null);
+          deleted = true;
         }
       }
 
@@ -1420,6 +1451,7 @@ export default function KonvaCanvas({
           // Clear selection if not Shift
           if (!e.evt.shiftKey) {
             setSelectedNodeIds(new Set());
+            setSelectedEdgeId(null);
           }
         }
       } else if (e.evt.button === 1) {
@@ -1640,6 +1672,89 @@ export default function KonvaCanvas({
     },
     [nodes, onNodesChange, mergeTargetNodeId, draggedNodeId]
   );
+
+  // P1: Edge Reconnection Handlers
+  const handleEdgeHandleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>, edgeId: string, type: 'source' | 'target') => {
+    // Current pointer position relative to canvas
+    const stage = e.target.getStage();
+    const pointer = stage?.getPointerPosition();
+    if (!pointer) return;
+
+    const canvasX = (pointer.x - viewport.x) / viewport.scale;
+    const canvasY = (pointer.y - viewport.y) / viewport.scale;
+
+    setReconnectingEdge({ edgeId, type, x: canvasX, y: canvasY });
+
+    // Check for drop target (node) under cursor
+    const targetNode = visibleNodes.find(node => {
+      const nodeWidth = node.width || 280;
+      const nodeHeight = node.height || 200;
+      return (
+        canvasX >= node.x &&
+        canvasX <= node.x + nodeWidth &&
+        canvasY >= node.y &&
+        canvasY <= node.y + nodeHeight
+      );
+    });
+
+    setHoveredNodeId(targetNode ? targetNode.id : null);
+  }, [viewport, visibleNodes]);
+
+  const handleEdgeHandleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>, edge: CanvasEdge, type: 'source' | 'target') => {
+    setReconnectingEdge(null);
+    setHoveredNodeId(null);
+
+    // Reset handle position visually (Konva keeps it at drop location otherwise)
+    e.target.position({ x: 0, y: 0 });
+
+    const stage = e.target.getStage();
+    const pointer = stage?.getPointerPosition();
+    if (!pointer) return;
+
+    const canvasX = (pointer.x - viewport.x) / viewport.scale;
+    const canvasY = (pointer.y - viewport.y) / viewport.scale;
+
+    // Find target node
+    const targetNode = visibleNodes.find(node => {
+      const nodeWidth = node.width || 280;
+      const nodeHeight = node.height || 200;
+      return (
+        canvasX >= node.x &&
+        canvasX <= node.x + nodeWidth &&
+        canvasY >= node.y &&
+        canvasY <= node.y + nodeHeight
+      );
+    });
+
+    if (targetNode) {
+      // Don't allow self-loops if source===target (unless we want to support self-loops, but P2 says 'Prevent self-loops')
+      // Actually P2.3 says 'Validation: Prevent self-loops (if desired)'
+      // For now let's allow basic reconnect.
+
+      const newEdge = { ...edge };
+
+      if (type === 'source') {
+        if (targetNode.id === edge.target) return; // No change
+        newEdge.source = targetNode.id;
+        newEdge.sourceAnchor = 'auto'; // Reset anchor to auto
+      } else {
+        if (targetNode.id === edge.source) return; // No change
+        newEdge.target = targetNode.id;
+        newEdge.targetAnchor = 'auto'; // Reset anchor to auto
+      }
+
+      // Check for duplicates
+      const exists = edges.some(e =>
+        e.id !== edge.id &&
+        ((e.source === newEdge.source && e.target === newEdge.target) ||
+          (e.source === newEdge.target && e.target === newEdge.source))
+      );
+
+      if (!exists && onEdgesChange) {
+        onEdgesChange(edges.map(e => e.id === edge.id ? newEdge : e));
+      }
+    }
+  }, [viewport, visibleNodes, edges, onEdgesChange]);
 
   const handleCancelMerge = () => {
     setMergeTargetNodeId(null);
@@ -1892,49 +2007,120 @@ export default function KonvaCanvas({
 
       if (!source || !target) return null;
 
-      const x1 = source.x + (source.width || 280);
-      const y1 = source.y + ((source.height || 200) / 2);
-      const x2 = target.x;
-      const y2 = target.y + ((target.height || 200) / 2);
+      const isSelected = selectedEdgeId === edge.id;
+      const isReconnecting = reconnectingEdge?.edgeId === edge.id;
 
-      const controlOffset = Math.max(Math.abs(x2 - x1) * 0.4, 50);
+      // === P0: Dynamic anchor selection ===
+      const sourceAnchorDir = resolveAnchor(edge, source, target, 'source');
+      const targetAnchorDir = resolveAnchor(edge, source, target, 'target');
+
+      let sourceAnchor = getAnchorPoint(source, sourceAnchorDir);
+      let targetAnchor = getAnchorPoint(target, targetAnchorDir);
+
+      // === P1: Reconnection Live Preview ===
+      // If we are dragging an endpoint, use the cursor position instead of the anchor
+      if (isReconnecting && reconnectingEdge.x !== undefined && reconnectingEdge.y !== undefined) {
+        if (reconnectingEdge.type === 'source') {
+          // Keep direction for now, or calculate based on relative pos
+          sourceAnchor = { x: reconnectingEdge.x, y: reconnectingEdge.y, direction: sourceAnchorDir };
+        } else {
+          targetAnchor = { x: reconnectingEdge.x, y: reconnectingEdge.y, direction: targetAnchorDir };
+        }
+      }
+
+      // === P0: Routing type selection ===
+      const routingType = edge.routingType || 'bezier'; // Default to bezier for backwards compatibility
+
+      let pathPoints: number[] = [];
+      if (routingType === 'straight') {
+        pathPoints = getStraightPath(sourceAnchor, targetAnchor);
+      } else if (routingType === 'orthogonal') {
+        // P1: Orthogonal routing
+        // For now pass empty obstacles, will add collision detection later
+        pathPoints = getOrthogonalPath(sourceAnchor, targetAnchor, []);
+      } else {
+        pathPoints = getBezierPath(sourceAnchor, targetAnchor);
+      }
 
       // Calculate midpoint for label/icon placement
-      const midX = (x1 + x2) / 2;
-      const midY = (y1 + y2) / 2;
+      const midX = (sourceAnchor.x + targetAnchor.x) / 2;
+      const midY = (sourceAnchor.y + targetAnchor.y) / 2;
 
       // Get edge style configuration
-      const edgeStyle = getEdgeStyle(edge.relationType, edge.type);
+      const baseEdgeStyle = getEdgeStyle(edge.relationType, edge.type);
+
+      // Apply overrides from edge data
+      const edgeStyle = {
+        color: edge.color || baseEdgeStyle.color,
+        bgColor: baseEdgeStyle.bgColor, // Background usually doesn't need override, but could add if needed
+        strokeWidth: edge.strokeWidth || baseEdgeStyle.strokeWidth,
+        dash: edge.strokeDash || baseEdgeStyle.dash,
+        icon: baseEdgeStyle.icon
+      };
+
       const hasLabel = edge.label && edge.label.trim().length > 0;
 
       // Determine if this edge should have special styling
       const hasRelationType = !!edge.relationType && edge.relationType !== 'related' && edge.relationType !== 'custom';
       const isThinkingPathEdge = edge.type === 'branch' || edge.type === 'progression';
-      const shouldHighlight = hasLabel || hasRelationType || isThinkingPathEdge;
+      const hasCustomStyle = !!edge.color || !!edge.strokeWidth || !!edge.strokeDash;
+
+      const shouldHighlight = hasLabel || hasRelationType || isThinkingPathEdge || hasCustomStyle || isSelected;
 
       // Check for bidirectional edge (compares)
       const isBidirectional = edge.direction === 'bidirectional' || edge.relationType === 'compares';
 
+      // === P0: Dynamic arrow points ===
+      // If reconnecting target, arrow should follow cursor
+      const targetArrowPoints = getArrowPoints(targetAnchor);
+      const sourceArrowPoints = isBidirectional ? getArrowPoints(sourceAnchor) : null;
+
       return (
-        <Group key={edge.id || `${edge.source}-${edge.target}-${index}`}>
+        <Group
+          key={edge.id || `${edge.source}-${edge.target}-${index}`}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            setSelectedEdgeId(edge.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            setSelectedEdgeId(edge.id);
+          }}
+        >
+          {/* Hit area for easier selection - invisible wide stroke */}
+          <Line
+            points={pathPoints}
+            stroke="transparent"
+            strokeWidth={20}
+            tension={routingType === 'bezier' ? 0.5 : 0}
+            bezier={routingType === 'bezier'}
+          />
+
+          {/* Selection Halo */}
+          {isSelected && (
+            <Line
+              points={pathPoints}
+              stroke="#3B82F6"
+              strokeWidth={(edgeStyle.strokeWidth || 2) + 4}
+              opacity={0.3}
+              tension={routingType === 'bezier' ? 0.5 : 0}
+              bezier={routingType === 'bezier'}
+            />
+          )}
+
           {/* Main edge line */}
           <Line
-            points={[
-              x1, y1,
-              x1 + controlOffset, y1,
-              x2 - controlOffset, y2,
-              x2, y2
-            ]}
+            points={pathPoints}
             stroke={shouldHighlight ? edgeStyle.color : "#94A3B8"}
             strokeWidth={edgeStyle.strokeWidth}
             dash={edgeStyle.dash}
-            tension={0.5}
-            bezier
+            tension={routingType === 'bezier' ? 0.5 : 0}
+            bezier={routingType === 'bezier'}
           />
 
           {/* Arrow at target end */}
           <Line
-            points={[x2 - 8, y2 - 5, x2, y2, x2 - 8, y2 + 5]}
+            points={targetArrowPoints}
             stroke={shouldHighlight ? edgeStyle.color : "#94A3B8"}
             strokeWidth={edgeStyle.strokeWidth}
             lineCap="round"
@@ -1942,9 +2128,9 @@ export default function KonvaCanvas({
           />
 
           {/* Arrow at source end for bidirectional edges */}
-          {isBidirectional && (
+          {isBidirectional && sourceArrowPoints && (
             <Line
-              points={[x1 + 8, y1 - 5, x1, y1, x1 + 8, y1 + 5]}
+              points={sourceArrowPoints}
               stroke={edgeStyle.color}
               strokeWidth={edgeStyle.strokeWidth}
               lineCap="round"
@@ -1953,60 +2139,131 @@ export default function KonvaCanvas({
           )}
 
           {/* Edge Label (AI-generated or user-defined) */}
-          {hasLabel && (
-            <Group x={midX} y={midY}>
-              <Rect
-                x={-edge.label!.length * 4 - 10}
-                y={-12}
-                width={edge.label!.length * 8 + 20}
-                height={24}
-                fill={edgeStyle.bgColor}
-                stroke={edgeStyle.color}
-                strokeWidth={1}
-                cornerRadius={12}
-                shadowColor="rgba(0,0,0,0.1)"
-                shadowBlur={4}
-                shadowOffsetY={2}
-              />
-              {/* Icon before label if available */}
-              {edgeStyle.icon && (
-                <Text
-                  x={-edge.label!.length * 4 - 6}
-                  y={-8}
-                  text={edgeStyle.icon}
-                  fontSize={12}
-                  fill={edgeStyle.color}
-                />
+          {(hasLabel || edgeStyle.icon) && (
+            <Group
+              x={midX}
+              y={midY}
+              onClick={(e) => {
+                e.cancelBubble = true;
+                const stage = e.target.getStage();
+                const pointer = stage?.getPointerPosition();
+
+                // If the edge selection bubble didn't happen first, we ensure it's selected
+                setSelectedEdgeId(edge.id);
+
+                if (pointer) {
+                  setEdgeLabelDialog({
+                    edge,
+                    position: pointer // Use screen coords or stage coords? Dialog uses fixed div position, likely needs client position.
+                    // IMPORTANT: The existing code for setEdgeLabelDialog expects screen coordinates because the dialog is an HTML overlay.
+                    // pointer is {x, y} relative to stage container? No, getPointerPosition is relative to stage container.
+                    // The dialog is positioned with position: absolute LEFT/TOP.
+                    // If the dialog is inside a container, we need coords relative to that container.
+                    // Looking at existing usage (line 1785), it receives event properties.
+                    // Let's use `e.evt.clientX` / `e.evt.clientY` which are screen coords if possible.
+                    // Konva event `e.evt` is the native MouseEvent.
+                  });
+                }
+              }}
+            >
+              {hasLabel ? (
+                <>
+                  <Rect
+                    x={-edge.label!.length * 4 - 10}
+                    y={-12}
+                    width={edge.label!.length * 8 + 20}
+                    height={24}
+                    fill={edgeStyle.bgColor}
+                    stroke={edgeStyle.color}
+                    strokeWidth={1}
+                    cornerRadius={12}
+                    shadowColor="rgba(0,0,0,0.1)"
+                    shadowBlur={4}
+                    shadowOffsetY={2}
+                  />
+                  {edgeStyle.icon && (
+                    <Text
+                      x={-edge.label!.length * 4 - 6}
+                      y={-8}
+                      text={edgeStyle.icon}
+                      fontSize={12}
+                      fill={edgeStyle.color}
+                    />
+                  )}
+                  <Text
+                    x={edgeStyle.icon ? -edge.label!.length * 4 + 8 : -edge.label!.length * 4}
+                    y={-7}
+                    text={edge.label}
+                    fontSize={11}
+                    fill={edgeStyle.color}
+                    fontStyle="600"
+                  />
+                </>
+              ) : (
+                <>
+                  <Circle
+                    radius={12}
+                    fill={edgeStyle.bgColor}
+                    stroke={edgeStyle.color}
+                    strokeWidth={1}
+                  />
+                  <Text
+                    x={-6}
+                    y={-7}
+                    text={edgeStyle.icon}
+                    fontSize={12}
+                    fill={edgeStyle.color}
+                    align="center"
+                  />
+                </>
               )}
-              <Text
-                x={edgeStyle.icon ? -edge.label!.length * 4 + 8 : -edge.label!.length * 4}
-                y={-7}
-                text={edge.label}
-                fontSize={11}
-                fill={edgeStyle.color}
-                fontStyle="600"
-              />
             </Group>
           )}
 
-          {/* Icon only (no label but has relation type with icon) */}
-          {!hasLabel && edgeStyle.icon && shouldHighlight && (
-            <Group x={midX} y={midY}>
+          {/* P1: Reconnection Handles (only if selected) */}
+          {isSelected && (
+            <>
+              {/* Source Handle */}
               <Circle
-                radius={12}
-                fill={edgeStyle.bgColor}
-                stroke={edgeStyle.color}
-                strokeWidth={1}
+                x={sourceAnchor.x}
+                y={sourceAnchor.y}
+                radius={6}
+                fill="#3B82F6"
+                stroke="white"
+                strokeWidth={2}
+                draggable
+                onDragMove={(e) => handleEdgeHandleDragMove(e, edge.id, 'source')}
+                onDragEnd={(e) => handleEdgeHandleDragEnd(e, edge, 'source')}
+                onMouseEnter={() => {
+                  const container = stageRef.current?.container();
+                  if (container) container.style.cursor = 'crosshair';
+                }}
+                onMouseLeave={() => {
+                  const container = stageRef.current?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
               />
-              <Text
-                x={-6}
-                y={-7}
-                text={edgeStyle.icon}
-                fontSize={12}
-                fill={edgeStyle.color}
-                align="center"
+              {/* Target Handle */}
+              <Circle
+                x={targetAnchor.x}
+                y={targetAnchor.y}
+                radius={6}
+                fill="#3B82F6"
+                stroke="white"
+                strokeWidth={2}
+                draggable
+                onDragMove={(e) => handleEdgeHandleDragMove(e, edge.id, 'target')}
+                onDragEnd={(e) => handleEdgeHandleDragEnd(e, edge, 'target')}
+                onMouseEnter={() => {
+                  const container = stageRef.current?.container();
+                  if (container) container.style.cursor = 'crosshair';
+                }}
+                onMouseLeave={() => {
+                  const container = stageRef.current?.container();
+                  if (container) container.style.cursor = 'default';
+                }}
               />
-            </Group>
+            </>
           )}
         </Group>
       );
@@ -2379,12 +2636,28 @@ export default function KonvaCanvas({
               <Typography variant="subtitle2" fontWeight={600}>
                 连接关系
               </Typography>
-              <IconButton
-                size="small"
-                onClick={() => setEdgeLabelDialog(null)}
-              >
-                <CloseIcon size="sm" />
-              </IconButton>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => {
+                    if (onEdgesChange) {
+                      onEdgesChange(edges.filter(e => e.id !== edgeLabelDialog.edge.id));
+                    }
+                    setEdgeLabelDialog(null);
+                    setSelectedEdgeId(null);
+                  }}
+                  title="删除连接 (Delete Connection)"
+                >
+                  <DeleteIcon size="sm" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => setEdgeLabelDialog(null)}
+                >
+                  <CloseIcon size="sm" />
+                </IconButton>
+              </Box>
             </Box>
 
             <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1.5 }}>

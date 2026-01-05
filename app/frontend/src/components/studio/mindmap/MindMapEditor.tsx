@@ -432,10 +432,6 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   const [hasChanges, setHasChanges] = useState(false);
   const [isCalculatingLayout, setIsCalculatingLayout] = useState(true);
 
-  // Merge detection state
-  const [mergeTargetNodeId, setMergeTargetNodeId] = useState<string | null>(null);
-  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
-  const [isSynthesizing, setIsSynthesizing] = useState(false);
 
   // Dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -556,97 +552,6 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     [setData, selectedNodeIds]
   );
 
-  // Merge detection during drag
-  const MERGE_PROXIMITY_THRESHOLD = 100; // pixels
-  const handleNodeDragMove = useCallback(
-    (nodeId: string, x: number, y: number) => {
-      setDraggedNodeId(nodeId);
-      const draggedNode = data.nodes.find((n) => n.id === nodeId);
-      if (!draggedNode) return;
-
-      const draggedWidth = draggedNode.width || 200;
-      const draggedHeight = draggedNode.height || 80;
-      const draggedCenterX = x + draggedWidth / 2;
-      const draggedCenterY = y + draggedHeight / 2;
-
-      // Find closest other node
-      let closestNodeId: string | null = null;
-      let closestDistance = Infinity;
-
-      for (const node of data.nodes) {
-        if (node.id === nodeId) continue;
-
-        const nodeWidth = node.width || 200;
-        const nodeHeight = node.height || 80;
-        const nodeCenterX = node.x + nodeWidth / 2;
-        const nodeCenterY = node.y + nodeHeight / 2;
-
-        const distance = Math.sqrt(
-          Math.pow(draggedCenterX - nodeCenterX, 2) +
-          Math.pow(draggedCenterY - nodeCenterY, 2)
-        );
-
-        if (distance < closestDistance && distance < MERGE_PROXIMITY_THRESHOLD) {
-          closestDistance = distance;
-          closestNodeId = node.id;
-        }
-      }
-
-      setMergeTargetNodeId(closestNodeId);
-
-      if (closestNodeId) {
-        console.log('[MindMapEditor] Potential merge detected:', nodeId, '->', closestNodeId, 'dist:', Math.round(closestDistance));
-      } else {
-        // Log occasionally to trace
-        if (Math.random() > 0.95) console.log('[MindMapEditor] Drag move:', x, y);
-      }
-    },
-    [data.nodes]
-  );
-
-  // Clear merge state on drag end
-  const handleNodeDragEndWithMerge = useCallback(
-    (nodeId: string, x: number, y: number) => {
-      // If there's a merge target and it's still close, trigger merge prompt
-      if (mergeTargetNodeId && draggedNodeId === nodeId) {
-        // Don't move the node, keep it for merge decision
-        setDraggedNodeId(null);
-        // The merge prompt will be shown based on mergeTargetNodeId state
-        return;
-      }
-
-      // Otherwise, do normal drag end
-      setDraggedNodeId(null);
-      setMergeTargetNodeId(null);
-      handleNodeDragEnd(nodeId, x, y);
-    },
-    [handleNodeDragEnd, mergeTargetNodeId, draggedNodeId]
-  );
-
-  // Cancel merge prompt
-  const handleCancelMerge = useCallback(() => {
-    setMergeTargetNodeId(null);
-    setDraggedNodeId(null);
-  }, []);
-
-  // Perform synthesis
-  const handleSynthesizeNodes = useCallback(async () => {
-    if (!mergeTargetNodeId || !draggedNodeId) return;
-
-    setIsSynthesizing(true);
-    try {
-      // For now, just log the action - outputId would come from context/props
-      console.log('[MindMapEditor] Synthesizing nodes:', draggedNodeId, 'with', mergeTargetNodeId);
-      // TODO: Call outputsApi.synthesize(projectId, outputId, [draggedNodeId, mergeTargetNodeId])
-      // The actual implementation would need projectId and outputId from context
-    } catch (error) {
-      console.error('[MindMapEditor] Synthesis failed:', error);
-    } finally {
-      setIsSynthesizing(false);
-      setMergeTargetNodeId(null);
-      setDraggedNodeId(null);
-    }
-  }, [mergeTargetNodeId, draggedNodeId]);
 
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
@@ -1136,13 +1041,11 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
                 key={node.id}
                 node={node}
                 isSelected={selectedNodeIds.has(node.id)}
-                isMergeTarget={mergeTargetNodeId === node.id}
                 lodLevel={lodLevel}
                 shouldAnimate={shouldAnimate}
                 onClick={handleNodeSelect}
                 onDoubleClick={handleNodeDoubleClick}
-                onDragEnd={handleNodeDragEndWithMerge}
-                onDragMove={handleNodeDragMove}
+                onDragEnd={handleNodeDragEnd}
               />
             ))}
           </Layer>
@@ -1174,98 +1077,6 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
           </Box>
         )}
 
-        {/* Merge Prompt Overlay */}
-        {mergeTargetNodeId && !isSynthesizing && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              bgcolor: 'white',
-              borderRadius: 3,
-              p: 3,
-              boxShadow: '0 8px 32px rgba(139, 92, 246, 0.25)',
-              border: '2px solid #8B5CF6',
-              zIndex: 100,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-              minWidth: 280,
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  bgcolor: '#8B5CF6',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Typography sx={{ color: 'white', fontSize: 16 }}>✨</Typography>
-              </Box>
-              <Typography variant="h6" fontWeight={600} color="#8B5CF6">
-                Merge with AI insights?
-              </Typography>
-            </Box>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
-              Combine these nodes to generate a consolidated insight with recommendations and key risks.
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1.5, mt: 1 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleCancelMerge}
-                sx={{ borderColor: '#E5E7EB', color: 'text.secondary' }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleSynthesizeNodes}
-                sx={{
-                  bgcolor: '#8B5CF6',
-                  '&:hover': { bgcolor: '#7C3AED' },
-                }}
-              >
-                Merge & Synthesize
-              </Button>
-            </Box>
-          </Box>
-        )}
-
-        {/* Synthesizing Overlay */}
-        {isSynthesizing && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              bgcolor: 'white',
-              borderRadius: 3,
-              p: 4,
-              boxShadow: '0 8px 32px rgba(139, 92, 246, 0.25)',
-              border: '2px solid #8B5CF6',
-              zIndex: 100,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-            }}
-          >
-            <CircularProgress size={40} sx={{ color: '#8B5CF6' }} />
-            <Typography variant="body1" fontWeight={500}>
-              Synthesizing insights...
-            </Typography>
-          </Box>
-        )}
 
         {/* Help text */}
         {!isCalculatingLayout && (

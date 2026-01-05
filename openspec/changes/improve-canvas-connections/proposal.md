@@ -10,7 +10,7 @@ The current whiteboard connection implementation is basic, supporting only simpl
 - **Visual Customization**: Full control over stroke, color, style (dashed), and markers (arrowheads).
 
 ## 3. Scope
-- **Frontend**: `web/src` (Canvas components).
+- **Frontend**: `app/frontend/src` (Canvas components).
 - **Functionality**:
     - **P0**: Straight routing, Basic/Auto anchors, Node follow, Basic styling.
     - **P1**: Orthogonal routing (w/ avoidance), Reconnection, Labels, Dashed styles.
