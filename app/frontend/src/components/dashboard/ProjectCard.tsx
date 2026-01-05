@@ -1,11 +1,14 @@
+'use client';
+
 import { Project } from '@/lib/api';
-import { Paper, Typography, Box, IconButton } from '@mui/material';
+import { Surface, Stack, Text, IconButton } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import { MoreVertIcon } from '@/components/ui/icons';
 import Link from 'next/link';
 
 // Simple hash for consistent colors
 const getProjectColor = (name: string) => {
-  const colors = [
+  const projectColors = [
     '#4f46e5', // Indigo
     '#059669', // Emerald
     '#d97706', // Amber
@@ -17,7 +20,7 @@ const getProjectColor = (name: string) => {
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return colors[Math.abs(hash) % colors.length];
+  return projectColors[Math.abs(hash) % projectColors.length];
 };
 
 interface ProjectCardProps {
@@ -41,73 +44,77 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
 
   return (
     <Link href={`/studio/${project.id}`} style={{ textDecoration: 'none' }}>
-      <Paper
+      <Surface
         elevation={0}
+        radius="lg"
+        bordered
         sx={{
           p: 3,
           height: '100%',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 3,
           position: 'relative',
           transition: 'all 0.2s',
-          backgroundColor: 'white',
           display: 'flex',
           flexDirection: 'column',
           '&:hover': {
-            borderColor: 'primary.main',
+            borderColor: colors.primary[500],
             transform: 'translateY(-2px)',
-            boxShadow: '0 8px 16px rgba(0,0,0,0.05)',
+            boxShadow: shadows.md,
           },
         }}
       >
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+        <Stack direction="row" align="center" sx={{ mb: 2 }}>
           {/* Colored Project Icon */}
-          <Box sx={{
-            width: 48,
-            height: 48,
-            borderRadius: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: getProjectColor(project.name),
-            color: 'white',
-            fontSize: '1.25rem',
-            fontWeight: 600,
-            mr: 2
-          }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: radii.md,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: getProjectColor(project.name),
+              color: 'white',
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              marginRight: 16,
+            }}
+          >
             {project.name.charAt(0).toUpperCase()}
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography variant="h6" fontWeight="600" color="text.primary" noWrap>
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <Text variant="h6" truncate>
               {project.name}
-            </Typography>
-          </Box>
-        </Box>
+            </Text>
+          </div>
+        </Stack>
 
         {project.description && (
-          <Typography variant="body2" color="text.secondary" sx={{
-            mb: 2,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            color: '#4b5563' // Darker gray for better contrast
-          }}>
+          <Text
+            variant="bodySmall"
+            color="secondary"
+            sx={{
+              mb: 2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+            }}
+          >
             {project.description}
-          </Typography>
+          </Text>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 'auto' }}>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+        <Stack direction="row" justify="end" align="center" sx={{ mt: 'auto' }}>
+          <Text variant="caption" color="secondary">
             Edited {getRelativeTime(project.updated_at)}
-          </Typography>
-        </Box>
+          </Text>
+        </Stack>
 
         <IconButton
-          size="small"
-          onClick={(e) => {
+          size="sm"
+          variant="ghost"
+          onClick={(e: React.MouseEvent<HTMLElement>) => {
             e.preventDefault(); // Prevent navigation
             onOpenMenu(e, project);
           }}
@@ -115,15 +122,13 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
             position: 'absolute',
             top: 12,
             right: 12,
-            color: 'text.secondary',
             opacity: 0.6,
-            '&:hover': { opacity: 1, bgcolor: 'action.hover' }
+            '&:hover': { opacity: 1 }
           }}
         >
           <MoreVertIcon size="sm" />
         </IconButton>
-      </Paper>
+      </Surface>
     </Link>
   );
 }
-

@@ -11,7 +11,7 @@
 export { Card } from './Card';
 export type { CardProps } from './Card';
 
-// Dialog
+// Dialog (legacy wrapper, use Modal from primitives for new code)
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
 
@@ -19,6 +19,14 @@ export type { DialogProps } from './Dialog';
 export { Menu, MenuItem, MenuDivider } from './Menu';
 export type { MenuProps, MenuItemProps } from './Menu';
 
-// Input
+// Input (legacy wrapper, use TextField for new code)
 export { Input } from './Input';
 export type { InputProps } from './Input';
+
+// TextField
+export { TextField } from './TextField';
+export type { TextFieldProps } from './TextField';
+
+// Tabs
+export { Tabs, Tab, TabPanel } from './Tabs';
+export type { TabsProps, TabProps, TabPanelProps } from './Tabs';

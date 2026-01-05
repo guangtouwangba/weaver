@@ -6,30 +6,18 @@ import {
   Box,
   Typography,
   Paper,
-  IconButton,
-  TextField,
-  Tooltip,
-  CircularProgress,
-  Button,
-  Collapse,
-  Chip,
   List,
   ListItem,
   ListItemButton,
   ListItemText,
   ListItemIcon,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Menu,
-  MenuItem,
-  Tabs,
-  Tab,
   InputBase,
   Fade,
   Fab,
 } from "@mui/material";
+import { Menu, MenuItem, TextField } from '@/components/ui/composites';
+import { Chip, IconButton, Button, Tooltip, Collapse, Spinner, Modal, Stack } from '@/components/ui/primitives';
+import { colors } from '@/components/ui/tokens';
 import {
   BotIcon,
   PanelRightCloseIcon,
@@ -101,7 +89,7 @@ function CitationRenderer({ docId, quote, children, citations, documents, onCita
 
   return (
     <Tooltip
-      title={
+      content={
         <Box sx={{ maxWidth: 300 }}>
           <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
             Source: {filename}
@@ -613,7 +601,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   if (!visible) {
     return (
       <Box sx={{ position: 'absolute', left: 24, bottom: 24, zIndex: 100 }}>
-        <Tooltip title="AI Assistant" placement="right">
+        <Tooltip content="AI Assistant" placement="right">
           <Fab color="primary" onClick={onToggle}>
             <BotIcon size={24} />
           </Fab>
@@ -818,7 +806,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
           </Box>
 
           {/* Messages (Collapsible Content) */}
-          <Collapse in={!isContextCollapsed}>
+          <Collapse open={!isContextCollapsed}>
             <Box sx={{ flex: 1, overflowY: 'auto', maxHeight: '350px', px: 3, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
               {chatMessages.length === 0 && (
                 <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2, textAlign: 'center' }}>
@@ -903,23 +891,12 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                   key={node.id}
                   label={node.title}
                   onDelete={() => removeContextNode(node.id)}
-                  size="small"
-                  sx={{
+                  size="sm"
+                  style={{
                     height: 28,
-                    bgcolor: '#F3F4F6',
-                    border: '1px solid',
+                    backgroundColor: '#F3F4F6',
                     borderColor: 'rgba(0,0,0,0.05)',
                     color: '#374151',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      bgcolor: '#E5E7EB',
-                      borderColor: 'rgba(0,0,0,0.1)',
-                    },
-                    '& .MuiChip-label': { px: 1.5, fontSize: '0.8rem', fontWeight: 500 },
-                    '& .MuiChip-deleteIcon': {
-                      color: 'rgba(0,0,0,0.4)',
-                      '&:hover': { color: '#EF4444' }
-                    }
                   }}
                 />
               ))}
@@ -949,17 +926,16 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
             <IconButton
               type="button"
-              sx={{
-                bgcolor: '#4F46E5',
-                color: 'white',
+              variant="primary"
+              style={{
                 width: 40, height: 40,
-                '&:hover': { bgcolor: '#4338CA' },
+                borderRadius: '50%',
                 boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)'
               }}
               onClick={handleSend}
               disabled={!input.trim() && contextNodes.length === 0}
             >
-              {isLoading ? <CircularProgress size={20} color="inherit" /> : <AddIcon size={24} />}
+              {isLoading ? <Spinner size={20} color="white" /> : <AddIcon size={24} />}
             </IconButton>
           </Box>
         </Paper>
@@ -976,13 +952,13 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         <MenuItem onClick={handleDeleteSessionConfirm} sx={{ color: 'error.main' }}>Delete</MenuItem>
       </Menu>
 
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Conversation?</DialogTitle>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteSession} color="error">Delete</Button>
-        </DialogActions>
-      </Dialog>
+      <Modal open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <Modal.Header>Delete Conversation?</Modal.Header>
+        <Modal.Footer>
+          <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button variant="destructive" onClick={handleDeleteSession}>Delete</Button>
+        </Modal.Footer>
+      </Modal>
 
     </Box>
   );
