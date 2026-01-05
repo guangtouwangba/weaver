@@ -6,7 +6,7 @@ import GlobalLayout from '@/components/layout/GlobalLayout';
 import InboxHeader from '@/components/inbox/InboxHeader';
 import InboxSidebar from '@/components/inbox/InboxSidebar';
 import InboxPreviewPanel from '@/components/inbox/InboxPreviewPanel';
-import CreateProjectDialog from '@/components/inbox/CreateProjectDialog';
+import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
 import { InboxItem as InboxItemCardType } from '@/components/inbox/InboxItemCard';
 import { ProjectOption } from '@/components/inbox/InboxActionFooter';
 import { inboxApi, projectsApi, InboxItem, Project } from '@/lib/api';
