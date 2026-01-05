@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import GlobalLayout from "@/components/layout/GlobalLayout";
-import { 
-  Box, 
-  Typography, 
-  Button, 
+import {
+  Box,
+  Typography,
+  Button,
   CircularProgress,
   Alert,
   Menu,
@@ -20,10 +20,10 @@ import {
   Snackbar,
   Stack
 } from "@mui/material";
-import { 
-  DeleteIcon, 
-  EditIcon, 
-  GridViewIcon, 
+import {
+  DeleteIcon,
+  EditIcon,
+  GridViewIcon,
   ViewListIcon,
   AddIcon,
   UploadFileIcon,
@@ -38,9 +38,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  
+
   // Tab state (visual only for now)
-  const [activeTab, setActiveTab] = useState('Recent Projects');
+  const [activeTab, setActiveTab] = useState('All Projects');
 
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -69,7 +69,7 @@ export default function DashboardPage() {
       setError(null);
       const response = await projectsApi.list();
       // Sort by updated_at desc
-      const sortedProjects = response.items.sort((a, b) => 
+      const sortedProjects = response.items.sort((a, b) =>
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
       setProjects(sortedProjects);
@@ -141,27 +141,27 @@ export default function DashboardPage() {
   return (
     <GlobalLayout>
       <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
-        
+
         {/* Header Section */}
         <Box sx={{ mb: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Welcome back, Alex 👋
+              Projects
             </Typography>
             <Typography variant="body1" color="text.secondary">
               Pick up where you left off or start a new analysis.
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
-             <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               startIcon={<UploadFileIcon size="md" />}
               sx={{ textTransform: 'none', borderRadius: 2, bgcolor: 'background.paper', borderColor: 'divider', color: 'text.primary' }}
             >
               Import
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               startIcon={<AddIcon size="md" />}
               onClick={() => setCreateDialogOpen(true)}
               sx={{ textTransform: 'none', borderRadius: 2, bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
@@ -178,73 +178,97 @@ export default function DashboardPage() {
           </Box>
         ) : (
           <>
-            {/* Recent Projects Section */}
+            {/* Filters & Content Section */}
             <Box sx={{ mb: 6 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1 }}>
-                      Recent Projects
-                    </Typography>
-                    <Box sx={{ width: '1px', height: 20, bgcolor: 'divider', mx: 1 }} />
-                    <Stack direction="row" spacing={0.5}>
-                      {['All Projects', 'Starred', 'Shared with me'].map((tab) => {
-                        const isSelected = activeTab === tab || (activeTab === 'Recent Projects' && tab === 'All Projects');
-                        return (
-                          <Box 
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            sx={{ 
-                              px: 2,
-                              py: 0.5,
-                              borderRadius: 2,
-                              cursor: 'pointer',
-                              bgcolor: isSelected ? '#eff6ff' : 'transparent',
-                              color: isSelected ? '#4f46e5' : 'text.secondary',
-                              fontWeight: isSelected ? 600 : 500,
-                              transition: 'all 0.2s',
-                              fontSize: '0.95rem',
-                              '&:hover': { 
-                                bgcolor: isSelected ? '#eff6ff' : 'rgba(0,0,0,0.04)',
-                                color: isSelected ? '#4f46e5' : 'text.primary'
-                              }
-                            }}
-                          >
-                            {tab}
-                          </Box>
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                  
-                  <Stack direction="row" spacing={2} alignItems="center" sx={{ color: 'text.secondary' }}>
-                    <GridViewIcon size="md" sx={{ cursor: 'pointer' }} />
-                    <ViewListIcon size="md" sx={{ cursor: 'pointer' }} />
-                    <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 500 }}>Last Modified</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Stack direction="row" spacing={0.5}>
+                    {['Recent', 'All Projects', 'Starred'].map((tab) => {
+                      const isSelected = activeTab === tab;
+                      return (
+                        <Box
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          sx={{
+                            px: 2,
+                            py: 0.5,
+                            borderRadius: 2,
+                            cursor: 'pointer',
+                            bgcolor: isSelected ? '#eff6ff' : 'transparent',
+                            color: isSelected ? '#4f46e5' : 'text.secondary',
+                            fontWeight: isSelected ? 600 : 500,
+                            transition: 'all 0.2s',
+                            fontSize: '0.95rem',
+                            '&:hover': {
+                              bgcolor: isSelected ? '#eff6ff' : 'rgba(0,0,0,0.04)',
+                              color: isSelected ? '#4f46e5' : 'text.primary'
+                            }
+                          }}
+                        >
+                          {tab}
+                        </Box>
+                      );
+                    })}
                   </Stack>
+                </Box>
+
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ color: 'text.secondary' }}>
+                  <GridViewIcon size="md" sx={{ cursor: 'pointer' }} />
+                  <ViewListIcon size="md" sx={{ cursor: 'pointer' }} />
+                  <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 500 }}>Last Modified</Typography>
+                </Stack>
               </Box>
-              
-              {projects.length > 0 ? (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 3 }}>
-                  {(activeTab === 'Recent Projects' ? recentProjects : projects).map((project) => (
-                    <ProjectCard 
-                      key={project.id} 
-                      project={project} 
-                      onOpenMenu={handleOpenMenu}
-                    />
-                  ))}
-                </Box>
-              ) : (
-                <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
-                   <Typography color="text.secondary">No projects yet. Create one to get started.</Typography>
-                </Box>
-              )}
+
+              {(() => {
+                const filteredProjects = projects.filter(p => {
+                  if (activeTab === 'Recent') {
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    return new Date(p.updated_at) > sevenDaysAgo;
+                  }
+                  if (activeTab === 'Starred') {
+                    return false;
+                  }
+                  return true;
+                });
+
+                if (projects.length === 0) {
+                  return (
+                    <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
+                      <Typography color="text.secondary">No projects yet. Create one to get started.</Typography>
+                    </Box>
+                  );
+                }
+
+                if (filteredProjects.length === 0) {
+                  return (
+                    <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
+                      <Typography color="text.secondary">
+                        {activeTab === 'Recent' ? 'No projects modified in the last 7 days.' : 'No projects found.'}
+                      </Typography>
+                    </Box>
+                  );
+                }
+
+                return (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 3 }}>
+                    {filteredProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onOpenMenu={handleOpenMenu}
+                      />
+                    ))}
+                  </Box>
+                );
+              })()}
             </Box>
 
           </>
         )}
 
-        <CreateProjectDialog 
-          open={createDialogOpen} 
+        <CreateProjectDialog
+          open={createDialogOpen}
           onClose={() => setCreateDialogOpen(false)}
           onProjectCreated={handleProjectCreated}
         />

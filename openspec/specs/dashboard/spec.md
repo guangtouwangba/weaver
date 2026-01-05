@@ -25,9 +25,30 @@ The dashboard SHALL provide predefined templates to start new projects.
 - **THEN** they see options for "Market Analysis", "Brainstorming", "Roadmap", and "Retrospective" templates.
 
 ### Requirement: Project Filtering
-The dashboard SHALL allow filtering the full list of projects.
+The dashboard MUST provide clear filtering via tabs under a unified "Projects" heading.
 
-#### Scenario: Filter tabs
-- **WHEN** the user views the "Recent Projects" or "All Projects" list
-- **THEN** they can switch between "All Projects", "Starred", and "Shared with me" tabs (UI only for MVP).
+#### Scenario: Switching Tabs
+Given the dashboard is open
+When clicking "Recent"
+Then only projects modified in the last 7 days are shown
+
+#### Scenario: All Projects
+Given the dashboard is open
+When clicking "All Projects"
+Then all unfiltered projects are shown
+
+---
+
+### Requirement: Card Visuals
+Project cards MUST maximize relevant information and minimize visual noise.
+
+#### Scenario: No Description
+Given a project with no description
+When the card is rendered
+Then the description area is hidden (no "No description" text)
+
+#### Scenario: Project Icon
+Given a project named "Alpha"
+When the card is rendered
+Then a colored icon with "A" is displayed instead of a generic placeholder image
 
