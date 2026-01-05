@@ -1,6 +1,6 @@
 ## 1. Frontend Implementation
-- [ ] 1.1 Install and configure `next-intl` in `web/package.json` and `next.config.js` (if applicable) or middleware.
-- [ ] 1.2 Create locale files (en.json, zh.json) in `web/messages` or `web/public/locales`.
+- [ ] 1.1 Install and configure `next-intl` in `app/frontend/package.json` and `next.config.js` (if applicable) or middleware.
+- [ ] 1.2 Create locale files (en.json, zh.json) in `app/frontend/messages` or `app/frontend/public/locales`.
 - [ ] 1.3 Create a `LanguageSwitcher` component.
 - [ ] 1.4 Update root layout/provider to handle locale state.
 - [ ] 1.5 Replace hardcoded text in main navigation and `AssistantPanel` with `t()` calls.

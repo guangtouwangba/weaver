@@ -51,5 +51,5 @@ A tool to help users analyze relationships, build knowledge systems, and visuali
 
 
 ## Structure
-- web folder is a folder for prototype
-- fronend folder is a folder for final product, so normally you should implement feature in this folder
+- frontend: located in `app/frontend`, this is the main product frontend.
+- backend: located in `app/backend`, this is the main product backend.
