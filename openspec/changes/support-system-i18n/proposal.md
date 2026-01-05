@@ -20,7 +20,7 @@ Users need to interact with the system in their preferred language. The system c
   - `frontend`: New requirements for i18n.
   - `agents`: New requirements for language-aware generation.
 - **Affected Code**:
-  - `web/package.json` (New dependency).
-  - `web/app/**` (UI components wrapped in translations).
+  - `app/frontend/package.json` (New dependency).
+  - `app/frontend/src/**` (UI components wrapped in translations).
   - `app/backend/src/research_agent/infrastructure/llm/prompts/` (Prompt templates).
   - `app/backend/src/research_agent/domain/agents/` (Agent signatures).
