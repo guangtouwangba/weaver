@@ -10,8 +10,7 @@
  */
 
 import React, { useState, useRef, useEffect, memo } from 'react';
-import { Modal, Fade, Backdrop, Chip, Button as MuiButton } from '@mui/material';
-import { Surface, Stack, Text, IconButton, Button } from '@/components/ui';
+import { Surface, Stack, Text, IconButton, Button, Chip, Modal } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
 import { SummaryData, KeyFinding } from '@/lib/api';
@@ -192,29 +191,15 @@ function SummaryCanvasNodeInner({
         <Stack direction="row" gap={0} sx={{ mb: 1.5, gap: 0.5 }}>
           <Chip
             label="SUMMARY"
-            size="small"
-            sx={{
-              bgcolor: '#EEF2FF',
-              color: '#4F46E5',
-              fontWeight: 600,
-              fontSize: '0.6rem',
-              height: 18,
-              borderRadius: 0.5,
-              '& .MuiChip-label': { px: 0.75 }
-            }}
+            size="sm"
+            color="primary"
+            variant="soft"
           />
           <Chip
             label="AI GENERATED"
-            size="small"
-            sx={{
-              bgcolor: '#F5F3FF',
-              color: '#7C3AED',
-              fontWeight: 600,
-              fontSize: '0.6rem',
-              height: 18,
-              borderRadius: 0.5,
-              '& .MuiChip-label': { px: 0.75 }
-            }}
+            size="sm"
+            color="primary"
+            variant="soft"
           />
         </Stack>
 
@@ -259,146 +244,108 @@ function SummaryCanvasNodeInner({
         )}
 
         {/* Expand Button */}
-        <MuiButton
+        <Button
           fullWidth
-          size="small"
+          size="sm"
           onClick={handleExpand}
-          sx={{
-            bgcolor: '#4F46E5',
-            color: 'white',
-            borderRadius: 2,
-            textTransform: 'none',
-            py: 0.75,
-            fontSize: '0.75rem',
-            '&:hover': {
-              bgcolor: '#4338CA'
-            }
-          }}
           endIcon={<ArrowForwardIcon size={14} />}
         >
           Read More
-        </MuiButton>
-      </Surface>
+        </Button>
+      </Surface >
 
       {/* Expanded Modal */}
       <Modal
         open={isExpanded}
         onClose={handleCloseExpanded}
-        closeAfterTransition
-        slots={{ backdrop: Backdrop }}
-        slotProps={{
-          backdrop: {
-            timeout: 500,
-            sx: { bgcolor: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(4px)' }
-          },
-        }}
+        size="lg"
+        style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
-        <Fade in={isExpanded}>
-          <Surface
-            elevation={4}
-            radius="xl"
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: 700,
-              maxHeight: '85vh',
-              p: 0,
-              outline: 'none',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {/* Modal Header */}
-            <Stack
-              direction="row"
-              align="center"
-              justify="between"
-              sx={{
-                p: 2.5,
-                borderBottom: `1px solid ${colors.border.default}`,
+        {/* Modal Header */}
+        <Stack
+          direction="row"
+          align="center"
+          justify="between"
+          sx={{
+            p: 2.5,
+            borderBottom: `1px solid ${colors.border.default}`,
+          }}
+        >
+          <Stack direction="row" align="center" gap={1}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: radii.md,
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
               }}
             >
-              <Stack direction="row" align="center" gap={1}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: radii.md,
-                    background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                  }}
-                >
-                  <AutoAwesomeIcon size={18} />
-                </div>
-                <div>
-                  <Text variant="label">{title}</Text>
-                  <Text variant="caption" color="secondary">
-                    AI Generated Summary
-                  </Text>
-                </div>
-              </Stack>
-              <Stack direction="row" gap={0} sx={{ gap: 0.5 }}>
-                <IconButton size="sm" variant="ghost" onClick={handleCopy}>
-                  <ContentCopyIcon size={18} />
-                </IconButton>
-                <IconButton size="sm" variant="ghost" onClick={handleCloseExpanded}>
-                  <CloseIcon size={18} />
-                </IconButton>
-              </Stack>
-            </Stack>
-
-            {/* Modal Content */}
-            <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
-              <Text variant="overline" color="primary" sx={{ mb: 1, display: 'block', fontWeight: 700 }}>
-                EXECUTIVE SUMMARY
-              </Text>
-              <Text variant="body" color="secondary" sx={{ lineHeight: 1.8, mb: 3 }}>
-                {data.summary}
-              </Text>
-
-              {data.keyFindings && data.keyFindings.length > 0 && (
-                <>
-                  <Text variant="overline" color="primary" sx={{ mb: 2, display: 'block', fontWeight: 700 }}>
-                    KEY FINDINGS
-                  </Text>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                    {data.keyFindings.map((finding, idx) => (
-                      <Surface
-                        key={idx}
-                        elevation={0}
-                        radius="md"
-                        bordered
-                        sx={{ p: 2, bgcolor: colors.background.subtle }}
-                      >
-                        <Stack direction="row" align="center" gap={1} sx={{ mb: 0.5 }}>
-                          <div
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: '50%',
-                              backgroundColor: colors.primary[500],
-                            }}
-                          />
-                          <Text variant="label">{finding.label}</Text>
-                        </Stack>
-                        <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.6 }}>
-                          {finding.content}
-                        </Text>
-                      </Surface>
-                    ))}
-                  </div>
-                </>
-              )}
+              <AutoAwesomeIcon size={18} />
             </div>
-          </Surface>
-        </Fade>
+            <div>
+              <Text variant="label">{title}</Text>
+              <Text variant="caption" color="secondary">
+                AI Generated Summary
+              </Text>
+            </div>
+          </Stack>
+          <Stack direction="row" gap={0} sx={{ gap: 0.5 }}>
+            <IconButton size="sm" variant="ghost" onClick={handleCopy}>
+              <ContentCopyIcon size={18} />
+            </IconButton>
+            <IconButton size="sm" variant="ghost" onClick={handleCloseExpanded}>
+              <CloseIcon size={18} />
+            </IconButton>
+          </Stack>
+        </Stack>
+
+        {/* Modal Content */}
+        <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
+          <Text variant="overline" color="primary" sx={{ mb: 1, display: 'block', fontWeight: 700 }}>
+            EXECUTIVE SUMMARY
+          </Text>
+          <Text variant="body" color="secondary" sx={{ lineHeight: 1.8, mb: 3 }}>
+            {data.summary}
+          </Text>
+
+          {data.keyFindings && data.keyFindings.length > 0 && (
+            <>
+              <Text variant="overline" color="primary" sx={{ mb: 2, display: 'block', fontWeight: 700 }}>
+                KEY FINDINGS
+              </Text>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {data.keyFindings.map((finding, idx) => (
+                  <Surface
+                    key={idx}
+                    elevation={0}
+                    radius="md"
+                    bordered
+                    sx={{ p: 2, bgcolor: colors.background.subtle }}
+                  >
+                    <Stack direction="row" align="center" gap={1} sx={{ mb: 0.5 }}>
+                      <div
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          backgroundColor: colors.primary[500],
+                        }}
+                      />
+                      <Text variant="label">{finding.label}</Text>
+                    </Stack>
+                    <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.6 }}>
+                      {finding.content}
+                    </Text>
+                  </Surface>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </Modal>
     </>
   );

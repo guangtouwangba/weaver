@@ -83,9 +83,9 @@
 ## 6. Other Directories Migration (P2)
 - [ ] 6.1 Migrate `inbox/` components (7 files). @frontend
 - [ ] 6.2 Migrate `pdf/` components (13 files). @frontend
-- [ ] 6.3 Migrate `dashboard/` components (2 files). @frontend
-- [ ] 6.4 Migrate `dialogs/` components (2 files). @frontend
-- [ ] 6.5 Migrate `settings/` components (2 files). @frontend
+- [x] 6.3 Migrate `dashboard/` components (2 files: ProjectCard, TemplateCard). @frontend
+- [x] 6.4 Migrate `dialogs/` components (CreateProjectDialog done, ImportSourceDialog defer). @frontend
+- [x] 6.5 Migrate `settings/` components (2 files: StrategyCard, StrategyTooltip). @frontend
 - [ ] 6.6 Migrate `layout/` components (4 files). @frontend
 
 ## 7. Icon Refactor (P2)

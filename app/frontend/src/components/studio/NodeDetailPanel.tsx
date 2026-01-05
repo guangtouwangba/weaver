@@ -7,8 +7,7 @@
  */
 
 import { useState } from 'react';
-import { Chip, Divider, TextField, Button as MuiButton } from '@mui/material';
-import { Surface, Stack, Text, IconButton, Button } from '@/components/ui';
+import { Surface, Stack, Text, IconButton, Button, Chip, TextField } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   CloseIcon,
@@ -239,10 +238,10 @@ export default function NodeDetailPanel({
           {isEditing ? (
             <TextField
               fullWidth
-              size="small"
+              size="sm"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              sx={{ mt: 0.5 }}
+              style={{ marginTop: 4 }}
               autoFocus
             />
           ) : (
@@ -269,16 +268,10 @@ export default function NodeDetailPanel({
           <TextField
             fullWidth
             multiline
-            minRows={8}
+            rows={8}
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             placeholder="Enter content..."
-            sx={{
-              '& .MuiInputBase-root': {
-                fontSize: '0.95rem',
-                lineHeight: 1.7,
-              },
-            }}
           />
         ) : (
           <div
@@ -306,12 +299,9 @@ export default function NodeDetailPanel({
                 <Chip
                   key={tag}
                   label={tag}
-                  size="small"
-                  sx={{
-                    height: 24,
-                    fontSize: '0.75rem',
-                    bgcolor: colors.neutral[100],
-                  }}
+                  size="sm"
+                  color="default"
+                  variant="soft"
                 />
               ))}
             </Stack>
@@ -381,48 +371,42 @@ export default function NodeDetailPanel({
       >
         {/* Source Reference */}
         {hasSourceRef && (
-          <MuiButton
+          <Button
             startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
-            sx={{
-              mb: 2,
+            variant="outlined"
+            style={{
+              marginBottom: 16,
               justifyContent: 'flex-start',
               textTransform: 'none',
-              bgcolor: 'white',
-              border: `1px solid ${colors.border.default}`,
+              backgroundColor: 'white',
+              borderColor: colors.border.default,
               color: colors.text.primary,
-              '&:hover': {
-                bgcolor: colors.neutral[50],
-                borderColor: colors.primary[500],
-              },
             }}
           >
             View Source {node.sourcePage ? `(Page ${node.sourcePage})` : ''}
-          </MuiButton>
+          </Button>
         )}
 
         {/* Source Node: Open Document */}
         {isSourceNode && node.sourceId && (
-          <MuiButton
+          <Button
             startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
-            sx={{
-              mb: 2,
+            variant="outlined"
+            style={{
+              marginBottom: 16,
               justifyContent: 'flex-start',
               textTransform: 'none',
-              bgcolor: 'white',
-              border: `1px solid ${colors.border.default}`,
+              backgroundColor: 'white',
+              borderColor: colors.border.default,
               color: colors.text.primary,
-              '&:hover': {
-                bgcolor: colors.neutral[50],
-                borderColor: colors.primary[500],
-              },
             }}
           >
             Open Document
-          </MuiButton>
+          </Button>
         )}
 
         {/* Linked Messages */}
@@ -446,39 +430,40 @@ export default function NodeDetailPanel({
         )}
 
         {/* Action Buttons */}
-        <Divider sx={{ my: 1.5 }} />
+        <div style={{ height: 1, backgroundColor: colors.border.default, margin: '12px 0' }} />
         <Stack direction="row" gap={1} justify="end">
           {isEditing ? (
             <>
-              <MuiButton size="small" onClick={handleCancelEdit}>
+              <Button size="sm" variant="ghost" onClick={handleCancelEdit}>
                 Cancel
-              </MuiButton>
-              <MuiButton
-                size="small"
-                variant="contained"
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
                 onClick={handleSaveEdit}
                 startIcon={<CheckIcon size={14} />}
               >
                 Save
-              </MuiButton>
+              </Button>
             </>
           ) : (
             <>
-              <MuiButton
-                size="small"
+              <Button
+                size="sm"
+                variant="ghost"
                 startIcon={<EditIcon size={14} />}
                 onClick={handleStartEdit}
               >
                 Edit
-              </MuiButton>
-              <MuiButton
-                size="small"
-                color="error"
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
                 startIcon={<DeleteIcon size={14} />}
                 onClick={handleDelete}
               >
                 Delete
-              </MuiButton>
+              </Button>
             </>
           )}
         </Stack>

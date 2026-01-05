@@ -34,7 +34,10 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
 };
 
 import Konva from 'konva';
-import { Box, Typography, Menu, MenuItem, Paper, TextField, Chip, Stack, IconButton, CircularProgress, Button } from '@mui/material';
+import { Box, Typography, Paper, Stack } from '@mui/material';
+import { Menu, MenuItem, TextField } from '@/components/ui/composites';
+import { Chip, IconButton, Button, Spinner } from '@/components/ui/primitives';
+import { colors } from '@/components/ui/tokens';
 import {
   ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon, SearchIcon,
   EditIcon, DeleteIcon,
@@ -2638,8 +2641,9 @@ export default function KonvaCanvas({
               </Typography>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <IconButton
-                  size="small"
+                  size="sm"
                   color="error"
+                  variant="ghost"
                   onClick={() => {
                     if (onEdgesChange) {
                       onEdgesChange(edges.filter(e => e.id !== edgeLabelDialog.edge.id));
@@ -2652,7 +2656,8 @@ export default function KonvaCanvas({
                   <DeleteIcon size="sm" />
                 </IconButton>
                 <IconButton
-                  size="small"
+                  size="sm"
+                  variant="ghost"
                   onClick={() => setEdgeLabelDialog(null)}
                 >
                   <CloseIcon size="sm" />
@@ -2671,7 +2676,7 @@ export default function KonvaCanvas({
                 <Chip
                   key={type}
                   label={label}
-                  size="small"
+                  size="sm"
                   onClick={() => {
                     const updatedEdges = edges.map(e =>
                       e.id === edgeLabelDialog.edge.id
@@ -2681,10 +2686,9 @@ export default function KonvaCanvas({
                     onEdgesChange(updatedEdges);
                     setEdgeLabelDialog(null);
                   }}
-                  sx={{
+                  style={{
                     borderColor: color,
                     color: color,
-                    '&:hover': { bgcolor: `${color}10` },
                     cursor: 'pointer',
                   }}
                   variant="outlined"
@@ -2693,12 +2697,12 @@ export default function KonvaCanvas({
             </Stack>
 
             <TextField
-              size="small"
+              size="sm"
               placeholder="自定义标签..."
               fullWidth
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  const value = (e.target as HTMLInputElement).value.trim();
+                  const value = (e.currentTarget.value).trim();
                   if (value) {
                     const updatedEdges = edges.map(edge =>
                       edge.id === edgeLabelDialog.edge.id
@@ -2710,7 +2714,7 @@ export default function KonvaCanvas({
                   setEdgeLabelDialog(null);
                 }
               }}
-              sx={{ '& .MuiInputBase-input': { fontSize: 13 } }}
+              inputStyle={{ fontSize: 13 }}
             />
           </Paper>
         )}
@@ -3229,7 +3233,7 @@ export default function KonvaCanvas({
               justifyContent: 'center',
             }}
           >
-            <CircularProgress sx={{ color: '#8B5CF6' }} />
+            <Spinner size="lg" style={{ color: '#8B5CF6' }} />
           </Box>
         )}
 
@@ -3266,15 +3270,16 @@ export default function KonvaCanvas({
               }}
             >
               <Button
-                size="small"
+                size="sm"
+                variant="ghost"
                 onClick={() => setPendingSynthesisResult(null)}
-                sx={{ textTransform: 'none', color: 'text.secondary' }}
+                style={{ color: colors.text.secondary }}
               >
                 Discard
               </Button>
               <Button
-                size="small"
-                variant="contained"
+                size="sm"
+                variant="primary"
                 onClick={() => {
                   // Create a new canvas node from the synthesis result
                   const newNode: CanvasNode = {

@@ -2,19 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Button, 
+import {
+  Button,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  CircularProgress,
-  Typography,
-  Box,
-  IconButton,
   InputAdornment
 } from "@mui/material";
+import { Stack, Text, IconButton, Spinner } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import { CloseIcon, TagIcon, ArrowForwardIcon } from '@/components/ui/icons';
 import { projectsApi } from "@/lib/api";
 
@@ -34,18 +31,18 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
-    
+
     try {
       setCreating(true);
       setError(null);
       const project = await projectsApi.create(newProjectName, newProjectDescription || undefined);
-      
+
       if (onProjectCreated) {
         onProjectCreated(project);
       } else {
         router.push(`/studio/${project.id}`);
       }
-      
+
       handleClose();
     } catch (err: any) {
       setError(err.message || 'Failed to create project');
@@ -65,44 +62,43 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
   // Custom input style for a cleaner look
   const inputSx = {
     '& .MuiOutlinedInput-root': {
-      borderRadius: 1.5, // Less rounded to match screenshot (looks like ~6-8px)
-      bgcolor: 'background.paper',
+      borderRadius: radii.md,
+      bgcolor: colors.background.paper,
       fontSize: '0.9rem',
       '& fieldset': {
-        borderColor: '#E5E7EB',
+        borderColor: colors.border.default,
       },
       '&:hover fieldset': {
-        borderColor: '#D1D5DB',
+        borderColor: colors.neutral[400],
       },
       '&.Mui-focused fieldset': {
-        borderColor: '#6366f1', // Indigo focus
+        borderColor: colors.primary[500],
         borderWidth: 1,
       },
     },
     '& .MuiInputLabel-root': {
-      color: '#374151', // Gray-700
+      color: colors.text.primary,
       fontWeight: 600,
       fontSize: '0.9rem',
-      marginBottom: '6px', // Spacing between label and input
-      position: 'static', // Static position for label above input
+      marginBottom: '6px',
+      position: 'static',
       transform: 'none',
       '&.Mui-focused': {
-        color: '#374151',
+        color: colors.text.primary,
       }
     },
-    // Hide default legend since we are using static label
     '& legend': { display: 'none' },
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={() => !creating && handleClose()}
       maxWidth={false}
       PaperProps={{
         sx: {
-          borderRadius: 3,
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          borderRadius: radii.lg,
+          boxShadow: shadows.xl,
           width: 'calc(100% - 32px)',
           maxWidth: 520,
           m: 2,
@@ -112,25 +108,32 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
       }}
     >
       {/* Header */}
-      <Box sx={{ px: 3, py: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="h6" fontWeight="700" sx={{ lineHeight: 1.2 }}>
-          Create New Project
-        </Typography>
-        <IconButton 
-          onClick={handleClose} 
+      <Stack
+        direction="row"
+        align="center"
+        justify="between"
+        sx={{
+          px: 3,
+          py: 2.5,
+          borderBottom: `1px solid ${colors.border.default}`
+        }}
+      >
+        <Text variant="h6">Create New Project</Text>
+        <IconButton
+          onClick={handleClose}
           disabled={creating}
-          size="small" 
-          sx={{ color: 'text.secondary' }}
+          size="sm"
+          variant="ghost"
         >
           <CloseIcon size="md" />
         </IconButton>
-      </Box>
-      
+      </Stack>
+
       <DialogContent sx={{ px: 3, py: 3 }}>
-        <Box sx={{ mb: 3 }}>
-          <Typography component="label" sx={{ display: 'block', mb: 1, fontWeight: 600, fontSize: '0.9rem', color: '#374151' }}>
+        <div style={{ marginBottom: 24 }}>
+          <Text variant="label" sx={{ display: 'block', mb: 1, color: colors.text.primary }}>
             Project Name
-          </Typography>
+          </Text>
           <TextField
             autoFocus
             fullWidth
@@ -144,12 +147,15 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
             size="medium"
             hiddenLabel
           />
-        </Box>
+        </div>
 
-        <Box sx={{ mb: 3 }}>
-          <Typography component="label" sx={{ display: 'block', mb: 1, fontWeight: 600, fontSize: '0.9rem', color: '#374151' }}>
-            Description <Typography component="span" variant="caption" color="text.secondary" sx={{ fontWeight: 400 }}>(Optional)</Typography>
-          </Typography>
+        <div style={{ marginBottom: 24 }}>
+          <Stack direction="row" gap={1} sx={{ mb: 1 }}>
+            <Text variant="label" sx={{ color: colors.text.primary }}>
+              Description
+            </Text>
+            <Text variant="caption" color="secondary">(Optional)</Text>
+          </Stack>
           <TextField
             fullWidth
             placeholder="Briefly describe the goals and scope of this research..."
@@ -161,12 +167,12 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
             sx={inputSx}
             hiddenLabel
           />
-        </Box>
+        </div>
 
-        <Box sx={{ mb: 1 }}>
-          <Typography component="label" sx={{ display: 'block', mb: 1, fontWeight: 600, fontSize: '0.9rem', color: '#374151' }}>
+        <div style={{ marginBottom: 8 }}>
+          <Text variant="label" sx={{ display: 'block', mb: 1, color: colors.text.primary }}>
             Tags
-          </Typography>
+          </Text>
           <TextField
             fullWidth
             placeholder="Add tags to organize (e.g., Marketing, Q1)"
@@ -177,49 +183,49 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
             hiddenLabel
             InputProps={{
               startAdornment: (
-                <InputAdornment position="start" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                <InputAdornment position="start" sx={{ color: colors.text.secondary, ml: 0.5 }}>
                   <TagIcon size="sm" />
                 </InputAdornment>
               ),
             }}
           />
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+          <Text variant="caption" color="secondary" sx={{ mt: 0.5, display: 'block' }}>
             Separate tags with commas
-          </Typography>
-        </Box>
+          </Text>
+        </div>
       </DialogContent>
-      
-      <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Button 
-          onClick={handleClose} 
+
+      <DialogActions sx={{ px: 3, py: 2.5, borderTop: `1px solid ${colors.border.default}` }}>
+        <Button
+          onClick={handleClose}
           disabled={creating}
-          sx={{ 
-            color: 'text.secondary', 
+          sx={{
+            color: colors.text.secondary,
             textTransform: 'none',
             fontWeight: 500,
-            mr: 'auto' // Push to left
+            mr: 'auto'
           }}
         >
           Cancel
         </Button>
-        <Button 
-          onClick={handleCreateProject} 
+        <Button
+          onClick={handleCreateProject}
           variant="contained"
           disabled={!newProjectName.trim() || creating}
           endIcon={!creating && <ArrowForwardIcon size="sm" />}
-          sx={{ 
+          sx={{
             textTransform: 'none',
-            borderRadius: 2,
+            borderRadius: radii.md,
             px: 3,
             py: 1,
             fontWeight: 600,
-            bgcolor: '#4f46e5', // Indigo-600
+            bgcolor: colors.primary[600],
             '&:hover': {
-              bgcolor: '#4338ca',
+              bgcolor: colors.primary[700],
             }
           }}
         >
-          {creating ? <CircularProgress size={20} color="inherit" /> : 'Next'}
+          {creating ? <Spinner size="xs" color="inherit" /> : 'Next'}
         </Button>
       </DialogActions>
     </Dialog>

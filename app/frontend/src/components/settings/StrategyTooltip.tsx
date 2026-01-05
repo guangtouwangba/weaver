@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Chip, Typography } from '@mui/material';
+import { Chip } from '@mui/material';
+import { Stack, Text } from '@/components/ui';
 import { BoltIcon, AttachMoneyIcon, GpsFixedIcon } from '@/components/ui/icons';
 
 export interface StrategyOption {
@@ -46,16 +47,16 @@ const performanceLabels = {
 
 export default function StrategyTooltip({ option }: StrategyTooltipProps) {
   return (
-    <Box sx={{ p: 1, maxWidth: 280 }}>
-      <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+    <div style={{ padding: 8, maxWidth: 280 }}>
+      <Text variant="label" sx={{ fontWeight: 700, mb: 0.5, display: 'block' }}>
         {option.label}
-      </Typography>
-      
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        {option.description}
-      </Typography>
+      </Text>
 
-      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+      <Text variant="bodySmall" color="secondary" sx={{ mb: 1.5 }}>
+        {option.description}
+      </Text>
+
+      <Stack direction="row" gap={1} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
         <Chip
           icon={<AttachMoneyIcon size={14} />}
           label={costLabels[option.cost]}
@@ -78,14 +79,14 @@ export default function StrategyTooltip({ option }: StrategyTooltipProps) {
             '& .MuiChip-icon': { color: performanceColors[option.performance] },
           }}
         />
-      </Box>
+      </Stack>
 
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+      <Stack direction="row" align="start" gap={0} sx={{ gap: 0.5 }}>
         <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
-        <Typography variant="caption" color="text.secondary">
+        <Text variant="caption" color="secondary">
           <strong>Best for:</strong> {option.best_for}
-        </Typography>
-      </Box>
-    </Box>
+        </Text>
+      </Stack>
+    </div>
   );
 }

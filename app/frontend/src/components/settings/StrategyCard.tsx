@@ -1,5 +1,9 @@
-import { Box, Paper, Typography, Radio, Chip } from '@mui/material';
-import { BoltIcon, AttachMoneyIcon, GpsFixedIcon, CheckIcon } from '@/components/ui/icons';
+'use client';
+
+import { Radio, Chip } from '@mui/material';
+import { Surface, Stack, Text } from '@/components/ui';
+import { colors, shadows } from '@/components/ui/tokens';
+import { BoltIcon, AttachMoneyIcon, GpsFixedIcon } from '@/components/ui/icons';
 import { StrategyOption } from './StrategyTooltip';
 
 interface StrategyCardProps {
@@ -38,16 +42,16 @@ const performanceLabels = {
 
 export default function StrategyCard({ option, selected, onClick }: StrategyCardProps) {
   return (
-    <Paper
+    <Surface
       elevation={0}
+      radius="xl"
       onClick={onClick}
       sx={{
         p: 2.5,
         cursor: 'pointer',
         border: '2px solid',
-        borderColor: selected ? 'primary.main' : 'divider',
-        borderRadius: 4,
-        bgcolor: selected ? 'rgba(var(--mui-palette-primary-mainChannel) / 0.03)' : 'background.paper',
+        borderColor: selected ? colors.primary[500] : colors.border.default,
+        bgcolor: selected ? `${colors.primary[500]}08` : colors.background.paper,
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
         flexDirection: 'column',
@@ -55,33 +59,33 @@ export default function StrategyCard({ option, selected, onClick }: StrategyCard
         height: '100%',
         position: 'relative',
         '&:hover': {
-          borderColor: selected ? 'primary.main' : 'text.disabled',
+          borderColor: selected ? colors.primary[500] : colors.text.disabled,
           transform: 'translateY(-2px)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+          boxShadow: shadows.sm,
         },
       }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ fontSize: '1rem', mb: 0.5 }}>
+      <Stack direction="row" justify="between" align="start">
+        <div>
+          <Text variant="h6" sx={{ fontSize: '1rem', mb: 0.5 }}>
             {option.label}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5, minHeight: 40 }}>
+          </Text>
+          <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.5, minHeight: 40 }}>
             {option.description}
-            </Typography>
-        </Box>
-        <Radio 
-          checked={selected} 
-          sx={{ 
-            p: 0.5, 
-            mt: -0.5, 
+          </Text>
+        </div>
+        <Radio
+          checked={selected}
+          sx={{
+            p: 0.5,
+            mt: -0.5,
             mr: -0.5,
-            '&.Mui-checked': { color: 'primary.main' } 
-          }} 
+            '&.Mui-checked': { color: colors.primary[500] }
+          }}
         />
-      </Box>
+      </Stack>
 
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 'auto' }}>
+      <Stack direction="row" gap={1} sx={{ flexWrap: 'wrap', mt: 'auto' }}>
         <Chip
           icon={<AttachMoneyIcon size={14} />}
           label={costLabels[option.cost]}
@@ -112,39 +116,21 @@ export default function StrategyCard({ option, selected, onClick }: StrategyCard
             '& .MuiChip-icon': { color: performanceColors[option.performance] },
           }}
         />
-      </Box>
-      
+      </Stack>
+
       {option.best_for && (
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-            <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-                Best for: {option.best_for}
-            </Typography>
-        </Box>
+        <Stack
+          direction="row"
+          align="start"
+          gap={1}
+          sx={{ pt: 1.5, borderTop: `1px solid ${colors.border.default}` }}
+        >
+          <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
+          <Text variant="caption" color="secondary" sx={{ fontWeight: 500 }}>
+            Best for: {option.best_for}
+          </Text>
+        </Stack>
       )}
-    </Paper>
+    </Surface>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

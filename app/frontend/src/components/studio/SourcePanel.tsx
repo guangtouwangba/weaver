@@ -2,25 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  IconButton, 
-  Button,
-  Tooltip,
-  Collapse,
-  Chip,
-  LinearProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
+import {
+  Box,
+  Typography,
+  Paper,
 } from "@mui/material";
-import { 
-  DescriptionIcon, 
-  FullscreenIcon, 
+import { Surface, Text, IconButton, Button, Tooltip, Collapse, Chip, Progress, Modal, Stack } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
+import {
+  DescriptionIcon,
+  FullscreenIcon,
   FolderOpenIcon,
   ExpandMoreIcon,
   ChevronLeftIcon,
@@ -70,7 +61,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [filesExpanded, setFilesExpanded] = useState(true);
-  
+
   // Upload state
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -78,12 +69,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   // Delete state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<ProjectDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
-  
+
   // Vertical Resize State
   const [splitRatio, setSplitRatio] = useState(0.4);
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
@@ -110,23 +101,23 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   // WebSocket for real-time document status updates (replaces polling)
   useDocumentWebSocket({
     projectId,
-    enabled: documents.some(d => 
-      d.status === 'pending' || 
+    enabled: documents.some(d =>
+      d.status === 'pending' ||
       d.status === 'processing' ||
       d.graph_status === 'pending' ||
       d.graph_status === 'processing'
     ),
     onDocumentStatusChange: (event) => {
       console.log('[SourcePanel] Document status update:', event);
-      setDocuments(prev => prev.map(doc => 
-        doc.id === event.document_id 
+      setDocuments(prev => prev.map(doc =>
+        doc.id === event.document_id
           ? {
-              ...doc,
-              status: event.status,
-              summary: event.summary ?? doc.summary,
-              page_count: event.page_count ?? doc.page_count,
-              graph_status: event.graph_status ?? doc.graph_status,
-            }
+            ...doc,
+            status: event.status,
+            summary: event.summary ?? doc.summary,
+            page_count: event.page_count ?? doc.page_count,
+            graph_status: event.graph_status ?? doc.graph_status,
+          }
           : doc
       ));
     },
@@ -144,12 +135,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
         // Use custom drag handler for preview and data
         const handler = createDragHandler(activeDocument.id, activeDocument.filename);
-        
+
         // We need to cast e to any or compatible type because DragHandler expects React.DragEvent
         // but the API it uses (dataTransfer) is the same.
         handler.handleDragStart(e as unknown as React.DragEvent, {
-            text: selection.toString(),
-            pageNumber: pageNumber
+          text: selection.toString(),
+          pageNumber: pageNumber
         });
       }
     };
@@ -166,28 +157,28 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-        if (isVerticalDragging && containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
-            const ratio = (e.clientY - rect.top) / rect.height;
-            setSplitRatio(Math.min(Math.max(ratio, 0.2), 0.8));
-        }
+      if (isVerticalDragging && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const ratio = (e.clientY - rect.top) / rect.height;
+        setSplitRatio(Math.min(Math.max(ratio, 0.2), 0.8));
+      }
     };
     const handleMouseUp = () => setIsVerticalDragging(false);
 
     if (isVerticalDragging) {
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-        document.body.style.cursor = 'row-resize';
-        document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
     } else {
-        document.body.style.cursor = 'default';
-        document.body.style.userSelect = 'auto';
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
     }
     return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.body.style.cursor = 'default';
-        document.body.style.userSelect = 'auto';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
     }
   }, [isVerticalDragging]);
 
@@ -224,10 +215,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return;
-    
+
     const file = e.target.files[0];
     await handleFileUpload(file);
-    
+
     // Reset file input
     e.target.value = '';
   };
@@ -237,11 +228,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     setUploadState('uploading');
     setUploadProgress(0);
     setUploadError(null);
-    
+
     try {
       // Try presigned URL upload first (Supabase Storage)
       const newDoc = await documentsApi.uploadWithPresignedUrl(
-        projectId, 
+        projectId,
         file,
         (progress) => {
           setUploadProgress(progress);
@@ -251,41 +242,41 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           }
         }
       );
-      
+
       setUploadState('success');
       setDocuments([...documents, newDoc]);
-      
+
       // Reset after a short delay
       setTimeout(() => {
         setUploadState('idle');
         setUploadProgress(0);
         setUploadFileName(null);
       }, 2000);
-      
+
     } catch (presignError: any) {
       console.warn("Presigned URL upload failed, falling back to direct upload:", presignError.message);
-      
+
       // Fallback to direct upload if presigned URL is not available
       try {
         setUploadState('uploading');
         setUploadProgress(50); // Indeterminate progress for fallback
-        
+
         const newDoc = await documentsApi.upload(projectId, file);
-        
+
         setUploadState('success');
         setDocuments([...documents, newDoc]);
-        
+
         setTimeout(() => {
           setUploadState('idle');
           setUploadProgress(0);
           setUploadFileName(null);
         }, 2000);
-        
+
       } catch (fallbackError: any) {
         console.error("Upload failed:", fallbackError);
         setUploadState('error');
         setUploadError(fallbackError.message || 'Upload failed');
-        
+
         setTimeout(() => {
           setUploadState('idle');
           setUploadError(null);
@@ -317,19 +308,19 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   const handleDeleteConfirm = async () => {
     if (!docToDelete) return;
-    
+
     setDeleting(true);
     try {
       await documentsApi.delete(docToDelete.id);
-      
+
       // Remove from local state
       setDocuments(documents.filter(d => d.id !== docToDelete.id));
-      
+
       // Clear active document if it was deleted
       if (activeDocumentId === docToDelete.id) {
         setActiveDocumentId(null);
       }
-      
+
       setDeleteDialogOpen(false);
       setDocToDelete(null);
     } catch (error) {
@@ -383,23 +374,23 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     const isGraphProcessing = doc.graph_status === 'pending' || doc.graph_status === 'processing';
     const isGraphReady = doc.graph_status === 'ready';
     const statusInfo = getStatusInfo(doc.status);
-    
+
     if (viewMode === 'list') {
       return (
-        <Box 
-          key={doc.id} 
+        <Box
+          key={doc.id}
           onClick={() => !isProcessing && setActiveDocumentId(doc.id)}
-          sx={{ 
-            display: 'flex', 
-            gap: 1.5, 
-            p: 1.5, 
-            mb: 1, 
-            borderRadius: 2, 
-            bgcolor: isActive ? '#EFF6FF' : 'transparent', 
-            border: '1px solid', 
+          sx={{
+            display: 'flex',
+            gap: 1.5,
+            p: 1.5,
+            mb: 1,
+            borderRadius: 2,
+            bgcolor: isActive ? '#EFF6FF' : 'transparent',
+            border: '1px solid',
             borderColor: isActive ? '#BFDBFE' : 'transparent',
-            '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover', '& .delete-btn': { opacity: 1 } }, 
-            cursor: isProcessing ? 'default' : 'pointer', 
+            '&:hover': { bgcolor: isActive ? '#EFF6FF' : 'action.hover', '& .delete-btn': { opacity: 1 } },
+            cursor: isProcessing ? 'default' : 'pointer',
             transition: 'all 0.2s',
             position: 'relative',
             opacity: isProcessing ? 0.7 : 1,
@@ -412,28 +403,30 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 {doc.filename}
               </Typography>
               {doc.status !== 'ready' && (
-                <Chip 
-                  label={statusInfo.label} 
-                  size="small" 
-                  sx={{ 
-                    height: 18, 
+                <Chip
+                  label={statusInfo.label}
+                  size="small"
+                  sx={{
+                    height: 18,
                     fontSize: '0.65rem',
-                    bgcolor: statusInfo.bgcolor,
+                    height: 18,
+                    fontSize: '0.65rem',
+                    backgroundColor: statusInfo.bgcolor,
                     color: statusInfo.color,
                     fontWeight: 500,
-                  }} 
+                  }}
                 />
               )}
-              
+
               {/* Graph Status Icon */}
               {isGraphProcessing && (
-                <Tooltip title="Building knowledge graph...">
-                  <AccountTreeIcon size={14} sx={{ color: 'primary.main', animation: 'spin 3s linear infinite' }} />
+                <Tooltip content="Building knowledge graph...">
+                  <AccountTreeIcon size={14} style={{ color: colors.primary[500], animation: 'spin 3s linear infinite' }} />
                 </Tooltip>
               )}
               {isGraphReady && isActive && (
-                <Tooltip title="Graph ready">
-                  <ShareIcon size={14} sx={{ color: 'success.main' }} />
+                <Tooltip content="Graph ready">
+                  <ShareIcon size={14} style={{ color: colors.success[500] }} />
                 </Tooltip>
               )}
             </Box>
@@ -447,30 +440,32 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               )}
             </Box>
             {isProcessing && (
-              <LinearProgress 
-                sx={{ 
-                  mt: 0.5, 
-                  height: 2, 
-                  borderRadius: 1,
-                  bgcolor: 'grey.200',
-                  '& .MuiLinearProgress-bar': { bgcolor: statusInfo.color }
-                }} 
+              <Progress
+                value={undefined}
+                variant="linear"
+                style={{
+                  marginTop: 4,
+                  height: 2,
+                  borderRadius: 4,
+                  backgroundColor: colors.neutral[200],
+                  color: statusInfo.color
+                }}
               />
             )}
           </Box>
-          <Tooltip title="Delete">
+          <Tooltip content="Delete">
             <IconButton
               className="delete-btn"
-              size="small"
+              size="sm"
+              variant="ghost"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteClick(doc);
               }}
-              sx={{ 
-                opacity: 0, 
+              style={{
+                opacity: 0,
                 transition: 'opacity 0.2s',
-                color: 'text.secondary',
-                '&:hover': { color: 'error.main', bgcolor: 'error.50' }
+                color: colors.text.secondary,
               }}
             >
               <DeleteIcon size={14} />
@@ -485,44 +480,44 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       <Box key={doc.id} sx={{ position: 'relative' }} onClick={() => !isProcessing && setActiveDocumentId(doc.id)}>
         <Paper
           elevation={0}
-          sx={{ 
-            p: 0, 
-            overflow: 'hidden', 
-            borderRadius: 2, 
-            border: isActive ? '2px solid' : '1px solid', 
+          sx={{
+            p: 0,
+            overflow: 'hidden',
+            borderRadius: 2,
+            border: isActive ? '2px solid' : '1px solid',
             borderColor: isActive ? 'primary.main' : 'divider',
-            cursor: isProcessing ? 'default' : 'pointer', 
-            transition: 'all 0.2s', 
+            cursor: isProcessing ? 'default' : 'pointer',
+            transition: 'all 0.2s',
             opacity: isProcessing ? 0.7 : 1,
-            '&:hover': { 
-              borderColor: isActive ? 'primary.main' : 'grey.400', 
+            '&:hover': {
+              borderColor: isActive ? 'primary.main' : 'grey.400',
               transform: isProcessing ? 'none' : 'translateY(-2px)',
               '& .delete-btn-grid': { opacity: 1 }
-            }, 
-            display: 'flex', 
+            },
+            display: 'flex',
             flexDirection: 'column'
           }}
         >
           {/* Thumbnail Area */}
-          <Box sx={{ 
-            height: 80, 
-            bgcolor: '#F3F4F6', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            position: 'relative', 
-            borderBottom: '1px solid', 
-            borderColor: 'divider' 
+          <Box sx={{
+            height: 80,
+            bgcolor: '#F3F4F6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            borderBottom: '1px solid',
+            borderColor: 'divider'
           }}>
             {/* PDF Thumbnail Placeholder */}
-            <Box sx={{ 
-              width: 40, 
-              height: 56, 
-              bgcolor: 'white', 
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              p: 0.5, 
+            <Box sx={{
+              width: 40,
+              height: 56,
+              bgcolor: 'white',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              p: 0.5,
               gap: 0.5,
               borderRadius: 0.5
             }}>
@@ -531,35 +526,35 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               <Box sx={{ width: '100%', height: 2, bgcolor: '#F3F4F6' }} />
               <Box sx={{ width: '60%', height: 2, bgcolor: '#F3F4F6' }} />
             </Box>
-            
+
             {/* Status Badge for Grid View */}
             {doc.status !== 'ready' && (
-              <Chip 
-                label={statusInfo.label} 
-                size="small" 
-                sx={{ 
+              <Chip
+                label={statusInfo.label}
+                size="sm"
+                style={{
                   position: 'absolute',
                   top: 4,
                   left: 4,
-                  height: 18, 
+                  height: 18,
                   fontSize: '0.6rem',
-                  bgcolor: statusInfo.bgcolor,
+                  backgroundColor: statusInfo.bgcolor,
                   color: statusInfo.color,
                   fontWeight: 500,
-                }} 
+                }}
               />
             )}
-            
+
             {/* Graph Status Icon for Grid View */}
             {isGraphProcessing && (
-              <Tooltip title="Building knowledge graph...">
-                <Box sx={{ 
-                  position: 'absolute', 
-                  top: 4, 
-                  left: doc.status !== 'ready' ? 'auto' : 4, 
+              <Tooltip content="Building knowledge graph...">
+                <Box sx={{
+                  position: 'absolute',
+                  top: 4,
+                  left: doc.status !== 'ready' ? 'auto' : 4,
                   right: doc.status !== 'ready' ? 32 : 'auto', // Avoid delete button overlap
-                  bgcolor: 'rgba(255,255,255,0.8)', 
-                  borderRadius: '50%', 
+                  bgcolor: 'rgba(255,255,255,0.8)',
+                  borderRadius: '50%',
                   p: 0.5,
                   display: 'flex',
                   boxShadow: 1
@@ -568,68 +563,70 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 </Box>
               </Tooltip>
             )}
-            
+
             {/* Delete Button */}
             <IconButton
               className="delete-btn-grid"
-              size="small"
+              size="sm"
+              variant="ghost"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteClick(doc);
               }}
-              sx={{ 
+              style={{
                 position: 'absolute',
                 top: 4,
                 right: 4,
-                opacity: 0, 
+                opacity: 0,
                 transition: 'opacity 0.2s',
-                bgcolor: 'white',
+                backgroundColor: 'white',
                 boxShadow: 1,
                 width: 24,
                 height: 24,
-                '&:hover': { bgcolor: 'error.50', color: 'error.main' }
               }}
             >
               <DeleteIcon size={12} />
             </IconButton>
-            
+
             {/* Processing indicator for grid view */}
             {isProcessing && (
-              <LinearProgress 
-                sx={{ 
+              <Progress
+                value={undefined}
+                variant="linear"
+                style={{
                   position: 'absolute',
                   bottom: 0,
                   left: 0,
                   right: 0,
                   height: 3,
-                  bgcolor: 'grey.200',
-                  '& .MuiLinearProgress-bar': { bgcolor: statusInfo.color }
-                }} 
+                  backgroundColor: colors.neutral[200],
+                  color: statusInfo.color
+                }}
               />
             )}
-            
+
             {/* Active Indicator */}
             {isActive && (
-              <Box sx={{ 
-                position: 'absolute', 
-                top: 8, 
-                right: 8, 
-                width: 8, 
-                height: 8, 
-                borderRadius: '50%', 
-                bgcolor: 'primary.main', 
-                border: '2px solid white' 
+              <Box sx={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: 'primary.main',
+                border: '2px solid white'
               }} />
             )}
           </Box>
-          
+
           {/* File Info */}
           <Box sx={{ p: 1.5 }}>
-            <Typography 
-              variant="caption" 
-              fontWeight="600" 
-              sx={{ display: 'block', lineHeight: 1.2, mb: 0.5 }} 
-              noWrap 
+            <Typography
+              variant="caption"
+              fontWeight="600"
+              sx={{ display: 'block', lineHeight: 1.2, mb: 0.5 }}
+              noWrap
               title={doc.filename}
             >
               {doc.filename}
@@ -640,10 +637,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 {formatDate(doc.created_at)}
               </Typography>
               {doc.page_count && doc.page_count > 0 && (
-                <Chip 
-                  label={`${doc.page_count}p`} 
-                  size="small" 
-                  sx={{ height: 16, fontSize: 9, bgcolor: '#F3F4F6' }} 
+                <Chip
+                  label={`${doc.page_count}p`}
+                  size="sm"
+                  style={{ height: 16, fontSize: 9, backgroundColor: '#F3F4F6' }}
                 />
               )}
             </Box>
@@ -657,12 +654,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     return (
       <Box sx={{ width: 48, height: '100vh', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: 'background.paper' }}>
         <Box sx={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
-          <Tooltip title="Expand (⌘\)" placement="right">
-            <IconButton onClick={onToggle} size="small"><MenuOpenIcon size={18} /></IconButton>
+          <Tooltip content="Expand (⌘\)" placement="right">
+            <IconButton onClick={onToggle} size="sm"><MenuOpenIcon size={18} /></IconButton>
           </Tooltip>
         </Box>
         <Box sx={{ py: 2 }}>
-          <Tooltip title="Documents" placement="right">
+          <Tooltip content="Documents" placement="right">
             <Box sx={{ p: 1, borderRadius: 1, bgcolor: '#EFF6FF', cursor: 'pointer' }} onClick={onToggle}>
               <FolderOpenIcon size={16} sx={{ color: 'primary.main' }} />
             </Box>
@@ -683,13 +680,13 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           </Box>
           <Box sx={{ display: 'flex', gap: 0.5 }}>
             <Box sx={{ bgcolor: '#F3F4F6', borderRadius: 1, p: 0.25, display: 'flex' }}>
-              <IconButton size="small" onClick={() => setViewMode('list')} sx={{ p: 0.5, bgcolor: viewMode === 'list' ? '#fff' : 'transparent', borderRadius: 0.5 }}><ListIcon size={12} /></IconButton>
-              <IconButton size="small" onClick={() => setViewMode('grid')} sx={{ p: 0.5, bgcolor: viewMode === 'grid' ? '#fff' : 'transparent', borderRadius: 0.5 }}><GridViewIcon size={12} /></IconButton>
+              <IconButton size="sm" onClick={() => setViewMode('list')} style={{ padding: 4, backgroundColor: viewMode === 'list' ? '#fff' : 'transparent', borderRadius: 4 }}><ViewListIcon size={12} /></IconButton>
+              <IconButton size="sm" onClick={() => setViewMode('grid')} style={{ padding: 4, backgroundColor: viewMode === 'grid' ? '#fff' : 'transparent', borderRadius: 4 }}><GridViewIcon size={12} /></IconButton>
             </Box>
-            <Tooltip title="Collapse (⌘\)"><IconButton size="small" onClick={onToggle}><MenuMui sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+            <Tooltip content="Collapse (⌘\)"><IconButton size="sm" onClick={onToggle}><MenuMui sx={{ fontSize: 14 }} /></IconButton></Tooltip>
           </Box>
         </Box>
-        
+
         <Box sx={{ px: 2, mb: 2 }}>
           {/* Import Source Area */}
           <ImportSourceDropzone
@@ -704,38 +701,38 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
         <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 2 }}>
           {/* Collapsible FILES Section */}
-          <Box 
+          <Box
             onClick={() => setFilesExpanded(!filesExpanded)}
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1, 
-              mb: 1, 
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              mb: 1,
               color: 'text.secondary',
               cursor: 'pointer',
               userSelect: 'none',
               '&:hover': { color: 'text.primary' }
             }}
           >
-            <ExpandMoreIcon 
-              size={12} 
-              sx={{ 
+            <ExpandMoreIcon
+              size={12}
+              sx={{
                 transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
                 transition: 'transform 0.2s ease'
-              }} 
+              }}
             />
             <Typography variant="caption" fontWeight="bold">RECENT UPLOADS</Typography>
           </Box>
-          
-          <Collapse in={filesExpanded}>
-            <Box sx={{ 
-              display: viewMode === 'grid' ? 'grid' : 'block', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', 
-              gap: 1.5 
+
+          <Collapse open={filesExpanded}>
+            <Box sx={{
+              display: viewMode === 'grid' ? 'grid' : 'block',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+              gap: 1.5
             }}>
               {/* Uploading Card */}
               {(uploadState === 'uploading' || uploadState === 'processing') && (
-                 viewMode === 'list' ? (
+                viewMode === 'list' ? (
                   <Box sx={{
                     display: 'flex',
                     gap: 1.5,
@@ -747,88 +744,88 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                     borderColor: 'divider',
                     alignItems: 'center'
                   }}>
-                    <Box sx={{ 
-                        width: 32, 
-                        height: 32, 
-                        bgcolor: 'grey.100', 
-                        borderRadius: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
+                    <Box sx={{
+                      width: 32,
+                      height: 32,
+                      bgcolor: 'grey.100',
+                      borderRadius: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}>
-                        {uploadState === 'processing' ? (
-                            <AccountTreeIcon size={16} sx={{ color: 'primary.main', animation: 'spin 3s linear infinite' }} />
-                        ) : (
-                            <CloudUploadIcon size={16} sx={{ color: 'primary.main' }} />
-                        )}
+                      {uploadState === 'processing' ? (
+                        <AccountTreeIcon size={16} sx={{ color: 'primary.main', animation: 'spin 3s linear infinite' }} />
+                      ) : (
+                        <CloudUploadIcon size={16} sx={{ color: 'primary.main' }} />
+                      )}
                     </Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                             <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
-                                {uploadFileName || 'Uploading...'}
-                            </Typography>
-                             <Typography variant="caption" color="text.secondary">
-                                {uploadState === 'uploading' ? `${Math.round(uploadProgress)}%` : 'Processing...'}
-                            </Typography>
-                        </Box>
-                        <LinearProgress 
-                            variant={uploadState === 'processing' ? 'indeterminate' : 'determinate'}
-                            value={uploadProgress}
-                            sx={{ 
-                                height: 4, 
-                                borderRadius: 2,
-                                bgcolor: 'grey.200',
-                                '& .MuiLinearProgress-bar': { bgcolor: 'primary.main' }
-                            }}
-                        />
-                    </Box>
-                  </Box>
-                 ) : (
-                   // Grid version
-                   <Paper
-                    elevation={0}
-                    sx={{ 
-                        p: 0, 
-                        overflow: 'hidden', 
-                        borderRadius: 2, 
-                        border: '1px solid', 
-                        borderColor: 'primary.main',
-                        opacity: 0.8,
-                        display: 'flex', 
-                        flexDirection: 'column'
-                    }}
-                   >
-                     <Box sx={{ 
-                        height: 80, 
-                        bgcolor: '#F3F4F6', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        position: 'relative'
-                     }}>
-                        <CloudUploadIcon size={24} sx={{ color: 'primary.main' }} />
-                        <LinearProgress 
-                            variant={uploadState === 'processing' ? 'indeterminate' : 'determinate'}
-                            value={uploadProgress}
-                            sx={{ 
-                                position: 'absolute',
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                height: 3
-                            }} 
-                        />
-                     </Box>
-                     <Box sx={{ p: 1.5 }}>
-                        <Typography variant="caption" fontWeight="600" noWrap sx={{ display: 'block' }}>
-                            {uploadFileName}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                          {uploadFileName || 'Uploading...'}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                             {uploadState === 'uploading' ? 'Uploading...' : 'Processing...'}
+                          {uploadState === 'uploading' ? `${Math.round(uploadProgress)}%` : 'Processing...'}
                         </Typography>
-                     </Box>
-                   </Paper>
-                 )
+                      </Box>
+                      <Progress
+                        value={uploadState === 'processing' ? undefined : uploadProgress}
+                        variant="linear"
+                        style={{
+                          height: 4,
+                          borderRadius: 4,
+                          backgroundColor: colors.neutral[200],
+                          color: colors.primary[500]
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                ) : (
+                  // Grid version
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 0,
+                      overflow: 'hidden',
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: 'primary.main',
+                      opacity: 0.8,
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <Box sx={{
+                      height: 80,
+                      bgcolor: '#F3F4F6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative'
+                    }}>
+                      <CloudUploadIcon size={24} sx={{ color: 'primary.main' }} />
+                      <Progress
+                        value={uploadState === 'processing' ? undefined : uploadProgress}
+                        variant="linear"
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 3
+                        }}
+                      />
+                    </Box>
+                    <Box sx={{ p: 1.5 }}>
+                      <Typography variant="caption" fontWeight="600" noWrap sx={{ display: 'block' }}>
+                        {uploadFileName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {uploadState === 'uploading' ? 'Uploading...' : 'Processing...'}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                )
               )}
 
               {documents.map(renderFileCard)}
@@ -840,61 +837,61 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       {/* PDF Viewer */}
       {activeDocument && fileUrl && (
         <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderTop: '1px solid', borderColor: 'divider' }}>
-          <Box 
+          <Box
             onMouseDown={handleVerticalMouseDown}
-            sx={{ 
-              height: 44, 
-              display: 'flex', 
-              alignItems: 'center', 
-              px: 2, 
-              justifyContent: 'space-between', 
+            sx={{
+              height: 44,
+              display: 'flex',
+              alignItems: 'center',
+              px: 2,
+              justifyContent: 'space-between',
               bgcolor: 'background.default',
               cursor: 'row-resize',
               borderBottom: '1px solid', borderColor: 'divider'
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Chip 
-                label="PDF" 
-                size="small" 
-                sx={{ 
-                  height: 20, 
-                  fontSize: 10, 
+              <Chip
+                label="PDF"
+                size="sm"
+                style={{
+                  height: 20,
+                  fontSize: 10,
                   fontWeight: 'bold',
-                  bgcolor: '#FEE2E2', 
-                  color: '#DC2626' 
-                }} 
+                  backgroundColor: '#FEE2E2',
+                  color: '#DC2626'
+                }}
               />
               <Typography variant="subtitle2" noWrap sx={{ maxWidth: 150 }}>{activeDocument.filename}</Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {/* Pagination Controls */}
-              <IconButton 
-                size="small" 
-                onClick={goToPrevPage} 
+              <IconButton
+                size="sm"
+                onClick={goToPrevPage}
                 disabled={pageNumber <= 1}
-                sx={{ p: 0.5 }}
+                style={{ padding: 4 }}
               >
                 <ChevronLeftIcon size={16} />
               </IconButton>
               <Typography variant="caption" sx={{ minWidth: 60, textAlign: 'center' }}>
                 {pageNumber} / {numPages}
               </Typography>
-              <IconButton 
-                size="small" 
-                onClick={goToNextPage} 
+              <IconButton
+                size="sm"
+                onClick={goToNextPage}
                 disabled={pageNumber >= numPages}
-                sx={{ p: 0.5 }}
+                style={{ padding: 4 }}
               >
                 <ChevronRightIcon size={16} />
               </IconButton>
-              
-              <IconButton size="small" onClick={() => setIsReaderExpanded(!isReaderExpanded)} sx={{ ml: 1 }}>
+
+              <IconButton size="sm" onClick={() => setIsReaderExpanded(!isReaderExpanded)} style={{ marginLeft: 8 }}>
                 {isReaderExpanded ? <FullscreenExitMui sx={{ fontSize: 14 }} /> : <FullscreenIcon size={14} />}
               </IconButton>
             </Box>
           </Box>
-          
+
           <Box sx={{ flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <PDFViewer
               documentId={activeDocument.id}
@@ -909,40 +906,37 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
+      <Modal
         open={deleteDialogOpen}
         onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
+        size="sm"
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          Delete Document
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete <strong>{docToDelete?.filename}</strong>? 
+        <Modal.Header>
+          <Text variant="h6">Delete Document</Text>
+        </Modal.Header>
+        <Modal.Content>
+          <Text variant="body">
+            Are you sure you want to delete <strong>{docToDelete?.filename}</strong>?
             This will also remove all associated text chunks and embeddings. This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
-            onClick={handleDeleteCancel} 
+          </Text>
+        </Modal.Content>
+        <Modal.Footer>
+          <Button
+            variant="ghost"
+            onClick={handleDeleteCancel}
             disabled={deleting}
-            sx={{ textTransform: 'none' }}
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained"
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="destructive"
             disabled={deleting}
-            sx={{ textTransform: 'none' }}
           >
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </Modal.Footer>
+      </Modal>
 
       {/* Import Source Dialog */}
       <ImportSourceDialog

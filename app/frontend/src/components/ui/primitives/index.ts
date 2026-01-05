@@ -33,9 +33,27 @@ export type { TooltipProps } from './Tooltip';
 export { Spinner } from './Spinner';
 export type { SpinnerProps } from './Spinner';
 
+export { Progress } from './Progress';
+export type { ProgressProps } from './Progress';
+
 // Utilities
 export { Collapse } from './Collapse';
 export type { CollapseProps } from './Collapse';
 
 export { Skeleton } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
+
+// Data Display
+export { Chip } from './Chip';
+export type { ChipProps } from './Chip';
+
+// Form Controls
+export { Radio } from './Radio';
+export type { RadioProps } from './Radio';
+
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+
+// Overlays
+export { Modal } from './Modal';
+export type { ModalProps } from './Modal';
