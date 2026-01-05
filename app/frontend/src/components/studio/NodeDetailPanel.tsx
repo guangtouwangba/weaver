@@ -7,16 +7,9 @@
  */
 
 import { useState } from 'react';
-import {
-  Box,
-  Typography,
-  IconButton,
-  Chip,
-  Button,
-  Divider,
-  TextField,
-  Stack,
-} from '@mui/material';
+import { Chip, Divider, TextField, Button as MuiButton } from '@mui/material';
+import { Surface, Stack, Text, IconButton, Button } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   CloseIcon,
   EditIcon,
@@ -25,12 +18,12 @@ import {
   HelpOutlineIcon,
   CheckIcon,
   LinkIcon,
+  OpenInNewIcon,
+  ChatBubbleOutlineIcon,
+  LightbulbIcon,
+  MenuBookIcon,
+  PublicIcon,
 } from '@/components/ui/icons';
-import OpenInNewMui from '@mui/icons-material/OpenInNew';
-import ChatBubbleOutlineMui from '@mui/icons-material/ChatBubbleOutline';
-import TipsAndUpdatesMui from '@mui/icons-material/TipsAndUpdates';
-import MenuBookMui from '@mui/icons-material/MenuBook';
-import PublicMui from '@mui/icons-material/Public';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CanvasNode, SourceRef } from '@/lib/api';
@@ -49,63 +42,63 @@ const getNodeTypeInfo = (node: CanvasNode) => {
   const typeMap: Record<string, { icon: React.ReactNode; label: string; color: string; bgColor: string }> = {
     // Source Node Types
     source_pdf: {
-      icon: <MenuBookMui sx={{ fontSize: 20 }} />,
+      icon: <MenuBookIcon size={20} />,
       label: 'PDF Document',
       color: '#DC2626',
       bgColor: '#FEF2F2',
     },
     source_markdown: {
-      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
+      icon: <DescriptionIcon size={20} />,
       label: 'Markdown',
       color: '#2563EB',
       bgColor: '#EFF6FF',
     },
     source_web: {
-      icon: <LanguageMui sx={{ fontSize: 20 }} />,
+      icon: <PublicIcon size={20} />,
       label: 'Web Page',
       color: '#059669',
       bgColor: '#ECFDF5',
     },
     source_text: {
-      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
+      icon: <DescriptionIcon size={20} />,
       label: 'Text File',
       color: '#6B7280',
       bgColor: '#F9FAFB',
     },
     // Thinking Path Node Types
     question: {
-      icon: <HelpMui sx={{ fontSize: 20 }} />,
+      icon: <HelpOutlineIcon size={20} />,
       label: 'Question',
       color: '#3B82F6',
       bgColor: '#EFF6FF',
     },
     answer: {
-      icon: <CommentMui sx={{ fontSize: 20 }} />,
+      icon: <ChatBubbleOutlineIcon size={20} />,
       label: 'Answer',
       color: '#10B981',
       bgColor: '#F0FDF4',
     },
     insight: {
-      icon: <LightbulbMui sx={{ fontSize: 20 }} />,
+      icon: <LightbulbIcon size={20} />,
       label: 'Insight',
       color: '#F59E0B',
       bgColor: '#FFFBEB',
     },
     conclusion: {
-      icon: <CheckMui sx={{ fontSize: 20 }} />,
+      icon: <CheckIcon size={20} />,
       label: 'Conclusion',
       color: '#8B5CF6',
       bgColor: '#F5F3FF',
     },
     // Default
     card: {
-      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
+      icon: <DescriptionIcon size={20} />,
       label: 'Note',
       color: '#6B7280',
       bgColor: '#F9FAFB',
     },
     knowledge: {
-      icon: <DescriptionMui sx={{ fontSize: 20 }} />,
+      icon: <DescriptionIcon size={20} />,
       label: 'Knowledge',
       color: '#6B7280',
       bgColor: '#F9FAFB',
@@ -185,20 +178,18 @@ export default function NodeDetailPanel({
   };
 
   return (
-    <Box
+    <Stack
+      direction="column"
       sx={{
         position: 'absolute',
         right: 0,
         top: 0,
         bottom: 0,
         width: 400,
-        bgcolor: 'background.paper',
-        borderLeft: '1px solid',
-        borderColor: 'divider',
+        bgcolor: colors.background.paper,
+        borderLeft: `1px solid ${colors.border.default}`,
         zIndex: 1200,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
+        boxShadow: shadows.xl,
         animation: 'slideInRight 0.2s ease-out',
         '@keyframes slideInRight': {
           from: {
@@ -213,20 +204,19 @@ export default function NodeDetailPanel({
       }}
     >
       {/* Header */}
-      <Box
+      <Stack
+        direction="row"
+        align="start"
+        gap={2}
         sx={{
           p: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 2,
+          borderBottom: `1px solid ${colors.border.default}`,
           bgcolor: typeInfo.bgColor,
         }}
       >
-        <Box
-          sx={{
-            mt: 0.5,
+        <div
+          style={{
+            marginTop: 4,
             color: typeInfo.color,
             display: 'flex',
             alignItems: 'center',
@@ -234,19 +224,18 @@ export default function NodeDetailPanel({
           }}
         >
           {typeInfo.icon}
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            variant="caption"
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            variant="overline"
             sx={{
-              textTransform: 'uppercase',
-              fontWeight: 'bold',
               color: typeInfo.color,
+              fontWeight: 'bold',
               letterSpacing: '0.5px',
             }}
           >
             {typeInfo.label}
-          </Typography>
+          </Text>
           {isEditing ? (
             <TextField
               fullWidth
@@ -257,26 +246,26 @@ export default function NodeDetailPanel({
               autoFocus
             />
           ) : (
-            <Typography
-              variant="h6"
+            <Text
+              variant="heading"
+              size="sm"
               sx={{
                 lineHeight: 1.3,
                 mt: 0.5,
-                fontWeight: 600,
                 wordBreak: 'break-word',
               }}
             >
               {node.title}
-            </Typography>
+            </Text>
           )}
-        </Box>
-        <IconButton onClick={onClose} size="small" sx={{ flexShrink: 0 }}>
+        </div>
+        <IconButton size="sm" variant="ghost" onClick={onClose} sx={{ flexShrink: 0 }}>
           <CloseIcon size={18} />
         </IconButton>
-      </Box>
+      </Stack>
 
       {/* Content (Scrollable) */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
         {isEditing ? (
           <TextField
             fullWidth
@@ -293,53 +282,27 @@ export default function NodeDetailPanel({
             }}
           />
         ) : (
-          <Box
-            sx={{
-              '& p': { mb: 1.5, lineHeight: 1.7 },
-              '& ul, & ol': { pl: 2, mb: 1.5 },
-              '& li': { mb: 0.5 },
-              '& code': {
-                bgcolor: 'grey.100',
-                px: 0.5,
-                py: 0.25,
-                borderRadius: 0.5,
-                fontSize: '0.85em',
-              },
-              '& pre': {
-                bgcolor: 'grey.100',
-                p: 1.5,
-                borderRadius: 1,
-                overflow: 'auto',
-                fontSize: '0.85em',
-              },
-              '& blockquote': {
-                borderLeft: '3px solid',
-                borderColor: 'grey.300',
-                pl: 2,
-                py: 0.5,
-                my: 1,
-                color: 'text.secondary',
-                fontStyle: 'italic',
-              },
-            }}
+          <div
+            style={{}}
+            className="markdown-content"
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {node.content || '*No content*'}
             </ReactMarkdown>
-          </Box>
+          </div>
         )}
 
         {/* Tags */}
         {node.tags && node.tags.length > 0 && (
-          <Box sx={{ mt: 3 }}>
-            <Typography
+          <div style={{ marginTop: 24 }}>
+            <Text
               variant="caption"
-              color="text.secondary"
+              color="secondary"
               sx={{ fontWeight: 600, mb: 1, display: 'block' }}
             >
               Tags
-            </Typography>
-            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+            </Text>
+            <Stack direction="row" gap={0} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
               {node.tags.map((tag) => (
                 <Chip
                   key={tag}
@@ -348,79 +311,78 @@ export default function NodeDetailPanel({
                   sx={{
                     height: 24,
                     fontSize: '0.75rem',
-                    bgcolor: 'grey.100',
+                    bgcolor: colors.neutral[100],
                   }}
                 />
               ))}
             </Stack>
-          </Box>
+          </div>
         )}
 
         {/* Metadata */}
         {(node.createdAt || node.viewType || isSourceNode) && (
-          <Box sx={{ mt: 3 }}>
-            <Typography
+          <div style={{ marginTop: 24 }}>
+            <Text
               variant="caption"
-              color="text.secondary"
+              color="secondary"
               sx={{ fontWeight: 600, mb: 1, display: 'block' }}
             >
               Properties
-            </Typography>
-            <Box
-              sx={{
+            </Text>
+            <div
+              style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: 1,
+                gap: 8,
                 fontSize: '0.8rem',
               }}
             >
               {node.viewType && (
                 <>
-                  <Typography variant="caption" color="text.secondary">
+                  <Text variant="caption" color="secondary">
                     View:
-                  </Typography>
-                  <Typography variant="caption">
+                  </Text>
+                  <Text variant="caption">
                     {node.viewType === 'thinking' ? 'Thinking Path' : 'Free Canvas'}
-                  </Typography>
+                  </Text>
                 </>
               )}
               {isSourceNode && node.fileMetadata?.pageCount && (
                 <>
-                  <Typography variant="caption" color="text.secondary">
+                  <Text variant="caption" color="secondary">
                     Pages:
-                  </Typography>
-                  <Typography variant="caption">
+                  </Text>
+                  <Text variant="caption">
                     {node.fileMetadata.pageCount}
-                  </Typography>
+                  </Text>
                 </>
               )}
               {node.createdAt && (
                 <>
-                  <Typography variant="caption" color="text.secondary">
+                  <Text variant="caption" color="secondary">
                     Created:
-                  </Typography>
-                  <Typography variant="caption">
+                  </Text>
+                  <Text variant="caption">
                     {new Date(node.createdAt).toLocaleDateString()}
-                  </Typography>
+                  </Text>
                 </>
               )}
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
-      </Box>
+      </div>
 
       {/* Footer */}
-      <Box
-        sx={{
-          p: 2,
-          bgcolor: 'grey.50',
-          borderTop: '1px solid',
-          borderColor: 'divider',
+      <div
+        style={{
+          padding: 16,
+          backgroundColor: colors.neutral[50],
+          borderTop: `1px solid ${colors.border.default}`,
         }}
       >
         {/* Source Reference */}
         {hasSourceRef && (
-          <Button
+          <MuiButton
             startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
@@ -429,22 +391,21 @@ export default function NodeDetailPanel({
               justifyContent: 'flex-start',
               textTransform: 'none',
               bgcolor: 'white',
-              border: '1px solid',
-              borderColor: 'divider',
-              color: 'text.primary',
+              border: `1px solid ${colors.border.default}`,
+              color: colors.text.primary,
               '&:hover': {
-                bgcolor: 'grey.50',
-                borderColor: 'primary.main',
+                bgcolor: colors.neutral[50],
+                borderColor: colors.primary[500],
               },
             }}
           >
             View Source {node.sourcePage ? `(Page ${node.sourcePage})` : ''}
-          </Button>
+          </MuiButton>
         )}
 
         {/* Source Node: Open Document */}
         {isSourceNode && node.sourceId && (
-          <Button
+          <MuiButton
             startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
@@ -453,78 +414,104 @@ export default function NodeDetailPanel({
               justifyContent: 'flex-start',
               textTransform: 'none',
               bgcolor: 'white',
-              border: '1px solid',
-              borderColor: 'divider',
-              color: 'text.primary',
+              border: `1px solid ${colors.border.default}`,
+              color: colors.text.primary,
               '&:hover': {
-                bgcolor: 'grey.50',
-                borderColor: 'primary.main',
+                bgcolor: colors.neutral[50],
+                borderColor: colors.primary[500],
               },
             }}
           >
             Open Document
-          </Button>
+          </MuiButton>
         )}
 
         {/* Linked Messages */}
         {node.messageIds && node.messageIds.length > 0 && (
-          <Box
-            sx={{
-              mb: 2,
-              p: 1.5,
-              bgcolor: 'white',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              backgroundColor: 'white',
+              border: `1px solid ${colors.border.default}`,
+              borderRadius: radii.sm,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <Stack direction="row" align="center" gap={1} sx={{ mb: 0.5 }}>
               <LinkIcon size={12} />
-              <Typography variant="caption" fontWeight={600}>
+              <Text variant="caption" sx={{ fontWeight: 600 }}>
                 Linked to {node.messageIds.length} chat message(s)
-              </Typography>
-            </Box>
-          </Box>
+              </Text>
+            </Stack>
+          </div>
         )}
 
         {/* Action Buttons */}
         <Divider sx={{ my: 1.5 }} />
-        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+        <Stack direction="row" gap={1} justify="end">
           {isEditing ? (
             <>
-              <Button size="small" onClick={handleCancelEdit}>
+              <MuiButton size="small" onClick={handleCancelEdit}>
                 Cancel
-              </Button>
-              <Button
+              </MuiButton>
+              <MuiButton
                 size="small"
                 variant="contained"
                 onClick={handleSaveEdit}
-                startIcon={<Check size={14} />}
+                startIcon={<CheckIcon size={14} />}
               >
                 Save
-              </Button>
+              </MuiButton>
             </>
           ) : (
             <>
-              <Button
+              <MuiButton
                 size="small"
                 startIcon={<EditIcon size={14} />}
                 onClick={handleStartEdit}
               >
                 Edit
-              </Button>
-              <Button
+              </MuiButton>
+              <MuiButton
                 size="small"
                 color="error"
                 startIcon={<DeleteIcon size={14} />}
                 onClick={handleDelete}
               >
                 Delete
-              </Button>
+              </MuiButton>
             </>
           )}
-        </Box>
-      </Box>
-    </Box>
+        </Stack>
+      </div>
+
+      <style>{`
+        .markdown-content p { margin-bottom: 12px; line-height: 1.7; }
+        .markdown-content ul, .markdown-content ol { padding-left: 16px; margin-bottom: 12px; }
+        .markdown-content li { margin-bottom: 4px; }
+        .markdown-content code {
+          background-color: ${colors.neutral[100]};
+          padding: 2px 4px;
+          border-radius: 4px;
+          font-size: 0.85em;
+        }
+        .markdown-content pre {
+          background-color: ${colors.neutral[100]};
+          padding: 12px;
+          border-radius: 8px;
+          overflow: auto;
+          font-size: 0.85em;
+        }
+        .markdown-content blockquote {
+          border-left: 3px solid ${colors.neutral[300]};
+          padding-left: 16px;
+          padding-top: 4px;
+          padding-bottom: 4px;
+          margin: 8px 0;
+          color: ${colors.text.secondary};
+          font-style: italic;
+        }
+      `}</style>
+    </Stack>
   );
 }
