@@ -20,7 +20,9 @@
 
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { Stage, Layer } from 'react-konva';
-import { Box, Paper, Typography, IconButton, Modal, Chip, CircularProgress } from '@mui/material';
+import { Modal, Chip } from '@mui/material';
+import { Surface, Stack, Text, IconButton, Spinner } from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from '../mindmap/MindMapNode';
@@ -135,8 +137,10 @@ function MindMapCanvasNodeInner({
   return (
     <>
       {/* Compact Card */}
-      <Paper
-        elevation={isOverlayMode ? 8 : 0}
+      <Surface
+        elevation={isOverlayMode ? 4 : 0}
+        radius="lg"
+        bordered
         data-task-id={dataTaskId || id}
         onMouseDown={handleMouseDown}
         sx={{
@@ -145,18 +149,15 @@ function MindMapCanvasNodeInner({
           top: isOverlayMode ? 'auto' : screenY,
           width: 340,
           height: 240,
-          borderRadius: 3,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           bgcolor: 'rgba(255,255,255,0.98)',
-          border: '1px solid',
-          borderColor: 'divider',
           boxShadow: isDragging
             ? '0 12px 40px rgba(16, 185, 129, 0.25)'
             : isOverlayMode
-              ? '0 8px 32px rgba(0,0,0,0.12)'
-              : '0 4px 20px rgba(0,0,0,0.08)',
+              ? shadows.xl
+              : shadows.lg,
           cursor: isDragging ? 'grabbing' : 'default',
           transition: isDragging ? 'none' : 'box-shadow 0.2s, transform 0.2s',
           transform: isOverlayMode ? 'none' : `scale(${viewport.scale > 0.5 ? 1 : viewport.scale * 2})`,
@@ -173,43 +174,39 @@ function MindMapCanvasNodeInner({
         }}
       >
         {/* Header - entire header is draggable */}
-        <Box
+        <Stack
+          direction="row"
+          align="center"
+          justify="between"
           className="drag-handle"
           sx={{
             p: 1.5,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             borderBottom: '1px solid rgba(0,0,0,0.05)',
             cursor: 'grab',
             '&:active': { cursor: 'grabbing' },
             userSelect: 'none',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+          <Stack direction="row" align="center" gap={1} sx={{ flex: 1, minWidth: 0 }}>
             {/* Drag Indicator Icon */}
-            <Box
-              sx={{
-                p: 0.5,
-                borderRadius: 1,
-                color: 'text.disabled',
+            <div
+              style={{
+                padding: 4,
+                borderRadius: radii.sm,
+                color: colors.text.disabled,
                 flexShrink: 0,
-                '&:hover': {
-                  color: 'text.secondary',
-                  bgcolor: 'grey.100',
-                },
               }}
             >
               <OpenWithIcon size={14} />
-            </Box>
+            </div>
 
             {/* Icon */}
-            <Box
-              sx={{
+            <div
+              style={{
                 width: 28,
                 height: 28,
-                borderRadius: 1.5,
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                borderRadius: radii.md,
+                background: `linear-gradient(135deg, ${colors.success[500]} 0%, ${colors.success[600]} 100%)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -218,43 +215,43 @@ function MindMapCanvasNodeInner({
               }}
             >
               <AccountTreeIcon size={14} />
-            </Box>
+            </div>
 
             {/* Title */}
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ fontSize: '0.85rem' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Text variant="label" truncate sx={{ fontSize: '0.85rem' }}>
                 {title}
-              </Typography>
-            </Box>
+              </Text>
+            </div>
 
             {/* Streaming indicator */}
-            {isStreaming && <CircularProgress size={14} sx={{ color: '#10B981', flexShrink: 0 }} />}
-          </Box>
+            {isStreaming && <Spinner size="xs" color="secondary" />}
+          </Stack>
 
           {/* Actions */}
-          <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }}>
+          <Stack direction="row" gap={0} sx={{ flexShrink: 0 }}>
             <IconButton
-              size="small"
+              size="sm"
+              variant="ghost"
               onClick={() => setIsExpanded(true)}
               disabled={isStreaming && nodeCount === 0}
-              sx={{ p: 0.5 }}
             >
               <FullscreenIcon size={14} />
             </IconButton>
-            <IconButton size="small" onClick={onClose} sx={{ p: 0.5 }} title="Delete">
+            <IconButton size="sm" variant="ghost" onClick={onClose} title="Delete">
               <DeleteIcon size={14} />
             </IconButton>
-          </Box>
-        </Box>
+          </Stack>
+        </Stack>
 
         {/* Tags */}
-        <Box sx={{ px: 1.5, py: 0.75, display: 'flex', gap: 0.5 }}>
+        <Stack direction="row" gap={0} sx={{ px: 1.5, py: 0.75, gap: 0.5 }}>
           <Chip
             label="MINDMAP"
             size="small"
             sx={{
-              bgcolor: '#ECFDF5',
-              color: '#059669',
+              bgcolor: colors.success[50],
+              color: colors.success[600],
               fontWeight: 600,
               fontSize: '0.55rem',
               height: 16,
@@ -267,8 +264,8 @@ function MindMapCanvasNodeInner({
               label={`${nodeCount} NODES`}
               size="small"
               sx={{
-                bgcolor: '#F3F4F6',
-                color: '#6B7280',
+                bgcolor: colors.neutral[100],
+                color: colors.neutral[500],
                 fontWeight: 600,
                 fontSize: '0.55rem',
                 height: 16,
@@ -277,45 +274,41 @@ function MindMapCanvasNodeInner({
               }}
             />
           )}
-        </Box>
+        </Stack>
 
         {/* Preview Canvas */}
-        <Box sx={{ flexGrow: 1, position: 'relative', bgcolor: '#FAFAFA' }}>
+        <div style={{ flexGrow: 1, position: 'relative', backgroundColor: colors.background.subtle }}>
           {nodeCount > 0 ? (
             <MiniMindMapRenderer data={data} width={340} height={150} scale={0.35} />
           ) : (
             /* Empty state while waiting for first node */
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                gap: 1,
-              }}
+            <Stack
+              direction="column"
+              align="center"
+              justify="center"
+              gap={1}
+              sx={{ height: '100%' }}
             >
-              <CircularProgress size={24} sx={{ color: '#10B981' }} />
-              <Typography variant="caption" color="text.secondary">
+              <Spinner size="sm" color="secondary" />
+              <Text variant="caption" color="secondary">
                 Generating mindmap...
-              </Typography>
-            </Box>
+              </Text>
+            </Stack>
           )}
 
           {/* Overlay to catch clicks for expand (only when we have nodes) */}
           {nodeCount > 0 && (
-            <Box
+            <div
               onClick={() => setIsExpanded(true)}
-              sx={{
+              style={{
                 position: 'absolute',
                 inset: 0,
                 cursor: 'pointer',
-                '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' },
               }}
             />
           )}
-        </Box>
-      </Paper>
+        </div>
+      </Surface>
 
       {/* Expanded Modal - Uses MindMapEditor for full editing capabilities */}
       <Modal
@@ -336,14 +329,14 @@ function MindMapCanvasNodeInner({
           - Node editing (add, delete, edit label/content)
           - Export (PNG, JSON)
         */}
-        <Box sx={{ width: '100%', height: '100%', outline: 'none' }}>
+        <div style={{ width: '100%', height: '100%', outline: 'none' }}>
           <MindMapEditor
             initialData={data}
             title={title}
             onClose={() => setIsExpanded(false)}
             onSave={onDataChange}
           />
-        </Box>
+        </div>
       </Modal>
     </>
   );
@@ -377,4 +370,3 @@ const MindMapCanvasNode = memo(MindMapCanvasNodeInner, (prevProps, nextProps) =>
 MindMapCanvasNode.displayName = 'MindMapCanvasNode';
 
 export default MindMapCanvasNode;
-
