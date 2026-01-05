@@ -57,8 +57,8 @@
 - [x] 5.3.1 `NodeDetailPanel.tsx` (531 lines) - Slide-over panel (Box, Typography, Button, Chip, TextField). @frontend
 - [x] 5.3.2 `ResourceSidebar.tsx` (338 lines) - Already partially migrated, finish remaining MUI. @frontend
 - [x] 5.3.3 `InspirationDock.tsx` (17KB) - Dock panel (Box, Paper, Tabs). @frontend
-- [ ] 5.3.4 `SourcePanel.tsx` (35KB) - Source viewer (Box, Paper, Tabs, IconButton). DEFERRED: Too complex. @frontend
-- [ ] 5.3.5 `AssistantPanel.tsx` (32KB) - Chat panel (Box, Paper, TextField, IconButton). DEFERRED: Too complex. @frontend
+- [x] 5.3.4 `SourcePanel.tsx` (35KB) - Source viewer (Box, Paper, Tabs, IconButton). Done.
+- [x] 5.3.5 `AssistantPanel.tsx` (32KB) - Chat panel (Box, Paper, TextField, IconButton). Done.
 - [x] 5.3.6 `KonvaCanvas.tsx` (119KB) - Main canvas (Box only, mostly Konva - skip MUI migration). @frontend
 
 ### 5.4 Canvas Subdirectory
@@ -77,7 +77,7 @@
 - [x] 5.6.4 `mindmap/MindMapNode.tsx` - Node (Konva only, no MUI, skip). @frontend
 - [x] 5.6.5 `mindmap/MindMapViews.tsx` - Views (Modal wrapper). @frontend
 - [x] 5.6.6 `mindmap/RichMindMapNode.tsx` (16KB) - Rich node (Konva only, no MUI, skip). @frontend
-- [ ] 5.6.7 `mindmap/MindMapEditor.tsx` (33KB) - Editor (Box, Paper, Button). @frontend
+- [x] 5.6.7 `mindmap/MindMapEditor.tsx` (33KB) - Editor (Box, Paper, Button). @frontend
 - [x] 5.6.8 `mindmap/layoutAlgorithms.ts` - Pure TS (no MUI, skip). @frontend
 
 ## 6. Other Directories Migration (P2)

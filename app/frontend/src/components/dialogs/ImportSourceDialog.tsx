@@ -2,16 +2,13 @@
 
 import { useState, useRef, DragEvent } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  Box,
-  Typography,
+  Modal,
   Button,
-  TextField,
   IconButton,
-  InputAdornment,
-} from '@mui/material';
+} from '@/components/ui/primitives';
+import { TextField } from '@/components/ui/composites';
 import { CloseIcon, CloudUploadIcon, FolderOpenIcon, LinkIcon } from '@/components/ui/icons';
+import { colors } from '@/components/ui/tokens';
 
 interface ImportSourceDialogProps {
   open: boolean;
@@ -106,117 +103,89 @@ export default function ImportSourceDialog({
   };
 
   return (
-    <Dialog
+    <Modal
       open={open}
       onClose={handleClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        },
-      }}
+      size="md"
     >
-      {/* Header */}
-      <Box sx={{ px: 3, py: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Box>
-          <Typography variant="h6" fontWeight="700" sx={{ lineHeight: 1.2, mb: 0.5 }}>
+      <Modal.Header>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.2, marginBottom: 4 }}>
             Import Source
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
+          </span>
+          <span style={{ fontSize: 12, color: colors.text.secondary }}>
             Add documents, data, or links to your whiteboard.
-          </Typography>
-        </Box>
-        <IconButton onClick={handleClose} size="small" sx={{ color: 'text.secondary' }}>
-          <CloseIcon size={20} />
-        </IconButton>
-      </Box>
+          </span>
+        </div>
+      </Modal.Header>
 
-      <DialogContent sx={{ px: 3, py: 3 }}>
+      <Modal.Content>
         {/* File Upload Section */}
-        <Box
+        <div
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          sx={{
+          style={{
             border: '2px dashed',
             borderColor: isDragging ? '#4f46e5' : '#E5E7EB',
-            borderRadius: 2,
-            p: 4,
+            borderRadius: 8,
+            padding: 32,
             textAlign: 'center',
-            bgcolor: isDragging ? '#eff6ff' : 'transparent',
+            backgroundColor: isDragging ? '#eff6ff' : 'transparent',
             transition: 'all 0.2s',
-            mb: 4,
+            marginBottom: 32,
             cursor: 'pointer',
-            '&:hover': {
-              borderColor: '#4f46e5',
-              bgcolor: '#f9fafb',
-            },
           }}
           onClick={handleBrowseClick}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <Box
-              sx={{
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div
+              style={{
                 width: 64,
                 height: 64,
                 borderRadius: '50%',
-                bgcolor: '#4f46e5',
+                backgroundColor: '#4f46e5',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                mb: 1,
+                marginBottom: 8,
               }}
             >
-              <CloudUploadIcon size={32} sx={{ color: 'white' }} />
-            </Box>
-            <Box>
-              <Typography variant="body1" sx={{ mb: 0.5 }}>
-                <Typography
-                  component="span"
+              <CloudUploadIcon size={32} style={{ color: 'white' }} />
+            </div>
+            <div>
+              <div style={{ marginBottom: 4 }}>
+                <span
                   onClick={(e) => {
                     e.stopPropagation();
                     handleBrowseClick();
                   }}
-                  sx={{
+                  style={{
                     color: '#4f46e5',
                     cursor: 'pointer',
                     fontWeight: 500,
-                    '&:hover': { textDecoration: 'underline' },
                   }}
                 >
                   Click to upload
-                </Typography>
-                {' or drag and drop'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
+                </span>
+                <span> or drag and drop</span>
+              </div>
+              <div style={{ fontSize: 12, color: colors.text.secondary }}>
                 {acceptedFileTypes.map((ext) => ext.toUpperCase().replace('.', '')).join(', ')} (max {maxFileSize}MB)
-              </Typography>
-            </Box>
+              </div>
+            </div>
             <Button
-              variant="outlined"
-              startIcon={<FolderOpenIcon size="sm" />}
+              variant="outline"
+              icon={<FolderOpenIcon size="sm" />}
               onClick={(e) => {
                 e.stopPropagation();
                 handleBrowseClick();
               }}
-              sx={{
-                textTransform: 'none',
-                borderRadius: 2,
-                borderColor: '#E5E7EB',
-                color: 'text.primary',
-                bgcolor: 'white',
-                '&:hover': {
-                  borderColor: '#D1D5DB',
-                  bgcolor: '#F9FAFB',
-                },
-              }}
             >
               Browse Files
             </Button>
-          </Box>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -224,95 +193,57 @@ export default function ImportSourceDialog({
             accept={acceptedFileTypes.join(',')}
             onChange={handleFileInputChange}
           />
-        </Box>
+        </div>
 
         {/* Import from URL Section */}
-        <Box>
-          <Typography
-            variant="overline"
-            sx={{
+        <div>
+          <span
+            style={{
               fontSize: '0.7rem',
               fontWeight: 700,
               letterSpacing: '0.1em',
-              color: 'text.secondary',
-              mb: 2,
+              color: colors.text.secondary,
+              marginBottom: 16,
               display: 'block',
+              textTransform: 'uppercase',
             }}
           >
             IMPORT FROM URL
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
             <TextField
               fullWidth
               placeholder="Paste a link to a webpage, article, or image..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              onKeyPress={(e) => {
+              onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   handleUrlImport();
                 }
               }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LinkIcon size={18} color="#9CA3AF" />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  bgcolor: 'background.paper',
-                  '& fieldset': {
-                    borderColor: '#E5E7EB',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: '#D1D5DB',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#4f46e5',
-                  },
-                },
-              }}
+              startAdornment={
+                <LinkIcon size={18} color="#9CA3AF" />
+              }
             />
             <Button
-              variant="contained"
+              variant="primary"
               onClick={handleUrlImport}
               disabled={!url.trim()}
-              sx={{
-                textTransform: 'none',
-                borderRadius: 2,
-                px: 3,
-                bgcolor: '#6B7280',
-                '&:hover': {
-                  bgcolor: '#4B5563',
-                },
-                '&:disabled': {
-                  bgcolor: '#E5E7EB',
-                  color: '#9CA3AF',
-                },
-              }}
             >
               Import
             </Button>
-          </Box>
-        </Box>
-      </DialogContent>
+          </div>
+        </div>
+      </Modal.Content>
 
-      {/* Footer */}
-      <Box sx={{ px: 3, py: 2.5, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid', borderColor: 'divider' }}>
+      <Modal.Footer>
         <Button
+          variant="ghost"
           onClick={handleClose}
-          sx={{
-            textTransform: 'none',
-            color: 'text.secondary',
-            fontWeight: 500,
-          }}
         >
           Cancel
         </Button>
-      </Box>
-    </Dialog>
+      </Modal.Footer>
+    </Modal>
   );
 }
-
