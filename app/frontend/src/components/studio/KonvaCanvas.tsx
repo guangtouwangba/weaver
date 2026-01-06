@@ -22,8 +22,12 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
     img.src = src;
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
-      console.log('[DEBUG] URLImage loaded:', src);
-      setImage(img);
+      console.log('[DEBUG] URLImage loaded:', src, 'size:', img.width, 'x', img.height);
+      if (img.width > 0 && img.height > 0) {
+        setImage(img);
+      } else {
+        console.warn('[DEBUG] URLImage loaded with 0 dimensions:', src);
+      }
     };
     img.onerror = (e) => {
       console.error('[DEBUG] URLImage error:', src, e);

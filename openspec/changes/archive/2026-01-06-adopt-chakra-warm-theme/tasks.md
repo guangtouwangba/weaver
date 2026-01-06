@@ -22,8 +22,8 @@
 ## Phase 4: Studio Components
 - [x] 4.1 Update `KonvaCanvas.tsx` node/canvas colors
 - [x] 4.2 Update mindmap components (Node, Edge, Rich)
-- [ ] 4.3 Update `InspirationDock.tsx`, `AssistantPanel.tsx`
-- [ ] 4.4 Update `ResourceSidebar.tsx`, `SummaryCard.tsx`
+- [x] 4.3 Update `InspirationDock.tsx`, `AssistantPanel.tsx`
+- [x] 4.4 Update `ResourceSidebar.tsx`, `SummaryCard.tsx`
 - [x] 4.5 Update `GridBackground.tsx` dot color
 
 ## Phase 5: Inbox Components
@@ -31,11 +31,11 @@
 - [x] 5.2 Update `TagChip.tsx` colors
 
 ## Phase 6: Verification
-- [ ] 6.1 Run `npm run build`
-- [ ] 6.2 Visual verification all pages
-- [ ] 6.3 Test PDF highlighting functionality
-- [ ] 6.4 Test canvas/mindmap interactions
+- [x] 6.1 Run `npm run build`
+- [x] 6.2 Visual verification all pages
+- [x] 6.3 Test PDF highlighting functionality
+- [x] 6.4 Test canvas/mindmap interactions
 
 ## 6. Documentation
-- [ ] 6.1 Update `project.md` styling conventions to mention Chakra
+- [x] 6.1 Update `project.md` styling conventions to mention Chakra
 - [x] 6.2 Add comment in theme.ts explaining warm gray rationale

@@ -461,7 +461,8 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     if (!containerRef.current) return;
 
     const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
+      const width = Math.max(1, entries[0].contentRect.width);
+      const height = Math.max(1, entries[0].contentRect.height);
       setContainerSize({ width, height });
     });
 
