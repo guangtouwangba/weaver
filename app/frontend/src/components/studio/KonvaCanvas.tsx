@@ -66,7 +66,7 @@ import { useSpatialIndex, SpatialItem } from '@/hooks/useSpatialIndex';
 import { useViewportCulling } from '@/hooks/useViewportCulling';
 import GridBackground from './canvas/GridBackground';
 import SynthesisModeMenu, { SynthesisMode } from './canvas/SynthesisModeMenu';
-import NodeEditor from './canvas/NodeEditor';
+import NoteEditor, { NoteData } from './NoteEditor';
 import useOutputWebSocket from '@/hooks/useOutputWebSocket';
 
 interface Viewport {
@@ -930,6 +930,15 @@ export default function KonvaCanvas({
 
   // Node Editing State
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [isCreatingNote, setIsCreatingNote] = useState(false);
+  const onCreateNotePosition = useRef<{ x: number; y: number } | null>(null);
+
+  // Handle opening editor for new note from Context Menu
+  const handleCreateNote = useCallback((position: { x: number; y: number }) => {
+    onCreateNotePosition.current = position;
+    setIsCreatingNote(true);
+    setEditingNodeId(null);
+  }, []);
 
   // Refs for Drag/Pan
   const lastPosRef = useRef({ x: 0, y: 0 });
@@ -1841,12 +1850,28 @@ export default function KonvaCanvas({
     }
   };
 
-  const handleNodeSave = (nodeId: string, updates: { title?: string; content?: string }) => {
-    if (onNodesChange) {
-      const updatedNodes = nodes.map((n) =>
-        n.id === nodeId ? { ...n, ...updates } : n
-      );
-      onNodesChange(updatedNodes);
+  const handleNodeSave = (data: NoteData) => {
+    if (editingNodeId) {
+      if (onNodesChange) {
+        const updatedNodes = nodes.map((n) =>
+          n.id === editingNodeId ? { ...n, title: data.title, content: data.content } : n
+        );
+        onNodesChange(updatedNodes);
+      }
+    } else if (onNodeAdd) {
+      // Create new note
+      onNodeAdd({
+        type: 'sticky',
+        title: data.title,
+        content: data.content,
+        x: (viewport.x * -1 + 100) / viewport.scale, // Simple fallback for now, will improve pos
+        y: (viewport.y * -1 + 100) / viewport.scale,
+        width: 220,
+        height: 160,
+        color: '#fef3c7',
+        tags: [],
+        viewType: 'free',
+      });
     }
     setEditingNodeId(null);
   };
@@ -2400,6 +2425,7 @@ export default function KonvaCanvas({
             y={contextMenu.y}
             onClose={() => setContextMenu(null)}
             onOpenImport={onOpenImport || (() => { })}
+            onAddStickyNote={handleCreateNote}
             viewport={viewport}
             canvasContainerRef={containerRef}
           />
@@ -3202,16 +3228,32 @@ export default function KonvaCanvas({
         })()}
 
         {/* Node Editor Overlay */}
-        {editingNodeId && (() => {
-          const node = nodes.find(n => n.id === editingNodeId);
-          if (!node) return null;
+        {(editingNodeId || isCreatingNote) && (() => {
+          let initialData;
+          if (editingNodeId) {
+            const node = nodes.find(n => n.id === editingNodeId);
+            if (!node) return null;
+            initialData = {
+              id: node.id,
+              title: node.title || '',
+              content: node.content || ''
+            };
+          } else {
+            // New note defaults
+            initialData = {
+              title: '',
+              content: ''
+            };
+          }
+
           return (
-            <NodeEditor
-              key={node.id}
-              node={node}
-              viewport={viewport}
+            <NoteEditor
+              initialData={initialData}
               onSave={handleNodeSave}
-              onCancel={handleNodeEditCancel}
+              onCancel={() => {
+                setEditingNodeId(null);
+                setIsCreatingNote(false);
+              }}
             />
           );
         })()}
