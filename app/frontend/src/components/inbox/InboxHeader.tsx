@@ -38,7 +38,7 @@ export default function InboxHeader({
                 onChange={(e) => onSearchChange(e.target.value)}
                 size="sm"
                 style={{ width: 400 }}
-                startAdornment={<Search size={18} color="#9CA3AF" />}
+                startAdornment={<Search size={18} color="#A8A29E" />}
             />
 
             <div style={{ flexGrow: 1 }} />

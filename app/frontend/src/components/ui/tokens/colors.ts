@@ -8,34 +8,36 @@
  */
 
 export const colors = {
-    // Primary brand color
+    // Primary brand color (Teal - warm, approachable)
     primary: {
-        50: '#EEF2FF',
-        100: '#E0E7FF',
-        200: '#C7D2FE',
-        300: '#A5B4FC',
-        400: '#818CF8',
-        500: '#6366F1',
-        600: '#4F46E5',
-        700: '#4338CA',
-        800: '#3730A3',
-        900: '#312E81',
-        950: '#1E1B4B',
+        50: '#F0FDFA',
+        100: '#CCFBF1',
+        200: '#99F6E4',
+        300: '#5EEAD4',
+        400: '#2DD4BF',
+        500: '#0D9488',
+        600: '#0F766E',
+        700: '#115E59',
+        800: '#134E4A',
+        900: '#042F2E',
+        950: '#021716',
     },
 
-    // Neutral / Gray scale
+
+    // Neutral / Gray scale (Warm Stone palette)
+    // Yellow/brown undertones for paper-like reading experience
     neutral: {
-        50: '#FAFAFA',
-        100: '#F5F5F5',
-        200: '#E5E5E5',
-        300: '#D4D4D4',
-        400: '#A3A3A3',
-        500: '#737373',
-        600: '#525252',
-        700: '#404040',
-        800: '#262626',
-        900: '#171717',
-        950: '#0A0A0A',
+        50: '#FAFAF9',
+        100: '#F5F5F4',
+        200: '#E7E5E4',
+        300: '#D6D3D1',
+        400: '#A8A29E',
+        500: '#78716C',
+        600: '#57534E',
+        700: '#44403C',
+        800: '#292524',
+        900: '#1C1917',
+        950: '#0C0A09',
     },
 
     // Success / Green
@@ -94,28 +96,28 @@ export const colors = {
         900: '#1E3A8A',
     },
 
-    // Background colors
+    // Background colors (warm tones)
     background: {
-        default: '#FFFFFF',
-        paper: '#FFFFFF',
-        subtle: '#F9FAFB',
-        muted: '#F3F4F6',
+        default: '#FAFAF9', // gray.50 - warm canvas
+        paper: '#FAFAF9',
+        subtle: '#F5F5F4', // gray.100
+        muted: '#E7E5E4', // gray.200
     },
 
-    // Text colors
+    // Text colors (warm tones, reduced contrast)
     text: {
-        primary: '#111827',
-        secondary: '#6B7280',
-        muted: '#9CA3AF',
-        disabled: '#D1D5DB',
-        inverse: '#FFFFFF',
+        primary: '#292524', // gray.800 - brownish-gray
+        secondary: '#78716C', // gray.500
+        muted: '#A8A29E', // gray.400
+        disabled: '#D6D3D1', // gray.300
+        inverse: '#FAFAF9', // gray.50
     },
 
-    // Border colors
+    // Border colors (warm tones)
     border: {
-        default: '#E5E7EB',
-        muted: '#F3F4F6',
-        strong: '#D1D5DB',
+        default: '#E7E5E4', // gray.200
+        muted: '#F5F5F4', // gray.100
+        strong: '#D6D3D1', // gray.300
     },
 } as const;
 

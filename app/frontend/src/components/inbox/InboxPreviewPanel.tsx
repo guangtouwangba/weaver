@@ -26,14 +26,14 @@ export default function InboxPreviewPanel({
 
     if (!item) {
         return (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAFAF9' }}>
                 <Text color="secondary">Select an item to view details</Text>
             </div>
         );
     }
 
     return (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#F9FAFB' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#FAFAF9' }}>
 
             <div style={{ flexGrow: 1, overflowY: 'auto', padding: 32, paddingBottom: 16 }}>
 
@@ -45,8 +45,8 @@ export default function InboxPreviewPanel({
                         </Text>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                        <IconButton size="sm" onClick={onEdit}><Pencil size={18} className="text-gray-400" /></IconButton>
-                        <IconButton size="sm" onClick={onDelete}><Trash2 size={18} className="text-gray-400" /></IconButton>
+                        <IconButton size="sm" onClick={onEdit}><Pencil size={18} className="text-stone-400" /></IconButton>
+                        <IconButton size="sm" onClick={onDelete}><Trash2 size={18} className="text-stone-400" /></IconButton>
                     </div>
                 </div>
 
@@ -82,17 +82,17 @@ export default function InboxPreviewPanel({
                     }}
                 >
                     <div style={{ marginBottom: 32 }}>
-                        <Skeleton variant="text" width="80%" height={30} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
-                        <Skeleton variant="text" width="100%" height={30} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
-                        <Skeleton variant="text" width="90%" height={30} sx={{ mb: 4, bgcolor: '#F3F4F6' }} />
+                        <Skeleton variant="text" width="80%" height={30} style={{ marginBottom: 8, backgroundColor: '#F5F5F4' }} />
+                        <Skeleton variant="text" width="100%" height={30} style={{ marginBottom: 8, backgroundColor: '#F5F5F4' }} />
+                        <Skeleton variant="text" width="90%" height={30} style={{ marginBottom: 32, backgroundColor: '#F5F5F4' }} />
 
-                        <div style={{ height: 200, backgroundColor: '#F9FAFB', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
-                            <FileText size={48} className="text-gray-300" />
+                        <div style={{ height: 200, backgroundColor: '#FAFAF9', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
+                            <FileText size={48} className="text-stone-300" />
                         </div>
 
-                        <Skeleton variant="text" width="100%" height={24} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
-                        <Skeleton variant="text" width="95%" height={24} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
-                        <Skeleton variant="text" width="85%" height={24} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
+                        <Skeleton variant="text" width="100%" height={24} style={{ marginBottom: 8, backgroundColor: '#F5F5F4' }} />
+                        <Skeleton variant="text" width="95%" height={24} style={{ marginBottom: 8, backgroundColor: '#F5F5F4' }} />
+                        <Skeleton variant="text" width="85%" height={24} style={{ marginBottom: 8, backgroundColor: '#F5F5F4' }} />
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'center' }}>

@@ -158,7 +158,7 @@ export function HighlightOverlay({
                     width: 14,
                     height: 14,
                     borderRadius: '50%',
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: '#FAFAF9',
                     border: '1.5px solid',
                     borderColor: colorMap[highlight.color]?.replace('40', 'FF') || '#FFEB3B',
                     display: 'flex',
@@ -169,7 +169,7 @@ export function HighlightOverlay({
                     pointerEvents: 'none',
                   }}
                 >
-                  <DescriptionIcon size={8} style={{ color: '#6B7280' }} />
+                  <DescriptionIcon size={8} style={{ color: '#78716C' }} />
                 </div>
               )}
             </div>
@@ -204,8 +204,8 @@ export function HighlightOverlay({
               maxWidth: 280,
               padding: 12,
               borderRadius: 8,
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #E5E7EB',
+              backgroundColor: '#FAFAF9',
+              border: '1px solid #E7E5E4',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
               zIndex: 1000,
               pointerEvents: 'auto',
@@ -217,12 +217,12 @@ export function HighlightOverlay({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
-              <DescriptionIcon size={14} style={{ color: '#6B7280', marginTop: 2, flexShrink: 0 }} />
+              <DescriptionIcon size={14} style={{ color: '#78716C', marginTop: 2, flexShrink: 0 }} />
               <span
                 style={{
                   fontSize: 12,
                   lineHeight: 1.5,
-                  color: '#111827', // text.primary
+                  color: '#292524', // text.primary
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                 }}

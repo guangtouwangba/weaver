@@ -68,10 +68,10 @@ export default function CreateProjectDialog({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
                         width: 40, height: 40, borderRadius: 8,
-                        backgroundColor: '#EEF2FF', display: 'flex',
+                        backgroundColor: '#F0FDFA', display: 'flex', // Teal-50
                         alignItems: 'center', justifyContent: 'center'
                     }}>
-                        <FolderPlus size={20} className="text-indigo-600" />
+                        <FolderPlus size={20} className="text-teal-600" />
                     </div>
                     <Text variant="h6" style={{ fontWeight: 700 }}>Create New Project</Text>
                 </div>
@@ -118,9 +118,6 @@ export default function CreateProjectDialog({
                     onClick={handleSubmit}
                     disabled={loading || !name.trim()}
                     loading={loading} // Button primitive supports loading
-                    style={{
-                        backgroundColor: '#6366F1',
-                    }}
                 >
                     {loading ? 'Creating...' : 'Create Project'}
                 </Button>

@@ -16,7 +16,7 @@ export default function StudioIndexPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  
+
   // Create project form state
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
@@ -37,13 +37,13 @@ export default function StudioIndexPage() {
         // Otherwise, load projects and show selection
         const response = await projectsApi.list();
         setProjects(response.items);
-        
+
         // If there's exactly one project, auto-open it
         if (response.items.length === 1) {
           router.replace(`/studio/${response.items[0].id}`);
           return;
         }
-        
+
         setLoading(false);
       } catch (err) {
         console.error('Failed to load projects:', err);
@@ -57,7 +57,7 @@ export default function StudioIndexPage() {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
-    
+
     try {
       setCreating(true);
       setCreateError(null);
@@ -81,13 +81,13 @@ export default function StudioIndexPage() {
   if (loading) {
     return (
       <GlobalLayout>
-        <Stack 
-          align="center" 
-          justify="center" 
-          sx={{ 
+        <Stack
+          align="center"
+          justify="center"
+          sx={{
             height: '100vh',
             gap: 2,
-            bgcolor: '#FAFAFA'
+            bgcolor: '#FAFAF9'
           }}
         >
           <Spinner size={32} color="secondary" />
@@ -100,10 +100,10 @@ export default function StudioIndexPage() {
   if (error) {
     return (
       <GlobalLayout>
-        <Stack 
-          align="center" 
-          justify="center" 
-          sx={{ 
+        <Stack
+          align="center"
+          justify="center"
+          sx={{
             height: '100vh',
             gap: 2,
             bgcolor: '#FAFAFA'
@@ -121,21 +121,21 @@ export default function StudioIndexPage() {
   // No projects or multiple projects - show selection
   return (
     <GlobalLayout>
-      <Stack 
-        align="center" 
-        justify="center" 
-        sx={{ 
+      <Stack
+        align="center"
+        justify="center"
+        sx={{
           minHeight: '100vh',
           p: 4,
-          bgcolor: '#F3F4F6'
+          bgcolor: '#F5F5F4'
         }}
       >
-        <Surface 
+        <Surface
           elevation={0}
-          sx={{ 
-            p: 0, 
-            maxWidth: 480, 
-            width: '100%', 
+          sx={{
+            p: 0,
+            maxWidth: 480,
+            width: '100%',
             borderRadius: 4,
             overflow: 'hidden',
             border: '1px solid',
@@ -145,15 +145,15 @@ export default function StudioIndexPage() {
         >
           {/* Header */}
           <Stack sx={{ p: 4, textAlign: 'center', bgcolor: 'white' }}>
-            <Stack 
+            <Stack
               align="center"
               justify="center"
-              sx={{ 
-                width: 56, 
-                height: 56, 
-                bgcolor: '#EFF6FF', 
-                color: 'primary.main', 
-                mx: 'auto', 
+              sx={{
+                width: 56,
+                height: 56,
+                bgcolor: '#F0FDFA',
+                color: 'primary.main',
+                mx: 'auto',
                 mb: 2,
                 borderRadius: '50%'
               }}
@@ -164,7 +164,7 @@ export default function StudioIndexPage() {
               Welcome to Studio
             </Text>
             <Text variant="bodySmall" color="secondary">
-              {projects.length > 0 
+              {projects.length > 0
                 ? "Select a project to continue your research"
                 : "Your intelligent research workspace awaits"
               }
@@ -174,8 +174,8 @@ export default function StudioIndexPage() {
           <Stack sx={{ borderBottom: 1, borderColor: 'divider' }} />
 
           {/* Content */}
-          <Stack sx={{ p: 2, bgcolor: '#FAFAFA', minHeight: 200, justifyContent: projects.length > 0 ? 'flex-start' : 'center' }}>
-            
+          <Stack sx={{ p: 2, bgcolor: '#FAFAF9', minHeight: 200, justifyContent: projects.length > 0 ? 'flex-start' : 'center' }}>
+
             {projects.length > 0 ? (
               <Stack gap={1}>
                 <Text variant="caption" fontWeight="600" color="secondary" sx={{ px: 2, mb: 1, display: 'block' }}>
@@ -190,8 +190,8 @@ export default function StudioIndexPage() {
                       localStorage.setItem('lastProjectId', project.id);
                       router.push(`/studio/${project.id}`);
                     }}
-                    sx={{ 
-                      justifyContent: 'space-between', 
+                    sx={{
+                      justifyContent: 'space-between',
                       textTransform: 'none',
                       py: 1.5,
                       px: 2,
@@ -234,14 +234,14 @@ export default function StudioIndexPage() {
               size="lg"
               icon={<AddIcon size="md" />}
               onClick={() => setCreateDialogOpen(true)}
-              sx={{ 
-                textTransform: 'none', 
+              sx={{
+                textTransform: 'none',
                 borderRadius: 2,
                 boxShadow: 'none',
                 py: 1.5,
-                bgcolor: '#171717',
+                bgcolor: '#292524',
                 '&:hover': {
-                  bgcolor: '#000',
+                  bgcolor: '#1C1917',
                   boxShadow: 'none'
                 }
               }}
@@ -288,7 +288,7 @@ export default function StudioIndexPage() {
                   Create New Project
                 </Text>
               </Stack>
-              
+
               {/* Dialog Content */}
               <Stack sx={{ px: 3, pb: 2 }}>
                 <TextField
@@ -316,7 +316,7 @@ export default function StudioIndexPage() {
                   size="sm"
                 />
               </Stack>
-              
+
               {/* Dialog Actions */}
               <Stack direction="row" sx={{ px: 3, pb: 2.5, pt: 1, justifyContent: 'flex-end', gap: 1 }}>
                 <Button
@@ -344,9 +344,9 @@ export default function StudioIndexPage() {
                     boxShadow: 'none',
                     px: 3,
                     py: 0.8,
-                    bgcolor: '#171717',
+                    bgcolor: '#292524',
                     '&:hover': {
-                      bgcolor: '#000',
+                      bgcolor: '#1C1917',
                       boxShadow: 'none',
                     },
                   }}

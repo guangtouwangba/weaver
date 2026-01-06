@@ -108,25 +108,25 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       topBarColor: '#DC2626',
     },
     source_markdown: {
-      borderColor: '#2563EB',  // Blue - Markdown
+      borderColor: '#3B82F6',  // Blue - Markdown
       borderStyle: 'solid',
       bgColor: '#EFF6FF',      // Light blue
       icon: '📝',              // Markdown/Note icon
-      topBarColor: '#2563EB',
+      topBarColor: '#3B82F6',
     },
     source_web: {
-      borderColor: '#059669',  // Teal - Web pages
+      borderColor: '#0D9488',  // Teal - Web pages
       borderStyle: 'solid',
-      bgColor: '#ECFDF5',      // Light teal
+      bgColor: '#F0FDFA',      // Light teal
       icon: '🌐',              // Globe icon
-      topBarColor: '#059669',
+      topBarColor: '#0D9488',
     },
     source_text: {
-      borderColor: '#6B7280',  // Gray - Plain text
+      borderColor: '#78716C',  // Stone - Plain text
       borderStyle: 'solid',
-      bgColor: '#F9FAFB',      // Light gray
+      bgColor: '#FAFAF9',      // Light stone
       icon: '📄',              // Document icon
-      topBarColor: '#6B7280',
+      topBarColor: '#78716C',
     },
     // === Thinking Path Node Types (User Conversation Visualization) ===
     question: {
@@ -144,11 +144,11 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       topBarColor: '#10B981',
     },
     insight: {
-      borderColor: '#F59E0B',  // Yellow/Gold
+      borderColor: '#D97706',  // Amber/Gold
       borderStyle: 'solid',
       bgColor: '#FFFBEB',      // Light yellow
       icon: '💡',              // Lightbulb
-      topBarColor: '#F59E0B',
+      topBarColor: '#D97706',
     },
     // === Thinking Graph Node Types (Dynamic Mind Map) ===
     thinking_step: {
@@ -202,26 +202,26 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       topBarColor: '#8B5CF6',
     },
     mindmap_output: {
-      borderColor: '#10B981',  // Green for mindmap
+      borderColor: '#0D9488',  // Teal for mindmap
       borderStyle: 'solid',
-      bgColor: '#ECFDF5',      // Light green
+      bgColor: '#F0FDFA',      // Light teal
       icon: '🔀',              // Network icon for mindmap
-      topBarColor: '#10B981',
+      topBarColor: '#0D9488',
     },
     // === Other Node Types ===
     knowledge: {
-      borderColor: '#E5E7EB',
+      borderColor: '#E7E5E4',
       borderStyle: 'solid',
       bgColor: '#FFFFFF',
       icon: '📄',
-      topBarColor: '#E5E7EB',
+      topBarColor: '#E7E5E4',
     },
     manual: {
-      borderColor: '#E5E7EB',
+      borderColor: '#E7E5E4',
       borderStyle: 'solid',
       bgColor: '#FFFFFF',
       icon: '✏️',
-      topBarColor: '#9CA3AF',
+      topBarColor: '#A8A29E',
     },
     conclusion: {
       borderColor: '#8B5CF6',  // Purple
@@ -253,11 +253,11 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       topBarColor: '#EC4899',
     },
     compare: {
-      borderColor: '#10B981',  // Green
+      borderColor: '#0D9488',  // Teal
       borderStyle: 'solid',
-      bgColor: '#ECFDF5',      // Light green
+      bgColor: '#F0FDFA',      // Light teal
       icon: '⚖️',
-      topBarColor: '#10B981',
+      topBarColor: '#0D9488',
     },
     // === Sticky Note ===
     sticky: {
@@ -326,7 +326,7 @@ const SourcePreviewCard = ({
   isActiveThinking?: boolean;
 }) => {
   const thumbUrl = node.fileMetadata?.thumbnailUrl;
-  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#6366F1' : '#E5E7EB'));
+  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#0D9488' : '#E7E5E4'));
   const strokeWidth = isSelected || isHighlighted ? 2 : 1;
   const shadowBlur = isSelected ? 12 : 4;
   const shadowOpacity = isSelected ? 0.15 : 0.05;
@@ -362,13 +362,13 @@ const SourcePreviewCard = ({
           text="PDF Document"
           fontSize={12}
           fontStyle="bold"
-          fill="#6B7280"
+          fill="#78716C"
           fontFamily="Inter, sans-serif"
         />
       </Group>
 
       {/* Header Separator */}
-      <Line points={[0, 40, width, 40]} stroke="#F3F4F6" strokeWidth={1} />
+      <Line points={[0, 40, width, 40]} stroke="#F5F5F4" strokeWidth={1} />
 
       {/* 3. Body (Preview Area) */}
       <Rect
@@ -412,13 +412,13 @@ const SourcePreviewCard = ({
       ) : (
         /* Placeholder */
         <Group x={(width - 100) / 2} y={60}>
-          <Rect width={100} height={130} fill="white" stroke="#E5E7EB" dash={[4, 4]} cornerRadius={4} />
-          <Text x={10} y={60} text="No Preview" fontSize={12} fill="#9CA3AF" />
+          <Rect width={100} height={130} fill="white" stroke="#E7E5E4" dash={[4, 4]} cornerRadius={4} />
+          <Text x={10} y={60} text="No Preview" fontSize={12} fill="#A8A29E" />
         </Group>
       )}
 
       {/* 4. Footer */}
-      <Line points={[0, displayHeight - 50, width, displayHeight - 50]} stroke="#F3F4F6" strokeWidth={1} />
+      <Line points={[0, displayHeight - 50, width, displayHeight - 50]} stroke="#F5F5F4" strokeWidth={1} />
 
       <Group x={12} y={displayHeight - 38}>
         {/* Icon Box */}
@@ -435,14 +435,14 @@ const SourcePreviewCard = ({
             ellipsis={true}
             fontSize={13}
             fontStyle="bold"
-            fill="#111827"
+            fill="#292524"
             height={20}
           />
           <Text
             y={18}
             text={node.fileMetadata?.pageCount ? `${node.fileMetadata.pageCount} pages` : 'Unknown size'}
             fontSize={10}
-            fill="#6B7280"
+            fill="#78716C"
           />
         </Group>
       </Group>
@@ -598,7 +598,7 @@ const KnowledgeNode = ({
             text={node.title}
             fontSize={isSourceNode ? 15 : 16}
             fontStyle="bold"
-            fill="#1F2937"
+            fill="#292524"
             wrap="word"
             ellipsis={true}
           />
@@ -752,7 +752,7 @@ const KnowledgeNode = ({
               y={height - 50}
               text={`${node.fileMetadata.pageCount} pages`}
               fontSize={11}
-              fill="#9CA3AF"
+              fill="#A8A29E"
             />
           )}
 
@@ -764,7 +764,7 @@ const KnowledgeNode = ({
                 y={height - 35}
                 width={Math.min(node.tags[0].length * 7 + 16, width - 32)}
                 height={20}
-                fill="#F3F4F6"
+                fill="#F5F5F4"
                 cornerRadius={4}
               />
               <Text
@@ -796,7 +796,7 @@ const KnowledgeNode = ({
               y={height - 18}
               text="Double-click to open"
               fontSize={10}
-              fill="#6B7280"
+              fill="#78716C"
               fontStyle="italic"
             />
           )}

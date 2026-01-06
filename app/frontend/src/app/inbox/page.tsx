@@ -129,7 +129,7 @@ export default function InboxPage() {
 
     return (
         <GlobalLayout>
-            <Stack sx={{ height: '100vh', bgcolor: '#F9FAFB' }}>
+            <Stack sx={{ height: '100vh', bgcolor: '#FAFAF9' }}>
 
                 <InboxHeader
                     searchQuery={searchQuery}

@@ -66,8 +66,20 @@ export default function DocumentPreviewCard({
             <div className="w-full h-16 bg-white rounded-xl border border-gray-200 flex items-center justify-center relative overflow-hidden">
                 <span className="text-gray-500 font-medium text-sm">Deleting...</span>
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-50">
-                    <div className="h-full bg-indigo-500 animate-[progress_1.5s_infinite_linear]" style={{ width: '100%' }} />
+                    <div
+                        className="h-full bg-indigo-500"
+                        style={{
+                            width: '100%',
+                            animation: 'progress 1.5s infinite linear',
+                        }}
+                    />
                 </div>
+                <style>{`
+                    @keyframes progress {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(100%); }
+                    }
+                `}</style>
             </div>
         );
     }

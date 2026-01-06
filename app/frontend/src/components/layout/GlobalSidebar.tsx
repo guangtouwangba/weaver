@@ -99,7 +99,7 @@ export default function GlobalSidebar() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                boxShadow: `0 8px 16px rgba(99, 102, 241, 0.2)`,
+                boxShadow: `0 8px 16px rgba(13, 148, 136, 0.2)`,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
               }}
@@ -150,7 +150,7 @@ export default function GlobalSidebar() {
               width: 40,
               height: 40,
               borderRadius: radii.full,
-              backgroundColor: '#8B5CF6',
+              backgroundColor: colors.primary[500],
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

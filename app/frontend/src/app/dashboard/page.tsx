@@ -160,7 +160,6 @@ export default function DashboardPage() {
             <Button
               variant="primary"
               onClick={() => setCreateDialogOpen(true)}
-              style={{ backgroundColor: '#4f46e5', color: '#fff' }}
             >
               <AddIcon size={20} style={{ marginRight: 8 }} />
               Create New Project
@@ -190,8 +189,8 @@ export default function DashboardPage() {
                             padding: '4px 16px',
                             borderRadius: 8,
                             cursor: 'pointer',
-                            backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                            color: isSelected ? '#4f46e5' : '#6B7280',
+                            backgroundColor: isSelected ? '#F0FDFA' : 'transparent', // Teal-50
+                            color: isSelected ? '#0D9488' : '#6B7280', // Teal-600
                             fontWeight: isSelected ? 600 : 500,
                             transition: 'all 0.2s',
                             fontSize: '0.95rem',
@@ -228,7 +227,7 @@ export default function DashboardPage() {
 
                 if (projects.length === 0) {
                   return (
-                    <div style={{ padding: 64, textAlign: 'center', backgroundColor: '#fff', borderRadius: 12, border: '1px dashed #E5E7EB' }}>
+                    <div style={{ padding: 64, textAlign: 'center', backgroundColor: '#fff', borderRadius: 12, border: '1px dashed #E7E5E4' }}>
                       <Text style={{ color: '#6B7280' }}>No projects yet. Create one to get started.</Text>
                     </div>
                   );
@@ -236,7 +235,7 @@ export default function DashboardPage() {
 
                 if (filteredProjects.length === 0) {
                   return (
-                    <div style={{ padding: 64, textAlign: 'center', backgroundColor: '#fff', borderRadius: 12, border: '1px dashed #E5E7EB' }}>
+                    <div style={{ padding: 64, textAlign: 'center', backgroundColor: '#fff', borderRadius: 12, border: '1px dashed #E7E5E4' }}>
                       <Text style={{ color: '#6B7280' }}>
                         {activeTab === 'Recent' ? 'No projects modified in the last 7 days.' : 'No projects found.'}
                       </Text>

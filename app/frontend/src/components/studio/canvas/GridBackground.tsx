@@ -38,7 +38,7 @@ const GridBackground = memo(function GridBackground({
     dimensions,
     gridSize = 20,
     dotRadius = 1.5,
-    dotColor = '#E5E7EB',
+    dotColor = '#E7E5E4',
 }: GridBackgroundProps) {
     return (
         <Group listening={false}>

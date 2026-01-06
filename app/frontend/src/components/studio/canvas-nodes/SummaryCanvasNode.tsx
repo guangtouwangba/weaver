@@ -109,58 +109,68 @@ function SummaryCanvasNodeInner({
           zIndex: isDragging ? 1000 : 100,
         }}
       >
-        {/* Header - entire header is draggable */}
+        {/* Header Row */}
         <Stack
           direction="row"
           align="start"
-          className="drag-handle"
+          justify="between"
           style={{
             marginBottom: 12,
-            cursor: 'grab',
-            userSelect: 'none',
           }}
         >
-          {/* Drag Indicator Icon */}
-          <div
+          {/* Drag Handle Area */}
+          <Stack
+            direction="row"
+            align="center"
+            gap={1}
+            className="drag-handle"
             style={{
-              padding: 4,
-              marginRight: 8,
-              borderRadius: radii.sm,
-              color: colors.text.disabled,
+              flex: 1,
+              minWidth: 0,
+              cursor: 'grab',
+              userSelect: 'none',
             }}
           >
-            <OpenWithIcon size={14} />
-          </div>
+            {/* Drag Indicator Icon */}
+            <div
+              style={{
+                padding: 4,
+                borderRadius: radii.sm,
+                color: colors.text.disabled,
+              }}
+            >
+              <OpenWithIcon size={14} />
+            </div>
 
-          {/* Icon */}
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: radii.md,
-              background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              marginRight: 12,
-              flexShrink: 0,
-            }}
-          >
-            <AutoAwesomeIcon size="sm" />
-          </div>
+            {/* Icon */}
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: radii.md,
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                flexShrink: 0,
+              }}
+            >
+              <AutoAwesomeIcon size="sm" />
+            </div>
 
-          {/* Title Info */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Text variant="label" truncate style={{ lineHeight: 1.2, marginBottom: 2 }}>
-              {title}
-            </Text>
-            <Text variant="caption" color="secondary" style={{ fontSize: '0.65rem' }}>
-              AI Summary
-            </Text>
-          </div>
+            {/* Title Info */}
+            <div style={{ flex: 1, minWidth: 0, marginLeft: 8 }}>
+              <Text variant="label" truncate style={{ lineHeight: 1.2, marginBottom: 2 }}>
+                {title}
+              </Text>
+              <Text variant="caption" color="secondary" style={{ fontSize: '0.65rem' }}>
+                AI Summary
+              </Text>
+            </div>
+          </Stack>
 
-          {/* Actions */}
+          {/* Actions - Outside drag-handle */}
           <Stack direction="row" gap={0} style={{ flexShrink: 0, gap: 2 }}>
             <IconButton size="sm" variant="ghost" onClick={handleCopy}>
               <ContentCopyIcon size={14} />

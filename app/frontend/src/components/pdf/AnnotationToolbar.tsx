@@ -38,7 +38,7 @@ const COLORS: { id: AnnotationColor; class: string; border: string }[] = [
     { id: 'red', class: 'bg-red-500', border: 'border-red-600' },
     { id: 'orange', class: 'bg-orange-400', border: 'border-orange-500' },
     { id: 'purple', class: 'bg-purple-400', border: 'border-purple-500' },
-    { id: 'black', class: 'bg-gray-900', border: 'border-gray-700' },
+    { id: 'black', class: 'bg-stone-900', border: 'border-stone-700' },
 ];
 
 export default function AnnotationToolbar({
@@ -61,14 +61,14 @@ export default function AnnotationToolbar({
         <div className="space-y-6">
             {/* Header with Cursor Reset */}
             <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
                     Annotation Tools
                 </span>
                 <button
                     onClick={() => onToolChange('cursor')}
                     className={`p-1.5 rounded-lg transition-colors ${activeTool === 'cursor' || activeTool === 'hand'
-                            ? 'bg-blue-50 text-blue-600'
-                            : 'text-gray-400 hover:text-gray-600'
+                        ? 'bg-teal-50 text-teal-600'
+                        : 'text-stone-400 hover:text-stone-600'
                         }`}
                     title="Select / Cursor Mode"
                 >
@@ -89,8 +89,8 @@ export default function AnnotationToolbar({
                             className={`
                 aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200
                 ${isActive
-                                    ? 'bg-blue-50 text-blue-600 ring-2 ring-blue-500 ring-offset-2 shadow-sm'
-                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                                    ? 'bg-teal-50 text-teal-600 ring-2 ring-teal-500 ring-offset-2 shadow-sm'
+                                    : 'bg-stone-50 text-stone-500 hover:bg-stone-100 hover:text-stone-800'
                                 }
               `}
                             title={tool.label}
@@ -104,7 +104,7 @@ export default function AnnotationToolbar({
             {/* Color Selection (Only show if tool supports color) */}
             {(['highlight', 'underline', 'strike', 'pen', 'note'].includes(activeTool as string)) && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
+                    <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider block">
                         Color
                     </span>
                     <div className="flex flex-wrap gap-2">
@@ -116,7 +116,7 @@ export default function AnnotationToolbar({
                    w-8 h-8 rounded-full border-2 transition-transform duration-200 
                    ${color.class} 
                    ${color.border}
-                   ${activeColor === color.id ? 'scale-110 ring-2 ring-offset-2 ring-gray-300' : 'hover:scale-105 opacity-80 hover:opacity-100'}
+                   ${activeColor === color.id ? 'scale-110 ring-2 ring-offset-2 ring-stone-300' : 'hover:scale-105 opacity-80 hover:opacity-100'}
                  `}
                                 title={color.id}
                             />

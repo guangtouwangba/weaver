@@ -59,7 +59,7 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
       showCloseButton
       size="md"
       actions={
-        <Stack direction="row" justify="end" gap={2} sx={{ width: '100%' }}>
+        <Stack direction="row" justify="end" gap={2} style={{ width: '100%' }}>
           <Button
             variant="ghost"
             onClick={handleClose}
@@ -74,7 +74,7 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
           >
             {creating ? (
               <>
-                <Spinner size="sm" sx={{ mr: 2, color: 'currentcolor' }} />
+                <Spinner size="sm" style={{ marginRight: 8, color: 'currentcolor' }} />
                 Creating...
               </>
             ) : (
