@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { Group, Rect, Text, Circle, Line } from 'react-konva';
 import Konva from 'konva';
 import { MindmapNode as MindmapNodeType } from '@/lib/api';
-import { mindmapCardTokens as tokens } from '@/theme/theme';
+import { mindmapCardTokens as tokens } from '@/components/ui/tokens';
 
 // ============================================================================
 // Types

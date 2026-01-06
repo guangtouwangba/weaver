@@ -34,9 +34,8 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
 };
 
 import Konva from 'konva';
-import { Box, Typography, Paper, Stack } from '@mui/material';
 import { Menu, MenuItem, TextField } from '@/components/ui/composites';
-import { Chip, IconButton, Button, Spinner } from '@/components/ui/primitives';
+import { Chip, IconButton, Button, Spinner, Stack, Surface, Text as UiText } from '@/components/ui/primitives';
 import { colors } from '@/components/ui/tokens';
 import {
   ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon, SearchIcon,
@@ -2274,15 +2273,15 @@ export default function KonvaCanvas({
   };
 
   return (
-    <Box
-      sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    <div
+      style={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
       {/* Canvas Container */}
-      <Box
+      <div
         ref={containerRef}
-        sx={{
+        style={{
           flexGrow: 1,
-          bgcolor: '#FAFAFA',
+          backgroundColor: '#FAFAFA',
           position: 'relative',
           overflow: 'hidden'
         }}
@@ -2344,7 +2343,7 @@ export default function KonvaCanvas({
               if (data.type === 'document') {
                 const nodeData = {
                   type: 'knowledge',
-                  subType: 'source',
+
                   title: data.title,
                   content: '', // Will be populated with summary if available
                   x: centeredX,
@@ -2359,6 +2358,8 @@ export default function KonvaCanvas({
                     pageCount: data.pageCount,
                     thumbnailUrl: data.thumbnailUrl,
                   },
+                  viewType: 'free' as const,
+                  subType: 'source' as const,
                 };
                 onNodeAdd(nodeData);
                 handled = true;
@@ -2414,9 +2415,9 @@ export default function KonvaCanvas({
                   setEditingNodeId(contextMenu.nodeId!);
                   setContextMenu(null);
                 }}
-                sx={{ fontSize: 14 }}
+                style={{ fontSize: 14 }}
               >
-                <EditIcon size="sm" style={{ marginRight: 8 }} />
+                <EditIcon size={16} style={{ marginRight: 8 }} />
                 Edit
               </MenuItem>
             )}
@@ -2427,7 +2428,7 @@ export default function KonvaCanvas({
                   if (contextMenu.nodeId) promoteNode(contextMenu.nodeId);
                   setContextMenu(null);
                 }}
-                sx={{ fontSize: 14 }}
+                style={{ fontSize: 14 }}
               >
                 <ArrowUpwardIcon size={14} style={{ marginRight: 8 }} />
                 提升到自由画布
@@ -2502,7 +2503,7 @@ export default function KonvaCanvas({
 
                     setContextMenu(null);
                   }}
-                  sx={{ fontSize: 14 }}
+                  style={{ fontSize: 14 }}
                 >
                   <AutoAwesomeIcon size={14} style={{ marginRight: 8 }} />
                   提取洞察 (Extract Insights)
@@ -2554,7 +2555,7 @@ export default function KonvaCanvas({
 
                   setContextMenu(null);
                 }}
-                sx={{ fontSize: 14 }}
+                style={{ fontSize: 14 }}
               >
                 <LayersIcon size={14} style={{ marginRight: 8 }} />
                 创建分组 ({selectedNodeIds.size})
@@ -2585,7 +2586,7 @@ export default function KonvaCanvas({
                   }
                   setContextMenu(null);
                 }}
-                sx={{ fontSize: 14, color: 'error.main' }}
+                style={{ fontSize: 14, color: '#DC2626' }}
               >
                 <DeleteIcon size={14} style={{ marginRight: 8 }} />
                 Delete Node {selectedNodeIds.size > 1 && selectedNodeIds.has(contextMenu.nodeId!) ? `(${selectedNodeIds.size})` : ''}
@@ -2602,7 +2603,7 @@ export default function KonvaCanvas({
                     }
                     setContextMenu(null);
                   }}
-                  sx={{ fontSize: 14 }}
+                  style={{ fontSize: 14 }}
                 >
                   折叠/展开Section
                 </MenuItem>
@@ -2611,7 +2612,7 @@ export default function KonvaCanvas({
                     if (contextMenu.sectionId) deleteSection(contextMenu.sectionId);
                     setContextMenu(null);
                   }}
-                  sx={{ fontSize: 14, color: 'error.main' }}
+                  style={{ fontSize: 14, color: '#DC2626' }}
                 >
                   删除Section
                 </MenuItem>
@@ -2622,27 +2623,27 @@ export default function KonvaCanvas({
 
         {/* Phase 2: Edge Label Dialog */}
         {edgeLabelDialog && (
-          <Paper
+          <Surface
             elevation={4}
-            sx={{
+            radius="md"
+            style={{
               position: 'absolute',
               left: edgeLabelDialog.position.x,
               top: edgeLabelDialog.position.y,
               transform: 'translate(-50%, -50%)',
-              p: 2,
-              borderRadius: 2,
+              padding: 16,
               minWidth: 240,
               zIndex: 1100,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Typography variant="subtitle2" fontWeight={600}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <UiText variant="h6" style={{ fontWeight: 600 }}>
                 连接关系
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
+              </UiText>
+              <div style={{ display: 'flex', gap: 4 }}>
                 <IconButton
                   size="sm"
-                  color="error"
+                  color="danger"
                   variant="ghost"
                   onClick={() => {
                     if (onEdgesChange) {
@@ -2653,19 +2654,19 @@ export default function KonvaCanvas({
                   }}
                   title="删除连接 (Delete Connection)"
                 >
-                  <DeleteIcon size="sm" />
+                  <DeleteIcon size={16} />
                 </IconButton>
                 <IconButton
                   size="sm"
                   variant="ghost"
                   onClick={() => setEdgeLabelDialog(null)}
                 >
-                  <CloseIcon size="sm" />
+                  <CloseIcon size={16} />
                 </IconButton>
-              </Box>
-            </Box>
+              </div>
+            </div>
 
-            <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
               {[
                 { type: 'supports', label: '支持', color: '#059669' },
                 { type: 'contradicts', label: '反对', color: '#DC2626' },
@@ -2694,12 +2695,11 @@ export default function KonvaCanvas({
                   variant="outlined"
                 />
               ))}
-            </Stack>
+            </div>
 
             <TextField
-              size="sm"
+              value=""
               placeholder="自定义标签..."
-              fullWidth
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   const value = (e.currentTarget.value).trim();
@@ -2714,9 +2714,9 @@ export default function KonvaCanvas({
                   setEdgeLabelDialog(null);
                 }
               }}
-              inputStyle={{ fontSize: 13 }}
+              style={{ fontSize: 13 }}
             />
-          </Paper>
+          </Surface>
         )}
 
         <Stage
@@ -2904,14 +2904,7 @@ export default function KonvaCanvas({
                 <KnowledgeNode
                   key={node.id}
                   node={node}
-                  onDoubleClick={() => {
-                    if (node.subType === 'source' && node.fileMetadata?.fileType === 'pdf') {
-                      onOpenSource?.(node.sourceId || node.id);
-                    } else {
-                      setEditingNodeId(node.id);
-                    }
-                    onNodeDoubleClick?.(node);
-                  }}
+
                   isSelected={selectedNodeIds.has(node.id)}
                   isHighlighted={highlightedNodeId === node.id}
                   isMergeTarget={mergeTargetNodeId === node.id}
@@ -3221,11 +3214,11 @@ export default function KonvaCanvas({
 
         {/* Loading Overlay for Synthesis */}
         {isSynthesizing && (
-          <Box
-            sx={{
+          <div
+            style={{
               position: 'absolute',
               inset: 0,
-              bgcolor: 'rgba(255,255,255,0.6)',
+              backgroundColor: 'rgba(255,255,255,0.6)',
               backdropFilter: 'blur(2px)',
               zIndex: 1900,
               display: 'flex',
@@ -3234,7 +3227,7 @@ export default function KonvaCanvas({
             }}
           >
             <Spinner size="lg" style={{ color: '#8B5CF6' }} />
-          </Box>
+          </div>
         )}
 
         {/* Generation Outputs Overlay - Renders completed generation tasks at their positions */}
@@ -3254,18 +3247,18 @@ export default function KonvaCanvas({
           const screenY = (pendingSynthesisResult.position.y + 220) * viewport.scale + viewport.y; // Below the 220px tall card
 
           return (
-            <Box
-              sx={{
+            <div
+              style={{
                 position: 'absolute',
                 left: screenX,
                 top: screenY + 8,
                 transform: 'translateX(-50%)',
                 display: 'flex',
-                gap: 1,
+                gap: 8,
                 zIndex: 2100,
-                bgcolor: 'white',
-                p: 1,
-                borderRadius: 2,
+                backgroundColor: 'white',
+                padding: 8,
+                borderRadius: 8,
                 boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
               }}
             >
@@ -3304,19 +3297,18 @@ export default function KonvaCanvas({
                   }
                   setPendingSynthesisResult(null);
                 }}
-                sx={{
+                style={{
                   textTransform: 'none',
-                  bgcolor: '#6366F1',
-                  '&:hover': { bgcolor: '#4F46E5' },
-                  borderRadius: 2,
+                  backgroundColor: '#6366F1',
+                  borderRadius: 8,
                 }}
               >
                 Add to Board
               </Button>
-            </Box>
+            </div>
           );
         })()}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

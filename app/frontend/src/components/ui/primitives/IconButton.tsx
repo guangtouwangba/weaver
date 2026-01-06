@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import { IconButton as MuiIconButton, IconButtonProps as MuiIconButtonProps } from '@mui/material';
 import { colors, radii } from '../tokens';
 
 /**
  * IconButton Component
  *
  * A button containing only an icon.
- * Wraps MUI IconButton with design system tokens.
+ * Pure CSS implementation.
  */
 
-export interface IconButtonProps extends Omit<MuiIconButtonProps, 'size' | 'color'> {
+export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     /** Icon element */
     icon?: React.ReactNode;
     /** Button size */
@@ -30,39 +29,38 @@ const sizeStyles = {
     lg: { size: 48, iconSize: 24 },
 };
 
-const getVariantStyles = (variant: IconButtonProps['variant'], active?: boolean) => {
-    const activeStyle = active ? { bgcolor: colors.primary[50], color: colors.primary[600] } : {};
+const getVariantStyles = (variant: IconButtonProps['variant'], active?: boolean, disabled?: boolean) => {
+    if (disabled) {
+        return {
+            backgroundColor: 'transparent',
+            color: colors.text.disabled,
+            border: variant === 'outline' ? `1px solid ${colors.border.default}` : 'none',
+            cursor: 'not-allowed',
+        };
+    }
+
+    const activeStyle = active ? { backgroundColor: colors.primary[50], color: colors.primary[600] } : {};
 
     switch (variant) {
         case 'ghost':
             return {
-                bgcolor: 'transparent',
+                backgroundColor: 'transparent',
                 color: colors.text.secondary,
-                '&:hover': {
-                    bgcolor: colors.neutral[100],
-                    color: colors.text.primary,
-                },
+                border: 'none',
                 ...activeStyle,
             };
         case 'outline':
             return {
-                bgcolor: 'transparent',
+                backgroundColor: 'transparent',
                 color: colors.text.secondary,
                 border: `1px solid ${colors.border.default}`,
-                '&:hover': {
-                    bgcolor: colors.neutral[50],
-                    borderColor: colors.border.strong,
-                },
                 ...activeStyle,
             };
         default:
             return {
-                bgcolor: colors.neutral[100],
+                backgroundColor: colors.neutral[100],
                 color: colors.text.secondary,
-                '&:hover': {
-                    bgcolor: colors.neutral[200],
-                    color: colors.text.primary,
-                },
+                border: 'none',
                 ...activeStyle,
             };
     }
@@ -76,36 +74,69 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
             variant = 'ghost',
             active = false,
             children,
-            sx,
+            className,
+            style,
+            disabled,
             ...props
         },
         ref
     ) {
         const sizeStyle = sizeStyles[size];
-        const variantStyle = getVariantStyles(variant, active);
+        const [isHovered, setIsHovered] = React.useState(false);
+        const [isFocused, setIsFocused] = React.useState(false);
+
+        const variantStyles = getVariantStyles(variant, active, disabled);
+
+        const hoverStyles = !disabled && isHovered ? (
+            variant === 'ghost' ? {
+                backgroundColor: colors.neutral[100],
+                color: colors.text.primary,
+            } : variant === 'outline' ? {
+                backgroundColor: colors.neutral[50],
+                borderColor: colors.border.strong,
+            } : {
+                backgroundColor: colors.neutral[200],
+                color: colors.text.primary,
+            }
+        ) : {};
 
         return (
-            <MuiIconButton
+            <button
                 ref={ref}
-                sx={{
+                disabled={disabled}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     width: sizeStyle.size,
                     height: sizeStyle.size,
-                    borderRadius: `${radii.md}px`,
+                    borderRadius: radii.md,
                     transition: 'all 0.15s ease',
-                    '& > svg': {
-                        fontSize: sizeStyle.iconSize,
-                    },
-                    ...variantStyle,
-                    '&:focus-visible': {
-                        outline: `2px solid ${colors.primary[500]}`,
-                        outlineOffset: 2,
-                    },
-                    ...sx,
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontSize: sizeStyle.iconSize,
+                    outline: isFocused ? `2px solid ${colors.primary[500]}` : 'none',
+                    padding: 0,
+                    ...variantStyles,
+                    ...hoverStyles,
+                    ...style,
                 }}
                 {...props}
             >
-                {icon || children}
-            </MuiIconButton>
+                {/* Clone the icon to apply size if needed, or just render it */}
+                {React.Children.map(icon || children, child => {
+                    if (React.isValidElement(child)) {
+                        const props = child.props as { size?: number | string };
+                        return React.cloneElement(child, {
+                            size: props.size || sizeStyle.iconSize,
+                        } as any);
+                    }
+                    return child;
+                })}
+            </button>
         );
     }
 );

@@ -14,10 +14,6 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { Stage, Layer, Rect } from 'react-konva';
 import Konva from 'konva';
 import {
-  Box,
-  Typography,
-} from '@mui/material';
-import {
   IconButton,
   Button,
   Tooltip,
@@ -26,6 +22,7 @@ import {
   Spinner,
   Stack,
   Surface,
+  Text,
 } from '@/components/ui/primitives';
 import {
   Menu,
@@ -159,29 +156,29 @@ const Toolbar: React.FC<ToolbarProps> = ({
   ];
 
   return (
-    <Box
-      sx={{
+    <Surface
+      elevation={1}
+      style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 2,
-        p: 1.5,
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
+        gap: 16,
+        padding: 12,
+        borderBottom: `1px solid ${colors.border.default}`,
+        backgroundColor: colors.background.default,
         flexWrap: 'wrap',
       }}
     >
       {/* Layout Selection */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Text variant="caption" style={{ marginRight: 4, color: colors.text.secondary }}>
           Layout:
-        </Typography>
+        </Text>
         <div style={{ display: 'flex', gap: 4 }}>
           {layoutOptions.map((opt) => (
-            <Tooltip key={opt.value} content={opt.label}>
+            <Tooltip key={opt.value} title={opt.label}>
               <Button
                 onClick={() => onLayoutChange(opt.value)}
-                variant={layoutType === opt.value ? 'primary' : 'outlined'}
+                variant={layoutType === opt.value ? 'primary' : 'outline'}
                 size="sm"
                 style={{ minWidth: 40, padding: 0 }}
               >
@@ -190,13 +187,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
             </Tooltip>
           ))}
         </div>
-      </Box>
+      </div>
 
       <div style={{ width: 1, backgroundColor: colors.border.default, height: 24 }} />
 
       {/* Zoom Controls */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <Tooltip content="Zoom Out">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <Tooltip title="Zoom Out">
           <IconButton size="sm" onClick={onZoomOut}>
             <ZoomOutIcon size={18} />
           </IconButton>
@@ -207,51 +204,54 @@ const Toolbar: React.FC<ToolbarProps> = ({
           variant="outlined"
           style={{ minWidth: 60, justifyContent: 'center' }}
         />
-        <Tooltip content="Zoom In">
+        <Tooltip title="Zoom In">
           <IconButton size="sm" onClick={onZoomIn}>
             <ZoomInIcon size={18} />
           </IconButton>
         </Tooltip>
-        <Tooltip content="Reset View">
+        <Tooltip title="Reset View">
           <IconButton size="sm" onClick={onResetView}>
             <RefreshIcon size={18} />
           </IconButton>
         </Tooltip>
-      </Box>
+      </div>
 
       <div style={{ width: 1, backgroundColor: colors.border.default, height: 24 }} />
 
       {/* Node Editing */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <Tooltip content="Add Node">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <Tooltip title="Add Node">
           <IconButton size="sm" onClick={onAddNode} disabled={!hasSelection}>
             <AddIcon size={18} />
           </IconButton>
         </Tooltip>
-        <Tooltip content="Edit Node">
+        <Tooltip title="Edit Node">
           <IconButton size="sm" onClick={onEditNode} disabled={!hasSelection}>
             <EditIcon size={18} />
           </IconButton>
         </Tooltip>
-        <Tooltip content="Delete Node">
+        <Tooltip title="Delete Node">
           <IconButton size="sm" onClick={onDeleteNode} disabled={!hasSelection}>
             <DeleteIcon size={18} />
           </IconButton>
         </Tooltip>
-      </Box>
+      </div>
 
       <div style={{ width: 1, backgroundColor: colors.border.default, height: 24 }} />
 
       {/* Export */}
-      <Tooltip content="Download">
+      <Tooltip title="Download">
         <IconButton size="sm" onClick={(e) => setExportAnchor(e.currentTarget)}>
           <DownloadIcon size={18} />
         </IconButton>
       </Tooltip>
       <Menu
-        anchorEl={exportAnchor}
         open={Boolean(exportAnchor)}
         onClose={() => setExportAnchor(null)}
+        anchorPosition={exportAnchor ? {
+          top: exportAnchor.getBoundingClientRect().bottom + 8,
+          left: exportAnchor.getBoundingClientRect().left
+        } : undefined}
       >
         <MenuItem onClick={() => { onExport('png'); setExportAnchor(null); }}>
           Export as PNG
@@ -262,12 +262,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
       </Menu>
 
       {/* Spacer */}
-      <Box sx={{ flexGrow: 1 }} />
+      <div style={{ flexGrow: 1 }} />
 
       {/* Node Count & Warning */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {nodeCount >= PERFORMANCE_WARNING_THRESHOLD && (
-          <Tooltip content="Large mindmap may affect performance">
+          <Tooltip title="Large mindmap may affect performance">
             <Chip
               icon={<WarningIcon size={14} />}
               label={`${nodeCount} nodes`}
@@ -278,12 +278,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
           </Tooltip>
         )}
         {nodeCount < PERFORMANCE_WARNING_THRESHOLD && (
-          <Typography variant="caption" color="text.secondary">
+          <Text variant="caption" style={{ color: colors.text.secondary }}>
             {nodeCount} nodes
-          </Typography>
+          </Text>
         )}
-      </Box>
-    </Box>
+      </div>
+    </Surface>
   );
 };
 
@@ -895,38 +895,38 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   );
 
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         position: 'fixed',
         inset: 0,
-        bgcolor: 'background.default',
+        backgroundColor: colors.background.default,
         zIndex: 1300,
         display: 'flex',
         flexDirection: 'column',
       }}
     >
       {/* Header */}
-      <Box
-        sx={{
+      <Surface
+        elevation={0}
+        style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          p: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
+          padding: 16,
+          borderBottom: `1px solid ${colors.border.default}`,
+          backgroundColor: colors.background.paper,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h6" fontWeight={600}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Text variant="h6" fontWeight={600}>
             {title}
-          </Typography>
+          </Text>
           {hasChanges && (
             <Chip label="Unsaved changes" size="sm" style={{ backgroundColor: colors.warning[50], color: colors.warning[700], borderColor: colors.warning[200] }} variant="outlined" />
           )}
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip content="Drag to pan, scroll to zoom">
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Tooltip title="Drag to pan, scroll to zoom">
             <Chip
               icon={<OpenWithIcon size={14} />}
               label="Pan & Zoom"
@@ -937,8 +937,8 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
           <IconButton onClick={onClose} size="sm">
             <CloseIcon size="md" />
           </IconButton>
-        </Box>
-      </Box>
+        </div>
+      </Surface>
 
       {/* Toolbar */}
       <Toolbar
@@ -957,11 +957,11 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
       />
 
       {/* Canvas */}
-      <Box
+      <div
         ref={containerRef}
-        sx={{
+        style={{
           flexGrow: 1,
-          bgcolor: '#F8FAFC',
+          backgroundColor: '#F8FAFC',
           overflow: 'hidden',
           position: 'relative',
         }}
@@ -1052,52 +1052,54 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
 
         {/* Loading Overlay */}
         {isCalculatingLayout && (
-          <Box
-            sx={{
+          <div
+            style={{
               position: 'absolute',
               inset: 0,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'rgba(248, 250, 252, 0.95)',
+              backgroundColor: 'rgba(248, 250, 252, 0.95)',
               backdropFilter: 'blur(4px)',
               zIndex: 10,
-              gap: 2,
+              gap: 16,
             }}
           >
-            <Spinner size={48} style={{ color: '#3B82F6' }} />
-            <Typography variant="body1" color="text.secondary" fontWeight={500}>
+            <Spinner size="lg" style={{ color: '#3B82F6' }} />
+            <Text variant="body" color="secondary" fontWeight={500}>
               Calculating layout for {data.nodes.length} nodes...
-            </Typography>
-            <Typography variant="caption" color="text.disabled">
+            </Text>
+            <Text variant="caption" color="disabled">
               This may take a moment for large mindmaps
-            </Typography>
-          </Box>
+            </Text>
+          </div>
         )}
 
 
         {/* Help text */}
         {!isCalculatingLayout && (
-          <Box
-            sx={{
+          <div
+            style={{
               position: 'absolute',
               bottom: 16,
               left: 16,
-              bgcolor: 'rgba(255,255,255,0.9)',
+              backgroundColor: 'rgba(255,255,255,0.9)',
               backdropFilter: 'blur(4px)',
-              px: 2,
-              py: 1,
-              borderRadius: 2,
-              boxShadow: 1,
+              paddingLeft: 16,
+              paddingRight: 16,
+              paddingTop: 8,
+              paddingBottom: 8,
+              borderRadius: 8,
+              boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
             }}
           >
-            <Typography variant="caption" color="text.secondary">
+            <Text variant="caption" color="secondary">
               Drag canvas to pan • Scroll to zoom • Click node to select • Double-click to edit
-            </Typography>
-          </Box>
+            </Text>
+          </div>
         )}
-      </Box>
+      </div>
 
       {/* Edit Dialog */}
       <NodeEditDialog
@@ -1108,7 +1110,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
         onClose={() => setEditDialogOpen(false)}
         onSave={handleSaveNode}
       />
-    </Box>
+    </div>
   );
 };
 

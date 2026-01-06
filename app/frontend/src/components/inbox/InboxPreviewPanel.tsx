@@ -1,4 +1,11 @@
-import { Box, Button, IconButton, Paper, Typography, Skeleton } from '@mui/material';
+import {
+    Button,
+    IconButton,
+    Surface,
+    Text,
+    Skeleton,
+} from '@/components/ui/primitives';
+import { colors, radii } from '@/components/ui/tokens';
 import { Pencil, Trash2, ExternalLink, FileText } from 'lucide-react';
 import TagChip from './TagChip';
 import { InboxItem } from './InboxItemCard';
@@ -19,77 +26,86 @@ export default function InboxPreviewPanel({
 
     if (!item) {
         return (
-            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#F9FAFB' }}>
-                <Typography color="text.secondary">Select an item to view details</Typography>
-            </Box>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' }}>
+                <Text color="secondary">Select an item to view details</Text>
+            </div>
         );
     }
 
     return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden', bgcolor: '#F9FAFB' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#F9FAFB' }}>
 
-            <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 4, pb: 2 }}>
+            <div style={{ flexGrow: 1, overflowY: 'auto', padding: 32, paddingBottom: 16 }}>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <TagChip label={item.type.charAt(0).toUpperCase() + item.type.slice(1)} color="#6366F1" />
-                        <Typography variant="caption" color="text.secondary">
+                        <Text variant="caption" color="secondary">
                             • Collected via {item.source}
-                        </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <IconButton size="small" onClick={onEdit}><Pencil size={18} className="text-gray-400" /></IconButton>
-                        <IconButton size="small" onClick={onDelete}><Trash2 size={18} className="text-gray-400" /></IconButton>
-                    </Box>
-                </Box>
+                        </Text>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <IconButton size="sm" onClick={onEdit}><Pencil size={18} className="text-gray-400" /></IconButton>
+                        <IconButton size="sm" onClick={onDelete}><Trash2 size={18} className="text-gray-400" /></IconButton>
+                    </div>
+                </div>
 
-                <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ lineHeight: 1.3 }}>
+                <Text variant="h5" style={{ fontWeight: 700, lineHeight: 1.3, marginBottom: 8 }}>
                     {item.title}
-                </Typography>
+                </Text>
                 {item.source_url && (
                     <Button
-                        startIcon={<ExternalLink size={14} />}
-                        href={item.source_url}
-                        target="_blank"
-                        sx={{
+                        variant="ghost"
+                        icon={<ExternalLink size={14} />}
+                        onClick={() => window.open(item.source_url, '_blank')}
+                        style={{
                             textTransform: 'none',
-                            color: 'primary.main',
-                            mb: 4,
-                            p: 0,
+                            color: colors.primary[500],
+                            marginBottom: 32,
+                            padding: 0,
                             minWidth: 0,
-                            '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' }
+                            height: 'auto',
+                            justifyContent: 'flex-start'
                         }}
                     >
                         {item.source_url}
                     </Button>
                 )}
 
-                <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', minHeight: 400 }}>
-                    <Box sx={{ mb: 4 }}>
+                <Surface
+                    elevation={0}
+                    style={{
+                        padding: 32,
+                        borderRadius: radii.xl,
+                        border: `1px solid ${colors.border.default}`,
+                        minHeight: 400
+                    }}
+                >
+                    <div style={{ marginBottom: 32 }}>
                         <Skeleton variant="text" width="80%" height={30} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
                         <Skeleton variant="text" width="100%" height={30} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
                         <Skeleton variant="text" width="90%" height={30} sx={{ mb: 4, bgcolor: '#F3F4F6' }} />
 
-                        <Box sx={{ height: 200, bgcolor: '#F9FAFB', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 4 }}>
+                        <div style={{ height: 200, backgroundColor: '#F9FAFB', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32 }}>
                             <FileText size={48} className="text-gray-300" />
-                        </Box>
+                        </div>
 
                         <Skeleton variant="text" width="100%" height={24} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
                         <Skeleton variant="text" width="95%" height={24} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
                         <Skeleton variant="text" width="85%" height={24} sx={{ mb: 1, bgcolor: '#F3F4F6' }} />
-                    </Box>
+                    </div>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <Button
-                            variant="outlined"
-                            sx={{ borderRadius: 6, textTransform: 'none', color: 'text.secondary', borderColor: '#E5E7EB' }}
+                            variant="outline"
+                            style={{ borderRadius: 24, color: colors.text.secondary, borderColor: colors.border.default }}
                         >
                             Read Full Article
                         </Button>
-                    </Box>
-                </Paper>
+                    </div>
+                </Surface>
 
-            </Box>
+            </div>
 
             <InboxActionFooter
                 projects={projects}
@@ -97,6 +113,6 @@ export default function InboxPreviewPanel({
                 onCreateProject={onCreateProject}
             />
 
-        </Box>
+        </div>
     );
 }

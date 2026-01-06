@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Collapse } from '@mui/material';
+import { Collapse } from '@/components/ui/primitives';
 import { Stack, Text, IconButton, Tooltip, Spinner } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
@@ -50,13 +50,13 @@ const getFileIconProps = (filename: string) => {
       return { icon: <CustomPdfIcon size={24} />, bg: '#FEF2F2' }; // Red-50
     case 'doc':
     case 'docx':
-      return { icon: <DescriptionIcon size="lg" sx={{ color: '#3B82F6' }} />, bg: '#EFF6FF' }; // Blue-500, Blue-50
+      return { icon: <DescriptionIcon size="lg" style={{ color: '#3B82F6' }} />, bg: '#EFF6FF' }; // Blue-500, Blue-50
     case 'csv':
     case 'xlsx':
     case 'xls':
-      return { icon: <DescriptionIcon size="lg" sx={{ color: '#10B981' }} />, bg: '#ECFDF5' }; // Emerald-500, Emerald-50
+      return { icon: <DescriptionIcon size="lg" style={{ color: '#10B981' }} />, bg: '#ECFDF5' }; // Emerald-500, Emerald-50
     default:
-      return { icon: <DescriptionIcon size="lg" sx={{ color: '#6B7280' }} />, bg: '#F3F4F6' }; // Gray-500, Gray-100
+      return { icon: <DescriptionIcon size="lg" style={{ color: '#6B7280' }} />, bg: '#F3F4F6' }; // Gray-500, Gray-100
   }
 };
 
@@ -177,13 +177,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       <Stack
         direction="column"
         align="center"
-        sx={{
+        style={{
           width: 48,
           height: '100%',
           flexShrink: 0,
           borderRight: `1px solid ${colors.border.default}`,
-          bgcolor: colors.background.paper,
-          py: 2,
+          backgroundColor: colors.background.paper,
+          paddingTop: 16,
+          paddingBottom: 16,
         }}
       >
         <Tooltip title="Expand Sidebar" placement="right">
@@ -198,13 +199,13 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   return (
     <Stack
       direction="column"
-      sx={{
+      style={{
         width,
         minWidth: width,
         flexShrink: 0,
         height: '100%',
         borderRight: `1px solid ${colors.border.default}`,
-        bgcolor: colors.background.paper,
+        backgroundColor: colors.background.paper,
       }}
     >
       {/* Header */}
@@ -212,8 +213,8 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         direction="row"
         align="center"
         justify="between"
-        sx={{
-          p: 2,
+        style={{
+          padding: 16,
           borderBottom: `1px solid ${colors.border.default}`,
         }}
       >
@@ -243,11 +244,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         <Stack
           direction="row"
           align="center"
-          sx={{ mb: 2, cursor: 'pointer' }}
+          style={{ marginBottom: 16, cursor: 'pointer' }}
           onClick={() => setFilesExpanded(!filesExpanded)}
         >
           <ExpandMoreIcon size="sm" style={{ transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
-          <Text variant="overline" color="secondary" sx={{ ml: 1 }}>RECENT UPLOADS</Text>
+          <Text variant="overline" color="secondary" style={{ marginLeft: 8 }}>RECENT UPLOADS</Text>
         </Stack>
 
         <Collapse in={filesExpanded}>
@@ -258,11 +259,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                 direction="row"
                 align="center"
                 gap={2}
-                sx={{
-                  p: 2,
+                style={{
+                  padding: 16,
                   borderRadius: `${radii.lg}px`,
                   border: `1px solid ${colors.neutral[200]}`,
-                  bgcolor: colors.neutral[50],
+                  backgroundColor: colors.neutral[50],
                 }}
               >
                 <div
@@ -277,7 +278,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                     flexShrink: 0,
                   }}
                 >
-                  <UploadFileIcon size="lg" sx={{ color: colors.neutral[500] }} />
+                  <UploadFileIcon size="lg" style={{ color: colors.neutral[500] }} />
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -285,7 +286,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   <SkeletonBar width="50%" height={16} style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }} />
                 </div>
 
-                <Spinner size="sm" color="primary" />
+                <Spinner size="sm" style={{ color: colors.primary[500] }} />
               </Stack>
             )}
 
@@ -307,7 +308,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
             ))}
 
             {documents.length === 0 && !isUploading && (
-              <Text variant="bodySmall" color="secondary" sx={{ textAlign: 'center', py: 2 }}>
+              <Text variant="bodySmall" color="secondary" style={{ textAlign: 'center', padding: '16px 0' }}>
                 No documents yet. Import one to get started.
               </Text>
             )}

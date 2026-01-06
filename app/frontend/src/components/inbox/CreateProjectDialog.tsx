@@ -2,17 +2,14 @@
 
 import { useState } from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
+    Modal,
     Button,
-    Box,
-    Typography,
-    CircularProgress,
-} from '@mui/material';
+    Spinner,
+    Text,
+} from '@/components/ui/primitives';
+import { TextField } from '@/components/ui/composites';
 import { FolderPlus } from 'lucide-react';
+import { colors } from '@/components/ui/tokens';
 
 interface CreateProjectDialogProps {
     open: boolean;
@@ -62,30 +59,26 @@ export default function CreateProjectDialog({
     };
 
     return (
-        <Dialog
+        <Modal
             open={open}
             onClose={handleClose}
-            maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: { borderRadius: 3 }
-            }}
+            size="md" // sm in MUI (sm=600px). Modal md=520, sm=400. Close enough, or use md.
         >
-            <DialogTitle sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{
-                        width: 40, height: 40, borderRadius: 2,
-                        bgcolor: '#EEF2FF', display: 'flex',
+            <Modal.Header>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 40, height: 40, borderRadius: 8,
+                        backgroundColor: '#EEF2FF', display: 'flex',
                         alignItems: 'center', justifyContent: 'center'
                     }}>
                         <FolderPlus size={20} className="text-indigo-600" />
-                    </Box>
-                    <Typography variant="h6" fontWeight="bold">Create New Project</Typography>
-                </Box>
-            </DialogTitle>
+                    </div>
+                    <Text variant="h6" style={{ fontWeight: 700 }}>Create New Project</Text>
+                </div>
+            </Modal.Header>
 
-            <DialogContent>
-                <Box sx={{ mt: 2 }}>
+            <Modal.Content>
+                <div style={{ marginTop: 16 }}>
                     <TextField
                         label="Project Name"
                         placeholder="e.g., Q1 Marketing Research"
@@ -94,8 +87,8 @@ export default function CreateProjectDialog({
                         onChange={(e) => setName(e.target.value)}
                         disabled={loading}
                         error={!!error}
-                        helperText={error}
-                        sx={{ mb: 3 }}
+                        helperText={error || undefined}
+                        style={{ marginBottom: 24 }}
                     />
 
                     <TextField
@@ -108,33 +101,30 @@ export default function CreateProjectDialog({
                         onChange={(e) => setDescription(e.target.value)}
                         disabled={loading}
                     />
-                </Box>
-            </DialogContent>
+                </div>
+            </Modal.Content>
 
-            <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Modal.Footer>
                 <Button
+                    variant="ghost"
                     onClick={handleClose}
                     disabled={loading}
-                    sx={{ textTransform: 'none', color: 'text.secondary' }}
+                    style={{ color: colors.text.secondary }}
                 >
                     Cancel
                 </Button>
                 <Button
-                    variant="contained"
+                    variant="primary"
                     onClick={handleSubmit}
                     disabled={loading || !name.trim()}
-                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
-                    sx={{
-                        textTransform: 'none',
-                        bgcolor: '#6366F1',
-                        '&:hover': { bgcolor: '#4F46E5' },
-                        borderRadius: 2,
-                        px: 3
+                    loading={loading} // Button primitive supports loading
+                    style={{
+                        backgroundColor: '#6366F1',
                     }}
                 >
                     {loading ? 'Creating...' : 'Create Project'}
                 </Button>
-            </DialogActions>
-        </Dialog>
+            </Modal.Footer>
+        </Modal>
     );
 }

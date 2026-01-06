@@ -2,21 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  Alert,
-  CircularProgress,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  Chip,
   Stack,
-} from '@mui/material';
+  Text,
+  Button,
+  Surface,
+  Spinner,
+  Chip
+} from '@/components/ui/primitives';
+import { Card, TextField } from '@/components/ui/composites';
+import { colors } from '@/components/ui/tokens';
 import {
   healthApi,
   projectsApi,
@@ -191,173 +185,186 @@ export default function ApiTestPage() {
   }, []);
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
-      <Typography variant="h4" gutterBottom>
+    <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
+      <Text variant="h4" gutterBottom>
         API Integration Test
-      </Typography>
+      </Text>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-          {error}
-        </Alert>
+        <Surface sx={{ mb: 2, p: 2, bgcolor: '#FEE2E2', color: '#B91C1C' }}>
+          <Stack direction="row" align="center" justify="between">
+             <Text>{error}</Text>
+             <Button size="sm" variant="ghost" onClick={() => setError('')}>Close</Button>
+          </Stack>
+        </Surface>
       )}
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
-          {success}
-        </Alert>
+        <Surface sx={{ mb: 2, p: 2, bgcolor: '#DCFCE7', color: '#15803D' }}>
+           <Stack direction="row" align="center" justify="between">
+             <Text>{success}</Text>
+             <Button size="sm" variant="ghost" onClick={() => setSuccess('')}>Close</Button>
+          </Stack>
+        </Surface>
       )}
 
       {/* Health Check */}
       <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
+        <Stack gap={2}>
+          <Text variant="h6">
             1. Health Check
-          </Typography>
+          </Text>
           <Button
-            variant="contained"
+            variant="primary"
             onClick={checkHealth}
             disabled={loading === 'health'}
+            sx={{ alignSelf: 'flex-start' }}
           >
-            {loading === 'health' ? <CircularProgress size={20} /> : 'Check Health'}
+            {loading === 'health' ? <Spinner size="sm" /> : 'Check Health'}
           </Button>
           {health && (
-            <Box
-              component="pre"
-              sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1, overflow: 'auto' }}
+            <div
+              style={{ marginTop: 16, padding: 16, backgroundColor: colors.neutral[100], borderRadius: 4, overflow: 'auto', fontFamily: 'monospace' }}
             >
               {health}
-            </Box>
+            </div>
           )}
-        </CardContent>
+        </Stack>
       </Card>
 
       {/* Projects */}
       <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
+        <Stack gap={2}>
+          <Text variant="h6">
             2. Projects
-          </Typography>
+          </Text>
 
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Stack direction="row" gap={2} sx={{ mb: 2 }}>
             <TextField
-              size="small"
+              size="sm"
               placeholder="Project name"
               value={newProjectName}
               onChange={(e) => setNewProjectName(e.target.value)}
             />
             <Button
-              variant="contained"
+              variant="primary"
               onClick={createProject}
               disabled={loading === 'createProject' || !newProjectName}
             >
               Create Project
             </Button>
-            <Button variant="outlined" onClick={loadProjects}>
+            <Button variant="outline" onClick={loadProjects}>
               Refresh
             </Button>
           </Stack>
 
-          <List dense>
+          <Stack gap={1}>
             {projects.map((project) => (
-              <ListItem
+              <Surface
                 key={project.id}
-                secondaryAction={
-                  <Button
-                    size="small"
-                    color="error"
-                    onClick={() => deleteProject(project.id)}
-                  >
-                    Delete
-                  </Button>
-                }
+                elevation={0}
                 sx={{
+                  p: 1,
                   bgcolor: selectedProject?.id === project.id ? 'action.selected' : 'transparent',
                   cursor: 'pointer',
+                  '&:hover': { bgcolor: 'action.hover' }
                 }}
                 onClick={() => selectProject(project)}
               >
-                <ListItemText
-                  primary={project.name}
-                  secondary={`ID: ${project.id.slice(0, 8)}...`}
-                />
-              </ListItem>
+                <Stack direction="row" justify="between" align="center">
+                    <Stack>
+                        <Text>{project.name}</Text>
+                        <Text variant="caption" color="secondary">ID: {project.id.slice(0, 8)}...</Text>
+                    </Stack>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        deleteProject(project.id);
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </Stack>
+              </Surface>
             ))}
             {projects.length === 0 && (
-              <Typography color="text.secondary">No projects yet</Typography>
+              <Text color="secondary">No projects yet</Text>
             )}
-          </List>
-        </CardContent>
+          </Stack>
+        </Stack>
       </Card>
 
       {/* Documents */}
       {selectedProject && (
         <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+          <Stack gap={2}>
+            <Text variant="h6">
               3. Documents (Project: {selectedProject.name})
-            </Typography>
+            </Text>
 
-            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <Stack direction="row" gap={2} sx={{ mb: 2 }}>
               <input
                 type="file"
                 accept=".pdf"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
               />
               <Button
-                variant="contained"
+                variant="primary"
                 onClick={uploadDocument}
                 disabled={loading === 'upload' || !selectedFile}
               >
-                {loading === 'upload' ? <CircularProgress size={20} /> : 'Upload PDF'}
+                {loading === 'upload' ? <Spinner size="sm" /> : 'Upload PDF'}
               </Button>
             </Stack>
 
-            <List dense>
+            <Stack gap={1}>
               {documents.map((doc) => (
-                <ListItem
+                <Surface
                   key={doc.id}
-                  secondaryAction={
-                    <Stack direction="row" spacing={1}>
-                      <Chip
-                        label={doc.status}
-                        color={doc.status === 'ready' ? 'success' : 'default'}
-                        size="small"
-                      />
-                      {doc.status === 'ready' && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => viewPdf(doc)}
-                        >
-                          View PDF
-                        </Button>
-                      )}
-                    </Stack>
-                  }
+                   elevation={0}
+                   sx={{ p: 1 }}
                 >
-                  <ListItemText
-                    primary={doc.filename}
-                    secondary={`Pages: ${doc.page_count} | ID: ${doc.id.slice(0, 8)}...`}
-                  />
-                </ListItem>
+                    <Stack direction="row" justify="between" align="center">
+                        <Stack>
+                            <Text>{doc.filename}</Text>
+                            <Text variant="caption" color="secondary">Pages: {doc.page_count} | ID: {doc.id.slice(0, 8)}...</Text>
+                        </Stack>
+                        <Stack direction="row" gap={1}>
+                        <Chip
+                            label={doc.status}
+                            color={doc.status === 'ready' ? 'success' : 'default'}
+                            size="sm"
+                        />
+                        {doc.status === 'ready' && (
+                            <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => viewPdf(doc)}
+                            >
+                            View PDF
+                            </Button>
+                        )}
+                        </Stack>
+                    </Stack>
+                </Surface>
               ))}
               {documents.length === 0 && (
-                <Typography color="text.secondary">No documents yet</Typography>
+                <Text color="secondary">No documents yet</Text>
               )}
-            </List>
+            </Stack>
 
             {/* PDF Viewer */}
             {selectedDocument && pdfUrl && (
-              <Box sx={{ mt: 3 }}>
-                <Divider sx={{ mb: 2 }} />
-                <Typography variant="subtitle1" gutterBottom>
+              <div style={{ marginTop: 24 }}>
+                <div style={{ borderBottom: `1px solid ${colors.border.default}`, marginBottom: 16 }} />
+                <Text variant="h6" gutterBottom>
                   PDF Preview: {selectedDocument.filename}
-                </Typography>
-                <Box
-                  sx={{
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 1,
+                </Text>
+                <div
+                  style={{
+                    border: `1px solid ${colors.border.default}`,
+                    borderRadius: 4,
                     overflow: 'hidden',
                     height: 600,
                   }}
@@ -369,7 +376,7 @@ export default function ApiTestPage() {
                     style={{ border: 'none' }}
                     title="PDF Preview"
                   />
-                </Box>
+                </div>
                 <Button
                   sx={{ mt: 1 }}
                   onClick={() => {
@@ -379,73 +386,71 @@ export default function ApiTestPage() {
                 >
                   Close Preview
                 </Button>
-              </Box>
+              </div>
             )}
-          </CardContent>
+          </Stack>
         </Card>
       )}
 
       {/* Chat */}
       {selectedProject && (
         <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+          <Stack gap={2}>
+            <Text variant="h6">
               4. RAG Chat (Project: {selectedProject.name})
-            </Typography>
+            </Text>
 
-            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <Stack direction="row" gap={2} sx={{ mb: 2 }}>
               <TextField
                 fullWidth
-                size="small"
+                size="sm"
                 placeholder="Ask a question about your documents..."
                 value={chatMessage}
                 onChange={(e) => setChatMessage(e.target.value)}
               />
               <Button
-                variant="contained"
+                variant="primary"
                 onClick={sendChat}
                 disabled={loading === 'chat' || !chatMessage}
               >
-                {loading === 'chat' ? <CircularProgress size={20} /> : 'Send'}
+                {loading === 'chat' ? <Spinner size="sm" /> : 'Send'}
               </Button>
             </Stack>
 
             {chatResponse && (
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="subtitle2" color="primary">
+              <div style={{ padding: 16, backgroundColor: colors.neutral[50], borderRadius: 4 }}>
+                <Text variant="h6" color="primary">
                   AI Response:
-                </Typography>
-                <Typography>{chatResponse}</Typography>
-              </Box>
+                </Text>
+                <Text>{chatResponse}</Text>
+              </div>
             )}
-          </CardContent>
+          </Stack>
         </Card>
       )}
 
       {/* Canvas */}
       {selectedProject && (
         <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+          <Stack gap={2}>
+            <Text variant="h6">
               5. Canvas (Project: {selectedProject.name})
-            </Typography>
+            </Text>
 
-            <Button variant="outlined" onClick={loadCanvas} sx={{ mb: 2 }}>
+            <Button variant="outline" onClick={loadCanvas} sx={{ alignSelf: 'flex-start', mb: 2 }}>
               Load Canvas Data
             </Button>
 
             {canvasData && (
-              <Box
-                component="pre"
-                sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1, overflow: 'auto', maxHeight: 300 }}
+              <div
+                style={{ padding: 16, backgroundColor: colors.neutral[100], borderRadius: 4, overflow: 'auto', maxHeight: 300, fontFamily: 'monospace' }}
               >
                 {canvasData}
-              </Box>
+              </div>
             )}
-          </CardContent>
+          </Stack>
         </Card>
       )}
-    </Box>
+    </div>
   );
 }
-

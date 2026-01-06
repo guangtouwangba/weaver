@@ -199,7 +199,7 @@ export default function InspirationDock() {
       direction="column"
       align="center"
       justify="center"
-      sx={{
+      style={{
         position: 'absolute',
         top: '50%',
         left: '50%',
@@ -208,6 +208,42 @@ export default function InspirationDock() {
         pointerEvents: 'none' // Allow click-through to canvas, but enable on children
       }}
     >
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes floatUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.95); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+          }
+          .more-action-item {
+            padding: 12px;
+            border-radius: ${radii.lg}px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 1;
+          }
+          .more-action-item:hover {
+            background-color: var(--action-bg);
+            border-color: var(--action-border);
+            transform: scale(1.02);
+          }
+          .more-action-item:active {
+            transform: scale(0.98);
+          }
+          .more-action-item.generating {
+            cursor: wait;
+            opacity: 0.7;
+          }
+          .more-action-item.generating:hover {
+            background-color: transparent;
+            border-color: transparent;
+            transform: none;
+          }
+          .more-action-item.generating:active {
+            transform: none;
+          }
+        `
+      }} />
       {/* Summary Card Overlay */}
       {showSummaryOverlay && summaryResult && (
         <div style={{ pointerEvents: 'auto' }}>
@@ -263,32 +299,28 @@ export default function InspirationDock() {
               <Surface
                 elevation={4}
                 radius="xl"
-                sx={{
+                style={{
                   position: 'absolute',
                   bottom: '120%', // Appear above the dock
                   left: '50%',
                   transform: 'translateX(-50%)',
                   width: 340,
-                  p: 2,
-                  bgcolor: 'rgba(255,255,255,0.95)',
+                  padding: 16,
+                  backgroundColor: 'rgba(255,255,255,0.95)',
                   backdropFilter: 'blur(20px)',
                   border: '1px solid rgba(0,0,0,0.08)',
                   animation: 'floatUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
-                  gap: 1.5,
+                  gap: 12,
                   zIndex: 10,
-                  '@keyframes floatUp': {
-                    from: { opacity: 0, transform: 'translateX(-50%) translateY(10px) scale(0.95)' },
-                    to: { opacity: 1, transform: 'translateX(-50%) translateY(0) scale(1)' }
-                  }
                 }}
               >
                 {[
-                  { id: 'podcast', label: 'Podcast', desc: 'Audio overview', icon: <MicIcon size="md" sx={{ color: '#8B5CF6' }} />, color: '#8B5CF6', isGenerating: isGeneratingPodcast },
-                  { id: 'quiz', label: 'Quiz', desc: 'Test knowledge', icon: <HelpOutlineIcon size="md" sx={{ color: '#F59E0B' }} />, color: '#F59E0B', isGenerating: isGeneratingQuiz },
-                  { id: 'timeline', label: 'Timeline', desc: 'Chronology', icon: <AutoAwesomeIcon size="md" sx={{ color: '#EC4899' }} />, color: '#EC4899', isGenerating: isGeneratingTimeline },
-                  { id: 'compare', label: 'Compare', desc: 'Diff analysis', icon: <DashboardIcon size="md" sx={{ color: '#10B981' }} />, color: '#10B981', isGenerating: isGeneratingCompare }
+                  { id: 'podcast', label: 'Podcast', desc: 'Audio overview', icon: <MicIcon size="md" style={{ color: '#8B5CF6' }} />, color: '#8B5CF6', isGenerating: isGeneratingPodcast },
+                  { id: 'quiz', label: 'Quiz', desc: 'Test knowledge', icon: <HelpOutlineIcon size="md" style={{ color: '#F59E0B' }} />, color: '#F59E0B', isGenerating: isGeneratingQuiz },
+                  { id: 'timeline', label: 'Timeline', desc: 'Chronology', icon: <AutoAwesomeIcon size="md" style={{ color: '#EC4899' }} />, color: '#EC4899', isGenerating: isGeneratingTimeline },
+                  { id: 'compare', label: 'Compare', desc: 'Diff analysis', icon: <DashboardIcon size="md" style={{ color: '#10B981' }} />, color: '#10B981', isGenerating: isGeneratingCompare }
                 ].map((action) => (
                   <Stack
                     key={action.id}
@@ -301,19 +333,11 @@ export default function InspirationDock() {
                         setShowMoreActions(false);
                       }
                     }}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: `${radii.lg}px`,
-                      border: '1px solid transparent',
-                      cursor: action.isGenerating ? 'wait' : 'pointer',
-                      transition: 'all 0.2s',
-                      opacity: action.isGenerating ? 0.7 : 1,
-                      '&:hover': {
-                        bgcolor: action.isGenerating ? 'transparent' : `${action.color}11`,
-                        borderColor: action.isGenerating ? 'transparent' : `${action.color}33`,
-                        transform: action.isGenerating ? 'none' : 'scale(1.02)'
-                      },
-                      '&:active': { transform: action.isGenerating ? 'none' : 'scale(0.98)' }
+                    className={`more-action-item ${action.isGenerating ? 'generating' : ''}`}
+                    style={{
+                      // @ts-ignore
+                      '--action-bg': `${action.color}11`,
+                      '--action-border': `${action.color}33`,
                     }}
                   >
                     <div
@@ -334,11 +358,11 @@ export default function InspirationDock() {
                       )}
                     </div>
                     <div>
-                      <Text variant="bodySmall" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                      <Text variant="bodySmall" style={{ fontWeight: 700, lineHeight: 1.2 }}>
                         {action.label}
                         {action.isGenerating && '...'}
                       </Text>
-                      <Text variant="caption" color="secondary" sx={{ fontSize: '0.7rem' }}>
+                      <Text variant="caption" color="secondary" style={{ fontSize: '0.7rem' }}>
                         {action.isGenerating ? 'Generating' : action.desc}
                       </Text>
                     </div>
@@ -350,20 +374,20 @@ export default function InspirationDock() {
             <Surface
               elevation={3}
               radius="xl"
-              sx={{
-                p: 1.5,
-                bgcolor: 'rgba(255,255,255,0.9)',
+              style={{
+                padding: 12,
+                backgroundColor: 'rgba(255,255,255,0.9)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(0,0,0,0.08)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 2,
+                gap: 16,
                 transition: 'all 0.3s ease'
               }}
             >
               {documents.length === 0 ? (
-                <Stack direction="row" align="center" gap={1} sx={{ px: 2, py: 1 }}>
-                  <Text variant="bodySmall" color="secondary" sx={{ fontWeight: 500 }}>
+                <Stack direction="row" align="center" gap={1} style={{ paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8 }}>
+                  <Text variant="bodySmall" color="secondary" style={{ fontWeight: 500 }}>
                     Upload a document to start
                   </Text>
                 </Stack>
@@ -373,7 +397,7 @@ export default function InspirationDock() {
                   {renderActionButton(
                     'summary',
                     'Summary',
-                    <BoltIcon size="lg" sx={{ color: projectColor }} />,
+                    <BoltIcon size="lg" style={{ color: projectColor }} />,
                     projectColor,
                     isGeneratingSummary,
                     recentlyCompleted.summary,
@@ -385,7 +409,7 @@ export default function InspirationDock() {
                   {renderActionButton(
                     'mindmap',
                     'Mindmap',
-                    <AccountTreeIcon size="lg" sx={{ color: '#10B981' }} />,
+                    <AccountTreeIcon size="lg" style={{ color: '#10B981' }} />,
                     '#10B981',
                     isGeneratingMindmap,
                     recentlyCompleted.mindmap,

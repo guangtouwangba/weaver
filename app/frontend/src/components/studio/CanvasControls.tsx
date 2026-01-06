@@ -11,11 +11,11 @@ import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   AddIcon,
   AddCircleIcon,
-  ImageSearchIcon
+  ImageSearchIcon,
+  MousePointerIcon,
+  HandIcon
 } from '@/components/ui/icons';
-import RemoveMui from '@mui/icons-material/Remove';
-import MouseMui from '@mui/icons-material/Mouse';
-import PanToolMui from '@mui/icons-material/PanTool';
+import { Minus } from 'lucide-react';
 
 interface CanvasControlsProps {
   zoom: number;
@@ -55,10 +55,10 @@ export default function CanvasControls({
           elevation={1}
           radius="lg"
           bordered
-          sx={{
+          style={{
             display: 'flex',
             flexDirection: 'row',
-            p: 0.5,
+            padding: 4,
           }}
         >
           <Tooltip title="Select Mode (V)" placement="bottom">
@@ -68,7 +68,7 @@ export default function CanvasControls({
               active={interactionMode === 'select'}
               onClick={() => onModeChange?.('select')}
             >
-              <MouseMui sx={{ fontSize: 20 }} />
+              <MousePointerIcon size={20} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Pan Mode (H)" placement="bottom">
@@ -78,7 +78,7 @@ export default function CanvasControls({
               active={interactionMode === 'pan'}
               onClick={() => onModeChange?.('pan')}
             >
-              <PanToolMui sx={{ fontSize: 20 }} />
+              <HandIcon size={20} />
             </IconButton>
           </Tooltip>
         </Surface>
@@ -101,14 +101,14 @@ export default function CanvasControls({
           elevation={1}
           radius="xl"
           bordered
-          sx={{
+          style={{
             width: 42,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
           }}
         >
-          <Stack direction="column" gap={0} align="center" sx={{ p: 0.5 }}>
+          <Stack direction="column" gap={0} align="center" style={{ padding: 4 }}>
             {/* Add Node Button */}
             <Tooltip title="Add Node" placement="left">
               <IconButton size="sm" variant="ghost">
@@ -127,9 +127,11 @@ export default function CanvasControls({
             <Text
               variant="caption"
               color="secondary"
-              sx={{
-                py: 0.5,
-                px: 1,
+              style={{
+                paddingTop: 4,
+                paddingBottom: 4,
+                paddingLeft: 8,
+                paddingRight: 8,
                 fontWeight: 600,
                 userSelect: 'none',
                 fontSize: '0.7rem'
@@ -141,7 +143,7 @@ export default function CanvasControls({
             {/* Zoom Out */}
             <Tooltip title="Zoom Out" placement="left">
               <IconButton size="sm" variant="ghost" onClick={onZoomOut}>
-                <RemoveMui sx={{ fontSize: 16 }} />
+                <Minus size={16} />
               </IconButton>
             </Tooltip>
 

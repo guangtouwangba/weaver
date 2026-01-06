@@ -1,4 +1,6 @@
-import { Box, Paper, Typography } from '@mui/material';
+import React from 'react';
+import { Surface, Text } from '@/components/ui/primitives';
+import { colors, radii } from '@/components/ui/tokens';
 import {
     FileText, Link as LinkIcon, Video, StickyNote
 } from 'lucide-react';
@@ -49,62 +51,62 @@ export default function InboxItemCard({ item, onClick }: InboxItemCardProps) {
     const bgColor = bgColors[item.type] || '#F3F4F6';
 
     return (
-        <Paper
+        <Surface
             elevation={0}
             onClick={onClick}
-            sx={{
-                p: 2,
-                mb: 2,
+            style={{
+                padding: 16,
+                marginBottom: 16,
                 cursor: 'pointer',
-                borderRadius: 3,
+                borderRadius: radii.xl,
                 border: '1px solid',
-                borderColor: item.isSelected ? 'primary.main' : 'divider',
-                bgcolor: item.isSelected ? '#EFF6FF' : 'white',
+                borderColor: item.isSelected ? colors.primary[500] : colors.border.default,
+                backgroundColor: item.isSelected ? colors.primary[50] : 'white',
                 transition: 'all 0.2s',
-                '&:hover': {
-                    borderColor: item.isSelected ? 'primary.main' : 'grey.400',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-                },
-                position: 'relative'
+                position: 'relative',
+                transform: 'translateY(0)',
             }}
+            // Hover styling handled via CSS class if Tailwind available, or style injection.
+            // For now, removing hover transform or relying on parent CSS?
+            // I'll add a data attribute and use global css if needed, but for now simple style.
+            className={item.isSelected ? 'border-primary-500 bg-primary-50' : 'hover:border-gray-400 hover:shadow-sm hover:-translate-y-[1px]'}
         >
             {item.isSelected && (
-                <Box sx={{
+                <div style={{
                     position: 'absolute', right: 12, top: 12,
                     width: 8, height: 8, borderRadius: '50%',
-                    bgcolor: 'primary.main'
+                    backgroundColor: colors.primary[500]
                 }} />
             )}
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-                <Box
-                    sx={{
+            <div style={{ display: 'flex', gap: 16 }}>
+                <div
+                    style={{
                         width: 48, height: 48,
-                        borderRadius: 2,
+                        borderRadius: radii.lg,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        bgcolor: bgColor
+                        backgroundColor: bgColor
                     }}
                 >
                     <Icon size={24} className={iconColor} />
-                </Box>
+                </div>
 
-                <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle2" fontWeight="600" sx={{ lineHeight: 1.3, mb: 0.5, pr: 2 }}>
+                <div style={{ flex: 1 }}>
+                    <Text variant="h6" style={{ lineHeight: 1.3, marginBottom: 4, paddingRight: 16, fontSize: 14, fontWeight: 600 }}>
                         {item.title}
-                    </Typography>
+                    </Text>
 
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    <Text variant="caption" color="secondary" style={{ display: 'block', marginBottom: 8 }}>
                         {item.addedAt} • {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                    </Typography>
+                    </Text>
 
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {item.tags.map(tag => (
                             <TagChip key={tag} label={tag} />
                         ))}
-                    </Box>
-                </Box>
-            </Box>
-        </Paper>
+                    </div>
+                </div>
+            </div>
+        </Surface>
     );
 }

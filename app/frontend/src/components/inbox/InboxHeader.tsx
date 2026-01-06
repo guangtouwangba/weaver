@@ -1,5 +1,11 @@
-import { Box, Button, IconButton, TextField, InputAdornment, Typography } from '@mui/material';
+import {
+    Button,
+    IconButton,
+    Text,
+} from '@/components/ui/primitives';
+import { TextField } from '@/components/ui/composites';
 import { Search, Filter, Plus, Bell } from 'lucide-react';
+import { colors } from '@/components/ui/tokens';
 
 interface InboxHeaderProps {
     searchQuery: string;
@@ -15,70 +21,41 @@ export default function InboxHeader({
     onNewItemClick
 }: InboxHeaderProps) {
     return (
-        <Box sx={{
+        <div style={{
             height: 64,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
+            borderBottom: `1px solid ${colors.border.default}`,
             display: 'flex',
             alignItems: 'center',
-            px: 3,
-            bgcolor: 'white',
+            paddingLeft: 24, paddingRight: 24,
+            backgroundColor: 'white',
             justifyContent: 'space-between'
         }}>
-            <Typography variant="h6" fontWeight="bold" sx={{ mr: 4 }}>Inbox</Typography>
+            <Text variant="h6" style={{ marginRight: 32, fontWeight: 700 }}>Inbox</Text>
 
             <TextField
                 placeholder="Search inbox items..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                variant="outlined"
-                size="small"
-                sx={{
-                    width: 400,
-                    '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        bgcolor: '#F9FAFB',
-                        '& fieldset': { borderColor: '#E5E7EB' },
-                        '&:hover fieldset': { borderColor: '#D1D5DB' },
-                        '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-                    }
-                }}
-                InputProps={{
-                    startAdornment: (
-                        <InputAdornment position="start">
-                            <Search size={18} className="text-gray-400" />
-                        </InputAdornment>
-                    ),
-                }}
+                size="sm"
+                style={{ width: 400 }}
+                startAdornment={<Search size={18} color="#9CA3AF" />}
             />
 
-            <Box sx={{ flexGrow: 1 }} />
+            <div style={{ flexGrow: 1 }} />
 
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <Button
-                    variant="outlined"
-                    startIcon={<Filter size={16} />}
+                    variant="outline"
+                    icon={<Filter size={16} />}
                     onClick={onFilterClick}
-                    sx={{
-                        color: 'text.secondary',
-                        borderColor: '#E5E7EB',
-                        textTransform: 'none',
-                        borderRadius: 2
-                    }}
                 >
                     Filter by Type/Tag
                 </Button>
 
                 <Button
-                    variant="contained"
-                    startIcon={<Plus size={18} />}
+                    variant="primary"
+                    icon={<Plus size={18} />}
                     onClick={onNewItemClick}
-                    sx={{
-                        textTransform: 'none',
-                        borderRadius: 2,
-                        bgcolor: '#6366F1',
-                        '&:hover': { bgcolor: '#4F46E5' }
-                    }}
                 >
                     New Item
                 </Button>
@@ -86,7 +63,7 @@ export default function InboxHeader({
                 <IconButton>
                     <Bell size={20} className="text-gray-400" />
                 </IconButton>
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }

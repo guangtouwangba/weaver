@@ -3,190 +3,203 @@
 /**
  * Icon Abstraction Layer
  * 
- * This module provides a centralized icon system that abstracts away the underlying
- * icon library. Currently implemented with @mui/icons-material.
- * 
- * Usage:
- *   import { AddIcon, CloseIcon } from '@/components/ui/icons';
- *   <AddIcon size="md" color="primary" />
- * 
- * To swap icon libraries in the future, only this file needs to be updated.
+ * Re-exports icons using the uniform createIcon wrapper.
+ * Now backed by lucide-react.
  */
 
 import { createIcon } from './Icon';
-
-// MUI Icons imports
-import AddMui from '@mui/icons-material/Add';
-import AddCircleMui from '@mui/icons-material/AddCircle';
-import AccountTreeMui from '@mui/icons-material/AccountTree';
-import ArrowForwardMui from '@mui/icons-material/ArrowForward';
-import ArrowUpwardMui from '@mui/icons-material/ArrowUpward';
-import AttachMoneyMui from '@mui/icons-material/AttachMoney';
-import AutoAwesomeMui from '@mui/icons-material/AutoAwesome';
-import BoltMui from '@mui/icons-material/Bolt';
-import CheckMui from '@mui/icons-material/Check';
-import ChevronLeftMui from '@mui/icons-material/ChevronLeft';
-import ChevronRightMui from '@mui/icons-material/ChevronRight';
-import MenuOpenMui from '@mui/icons-material/MenuOpen';
-import CloseMui from '@mui/icons-material/Close';
-import CloudUploadMui from '@mui/icons-material/CloudUpload';
-import ContentCopyMui from '@mui/icons-material/ContentCopy';
-import CreateNewFolderMui from '@mui/icons-material/CreateNewFolder';
-import CreditCardMui from '@mui/icons-material/CreditCard';
-import DashboardMui from '@mui/icons-material/Dashboard';
-import DeleteMui from '@mui/icons-material/Delete';
-import DescriptionMui from '@mui/icons-material/Description';
-import DockMui from '@mui/icons-material/Dock';
-import DownloadMui from '@mui/icons-material/Download';
-import CircleMui from '@mui/icons-material/Circle';
-import DragIndicatorMui from '@mui/icons-material/DragIndicator';
-import EditMui from '@mui/icons-material/Edit';
-import ErrorMui from '@mui/icons-material/Error';
-import ExpandLessMui from '@mui/icons-material/ExpandLess';
-import ExpandMoreMui from '@mui/icons-material/ExpandMore';
-import FolderOpenMui from '@mui/icons-material/FolderOpen';
-import FullscreenMui from '@mui/icons-material/Fullscreen';
-import FullscreenExitMui from '@mui/icons-material/FullscreenExit';
-import NotificationsMui from '@mui/icons-material/Notifications';
-import CheckCircleMui from '@mui/icons-material/CheckCircle';
-import GpsFixedMui from '@mui/icons-material/GpsFixed';
-import Grid4x4Mui from '@mui/icons-material/Grid4x4';
-import GridViewMui from '@mui/icons-material/GridView';
-import HelpOutlineMui from '@mui/icons-material/HelpOutline';
-import HistoryMui from '@mui/icons-material/History';
-import HomeMui from '@mui/icons-material/Home';
-import ImageSearchMui from '@mui/icons-material/ImageSearch';
-import InboxMui from '@mui/icons-material/Inbox';
-import LayersMui from '@mui/icons-material/Layers';
-import LinkMui from '@mui/icons-material/Link';
-import LocalParkingMui from '@mui/icons-material/LocalParking';
-import MicMui from '@mui/icons-material/Mic';
-import MoreVertMui from '@mui/icons-material/MoreVert';
-import OpenWithMui from '@mui/icons-material/OpenWith';
-import PeopleMui from '@mui/icons-material/People';
-import PsychologyMui from '@mui/icons-material/Psychology';
-import RefreshMui from '@mui/icons-material/Refresh';
-import SearchMui from '@mui/icons-material/Search';
-import SettingsMui from '@mui/icons-material/Settings';
-import ShareMui from '@mui/icons-material/Share';
-import StickyNote2Mui from '@mui/icons-material/StickyNote2';
-import TagMui from '@mui/icons-material/Tag';
-import TrendingUpMui from '@mui/icons-material/TrendingUp';
-import TuneMui from '@mui/icons-material/Tune';
-import UploadFileMui from '@mui/icons-material/UploadFile';
-import ViewListMui from '@mui/icons-material/ViewList';
-import WarningMui from '@mui/icons-material/Warning';
-import ZoomInMui from '@mui/icons-material/ZoomIn';
-import ZoomOutMui from '@mui/icons-material/ZoomOut';
-import SendMui from '@mui/icons-material/Send';
-import StopMui from '@mui/icons-material/Stop';
-import MoreHorizMui from '@mui/icons-material/MoreHoriz';
-import InfoMui from '@mui/icons-material/Info';
-import KeyboardArrowDownMui from '@mui/icons-material/KeyboardArrowDown';
-import SmartToyMui from '@mui/icons-material/SmartToy';
-import ChatMui from '@mui/icons-material/Chat';
-import CloudMui from '@mui/icons-material/Cloud';
-import LockMui from '@mui/icons-material/Lock';
-import OpenInNewMui from '@mui/icons-material/OpenInNew';
-import DragHandleMui from '@mui/icons-material/DragHandle';
-import KeyboardDoubleArrowLeftMui from '@mui/icons-material/KeyboardDoubleArrowLeft';
-import KeyboardDoubleArrowRightMui from '@mui/icons-material/KeyboardDoubleArrowRight';
-
-// Create wrapped icons with consistent API
-// Naming convention: [Name]Icon
+import {
+    Plus,
+    PlusCircle,
+    Check,
+    X,
+    Copy,
+    Trash2,
+    Pencil,
+    RefreshCw,
+    Search,
+    Share2,
+    Send,
+    Square,
+    ArrowRight,
+    ArrowUp,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    ChevronDown,
+    Menu,
+    Home,
+    Inbox,
+    CloudUpload,
+    FolderPlus,
+    FileText,
+    FolderOpen,
+    FileUp,
+    LayoutDashboard,
+    Minimize2,
+    Download,
+    Circle,
+    Maximize,
+    Minimize,
+    Bell,
+    CheckCircle,
+    Grid,
+    LayoutGrid,
+    HelpCircle,
+    History,
+    Image,
+    Layers,
+    List,
+    Link,
+    Mic,
+    MoreVertical,
+    MoreHorizontal,
+    Move,
+    Users,
+    Brain,
+    Settings,
+    StickyNote,
+    Tag,
+    TrendingUp,
+    Sliders,
+    Cloud,
+    Lock,
+    ExternalLink,
+    GripHorizontal,
+    PanelLeftClose,
+    PanelLeftOpen,
+    PanelRightClose,
+    PanelRightOpen,
+    CreditCard,
+    DollarSign,
+    Zap,
+    MapPin,
+    ParkingSquare,
+    TriangleAlert,
+    CircleAlert,
+    Info,
+    Bot,
+    MessageSquare,
+    Sparkles,
+    ZoomIn,
+    ZoomOut,
+    Workflow,
+    Target,
+    User,
+    Palette,
+    LogOut,
+    Eye,
+    EyeOff,
+    Key,
+    Database,
+    MousePointer2,
+    Hand,
+    Scan
+} from 'lucide-react';
 
 // Action icons
-export const AddIcon = createIcon(AddMui, 'AddIcon');
-export const AddCircleIcon = createIcon(AddCircleMui, 'AddCircleIcon');
-export const CheckIcon = createIcon(CheckMui, 'CheckIcon');
-export const CloseIcon = createIcon(CloseMui, 'CloseIcon');
-export const ContentCopyIcon = createIcon(ContentCopyMui, 'ContentCopyIcon');
-export const DeleteIcon = createIcon(DeleteMui, 'DeleteIcon');
-export const EditIcon = createIcon(EditMui, 'EditIcon');
-export const RefreshIcon = createIcon(RefreshMui, 'RefreshIcon');
-export const SearchIcon = createIcon(SearchMui, 'SearchIcon');
-export const ShareIcon = createIcon(ShareMui, 'ShareIcon');
-export const SendIcon = createIcon(SendMui, 'SendIcon');
-export const StopIcon = createIcon(StopMui, 'StopIcon');
+export const AddIcon = createIcon(Plus, 'AddIcon');
+export const AddCircleIcon = createIcon(PlusCircle, 'AddCircleIcon');
+export const CheckIcon = createIcon(Check, 'CheckIcon');
+export const CloseIcon = createIcon(X, 'CloseIcon');
+export const ContentCopyIcon = createIcon(Copy, 'ContentCopyIcon');
+export const DeleteIcon = createIcon(Trash2, 'DeleteIcon');
+export const EditIcon = createIcon(Pencil, 'EditIcon');
+export const RefreshIcon = createIcon(RefreshCw, 'RefreshIcon');
+export const SearchIcon = createIcon(Search, 'SearchIcon');
+export const ShareIcon = createIcon(Share2, 'ShareIcon');
+export const SendIcon = createIcon(Send, 'SendIcon');
+export const StopIcon = createIcon(Square, 'StopIcon');
+export const VisibilityIcon = createIcon(Eye, 'VisibilityIcon');
+export const VisibilityOffIcon = createIcon(EyeOff, 'VisibilityOffIcon');
 
 // Navigation icons
-export const ArrowForwardIcon = createIcon(ArrowForwardMui, 'ArrowForwardIcon');
-export const ArrowUpwardIcon = createIcon(ArrowUpwardMui, 'ArrowUpwardIcon');
-export const ChevronLeftIcon = createIcon(ChevronLeftMui, 'ChevronLeftIcon');
-export const ChevronRightIcon = createIcon(ChevronRightMui, 'ChevronRightIcon');
-export const ExpandLessIcon = createIcon(ExpandLessMui, 'ExpandLessIcon');
-export const ExpandMoreIcon = createIcon(ExpandMoreMui, 'ExpandMoreIcon');
-export const MenuOpenIcon = createIcon(MenuOpenMui, 'MenuOpenIcon');
-export const HomeIcon = createIcon(HomeMui, 'HomeIcon');
-export const InboxIcon = createIcon(InboxMui, 'InboxIcon');
-export const KeyboardArrowDownIcon = createIcon(KeyboardArrowDownMui, 'KeyboardArrowDownIcon');
+export const ArrowForwardIcon = createIcon(ArrowRight, 'ArrowForwardIcon');
+export const ArrowUpwardIcon = createIcon(ArrowUp, 'ArrowUpwardIcon');
+export const ChevronLeftIcon = createIcon(ChevronLeft, 'ChevronLeftIcon');
+export const ChevronRightIcon = createIcon(ChevronRight, 'ChevronRightIcon');
+export const ExpandLessIcon = createIcon(ChevronUp, 'ExpandLessIcon');
+export const ExpandMoreIcon = createIcon(ChevronDown, 'ExpandMoreIcon');
+export const MenuOpenIcon = createIcon(Menu, 'MenuOpenIcon');
+export const HomeIcon = createIcon(Home, 'HomeIcon');
+export const InboxIcon = createIcon(Inbox, 'InboxIcon');
+export const KeyboardArrowDownIcon = createIcon(ChevronDown, 'KeyboardArrowDownIcon');
+export const LogoutIcon = createIcon(LogOut, 'LogoutIcon');
 
 // File/Folder icons
-export const CloudUploadIcon = createIcon(CloudUploadMui, 'CloudUploadIcon');
-export const CreateNewFolderIcon = createIcon(CreateNewFolderMui, 'CreateNewFolderIcon');
-export const DescriptionIcon = createIcon(DescriptionMui, 'DescriptionIcon');
-export const FolderOpenIcon = createIcon(FolderOpenMui, 'FolderOpenIcon');
-export const UploadFileIcon = createIcon(UploadFileMui, 'UploadFileIcon');
+export const CloudUploadIcon = createIcon(CloudUpload, 'CloudUploadIcon');
+export const CreateNewFolderIcon = createIcon(FolderPlus, 'CreateNewFolderIcon');
+export const DescriptionIcon = createIcon(FileText, 'DescriptionIcon');
+export const FolderOpenIcon = createIcon(FolderOpen, 'FolderOpenIcon');
+export const UploadFileIcon = createIcon(FileUp, 'UploadFileIcon');
 
 // Layout/View icons
-export const DashboardIcon = createIcon(DashboardMui, 'DashboardIcon');
-export const DockIcon = createIcon(DockMui, 'DockIcon');
-export const DownloadIcon = createIcon(DownloadMui, 'DownloadIcon');
-export const CircleIcon = createIcon(CircleMui, 'CircleIcon');
-export const FullscreenIcon = createIcon(FullscreenMui, 'FullscreenIcon');
-export const FullscreenExitIcon = createIcon(FullscreenExitMui, 'FullscreenExitIcon');
-export const NotificationsIcon = createIcon(NotificationsMui, 'NotificationsIcon');
-export const CheckCircleIcon = createIcon(CheckCircleMui, 'CheckCircleIcon');
-export const Grid4x4Icon = createIcon(Grid4x4Mui, 'Grid4x4Icon');
-export const GridViewIcon = createIcon(GridViewMui, 'GridViewIcon');
-export const LayersIcon = createIcon(LayersMui, 'LayersIcon');
-export const ViewListIcon = createIcon(ViewListMui, 'ViewListIcon');
-export const ZoomInIcon = createIcon(ZoomInMui, 'ZoomInIcon');
-export const ZoomOutIcon = createIcon(ZoomOutMui, 'ZoomOutIcon');
+export const DashboardIcon = createIcon(LayoutDashboard, 'DashboardIcon');
+export const DockIcon = createIcon(Minimize2, 'DockIcon');
+export const DownloadIcon = createIcon(Download, 'DownloadIcon');
+export const CircleIcon = createIcon(Circle, 'CircleIcon');
+export const FullscreenIcon = createIcon(Maximize, 'FullscreenIcon');
+export const FullscreenExitIcon = createIcon(Minimize, 'FullscreenExitIcon');
+export const NotificationsIcon = createIcon(Bell, 'NotificationsIcon');
+export const CheckCircleIcon = createIcon(CheckCircle, 'CheckCircleIcon');
+export const Grid4x4Icon = createIcon(Grid, 'Grid4x4Icon');
+export const GridViewIcon = createIcon(LayoutGrid, 'GridViewIcon');
+export const LayersIcon = createIcon(Layers, 'LayersIcon');
+export const ViewListIcon = createIcon(List, 'ViewListIcon');
+export const ZoomInIcon = createIcon(ZoomIn, 'ZoomInIcon');
+export const ZoomOutIcon = createIcon(ZoomOut, 'ZoomOutIcon');
+export const PaletteIcon = createIcon(Palette, 'PaletteIcon');
 
 // Status/Alert icons
-export const ErrorIcon = createIcon(ErrorMui, 'ErrorIcon');
-export const HelpOutlineIcon = createIcon(HelpOutlineMui, 'HelpOutlineIcon');
-export const InfoIcon = createIcon(InfoMui, 'InfoIcon');
-export const WarningIcon = createIcon(WarningMui, 'WarningIcon');
+export const ErrorIcon = createIcon(CircleAlert, 'ErrorIcon');
+export const HelpOutlineIcon = createIcon(HelpCircle, 'HelpOutlineIcon');
+export const InfoIcon = createIcon(Info, 'InfoIcon');
+export const WarningIcon = createIcon(TriangleAlert, 'WarningIcon');
 
 // AI/Brain icons
-export const AutoAwesomeIcon = createIcon(AutoAwesomeMui, 'AutoAwesomeIcon');
-export const BoltIcon = createIcon(BoltMui, 'BoltIcon');
-export const PsychologyIcon = createIcon(PsychologyMui, 'PsychologyIcon');
-export const BotIcon = createIcon(SmartToyMui, 'BotIcon');
-export const BrainIcon = createIcon(PsychologyMui, 'BrainIcon'); // Alias for compatibility
-export const ChatIcon = createIcon(ChatMui, 'ChatIcon');
-export const MessageSquareIcon = createIcon(ChatMui, 'MessageSquareIcon'); // Alias
+export const AutoAwesomeIcon = createIcon(Sparkles, 'AutoAwesomeIcon');
+export const BoltIcon = createIcon(Zap, 'BoltIcon');
+export const PsychologyIcon = createIcon(Brain, 'PsychologyIcon');
+export const BotIcon = createIcon(Bot, 'BotIcon');
+export const BrainIcon = createIcon(Brain, 'BrainIcon');
+export const ChatIcon = createIcon(MessageSquare, 'ChatIcon');
+export const MessageSquareIcon = createIcon(MessageSquare, 'MessageSquareIcon');
+export const StorageIcon = createIcon(Database, 'StorageIcon');
 
 // Misc icons
-export const AccountTreeIcon = createIcon(AccountTreeMui, 'AccountTreeIcon');
-export const AttachMoneyIcon = createIcon(AttachMoneyMui, 'AttachMoneyIcon');
-export const CreditCardIcon = createIcon(CreditCardMui, 'CreditCardIcon');
-export const DragIndicatorIcon = createIcon(DragIndicatorMui, 'DragIndicatorIcon');
-export const GpsFixedIcon = createIcon(GpsFixedMui, 'GpsFixedIcon');
-export const HistoryIcon = createIcon(HistoryMui, 'HistoryIcon');
-export const ImageSearchIcon = createIcon(ImageSearchMui, 'ImageSearchIcon');
-export const LinkIcon = createIcon(LinkMui, 'LinkIcon');
-export const LocalParkingIcon = createIcon(LocalParkingMui, 'LocalParkingIcon');
-export const MicIcon = createIcon(MicMui, 'MicIcon');
-export const MoreVertIcon = createIcon(MoreVertMui, 'MoreVertIcon');
-export const MoreHorizIcon = createIcon(MoreHorizMui, 'MoreHorizIcon');
-export const OpenWithIcon = createIcon(OpenWithMui, 'OpenWithIcon');
-export const PeopleIcon = createIcon(PeopleMui, 'PeopleIcon');
-export const SettingsIcon = createIcon(SettingsMui, 'SettingsIcon');
-export const StickyNote2Icon = createIcon(StickyNote2Mui, 'StickyNote2Icon');
-export const TagIcon = createIcon(TagMui, 'TagIcon');
-export const TrendingUpIcon = createIcon(TrendingUpMui, 'TrendingUpIcon');
-export const TuneIcon = createIcon(TuneMui, 'TuneIcon');
-export const CloudIcon = createIcon(CloudMui, 'CloudIcon');
-export const LockIcon = createIcon(LockMui, 'LockIcon');
-export const ExternalLinkIcon = createIcon(OpenInNewMui, 'ExternalLinkIcon');
-export const GripHorizontalIcon = createIcon(DragHandleMui, 'GripHorizontalIcon');
-export const PanelRightCloseIcon = createIcon(KeyboardDoubleArrowRightMui, 'PanelRightCloseIcon');
-export const PanelRightOpenIcon = createIcon(KeyboardDoubleArrowLeftMui, 'PanelRightOpenIcon');
+export const AccountTreeIcon = createIcon(Workflow, 'AccountTreeIcon');
+export const AttachMoneyIcon = createIcon(DollarSign, 'AttachMoneyIcon');
+export const CreditCardIcon = createIcon(CreditCard, 'CreditCardIcon');
+export const DragIndicatorIcon = createIcon(GripHorizontal, 'DragIndicatorIcon');
+export const GpsFixedIcon = createIcon(Target, 'GpsFixedIcon');
+export const HistoryIcon = createIcon(History, 'HistoryIcon');
+export const ImageSearchIcon = createIcon(Image, 'ImageSearchIcon');
+export const LinkIcon = createIcon(Link, 'LinkIcon');
+export const LocalParkingIcon = createIcon(ParkingSquare, 'LocalParkingIcon');
+export const MicIcon = createIcon(Mic, 'MicIcon');
+export const MoreVertIcon = createIcon(MoreVertical, 'MoreVertIcon');
+export const MoreHorizIcon = createIcon(MoreHorizontal, 'MoreHorizIcon');
+export const OpenWithIcon = createIcon(Move, 'OpenWithIcon');
+export const PeopleIcon = createIcon(Users, 'PeopleIcon');
+export const PersonIcon = createIcon(User, 'PersonIcon');
+export const SettingsIcon = createIcon(Settings, 'SettingsIcon');
+export const StickyNote2Icon = createIcon(StickyNote, 'StickyNote2Icon');
+export const TagIcon = createIcon(Tag, 'TagIcon');
+export const TrendingUpIcon = createIcon(TrendingUp, 'TrendingUpIcon');
+export const TuneIcon = createIcon(Sliders, 'TuneIcon');
+export const CloudIcon = createIcon(Cloud, 'CloudIcon');
+export const LockIcon = createIcon(Lock, 'LockIcon');
+export const KeyIcon = createIcon(Key, 'KeyIcon');
+export const ExternalLinkIcon = createIcon(ExternalLink, 'ExternalLinkIcon');
+export const GripHorizontalIcon = createIcon(GripHorizontal, 'GripHorizontalIcon');
+export const PanelRightCloseIcon = createIcon(PanelRightClose, 'PanelRightCloseIcon');
+export const PanelRightOpenIcon = createIcon(PanelRightOpen, 'PanelRightOpenIcon');
+
+// Tool icons
+export const MousePointerIcon = createIcon(MousePointer2, 'MousePointerIcon');
+export const HandIcon = createIcon(Hand, 'HandIcon');
+export const ScanIcon = createIcon(Scan, 'ScanIcon');
 
 // Re-export types
 export type { IconProps, IconSize, IconColor } from './types';
 export { sizeMap } from './types';
-

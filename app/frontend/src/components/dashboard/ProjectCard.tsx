@@ -5,6 +5,7 @@ import { Surface, Stack, Text, IconButton } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import { MoreVertIcon } from '@/components/ui/icons';
 import Link from 'next/link';
+import { useState } from 'react';
 
 // Simple hash for consistent colors
 const getProjectColor = (name: string) => {
@@ -29,6 +30,8 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
   // Calculate relative time (e.g., "Edited 2h ago")
   const getRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -48,21 +51,21 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
         elevation={0}
         radius="lg"
         bordered
-        sx={{
-          p: 3,
+        style={{
+          padding: 24,
           height: '100%',
           position: 'relative',
           transition: 'all 0.2s',
           display: 'flex',
           flexDirection: 'column',
-          '&:hover': {
-            borderColor: colors.primary[500],
-            transform: 'translateY(-2px)',
-            boxShadow: shadows.md,
-          },
+          borderColor: isHovered ? colors.primary[500] : undefined,
+          transform: isHovered ? 'translateY(-2px)' : undefined,
+          boxShadow: isHovered ? shadows.md : undefined,
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        <Stack direction="row" align="center" sx={{ mb: 2 }}>
+        <Stack direction="row" align="center" style={{ marginBottom: 16 }}>
           {/* Colored Project Icon */}
           <div
             style={{
@@ -92,8 +95,8 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
           <Text
             variant="bodySmall"
             color="secondary"
-            sx={{
-              mb: 2,
+            style={{
+              marginBottom: 16,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: '-webkit-box',
@@ -105,7 +108,7 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
           </Text>
         )}
 
-        <Stack direction="row" justify="end" align="center" sx={{ mt: 'auto' }}>
+        <Stack direction="row" justify="end" align="center" style={{ marginTop: 'auto' }}>
           <Text variant="caption" color="secondary">
             Edited {getRelativeTime(project.updated_at)}
           </Text>
@@ -118,15 +121,14 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
             e.preventDefault(); // Prevent navigation
             onOpenMenu(e, project);
           }}
-          sx={{
+          style={{
             position: 'absolute',
             top: 12,
             right: 12,
-            opacity: 0.6,
-            '&:hover': { opacity: 1 }
+            opacity: isHovered ? 1 : 0.6,
           }}
         >
-          <MoreVertIcon size="sm" />
+          <MoreVertIcon size={16} />
         </IconButton>
       </Surface>
     </Link>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Box, CircularProgress } from '@mui/material';
+import { Stack, Spinner } from '@/components/ui/primitives';
 import GlobalLayout from '@/components/layout/GlobalLayout';
 import InboxHeader from '@/components/inbox/InboxHeader';
 import InboxSidebar from '@/components/inbox/InboxSidebar';
@@ -108,8 +108,7 @@ export default function InboxPage() {
         }
     };
 
-    const handleCreateProject = async (name: string, description?: string) => {
-        const newProject = await projectsApi.create(name, description);
+    const handleProjectCreated = async (newProject: any) => {
         // Add to project list
         setProjects(prev => [...prev, { id: newProject.id, name: newProject.name }]);
         // Optionally auto-assign current item to new project
@@ -121,16 +120,16 @@ export default function InboxPage() {
     if (loading) {
         return (
             <GlobalLayout>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-                    <CircularProgress />
-                </Box>
+                <Stack align="center" justify="center" sx={{ height: '100vh' }}>
+                    <Spinner />
+                </Stack>
             </GlobalLayout>
         );
     }
 
     return (
         <GlobalLayout>
-            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: '#F9FAFB' }}>
+            <Stack sx={{ height: '100vh', bgcolor: '#F9FAFB' }}>
 
                 <InboxHeader
                     searchQuery={searchQuery}
@@ -139,7 +138,7 @@ export default function InboxPage() {
                     onNewItemClick={() => { }}
                 />
 
-                <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                <Stack direction="row" sx={{ flex: 1, overflow: 'hidden' }}>
 
                     <InboxSidebar
                         items={items}
@@ -156,13 +155,13 @@ export default function InboxPage() {
                         onCreateProject={() => setCreateDialogOpen(true)}
                     />
 
-                </Box>
-            </Box>
+                </Stack>
+            </Stack>
 
             <CreateProjectDialog
                 open={createDialogOpen}
                 onClose={() => setCreateDialogOpen(false)}
-                onCreateProject={handleCreateProject}
+                onProjectCreated={handleProjectCreated}
             />
         </GlobalLayout>
     );

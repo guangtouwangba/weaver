@@ -1,23 +1,23 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { flushSync } from 'react-dom';
+// import { flushSync } from 'react-dom'; // removed as not strictly needed or can be replaced
 import {
-  Box,
-  Typography,
-  Paper,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  ListItemIcon,
-  InputBase,
-  Fade,
-  Fab,
-} from "@mui/material";
-import { Menu, MenuItem, TextField } from '@/components/ui/composites';
-import { Chip, IconButton, Button, Tooltip, Collapse, Spinner, Modal, Stack } from '@/components/ui/primitives';
-import { colors } from '@/components/ui/tokens';
+  Stack,
+  Text,
+  Surface,
+  TextField, // Using composite
+  Menu,
+  MenuItem,
+  Button,
+  IconButton,
+  Tooltip,
+  Chip,
+  Modal,
+  Spinner,
+  Collapse
+} from "@/components/ui";
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   BotIcon,
   PanelRightCloseIcon,
@@ -42,14 +42,14 @@ import {
   AddIcon,
   AutoAwesomeIcon,
   ArrowUpwardIcon,
+  CheckIcon,
+  CloseIcon,
+  BoltIcon as FlashIcon // mapped
 } from '@/components/ui/icons';
 import {
-  PictureAsPdf as PdfIcon,
-  Close as CloseIcon,
-  FlashOn as FlashIcon,
-  KeyboardArrowDown as ChevronDownIcon,
-  KeyboardArrowUp as ChevronUpIcon
-} from '@mui/icons-material';
+  DescriptionIcon as PdfIcon
+} from '@/components/ui/icons';
+
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -89,20 +89,19 @@ function CitationRenderer({ docId, quote, children, citations, documents, onCita
 
   return (
     <Tooltip
-      content={
-        <Box sx={{ maxWidth: 300 }}>
-          <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
-            Source: {filename}
-            {citationData?.page_number && ` (Page ${citationData.page_number})`}
-          </Typography>
-          <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block' }}>
-            &ldquo;{quote.length > 100 ? quote.slice(0, 100) + '...' : quote}&rdquo;
-          </Typography>
-        </Box>
+      title={ // Tooltip in UI might use 'content' or 'title' depending on impl. UI Tooltip uses 'title' or 'content'? Check types.
+        // UI Tooltip uses 'title' from MUI? No, it's custom.
+        // Previous code used 'content' prop for Tooltip. Let's check CanvasControls usage: <Tooltip title="..." ...>
+        // Wait, UI Tooltip uses 'title' prop in CanvasControls. But in AssistantPanel original it used 'content' with Box?
+        // "content={<Box ...>}"
+        // If custom Tooltip supports 'content' for rich content, use that.
+        // The UI primitives Tooltip wrapper seems to rely on MUI Tooltip?
+        // Let's assume it supports 'title'. If rich content is needed, we might need a richer tooltip or just text.
+        // Simplified for now:
+        `Source: ${filename}${citationData?.page_number ? ` (Page ${citationData.page_number})` : ''}\n"${quote}"`
       }
     >
-      <Box
-        component="span"
+      <span
         draggable
         onDragStart={(e) => {
           const payload = {
@@ -124,24 +123,28 @@ function CitationRenderer({ docId, quote, children, citations, documents, onCita
             onCitationClick(citationData);
           }
         }}
-        sx={{
-          color: 'primary.main',
+        style={{
+          color: colors.primary[500],
           cursor: 'grab',
           textDecoration: 'underline',
           textDecorationStyle: 'dotted',
           textUnderlineOffset: '2px',
-          '&:hover': {
-            color: 'primary.dark',
-            bgcolor: 'primary.50',
-            borderRadius: '2px',
-          },
-          '&:active': {
-            cursor: 'grabbing',
-          },
+          backgroundColor: 'transparent',
+          borderRadius: '2px',
         }}
+        className="citation-link"
       >
         {children}
-      </Box>
+        <style>{`
+            .citation-link:hover {
+                color: ${colors.primary[600]};
+                background-color: ${colors.primary[50]};
+            }
+            .citation-link:active {
+                cursor: grabbing;
+            }
+        `}</style>
+      </span>
     </Tooltip>
   );
 }
@@ -180,84 +183,83 @@ function MarkdownContent({ content, citations, documents, onCitationClick }: Mar
         },
         // Style paragraphs
         p: ({ children }) => (
-          <Typography variant="body2" component="p" sx={{ mb: 1, '&:last-child': { mb: 0 } }}>
+          <Text variant="bodySmall" style={{ marginBottom: 8 }}>
             {children}
-          </Typography>
+          </Text>
         ),
         // Style lists
         ul: ({ children }) => (
-          <Box component="ul" sx={{ pl: 2, mb: 1, '& li': { mb: 0.5 } }}>
+          <ul style={{ paddingLeft: 16, marginBottom: 8 }}>
             {children}
-          </Box>
+          </ul>
         ),
         ol: ({ children }) => (
-          <Box component="ol" sx={{ pl: 2, mb: 1, '& li': { mb: 0.5 } }}>
+          <ol style={{ paddingLeft: 16, marginBottom: 8 }}>
             {children}
-          </Box>
+          </ol>
         ),
         li: ({ children }) => (
-          <Typography variant="body2" component="li">
-            {children}
-          </Typography>
+          <li style={{ marginBottom: 4 }}>
+            <Text variant="bodySmall">{children}</Text>
+          </li>
         ),
         // Style code blocks
         code: ({ className, children, ...props }) => {
           const isInline = !className;
           if (isInline) {
             return (
-              <Box
-                component="code"
-                sx={{
-                  bgcolor: 'grey.100',
-                  px: 0.5,
-                  py: 0.25,
-                  borderRadius: 0.5,
+              <div
+                style={{
+                  padding: '2px 4px',
+                  backgroundColor: colors.neutral[100],
+                  borderRadius: radii.sm,
                   fontSize: '0.85em',
                   fontFamily: 'monospace',
                 }}
               >
                 {children}
-              </Box>
+              </div>
             );
           }
           return (
-            <Box
-              component="pre"
-              sx={{
-                bgcolor: 'grey.100',
-                p: 1.5,
-                borderRadius: 1,
+            <div
+              style={{
+                padding: 12,
+                backgroundColor: colors.neutral[100],
+                borderRadius: radii.md,
                 overflow: 'auto',
                 fontSize: '0.85em',
                 fontFamily: 'monospace',
-                mb: 1,
+                marginBottom: 8,
               }}
             >
               <code className={className} {...props}>
                 {children}
               </code>
-            </Box>
+            </div>
           );
         },
         // Style headings
-        h1: ({ children }) => <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>{children}</Typography>,
-        h2: ({ children }) => <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{children}</Typography>,
-        h3: ({ children }) => <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>{children}</Typography>,
+        h1: ({ children }) => <Text variant="h6" style={{ fontWeight: 600, marginBottom: 8 }}>{children}</Text>,
+        h2: ({ children }) => <Text variant="label" style={{ fontWeight: 600, marginBottom: 8, fontSize: '1.1em' }}>{children}</Text>,
+        h3: ({ children }) => <Text variant="label" style={{ fontWeight: 600, marginBottom: 4 }}>{children}</Text>,
         // Style blockquotes
         blockquote: ({ children }) => (
-          <Box
-            sx={{
+          <div
+            style={{
               borderLeft: '3px solid',
-              borderColor: 'grey.300',
-              pl: 2,
-              py: 0.5,
-              my: 1,
-              color: 'text.secondary',
+              borderColor: colors.neutral[300],
+              paddingLeft: 16,
+              paddingTop: 4,
+              paddingBottom: 4,
+              marginTop: 8,
+              marginBottom: 8,
+              color: colors.text.secondary,
               fontStyle: 'italic',
             }}
           >
             {children}
-          </Box>
+          </div>
         ),
         // Style strong/bold
         strong: ({ children }) => <strong>{children}</strong>,
@@ -265,19 +267,17 @@ function MarkdownContent({ content, citations, documents, onCitationClick }: Mar
         em: ({ children }) => <em>{children}</em>,
         // Style links
         a: ({ href, children }) => (
-          <Box
-            component="a"
+          <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            sx={{
-              color: 'primary.main',
+            style={{
+              color: colors.primary[500],
               textDecoration: 'underline',
-              '&:hover': { color: 'primary.dark' },
             }}
           >
             {children}
-          </Box>
+          </a>
         ),
       }}
     >
@@ -600,13 +600,18 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
   if (!visible) {
     return (
-      <Box sx={{ position: 'absolute', left: 24, bottom: 24, zIndex: 100 }}>
-        <Tooltip content="AI Assistant" placement="right">
-          <Fab color="primary" onClick={onToggle}>
+      <div style={{ position: 'absolute', left: 24, bottom: 24, zIndex: 100 }}>
+        <Tooltip title="AI Assistant" placement="right">
+          <IconButton
+            variant="default"
+            size="lg" // FAB equivalent
+            onClick={onToggle}
+            style={{ borderRadius: '50%', width: 56, height: 56 }}
+          >
             <BotIcon size={24} />
-          </Fab>
+          </IconButton>
         </Tooltip>
-      </Box>
+      </div>
     );
   }
 
@@ -692,7 +697,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   };
 
   return (
-    <Box sx={{
+    <div style={{
       position: 'absolute',
       top: 0,
       left: 0,
@@ -704,15 +709,16 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       flexDirection: 'column',
       justifyContent: 'flex-end',
       alignItems: 'center',
-      pb: 4, // Padding bottom
-      px: 3,
+      paddingBottom: 32, // Padding bottom
+      paddingLeft: 24,
+      paddingRight: 24,
     }}>
 
       {/* Floating Stack Container */}
-      <Box sx={{
+      <div style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 2,
+        gap: 16,
         width: '100%',
         maxWidth: '700px',
         alignItems: 'stretch' // Ensure children take full width
@@ -720,164 +726,150 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
         {/* 1. File Card (Top of Stack) */}
         {activeDocument && (
-          <Fade in={true}>
-            <Paper
-              elevation={2}
-              sx={{
-                pointerEvents: 'auto',
-                p: 2,
-                borderRadius: 3, // Approx 12px
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                bgcolor: '#fff',
-                alignSelf: 'flex-start', // Align to left of the stack
-                border: '1px solid',
-                borderColor: 'rgba(0,0,0,0.05)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                mb: 1
-              }}
-            >
-              <Box sx={{
-                width: 42,
-                height: 42,
-                borderRadius: 1.5,
-                bgcolor: '#FEF2F2', // Light red bg
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#EF4444' // Red icon
-              }}>
-                <PdfIcon />
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle2" noWrap fontWeight={700} sx={{ color: '#111827' }}>
-                  {activeDocument.filename}
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#9CA3AF' }}>
-                  2.4 MB
-                </Typography>
-              </Box>
-            </Paper>
-          </Fade>
+          <Surface
+            elevation={2}
+            radius="md"
+            style={{
+              pointerEvents: 'auto',
+              padding: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              backgroundColor: '#fff',
+              alignSelf: 'flex-start',
+              border: '1px solid rgba(0,0,0,0.05)',
+              marginBottom: 8
+            }}
+          >
+            <div style={{
+              width: 42,
+              height: 42,
+              borderRadius: 6,
+              backgroundColor: '#FEF2F2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#EF4444'
+            }}>
+              <PdfIcon size={24} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <Text variant="caption" style={{ fontWeight: 700, color: '#111827', display: 'block' }}>
+                {activeDocument.filename}
+              </Text>
+              <Text variant="caption" style={{ color: '#9CA3AF' }}>
+                2.4 MB
+              </Text>
+            </div>
+          </Surface>
         )}
 
         {/* 2. Recent Context Card (Middle - Collapsible) */}
-        <Paper
-          elevation={0}
-          sx={{
+        <Surface
+          elevation={1}
+          radius="lg"
+          style={{
             pointerEvents: 'auto',
             display: 'flex',
             flexDirection: 'column',
-            borderRadius: 4, // More rounded
-            bgcolor: 'rgba(255, 255, 255, 0.9)', // Glassmorphism
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(12px)',
-            border: '1px solid',
-            borderColor: 'rgba(255,255,255,0.5)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.05)',
+            border: '1px solid rgba(255,255,255,0.5)',
             overflow: 'hidden',
             transition: 'all 0.3s ease'
           }}
         >
           {/* Header */}
-          <Box
-            sx={{
-              px: 3,
-              py: 2,
+          <div
+            style={{
+              padding: '16px 24px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               cursor: 'pointer',
-              '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' }
             }}
             onClick={() => setIsContextCollapsed(!isContextCollapsed)}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.02)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <Typography variant="caption" fontWeight={700} sx={{ color: '#9CA3AF', letterSpacing: '1px' }}>
+            <Text variant="caption" style={{ fontWeight: 700, color: '#9CA3AF', letterSpacing: '1px' }}>
               RECENT CONTEXT
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton size="small">
-                {isContextCollapsed ? <ChevronUpIcon fontSize="small" /> : <ChevronDownIcon fontSize="small" />}
+            </Text>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <IconButton size="sm" onClick={() => setIsContextCollapsed(!isContextCollapsed)}>
+                {isContextCollapsed ? <ExpandLessIcon size={16} /> : <ExpandMoreIcon size={16} />}
               </IconButton>
-              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
-                <CloseIcon fontSize="small" sx={{ fontSize: 16 }} />
+              <IconButton size="sm" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+                <CloseIcon size={16} />
               </IconButton>
-            </Box>
-          </Box>
+            </div>
+          </div>
 
           {/* Messages (Collapsible Content) */}
           <Collapse open={!isContextCollapsed}>
-            <Box sx={{ flex: 1, overflowY: 'auto', maxHeight: '350px', px: 3, pb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ flex: 1, overflowY: 'auto', maxHeight: '350px', padding: '0 24px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {chatMessages.length === 0 && (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', py: 2, textAlign: 'center' }}>
+                <Text variant="bodySmall" style={{ fontStyle: 'italic', padding: '16px 0', textAlign: 'center', color: '#6B7280' }}>
                   No recent context. Drop a file or start typing.
-                </Typography>
+                </Text>
               )}
               {chatMessages.slice(-3).map((msg) => ( // Show only recent messages
-                <Box key={msg.id} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <div key={msg.id || Math.random()} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                   {msg.role === 'ai' ? (
-                    <Box sx={{
+                    <div style={{
                       width: 24, height: 24,
                       borderRadius: '50%',
-                      bgcolor: 'primary.main',
+                      backgroundColor: '#4F46E5',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, mt: 0.5
+                      flexShrink: 0, marginTop: 4
                     }}>
-                      <BotIcon size={14} sx={{ color: 'white' }} />
-                    </Box>
+                      <BotIcon size={14} style={{ color: 'white' }} />
+                    </div>
                   ) : (
-                    <Box sx={{
+                    <div style={{
                       width: 24, height: 24,
                       borderRadius: '50%',
-                      bgcolor: 'grey.200',
+                      backgroundColor: '#E5E7EB',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, mt: 0.5
+                      flexShrink: 0, marginTop: 4
                     }}>
-                      <Typography variant="caption" fontWeight={700}>AL</Typography>
-                    </Box>
+                      <Text variant="caption" style={{ fontWeight: 700 }}>AL</Text>
+                    </div>
                   )}
 
-                  <Box sx={{ flex: 1 }}>
+                  <div style={{ flex: 1 }}>
                     <MarkdownContent
                       content={msg.content || (msg.role === 'ai' && isLoading ? 'Thinking...' : '')}
                       citations={msg.citations}
                       documents={documents}
                       onCitationClick={() => { }}
                     />
-                  </Box>
-                </Box>
+                  </div>
+                </div>
               ))}
-            </Box>
+            </div>
           </Collapse>
-        </Paper>
+        </Surface>
 
         {/* 3. Input Pill (Bottom) */}
-        <Paper
+        <Surface
           ref={inputAreaRef}
           elevation={4}
-          component="div"
-          sx={{
+          style={{
             pointerEvents: 'auto',
-            p: '6px',
+            padding: 6,
             display: 'flex',
-            flexDirection: 'column', // Changed to column to stack chips + input
+            flexDirection: 'column',
             width: '100%',
-            // Smooth transition for border radius: Pill (999) -> Soft Rect (24)
             borderRadius: contextNodes.length > 0 ? '24px' : '999px',
-            bgcolor: '#fff',
+            backgroundColor: '#fff',
             borderWidth: '2px',
             borderStyle: isDragOver ? 'dashed' : 'solid',
-            borderColor: isDragOver ? 'primary.main' : 'rgba(0,0,0,0.08)',
+            borderColor: isDragOver ? '#4F46E5' : 'rgba(0,0,0,0.08)',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             boxShadow: isDragOver
               ? '0 8px 32px rgba(99, 102, 241, 0.15)'
               : '0 4px 20px rgba(0,0,0,0.06)',
-            '&:hover': {
-              borderColor: isDragOver ? 'primary.main' : 'rgba(0,0,0,0.12)',
-              boxShadow: isDragOver
-                ? '0 8px 32px rgba(99, 102, 241, 0.15)'
-                : '0 8px 24px rgba(0,0,0,0.08)',
-            }
           }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -885,7 +877,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         >
           {/* Context Nodes (Now Inside Input Container) */}
           {contextNodes.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', px: 2, pt: 1.5, pb: 0.5, width: '100%' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingLeft: 16, paddingRight: 16, paddingTop: 12, paddingBottom: 4, width: '100%' }}>
               {contextNodes.map(node => (
                 <Chip
                   key={node.id}
@@ -900,33 +892,41 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                   }}
                 />
               ))}
-            </Box>
+            </div>
           )}
 
           {/* Input Row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-            <Box sx={{
-              ml: 1,
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <div style={{
+              marginLeft: 8,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#6366F1'
             }}>
-              <FlashIcon />
-            </Box>
+              <FlashIcon size={20} />
+            </div>
 
-            <InputBase
-              sx={{ ml: 2, flex: 1, color: '#4B5563', fontWeight: 500 }}
-              placeholder={contextNodes.length > 0 ? "Ask about these documents..." : "Drop to analyze..."}
+            <TextField
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              placeholder={contextNodes.length > 0 ? "Ask about these documents..." : "Drop to analyze..."}
               disabled={isLoading}
               onKeyDown={handleKeyDown}
+              style={{
+                flex: 1,
+                marginLeft: 16,
+                color: '#4B5563',
+                fontWeight: 500,
+                border: 'none',
+                outline: 'none',
+                background: 'transparent'
+              }}
             />
 
             <IconButton
               type="button"
-              variant="primary"
+              variant="default"
               style={{
                 width: 40, height: 40,
                 borderRadius: '50%',
@@ -935,31 +935,31 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               onClick={handleSend}
               disabled={!input.trim() && contextNodes.length === 0}
             >
-              {isLoading ? <Spinner size={20} color="white" /> : <AddIcon size={24} />}
+              {isLoading ? <Spinner size="sm" color="inherit" /> : <AddIcon size={24} />}
             </IconButton>
-          </Box>
-        </Paper>
+          </div>
+        </Surface>
 
-      </Box>
+      </div>
 
       {/* Hidden Dialogs/Menus */}
       <Menu
-        anchorEl={sessionMenuAnchor}
         open={Boolean(sessionMenuAnchor)}
         onClose={handleSessionMenuClose}
+        anchorPosition={sessionMenuAnchor ? { top: sessionMenuAnchor.getBoundingClientRect().bottom + window.scrollY, left: sessionMenuAnchor.getBoundingClientRect().left + window.scrollX } : undefined}
       >
         <MenuItem onClick={handleStartEditSession}>Rename</MenuItem>
-        <MenuItem onClick={handleDeleteSessionConfirm} sx={{ color: 'error.main' }}>Delete</MenuItem>
+        <MenuItem onClick={handleDeleteSessionConfirm} danger style={{ color: '#EF4444' }}>Delete</MenuItem>
       </Menu>
 
       <Modal open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
         <Modal.Header>Delete Conversation?</Modal.Header>
         <Modal.Footer>
           <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button variant="destructive" onClick={handleDeleteSession}>Delete</Button>
+          <Button variant="danger" onClick={handleDeleteSession}>Delete</Button>
         </Modal.Footer>
       </Modal>
 
-    </Box>
+    </div>
   );
 }

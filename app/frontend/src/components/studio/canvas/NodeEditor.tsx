@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { TextField } from '@mui/material';
+import { TextField as UiTextField } from '@/components/ui/composites';
 import { Surface, Stack, IconButton } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import { CheckIcon, CloseIcon } from '@/components/ui/icons';
@@ -67,7 +67,7 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
             elevation={4}
             radius="lg"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            sx={{
+            style={{
                 position: 'absolute',
                 top: screenY,
                 left: screenX,
@@ -79,40 +79,33 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                 overflow: 'hidden',
                 border: `2px solid ${colors.primary[500]}`,
                 animation: 'fadeIn 0.1s ease-out',
-                '@keyframes fadeIn': {
-                    from: { opacity: 0, transform: 'scale(0.95)' },
-                    to: { opacity: 1, transform: 'scale(1)' },
-                },
             }}
         >
             {/* Header / Title */}
             <Stack
                 direction="row"
                 gap={1}
-                sx={{
-                    p: 1,
+                style={{
+                    padding: 8,
                     borderBottom: `1px solid ${colors.border.default}`,
-                    bgcolor: colors.background.subtle,
+                    backgroundColor: colors.background.subtle,
                 }}
             >
-                <TextField
-                    inputRef={titleInputRef}
+                <UiTextField
+                    ref={titleInputRef}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Title"
-                    variant="standard"
                     fullWidth
-                    InputProps={{
-                        disableUnderline: true,
-                        style: { fontSize: titleFontSize, fontWeight: 700 }
-                    }}
+                    style={{ border: 'none', padding: 0, backgroundColor: 'transparent', boxShadow: 'none' }}
+                    inputStyle={{ fontSize: titleFontSize, fontWeight: 700, padding: 0 }}
                 />
             </Stack>
 
             {/* Content */}
             <div style={{ padding: 8, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                <TextField
+                <UiTextField
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -120,15 +113,8 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                     multiline
                     fullWidth
                     minRows={3}
-                    variant="standard"
-                    InputProps={{
-                        disableUnderline: true,
-                        style: { fontSize: contentFontSize, lineHeight: 1.5, height: '100%' }
-                    }}
-                    sx={{
-                        flexGrow: 1,
-                        '& .MuiInputBase-root': { height: '100%', alignItems: 'flex-start' }
-                    }}
+                    style={{ flexGrow: 1, border: 'none', padding: 0, backgroundColor: 'transparent', boxShadow: 'none' }}
+                    inputStyle={{ fontSize: contentFontSize, lineHeight: 1.5, height: '100%', padding: 0, resize: 'none' }}
                 />
             </div>
 
@@ -137,9 +123,9 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                 direction="row"
                 justify="end"
                 gap={1}
-                sx={{
-                    p: 1,
-                    bgcolor: colors.background.subtle,
+                style={{
+                    padding: 8,
+                    backgroundColor: colors.background.subtle,
                     borderTop: `1px solid ${colors.border.default}`,
                 }}
             >
@@ -147,17 +133,16 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                     size="sm"
                     variant="ghost"
                     onClick={onCancel}
-                    sx={{ color: colors.text.secondary, width: 24, height: 24 }}
+                    style={{ color: colors.text.secondary, width: 24, height: 24 }}
                 >
                     <CloseIcon size={16} />
                 </IconButton>
                 <IconButton
                     size="sm"
                     onClick={handleSave}
-                    sx={{
-                        bgcolor: colors.primary[500],
+                    style={{
+                        backgroundColor: colors.primary[500],
                         color: 'white',
-                        '&:hover': { bgcolor: colors.primary[600] },
                         width: 24,
                         height: 24,
                     }}
@@ -165,6 +150,12 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
                     <CheckIcon size={16} />
                 </IconButton>
             </Stack>
+            <style>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            `}</style>
         </Surface>
     );
 }

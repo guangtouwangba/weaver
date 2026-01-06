@@ -43,7 +43,7 @@
 - [x] 5.1.3 `ImportSourceDropzone.tsx` - Dropzone (Box, Typography). @frontend
 - [x] 5.1.4 `CanvasToolbar.tsx` - Left toolbar (Paper, ToggleButton, Tooltip). @frontend
 - [x] 5.1.5 `CanvasContextMenu.tsx` - Right-click menu (Paper, MenuItem). @frontend
-- [ ] 5.1.6 `CanvasSection.tsx` - Konva Group (no MUI, skip). @frontend
+- [x] 5.1.6 `CanvasSection.tsx` - Konva Group (no MUI, skip). @frontend
 
 ### 5.2 Medium Components (moderate MUI usage)
 - [x] 5.2.1 `DocumentPreviewCard.tsx` - Already uses Tailwind (no MUI, skip). @frontend
@@ -81,17 +81,17 @@
 - [x] 5.6.8 `mindmap/layoutAlgorithms.ts` - Pure TS (no MUI, skip). @frontend
 
 ## 6. Other Directories Migration (P2)
-- [ ] 6.1 Migrate `inbox/` components (7 files). @frontend
-- [ ] 6.2 Migrate `pdf/` components (13 files). @frontend
+- [x] 6.1 Migrate `inbox/` components (6 files). @frontend
+- [x] 6.2 Migrate `pdf/` components (13 files). @frontend
 - [x] 6.3 Migrate `dashboard/` components (2 files: ProjectCard, TemplateCard). @frontend
-- [x] 6.4 Migrate `dialogs/` components (CreateProjectDialog done, ImportSourceDialog defer). @frontend
+- [x] 6.4 Migrate `dialogs/` components (CreateProjectDialog done, ImportSourceDialog done). @frontend
 - [x] 6.5 Migrate `settings/` components (2 files: StrategyCard, StrategyTooltip). @frontend
-- [ ] 6.6 Migrate `layout/` components (4 files). @frontend
+- [x] 6.6 Migrate `layout/` components (4 files). @frontend
 
 ## 7. Icon Refactor (P2)
-- [ ] 7.1 Decouple `Icon.tsx` from MUI `SvgIcon`. @frontend
-- [ ] 7.2 Re-export icons using pure SVG or Lucide. @frontend
-- [ ] 7.3 Validate all icon usages still work. @frontend
+- [x] 7.1 Decouple `Icon.tsx` from MUI `SvgIcon`. @frontend
+- [x] 7.2 Re-export icons using pure SVG or Lucide. @frontend
+- [x] 7.3 Validate all icon usages still work. @frontend
 
 ## 8. Cleanup (Future)
 - [ ] 8.1 Remove direct `@mui/material` imports from feature code. @frontend

@@ -4,22 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import {
-  Box,
-  Typography,
+  Text,
   Button,
-  CircularProgress,
-  Alert,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
+  Surface,
+  Spinner,
+  Stack,
   Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Snackbar,
-  Stack
-} from "@mui/material";
+  Menu,
+  MenuItem
+} from "@/components/ui";
 import {
   DeleteIcon,
   EditIcon,
@@ -27,6 +20,8 @@ import {
   ViewListIcon,
   AddIcon,
   UploadFileIcon,
+  CloseIcon,
+  CheckIcon,
 } from '@/components/ui/icons';
 import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
@@ -140,84 +135,83 @@ export default function DashboardPage() {
 
   return (
     <GlobalLayout>
-      <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
+      <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
 
         {/* Header Section */}
-        <Box sx={{ mb: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
+        <div style={{ marginBottom: 48, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <Text variant="h4" style={{ fontWeight: 'bold', marginBottom: 8 }}>
               Projects
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
+            </Text>
+            <Text variant="body" style={{ color: '#6B7280' }}>
               Pick up where you left off or start a new analysis.
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
+            </Text>
+          </div>
+          <Stack direction="row" gap={16}>
+            {/* Import Button */}
             <Button
-              variant="outlined"
-              startIcon={<UploadFileIcon size="md" />}
-              sx={{ textTransform: 'none', borderRadius: 2, bgcolor: 'background.paper', borderColor: 'divider', color: 'text.primary' }}
+              variant="outline"
+              onClick={() => { }} // Placeholder
+              style={{ backgroundColor: '#fff' }}
             >
+              <UploadFileIcon size={20} style={{ marginRight: 8 }} />
               Import
             </Button>
             <Button
-              variant="contained"
-              startIcon={<AddIcon size="md" />}
+              variant="primary"
               onClick={() => setCreateDialogOpen(true)}
-              sx={{ textTransform: 'none', borderRadius: 2, bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
+              style={{ backgroundColor: '#4f46e5', color: '#fff' }}
             >
+              <AddIcon size={20} style={{ marginRight: 8 }} />
               Create New Project
             </Button>
           </Stack>
-        </Box>
+        </div>
 
 
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress />
-          </Box>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 64 }}>
+            <Spinner size="lg" />
+          </div>
         ) : (
           <>
             {/* Filters & Content Section */}
-            <Box sx={{ mb: 6 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Stack direction="row" spacing={0.5}>
+            <div style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <Stack direction="row" gap={4}>
                     {['Recent', 'All Projects', 'Starred'].map((tab) => {
                       const isSelected = activeTab === tab;
                       return (
-                        <Box
+                        <div
                           key={tab}
                           onClick={() => setActiveTab(tab)}
-                          sx={{
-                            px: 2,
-                            py: 0.5,
-                            borderRadius: 2,
+                          style={{
+                            padding: '4px 16px',
+                            borderRadius: 8,
                             cursor: 'pointer',
-                            bgcolor: isSelected ? '#eff6ff' : 'transparent',
-                            color: isSelected ? '#4f46e5' : 'text.secondary',
+                            backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                            color: isSelected ? '#4f46e5' : '#6B7280',
                             fontWeight: isSelected ? 600 : 500,
                             transition: 'all 0.2s',
                             fontSize: '0.95rem',
-                            '&:hover': {
-                              bgcolor: isSelected ? '#eff6ff' : 'rgba(0,0,0,0.04)',
-                              color: isSelected ? '#4f46e5' : 'text.primary'
-                            }
                           }}
+                          onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#111827'; } }}
+                          onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6B7280'; } }}
                         >
                           {tab}
-                        </Box>
+                        </div>
                       );
                     })}
                   </Stack>
-                </Box>
+                </div>
 
-                <Stack direction="row" spacing={2} alignItems="center" sx={{ color: 'text.secondary' }}>
-                  <GridViewIcon size="md" sx={{ cursor: 'pointer' }} />
-                  <ViewListIcon size="md" sx={{ cursor: 'pointer' }} />
-                  <Typography variant="body2" sx={{ cursor: 'pointer', fontWeight: 500 }}>Last Modified</Typography>
+                <Stack direction="row" gap={16} align="center" style={{ color: '#6B7280' }}>
+                  <div style={{ cursor: 'pointer' }}><GridViewIcon size={20} /></div>
+                  <div style={{ cursor: 'pointer' }}><ViewListIcon size={20} /></div>
+                  <Text variant="bodySmall" style={{ cursor: 'pointer', fontWeight: 500 }}>Last Modified</Text>
                 </Stack>
-              </Box>
+              </div>
 
               {(() => {
                 const filteredProjects = projects.filter(p => {
@@ -234,24 +228,24 @@ export default function DashboardPage() {
 
                 if (projects.length === 0) {
                   return (
-                    <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
-                      <Typography color="text.secondary">No projects yet. Create one to get started.</Typography>
-                    </Box>
+                    <div style={{ padding: 64, textAlign: 'center', backgroundColor: '#fff', borderRadius: 12, border: '1px dashed #E5E7EB' }}>
+                      <Text style={{ color: '#6B7280' }}>No projects yet. Create one to get started.</Text>
+                    </div>
                   );
                 }
 
                 if (filteredProjects.length === 0) {
                   return (
-                    <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 3, border: '1px dashed', borderColor: 'divider' }}>
-                      <Typography color="text.secondary">
+                    <div style={{ padding: 64, textAlign: 'center', backgroundColor: '#fff', borderRadius: 12, border: '1px dashed #E5E7EB' }}>
+                      <Text style={{ color: '#6B7280' }}>
                         {activeTab === 'Recent' ? 'No projects modified in the last 7 days.' : 'No projects found.'}
-                      </Typography>
-                    </Box>
+                      </Text>
+                    </div>
                   );
                 }
 
                 return (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 3 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
                     {filteredProjects.map((project) => (
                       <ProjectCard
                         key={project.id}
@@ -259,10 +253,10 @@ export default function DashboardPage() {
                         onOpenMenu={handleOpenMenu}
                       />
                     ))}
-                  </Box>
+                  </div>
                 );
               })()}
-            </Box>
+            </div>
 
           </>
         )}
@@ -274,27 +268,27 @@ export default function DashboardPage() {
         />
 
         {/* Card menu */}
+        {/* Card menu */}
         <Menu
-          anchorEl={menuAnchorEl}
           open={menuOpen}
           onClose={handleCloseMenu}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          anchorPosition={menuAnchorEl ? { top: menuAnchorEl.getBoundingClientRect().bottom + window.scrollY, left: menuAnchorEl.getBoundingClientRect().right - 160 + window.scrollX } : undefined}
+          anchorReference="anchorPosition"
         >
-          <MenuItem disabled sx={{ color: 'text.disabled' }}>
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 32 }}>
-              <EditIcon size="sm" />
-            </ListItemIcon>
-            <ListItemText primary="Edit" />
+          <MenuItem disabled style={{ color: '#9CA3AF' }}>
+            <div style={{ color: 'inherit', minWidth: 32, display: 'flex' }}>
+              <EditIcon size={16} />
+            </div>
+            <Text>Edit</Text>
           </MenuItem>
           <MenuItem
             onClick={handleOpenDeleteDialog}
-            sx={{ color: 'error.main' }}
+            style={{ color: '#EF4444' }}
           >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 32 }}>
-              <DeleteIcon size="sm" />
-            </ListItemIcon>
-            <ListItemText primary="Delete" />
+            <div style={{ color: 'inherit', minWidth: 32, display: 'flex' }}>
+              <DeleteIcon size={16} />
+            </div>
+            <Text>Delete</Text>
           </MenuItem>
         </Menu>
 
@@ -302,54 +296,70 @@ export default function DashboardPage() {
         <Dialog
           open={deleteDialogOpen}
           onClose={handleCloseDeleteDialog}
-          maxWidth="xs"
-          fullWidth
+          title="Delete Project"
+          size="sm"
+          actions={
+            <>
+              <Button
+                variant="ghost"
+                onClick={handleCloseDeleteDialog}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleConfirmDelete}
+                loading={deleting}
+              >
+                Delete
+              </Button>
+            </>
+          }
         >
-          <DialogTitle>Delete Project</DialogTitle>
-          <DialogContent>
-            <Typography variant="body2" color="text.secondary">
+          <div style={{ padding: 24 }}>
+            <Text variant="body" style={{ color: '#6B7280' }}>
               Are you sure you want to delete "
               <strong>{projectToDelete?.name}</strong>
               "? This action cannot be undone.
-            </Typography>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2.5 }}>
-            <Button
-              onClick={handleCloseDeleteDialog}
-              disabled={deleting}
-              sx={{ textTransform: 'none', color: 'text.secondary' }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmDelete}
-              disabled={deleting}
-              color="error"
-              variant="contained"
-              sx={{ textTransform: 'none' }}
-            >
-              {deleting && <CircularProgress size={16} sx={{ mr: 1 }} />}
-              Delete
-            </Button>
-          </DialogActions>
+            </Text>
+          </div>
         </Dialog>
 
-        {/* Snackbar for delete feedback */}
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          <Alert
-            onClose={handleSnackbarClose}
-            severity={snackbarSeverity}
-            sx={{ width: '100%' }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>
-      </Box>
+        {/* Snackbar replacement (Toast) */}
+        {snackbarOpen && (
+          <div style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 2000,
+            minWidth: 300
+          }}>
+            <Surface
+              elevation={3}
+              radius="lg"
+              style={{
+                padding: '12px 16px',
+                backgroundColor: snackbarSeverity === 'success' ? '#10B981' : '#EF4444',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <Text variant="bodySmall" style={{ color: 'white', fontWeight: 500 }}>
+                {snackbarMessage}
+              </Text>
+              <div onClick={handleSnackbarClose} style={{ cursor: 'pointer', marginLeft: 16, display: 'flex', alignItems: 'center' }}>
+                <CloseIcon size={16} style={{ color: 'white' }} />
+              </div>
+            </Surface>
+          </div>
+        )}
+
+      </div>
     </GlobalLayout>
   );
 }

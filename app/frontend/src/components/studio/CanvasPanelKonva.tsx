@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Chip } from '@mui/material';
+import { Chip } from '@/components/ui/primitives';
 import { Stack, Spinner } from '@/components/ui';
 import { colors, shadows } from '@/components/ui/tokens';
 import { useStudio } from '@/contexts/StudioContext';
@@ -48,25 +48,25 @@ export default function CanvasPanelKonva() {
 
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
-    setCanvasViewport(prev => ({
-      ...prev,
-      scale: Math.min(5, prev.scale * 1.2)
-    }));
-  }, [setCanvasViewport]);
+    setCanvasViewport({
+      ...canvasViewport,
+      scale: Math.min(5, canvasViewport.scale * 1.2)
+    });
+  }, [canvasViewport, setCanvasViewport]);
 
   const handleZoomOut = useCallback(() => {
-    setCanvasViewport(prev => ({
-      ...prev,
-      scale: Math.max(0.1, prev.scale / 1.2)
-    }));
-  }, [setCanvasViewport]);
+    setCanvasViewport({
+      ...canvasViewport,
+      scale: Math.max(0.1, canvasViewport.scale / 1.2)
+    });
+  }, [canvasViewport, setCanvasViewport]);
 
   const handleResetZoom = useCallback(() => {
-    setCanvasViewport(prev => ({
-      ...prev,
+    setCanvasViewport({
+      ...canvasViewport,
       scale: 1
-    }));
-  }, [setCanvasViewport]);
+    });
+  }, [canvasViewport, setCanvasViewport]);
 
   const handleFitView = useCallback(() => {
     // Calculate bounds of all nodes and fit the view
@@ -202,7 +202,7 @@ export default function CanvasPanelKonva() {
   return (
     <Stack
       direction="row"
-      sx={{
+      style={{
         flexGrow: 1,
         minWidth: 0,
         overflow: 'hidden',
@@ -217,7 +217,7 @@ export default function CanvasPanelKonva() {
         onNodesChange={setCanvasNodes}
         onEdgesChange={setCanvasEdges}
         onViewportChange={setCanvasViewport}
-        onNodeAdd={addNodeToCanvas}
+        onNodeAdd={(p) => addNodeToCanvas({ ...p, viewType: 'free', subType: 'note' } as any)}
         highlightedNodeId={highlightedNodeId}
         onNodeClick={(node) => {
           // Navigate to linked message when clicking on a thinking path node
@@ -263,8 +263,8 @@ export default function CanvasPanelKonva() {
           <Chip
             icon={<Spinner size="xs" color="inherit" />}
             label="Generating content..."
-            sx={{
-              bgcolor: colors.background.paper,
+            style={{
+              backgroundColor: colors.background.paper,
               boxShadow: shadows.md,
               border: `1px solid ${colors.border.default}`,
               fontWeight: 500
