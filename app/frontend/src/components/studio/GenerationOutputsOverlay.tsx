@@ -220,6 +220,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
         tasks.push(task);
       }
     });
+    console.log('[Overlay] Rendering tasks:', tasks.map(t => t.id));
     return tasks;
   }, [generationTasks]);
 

@@ -600,10 +600,10 @@ export function StudioProvider({
 
   const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
     const newNode: CanvasNode = {
+      ...node,
       viewType: currentView,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      ...node,
       id: `node-${crypto.randomUUID()}`,
     };
     setCanvasNodes(prev => [...prev, newNode]);

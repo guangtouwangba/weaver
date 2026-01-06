@@ -94,15 +94,31 @@ export default function DocumentPreviewCard({
                 ${isActive ? 'bg-indigo-50/50 border-indigo-200 ring-1 ring-indigo-500/20' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'}
                 ${isPdf ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
             `}
+            style={isActive ? {
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+            } : undefined}
         >
-            {/* Icon - Smaller compact look */}
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-red-50 text-red-500'}`}>
-                <PdfIcon size={20} className="currentColor" />
+            {/* Icon - Ghost style: colored icon on transparent/subtle bg */}
+            <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors`}
+                style={{
+                    backgroundColor: isActive ? 'transparent' : '#FEF2F2', // Ghost active, or Red-50 default
+                    color: isActive ? '#388E3C' : '#EF4444', // Sage-500 active, or Red-500 default
+                }}
+            >
+                <PdfIcon size={24} className="currentColor" />
             </div>
 
             {/* Info */}
             <div className="min-w-0 flex-1">
-                <div className={`text-sm font-medium truncate ${isActive ? 'text-indigo-900' : 'text-gray-900'}`} title={doc.filename}>
+                <div
+                    className={`text-sm font-medium truncate transition-colors`}
+                    title={doc.filename}
+                    style={{
+                        color: isActive ? '#388E3C' : '#111827' // Sage-500 active, or Gray-900 default
+                    }}
+                >
                     {doc.filename}
                 </div>
                 <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
@@ -134,10 +150,8 @@ export default function DocumentPreviewCard({
                 </button>
             </div>
 
-            {/* Selection Indicator */}
-            {isActive && (
-                <div className="absolute left-0 top-3 bottom-3 w-1 bg-indigo-500 rounded-r-full" />
-            )}
+            {/* Selection Indicator - Removed for ghost style, or kept very subtle */}
+            {/* User requested "just icon color change", so no heavy background/border */}
         </div>
     );
 }

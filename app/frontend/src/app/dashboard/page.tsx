@@ -22,6 +22,7 @@ import {
   UploadFileIcon,
   CloseIcon,
   CheckIcon,
+  ExpandMoreIcon,
 } from '@/components/ui/icons';
 import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
@@ -208,7 +209,10 @@ export default function DashboardPage() {
                 <Stack direction="row" gap={16} align="center" style={{ color: '#6B7280' }}>
                   <div style={{ cursor: 'pointer' }}><GridViewIcon size={20} /></div>
                   <div style={{ cursor: 'pointer' }}><ViewListIcon size={20} /></div>
-                  <Text variant="bodySmall" style={{ cursor: 'pointer', fontWeight: 500 }}>Last Modified</Text>
+                  <Text variant="bodySmall" style={{ cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    Last Modified
+                    <ExpandMoreIcon size={16} />
+                  </Text>
                 </Stack>
               </div>
 
