@@ -56,6 +56,14 @@ The key insight is: **a mindmap should be a navigational layer, not a final dest
 - **Performance**: Additional data per node increases payload size; may need lazy loading
 - **UX Complexity**: Must avoid disrupting existing mindmap editing workflow
 
+## Future Extensibility
+
+This proposal implements the foundation for source tracking using `document` sources. However, the data model is designed to be extensible for future "context-aware" generation scenarios, such as:
+- **Box Selection Generation**: Generating a mindmap from a selection of existing canvas notes.
+- **Chat Context**: Linking nodes back to specific chat messages.
+
+The `SourceRef` structure supports a `source_type` field to accommodate these future use cases without breaking schema changes.
+
 ## Related Changes
 
 - `unified-canvas-actions` (active) - May integrate with action system for programmatic drilldown

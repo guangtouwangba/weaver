@@ -19,9 +19,12 @@ flowchart LR
 ```python
 @dataclass
 class SourceRef:
-    document_id: str      # UUID of source document
-    page_number: int      # 1-indexed page number
-    quote: str            # Exact quoted text (max 500 chars)
+    source_id: str        # ID of the source entity (document_id, node_id, etc.)
+    source_type: str      # 'document', 'node', 'selection', etc. (default: 'document')
+    location: Optional[str] # Context-dependent:
+                            # - PDF: Page number (e.g., "5")
+                            # - Video/Audio: Timestamp in seconds (e.g., "120.5")
+    quote: str            # Exact quoted text or transcript segment
 ```
 
 ### MindmapNode Extension
@@ -140,5 +143,29 @@ const sourceRefs = activeNode?.sourceRefs ?? [];
 |------|----------|
 | Node without source refs | Show "This concept is synthesized from multiple sections" message |
 | Source document deleted | Show document name but disable "Open PDF" action |
-| Quote not found in document | Still display quote, log warning for debugging |
+
+## Future Extensibility: Canvas Selection
+
+To support future workflows where users generate mindmaps from selected canvas content (e.g., "box select 3 notes -> generate mindmap"), the `SourceRef` model is designed to be polymorphic.
+
+### Scenario: Generation from Box Selection
+1. User selects 3 nodes on canvas
+2. Backend receives `source_nodes` list
+3. Mindmap generated with `SourceRef`:
+   - `source_id`: UUID of the original canvas node
+   - `source_type`: "node"
+   - `quote`: Text from that node
+
+The Frontend `SourceContextPanel` will need to handle different `source_type`s:
+- `document`: Show page preview (Current MVP)
+- `node`: Pan canvas to show the original node (Future)
+- `chat`: Scroll chat history to message (Future)
+
+### Scenario: Video/Audio Drilldown
+1. Source is a video file
+2. `SourceRef` contains:
+   - `source_type`: "document" (or specific "media")
+   - `location`: "45" (Timestamp in seconds)
+   - `quote`: Transcript segment
+3. On click, the Preview Modal opens the video player and seeks to 00:45
 
