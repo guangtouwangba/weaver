@@ -16,7 +16,9 @@ A tool to help users analyze relationships, build knowledge systems, and visuali
 ### Code Style
 - **Python:** Strict typing (`mypy`), `ruff` for linting/formatting (target Python 3.13).
 - **Frontend:** TypeScript strict mode, ESLint, Functional React components with Hooks.
-- **Styling:** Tailwind CSS for layout/utility, MUI for core components.  must follow design system and design image, if existing components cannot be used, you need to create a new component.
+- **Styling:** **Chakra UI** (Warm Stone Theme) for component library. **Tailwind CSS** for layout/utilities where needed.
+  - **Theme:** Warm Stone (Gray/Neutral) + Teal (Brand/Primary).
+  - **Design Principles:** Paper-like, comfortable for reading, reduced contrast (avoid pure black), warm undertones.
 - **Language:** English for all code, comments, and UI text.
 
 ### Architecture Patterns

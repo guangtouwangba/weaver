@@ -2,6 +2,9 @@
 
 ## MODIFIED Requirements
 
+
+## ADDED Requirements
+
 ### Requirement: Color Token System
 The design system SHALL provide a warm gray (Stone) palette as the neutral color scale, creating a paper-like reading experience suitable for knowledge management applications.
 
@@ -19,8 +22,6 @@ The design system SHALL provide a warm gray (Stone) palette as the neutral color
 - **WHEN** brand colors are applied
 - **THEN** brand.500 SHALL be `#0D9488` (teal primary)
 - **AND** brand.600 SHALL be `#0F766E` (hover state)
-
-## ADDED Requirements
 
 ### Requirement: Chakra UI Integration
 The frontend SHALL use Chakra UI as the component library foundation, configured with a custom warm theme while maintaining the existing primitives abstraction layer.

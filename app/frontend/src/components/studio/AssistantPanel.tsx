@@ -819,7 +819,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                     <div style={{
                       width: 24, height: 24,
                       borderRadius: '50%',
-                      backgroundColor: '#4F46E5',
+                      backgroundColor: colors.primary[600], // Teal-600
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       flexShrink: 0, marginTop: 4
                     }}>
@@ -829,7 +829,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                     <div style={{
                       width: 24, height: 24,
                       borderRadius: '50%',
-                      backgroundColor: '#E5E7EB',
+                      backgroundColor: colors.neutral[200], // Stone-200
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       flexShrink: 0, marginTop: 4
                     }}>
@@ -865,10 +865,10 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             backgroundColor: '#fff',
             borderWidth: '2px',
             borderStyle: isDragOver ? 'dashed' : 'solid',
-            borderColor: isDragOver ? '#4F46E5' : 'rgba(0,0,0,0.08)',
+            borderColor: isDragOver ? colors.primary[600] : 'rgba(0,0,0,0.08)',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             boxShadow: isDragOver
-              ? '0 8px 32px rgba(99, 102, 241, 0.15)'
+              ? '0 8px 32px rgba(13, 148, 136, 0.15)' // Teal shadow
               : '0 4px 20px rgba(0,0,0,0.06)',
           }}
           onDragOver={handleDragOver}
@@ -886,9 +886,9 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                   size="sm"
                   style={{
                     height: 28,
-                    backgroundColor: '#F3F4F6',
+                    backgroundColor: colors.neutral[100], // Stone-100
                     borderColor: 'rgba(0,0,0,0.05)',
-                    color: '#374151',
+                    color: colors.neutral[700], // Stone-700
                   }}
                 />
               ))}
@@ -902,7 +902,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#6366F1'
+              color: colors.primary[500]
             }}>
               <FlashIcon size={20} />
             </div>
@@ -930,7 +930,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               style={{
                 width: 40, height: 40,
                 borderRadius: '50%',
-                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)'
+                boxShadow: '0 2px 8px rgba(13, 148, 136, 0.4)' // Teal shadow
               }}
               onClick={handleSend}
               disabled={!input.trim() && contextNodes.length === 0}
@@ -960,6 +960,6 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         </Modal.Footer>
       </Modal>
 
-    </div>
+    </div >
   );
 }
