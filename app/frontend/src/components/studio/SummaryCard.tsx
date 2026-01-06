@@ -28,9 +28,6 @@ export default function SummaryCard({
 }: SummaryCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Parse summary for "Strategy" vs "Insights" tags if possible, or just hardcode for visual match
-  // The design shows specific tags. We'll add them statically or infer.
-
   const handleExpand = () => setIsExpanded(true);
   const handleCloseExpanded = () => setIsExpanded(false);
 
@@ -41,20 +38,15 @@ export default function SummaryCard({
         elevation={0}
         radius="xl"
         bordered
-        sx={{
+        style={{
           width: 380,
-          p: 3,
+          padding: 24,
           boxShadow: shadows.lg,
           position: 'relative',
-          animation: 'slideUp 0.3s ease-out',
-          '@keyframes slideUp': {
-            from: { opacity: 0, transform: 'translateY(20px)' },
-            to: { opacity: 1, transform: 'translateY(0)' }
-          }
         }}
       >
         {/* Header */}
-        <Stack direction="row" align="start" sx={{ mb: 3 }}>
+        <Stack direction="row" align="start" style={{ marginBottom: 24 }}>
           {/* Icon */}
           <div
             style={{
@@ -71,15 +63,15 @@ export default function SummaryCard({
               flexShrink: 0,
             }}
           >
-            <AutoAwesomeIcon size="md" sx={{ fill: 'currentColor' }} />
+            <AutoAwesomeIcon size="md" />
           </div>
 
           {/* Title Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Text variant="label" truncate sx={{ lineHeight: 1.2, mb: 0.5 }}>
+            <Text variant="label" truncate style={{ lineHeight: 1.2, marginBottom: 4 }}>
               {title}
             </Text>
-            <Stack direction="row" align="center" gap={0} sx={{ gap: 0.5 }}>
+            <Stack direction="row" align="center" gap={0} style={{ gap: 4 }}>
               <div
                 style={{
                   width: 6,
@@ -95,7 +87,7 @@ export default function SummaryCard({
           </div>
 
           {/* Actions */}
-          <Stack direction="row" gap={0} sx={{ flexShrink: 0, gap: 0.5 }}>
+          <Stack direction="row" gap={0} style={{ flexShrink: 0, gap: 4 }}>
             <IconButton size="sm" variant="ghost" onClick={handleExpand}>
               <FullscreenIcon size={16} />
             </IconButton>
@@ -106,7 +98,7 @@ export default function SummaryCard({
         </Stack>
 
         {/* Tags */}
-        <Stack direction="row" gap={1} sx={{ mb: 2 }}>
+        <Stack direction="row" gap={1} style={{ marginBottom: 16 }}>
           <Chip
             label="STRATEGY"
             size="sm"
@@ -125,8 +117,8 @@ export default function SummaryCard({
         <Text
           variant="bodySmall"
           color="secondary"
-          sx={{
-            mb: 3,
+          style={{
+            marginBottom: 24,
             lineHeight: 1.6,
             display: '-webkit-box',
             WebkitLineClamp: 3,
@@ -148,11 +140,11 @@ export default function SummaryCard({
             }}
           >
             {keyFindings.slice(0, 2).map((finding, idx) => (
-              <Stack key={idx} direction="row" align="start" gap={1} sx={{ mb: idx === 0 ? 1.5 : 0 }}>
+              <Stack key={idx} direction="row" align="start" gap={1} style={{ marginBottom: idx === 0 ? 12 : 0 }}>
                 <div style={{ marginTop: 4 }}>
-                  {idx === 0 ? <TrendingUpIcon size="sm" sx={{ color: colors.success[500] }} /> : <PeopleIcon size={16} sx={{ color: colors.primary[500] }} />}
+                  {idx === 0 ? <TrendingUpIcon size="sm" style={{ color: colors.success[500] }} /> : <PeopleIcon size={16} style={{ color: colors.primary[500] }} />}
                 </div>
-                <Text variant="bodySmall" sx={{ fontSize: '0.85rem' }}>
+                <Text variant="bodySmall" style={{ fontSize: '0.85rem' }}>
                   <span style={{ fontWeight: 600 }}>{finding.label}:</span> {finding.content}
                 </Text>
               </Stack>
@@ -162,10 +154,10 @@ export default function SummaryCard({
 
         {/* Footer Button */}
         <Button
-          fullWidth
           variant="primary"
           onClick={handleExpand}
           style={{
+            width: '100%',
             borderRadius: 50,
             textTransform: 'none',
             paddingTop: 8, paddingBottom: 8,
@@ -179,7 +171,6 @@ export default function SummaryCard({
       </Surface>
 
       {/* Expanded Modal */}
-      {/* Expanded Modal */}
       <Modal
         open={isExpanded}
         onClose={handleCloseExpanded}
@@ -191,10 +182,10 @@ export default function SummaryCard({
           direction="row"
           align="center"
           justify="between"
-          sx={{
-            p: 3,
+          style={{
+            padding: 24,
             borderBottom: `1px solid ${colors.border.default}`,
-            bgcolor: 'rgba(255,255,255,0.8)',
+            backgroundColor: 'rgba(255,255,255,0.8)',
             backdropFilter: 'blur(10px)'
           }}
         >
@@ -211,7 +202,7 @@ export default function SummaryCard({
                 color: 'white',
               }}
             >
-              <AutoAwesomeIcon size="md" sx={{ fill: 'currentColor' }} />
+              <AutoAwesomeIcon size="md" />
             </div>
             <div>
               <Text variant="h6">{title}</Text>
@@ -244,14 +235,14 @@ export default function SummaryCard({
 
         {/* Modal Content */}
         <div style={{ padding: 32, overflowY: 'auto', flex: 1 }}>
-          <Text variant="overline" color="primary" sx={{ mb: 1, display: 'block', fontWeight: 700 }}>
+          <Text variant="overline" color="primary" style={{ marginBottom: 8, display: 'block', fontWeight: 700 }}>
             EXECUTIVE SUMMARY
           </Text>
-          <Text variant="body" color="secondary" sx={{ lineHeight: 1.8, mb: 4 }}>
+          <Text variant="body" color="secondary" style={{ lineHeight: 1.8, marginBottom: 32 }}>
             {summary}
           </Text>
 
-          <Text variant="overline" color="primary" sx={{ mb: 2, display: 'block', fontWeight: 700 }}>
+          <Text variant="overline" color="primary" style={{ marginBottom: 16, display: 'block', fontWeight: 700 }}>
             KEY FINDINGS
           </Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
@@ -261,9 +252,9 @@ export default function SummaryCard({
                 elevation={0}
                 radius="lg"
                 bordered
-                sx={{ p: 2.5, bgcolor: colors.background.subtle }}
+                style={{ padding: 20, backgroundColor: colors.background.subtle }}
               >
-                <Stack direction="row" align="center" gap={1} sx={{ mb: 0.5 }}>
+                <Stack direction="row" align="center" gap={1} style={{ marginBottom: 4 }}>
                   <div
                     style={{
                       width: 8,
@@ -274,7 +265,7 @@ export default function SummaryCard({
                   />
                   <Text variant="label">{finding.label}</Text>
                 </Stack>
-                <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.6 }}>
+                <Text variant="bodySmall" color="secondary" style={{ lineHeight: 1.6 }}>
                   {finding.content}
                 </Text>
               </Surface>

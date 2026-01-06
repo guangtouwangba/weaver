@@ -90,12 +90,12 @@ function LoadingCard({
       bordered
       data-task-id={task.id}
       onMouseDown={handleMouseDown}
-      sx={{
+      style={{
         position: 'absolute',
         left: screenX,
         top: screenY,
         width: 320,
-        p: 2,
+        padding: 16,
         cursor: isDragging ? 'grabbing' : 'default',
         transition: isDragging ? 'none' : 'box-shadow 0.2s, transform 0.2s',
         transform: `scale(${viewport.scale > 0.5 ? 1 : viewport.scale * 2})`,
@@ -104,11 +104,6 @@ function LoadingCard({
         boxShadow: isDragging
           ? '0 12px 40px rgba(139, 92, 246, 0.25)'
           : shadows.lg,
-        animation: 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        '@keyframes popIn': {
-          from: { opacity: 0, transform: 'scale(0.9)' },
-          to: { opacity: 1, transform: 'scale(1)' }
-        }
       }}
     >
       {/* Header - entire header is draggable */}
@@ -117,10 +112,9 @@ function LoadingCard({
         align="center"
         gap={1}
         className="drag-handle"
-        sx={{
-          mb: 2,
+        style={{
+          marginBottom: 16,
           cursor: 'grab',
-          '&:active': { cursor: 'grabbing' },
           userSelect: 'none',
         }}
       >
@@ -152,34 +146,33 @@ function LoadingCard({
           <TypeIcon size="sm" />
         </div>
 
-        {/* Title Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="label" sx={{ lineHeight: 1.2, mb: 0.25 }} truncate>
+          <Text variant="label" style={{ lineHeight: 1.2, marginBottom: 2 }} truncate>
             {task.title || `Generating ${task.type}...`}
           </Text>
-          <Text variant="overline" color="secondary" sx={{ fontSize: '0.65rem' }}>
+          <Text variant="overline" color="secondary" style={{ fontSize: '0.65rem' }}>
             {typeLabel}
           </Text>
         </div>
       </Stack>
 
-      {/* Loading Content */}
       <Stack
         direction="column"
         align="center"
         justify="center"
         gap={1}
-        sx={{
-          py: 4,
-          bgcolor: colors.background.subtle,
-          borderRadius: `${radii.md}px`,
+        style={{
+          paddingTop: 32,
+          paddingBottom: 32,
+          backgroundColor: colors.background.subtle,
+          borderRadius: radii.md,
         }}
       >
         <Spinner
           size="md"
           color={isMindmap ? 'secondary' : 'primary'}
         />
-        <Text variant="bodySmall" color="secondary" sx={{ fontWeight: 500 }}>
+        <Text variant="bodySmall" color="secondary" style={{ fontWeight: 500 }}>
           Generating...
         </Text>
         <Text variant="caption" color="disabled">
@@ -370,7 +363,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
       }}
     >
       <style>{`
-        [data-generation-output] {
+        [data-task-id] {
           pointer-events: auto;
         }
       `}</style>

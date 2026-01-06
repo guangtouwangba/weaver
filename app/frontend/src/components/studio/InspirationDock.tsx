@@ -132,67 +132,78 @@ export default function InspirationDock() {
     setMindmapResult(null);
   };
 
-  // Helper to render action button with per-button loading state
-  const renderActionButton = (
-    id: string,
-    label: string,
-    icon: React.ReactNode,
-    color: string,
-    isGenerating: boolean,
-    isComplete: boolean,
-    error: string | undefined,
-    onClick: () => void
-  ) => (
-    <Tooltip
-      title={error ? `Error: ${error}` : isGenerating ? `Generating ${label}...` : `Generate ${label}`}
-      placement="top"
-    >
-      <IconButton
-        onClick={onClick}
-        disabled={isGenerating}
-        sx={{
-          width: 64,
-          height: 64,
-          borderRadius: `${radii.lg}px`,
-          bgcolor: error ? colors.error[50] : isComplete ? `${color}22` : colors.neutral[50],
-          border: '1px solid',
-          borderColor: error ? colors.error[500] : isGenerating ? color : colors.border.default,
-          flexDirection: 'column',
-          gap: 0.5,
-          transition: 'all 0.2s',
-          position: 'relative',
-          '&:hover': {
-            bgcolor: `${color}11`,
-            borderColor: color,
-            transform: 'translateY(-2px)'
-          },
-          '&:disabled': {
-            opacity: 1, // Keep visible during loading
-          }
-        }}
+  // ActionButton component to properly use hooks
+  const ActionButton = ({
+    id,
+    label,
+    icon,
+    color,
+    isGenerating,
+    isComplete,
+    error,
+    onClick
+  }: {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    color: string;
+    isGenerating: boolean;
+    isComplete: boolean;
+    error: string | undefined;
+    onClick: () => void;
+  }) => {
+    const [isHovered, setIsHovered] = useState(false);
+
+    return (
+      <Tooltip
+        title={error ? `Error: ${error}` : isGenerating ? `Generating ${label}...` : `Generate ${label}`}
+        placement="top"
       >
-        {isGenerating ? (
-          <Spinner size="sm" color="primary" />
-        ) : error ? (
-          <ErrorIcon size="lg" sx={{ color: colors.error[500] }} />
-        ) : isComplete ? (
-          <CheckIcon size="lg" sx={{ color: color }} />
-        ) : (
-          icon
-        )}
-        <Text
-          variant="caption"
-          sx={{
-            fontSize: '0.65rem',
-            fontWeight: 600,
-            color: error ? colors.error[500] : colors.text.secondary
+        <div
+          onClick={isGenerating ? undefined : onClick}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: radii.lg,
+            backgroundColor: error ? colors.error[50] : isComplete ? `${color}22` : isHovered ? `${color}11` : colors.neutral[50],
+            border: '1px solid',
+            borderColor: error ? colors.error[500] : isGenerating || isHovered ? color : colors.border.default,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            transition: 'all 0.2s',
+            position: 'relative',
+            cursor: isGenerating ? 'wait' : 'pointer',
+            transform: isHovered ? 'translateY(-2px)' : undefined,
           }}
         >
-          {label}
-        </Text>
-      </IconButton>
-    </Tooltip>
-  );
+          {isGenerating ? (
+            <Spinner size="sm" color="primary" />
+          ) : error ? (
+            <ErrorIcon size="lg" style={{ color: colors.error[500] }} />
+          ) : isComplete ? (
+            <CheckIcon size="lg" style={{ color: color }} />
+          ) : (
+            icon
+          )}
+          <Text
+            variant="caption"
+            style={{
+              fontSize: '0.65rem',
+              fontWeight: 600,
+              color: error ? colors.error[500] : colors.text.secondary
+            }}
+          >
+            {label}
+          </Text>
+        </div>
+      </Tooltip>
+    );
+  };
 
   return (
     <Stack
@@ -394,52 +405,51 @@ export default function InspirationDock() {
               ) : (
                 <>
                   {/* Action 1: Summary */}
-                  {renderActionButton(
-                    'summary',
-                    'Summary',
-                    <BoltIcon size="lg" style={{ color: projectColor }} />,
-                    projectColor,
-                    isGeneratingSummary,
-                    recentlyCompleted.summary,
-                    hasError.summary,
-                    () => handleAction('summarize')
-                  )}
+                  <ActionButton
+                    id="summary"
+                    label="Summary"
+                    icon={<BoltIcon size="lg" style={{ color: projectColor }} />}
+                    color={projectColor}
+                    isGenerating={isGeneratingSummary}
+                    isComplete={recentlyCompleted.summary}
+                    error={hasError.summary}
+                    onClick={() => handleAction('summarize')}
+                  />
 
                   {/* Action 2: Mindmap */}
-                  {renderActionButton(
-                    'mindmap',
-                    'Mindmap',
-                    <AccountTreeIcon size="lg" style={{ color: '#10B981' }} />,
-                    '#10B981',
-                    isGeneratingMindmap,
-                    recentlyCompleted.mindmap,
-                    hasError.mindmap,
-                    () => handleAction('map')
-                  )}
+                  <ActionButton
+                    id="mindmap"
+                    label="Mindmap"
+                    icon={<AccountTreeIcon size="lg" style={{ color: '#10B981' }} />}
+                    color="#10B981"
+                    isGenerating={isGeneratingMindmap}
+                    isComplete={recentlyCompleted.mindmap}
+                    error={hasError.mindmap}
+                    onClick={() => handleAction('map')}
+                  />
 
                   {/* Action 3: More / Close */}
                   <Tooltip title={showMoreActions ? "Close" : "More Actions"} placement="top">
-                    <IconButton
+                    <div
                       onClick={() => setShowMoreActions(!showMoreActions)}
-                      sx={{
+                      style={{
                         width: 64,
                         height: 64,
-                        borderRadius: `${radii.lg}px`,
+                        borderRadius: radii.lg,
                         border: '1px dashed',
                         borderColor: showMoreActions ? projectColor : colors.border.default,
-                        bgcolor: showMoreActions ? `${projectColor}11` : 'transparent',
+                        backgroundColor: showMoreActions ? `${projectColor}11` : 'transparent',
                         color: showMoreActions ? projectColor : colors.text.secondary,
                         transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         transform: showMoreActions ? 'rotate(45deg)' : 'rotate(0deg)',
-                        '&:hover': {
-                          borderColor: projectColor,
-                          color: projectColor,
-                          bgcolor: `${projectColor}08`
-                        }
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
                       }}
                     >
                       <AddIcon size="lg" />
-                    </IconButton>
+                    </div>
                   </Tooltip>
                 </>
               )}
@@ -447,43 +457,52 @@ export default function InspirationDock() {
 
             {/* Close Dock Button - Outside the main paper */}
             {documents.length > 0 && (
-              <Tooltip title="Close Dock" placement="right">
-                <IconButton
-                  onClick={() => setInspirationDockVisible(false)}
-                  size="sm"
-                  className="close-dock-btn"
-                  sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    right: -40,
-                    transform: 'translateY(-50%) translateX(-10px)',
-                    width: 32,
-                    height: 32,
-                    bgcolor: 'rgba(255,255,255,0.9)',
-                    backdropFilter: 'blur(10px)',
-                    border: `1px solid ${colors.border.default}`,
-                    color: colors.text.secondary,
-                    opacity: 0,
-                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    boxShadow: shadows.sm,
-                    '&:hover': {
-                      bgcolor: 'white',
-                      color: colors.error[500],
-                      borderColor: colors.error[200],
-                      transform: 'translateY(-50%) scale(1.1) !important'
-                    }
-                  }}
-                >
-                  <CloseIcon size={18} />
-                </IconButton>
-              </Tooltip>
+              <div
+                className="close-dock-btn"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  right: -40,
+                  transform: 'translateY(-50%) translateX(-10px)',
+                  opacity: 0,
+                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}
+              >
+                <Tooltip title="Close Dock" placement="right">
+                  <div
+                    onClick={() => setInspirationDockVisible(false)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      backgroundColor: 'rgba(255,255,255,0.9)',
+                      backdropFilter: 'blur(10px)',
+                      border: `1px solid ${colors.border.default}`,
+                      color: colors.text.secondary,
+                      boxShadow: shadows.sm,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <CloseIcon size={18} />
+                  </div>
+                </Tooltip>
+              </div>
             )}
           </div>
 
           <style>{`
             .dock-container:hover .close-dock-btn {
-              opacity: 1;
-              transform: translateY(-50%) translateX(0);
+              opacity: 1 !important;
+              transform: translateY(-50%) translateX(0) !important;
+            }
+            .close-dock-btn:hover {
+              background-color: white !important;
+              color: #EF4444 !important;
+              border-color: #FECACA !important;
+              transform: translateY(-50%) scale(1.1) !important;
             }
             @keyframes fadeIn {
               from { opacity: 0; transform: translateY(20px); }
