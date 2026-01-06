@@ -9,20 +9,24 @@ import { useState } from 'react';
 
 // Simple hash for consistent colors
 const getProjectColor = (name: string) => {
-  // Warm, brand-aligned palette
-  const projectColors = [
-    '#0D9488', // Teal (primary)
-    '#0F766E', // Teal dark
-    '#115E59', // Teal darker
-    '#78716C', // Stone
-    '#57534E', // Stone dark
-    '#44403C', // Stone darker
+  // Pastel palette (Plan A: Random soft backgrounds)
+  const palettes = [
+    { bg: '#FEE2E2', color: '#B91C1C' }, // Red
+    { bg: '#FFEDD5', color: '#C2410C' }, // Orange
+    { bg: '#FEF3C7', color: '#B45309' }, // Amber
+    { bg: '#ECFCCB', color: '#4D7C0F' }, // Lime
+    { bg: '#D1FAE5', color: '#047857' }, // Emerald
+    { bg: '#CCFBF1', color: '#0F766E' }, // Teal
+    { bg: '#E0F2FE', color: '#0369A1' }, // Sky
+    { bg: '#E0E7FF', color: '#4338CA' }, // Indigo
+    { bg: '#FAE8FF', color: '#A21CAF' }, // Fuchsia
+    { bg: '#FFE4E6', color: '#BE123C' }, // Rose
   ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return projectColors[Math.abs(hash) % projectColors.length];
+  return palettes[Math.abs(hash) % palettes.length];
 };
 
 interface ProjectCardProps {
@@ -68,23 +72,28 @@ export default function ProjectCard({ project, onOpenMenu }: ProjectCardProps) {
       >
         <Stack direction="row" align="center" style={{ marginBottom: 16 }}>
           {/* Colored Project Icon */}
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: radii.md,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: getProjectColor(project.name),
-              color: 'white',
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              marginRight: 16,
-            }}
-          >
-            {project.name.charAt(0).toUpperCase()}
-          </div>
+          {(() => {
+            const palette = getProjectColor(project.name);
+            return (
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radii.md,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: palette.bg,
+                  color: palette.color,
+                  fontSize: '1.25rem',
+                  fontWeight: 600,
+                  marginRight: 16,
+                }}
+              >
+                {project.name.charAt(0).toUpperCase()}
+              </div>
+            );
+          })()}
           <div style={{ minWidth: 0, flex: 1 }}>
             <Text variant="h6" truncate>
               {project.name}

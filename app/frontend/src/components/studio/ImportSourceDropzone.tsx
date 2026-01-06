@@ -41,11 +41,11 @@ export default function ImportSourceDropzone({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         border: '2px dashed',
-        borderColor: isActive ? colors.primary[500] : colors.border.default,
+        borderColor: isActive ? colors.primary[500] : colors.border.default, // Gray default
         borderRadius: radii.lg,
         padding: 24,
         cursor: 'pointer',
-        backgroundColor: isActive ? colors.primary[50] : 'transparent',
+        backgroundColor: isActive ? colors.primary[50] : colors.neutral[50], // Gray-50 default, Sage-50 on active/hover
         transition: 'all 0.2s ease-in-out',
         minHeight: 120,
       }}
@@ -55,12 +55,13 @@ export default function ImportSourceDropzone({
           width: 48,
           height: 48,
           borderRadius: '50%',
-          backgroundColor: colors.primary[50],
+          backgroundColor: isActive ? colors.primary[50] : colors.neutral[100], // Gray-100 default
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: colors.primary[500],
-          border: `1px solid ${colors.primary[100]}`,
+          color: isActive ? colors.primary[500] : colors.neutral[400], // Gray-400 default
+          border: '1px solid', // Border style
+          borderColor: isActive ? colors.primary[100] : 'transparent', // No border by default (or subtle)
         }}
       >
         <AddIcon size="lg" />

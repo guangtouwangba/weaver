@@ -243,9 +243,15 @@ function SummaryCanvasNodeInner({
         {/* Expand Button */}
         <Button
           size="sm"
+          variant="outline" // Plan A: Outline style
           onClick={handleExpand}
           endIcon={<ArrowForwardIcon size={14} />}
-          style={{ width: '100%' }}
+          style={{
+            width: '100%',
+            borderColor: colors.primary[500],
+            color: colors.primary[500],
+            backgroundColor: 'white'
+          }}
         >
           Read More
         </Button>

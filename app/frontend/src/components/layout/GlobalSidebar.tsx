@@ -76,7 +76,7 @@ export default function GlobalSidebar() {
         left: 0,
         top: 0,
         borderRight: `1px solid ${colors.border.default}`,
-        backgroundColor: colors.background.default,
+        backgroundColor: colors.neutral[100], // Slightly darker base for depth (#F5F5F4)
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -94,14 +94,19 @@ export default function GlobalSidebar() {
                 width: 48,
                 height: 48,
                 borderRadius: radii.xl,
-                background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`,
+                backgroundColor: 'transparent',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white',
-                boxShadow: `0 8px 16px rgba(13, 148, 136, 0.2)`,
+                color: colors.primary[600],
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.primary[50];
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
               <GridViewIcon size="lg" />

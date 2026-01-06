@@ -118,8 +118,19 @@ export default function InspirationDock() {
     // Capture current viewport position at the moment of click
     const position = getViewportCenterPosition();
 
+    // Add random jitter to prevent perfect stacking (±20px)
+    const jitter = {
+      x: (Math.random() - 0.5) * 40,
+      y: (Math.random() - 0.5) * 40
+    };
+
+    const jitteredPosition = {
+      x: position.x + jitter.x,
+      y: position.y + jitter.y
+    };
+
     // Start concurrent generation (non-blocking)
-    handleGenerateContentConcurrent(generationType, position);
+    handleGenerateContentConcurrent(generationType, jitteredPosition);
   };
 
   const handleCloseSummary = () => {
@@ -255,42 +266,7 @@ export default function InspirationDock() {
           }
         `
       }} />
-      {/* Summary Card Overlay */}
-      {showSummaryOverlay && summaryResult && (
-        <div style={{ pointerEvents: 'auto' }}>
-          <SummaryCard
-            title={summaryResult.title}
-            summary={summaryResult.data.summary}
-            keyFindings={summaryResult.data.keyFindings}
-            onClose={handleCloseSummary}
-            onDock={() => console.log('Dock to board')}
-            onFullScreen={() => console.log('Full screen')}
-            onShare={() => console.log('Share')}
-            onCopy={() => {
-              if (summaryResult.data.summary) {
-                navigator.clipboard.writeText(summaryResult.data.summary);
-                console.log('Copied to clipboard');
-              }
-            }}
-          />
-        </div>
-      )}
 
-      {/* Mindmap Card Overlay - Uses unified MindMapCanvasNode with overlay mode */}
-      {showMindmapOverlay && mindmapResult && (
-        <div style={{ pointerEvents: 'auto' }}>
-          <MindMapCanvasNode
-            id="overlay-mindmap"
-            data={mindmapResult.data}
-            title={mindmapResult.title}
-            position={{ x: 0, y: 0 }}
-            viewport={{ x: 0, y: 0, scale: 1 }}
-            isOverlayMode={true}
-            onClose={handleCloseMindmap}
-            onDataChange={(data) => setMindmapResult({ ...mindmapResult, data })}
-          />
-        </div>
-      )}
 
       {/* Dock UI - Hidden during generation */}
       {!showSummaryOverlay && !showMindmapOverlay && !hasActiveGenerations() && (
