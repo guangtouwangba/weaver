@@ -862,13 +862,14 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             flexDirection: 'column',
             width: '100%',
             borderRadius: contextNodes.length > 0 ? '24px' : '999px',
-            backgroundColor: '#fff',
+            backgroundColor: isDragOver ? colors.primary[50] : '#fff', // Light teal bg on drag over
             borderWidth: '2px',
             borderStyle: isDragOver ? 'dashed' : 'solid',
-            borderColor: isDragOver ? colors.primary[600] : 'rgba(0,0,0,0.08)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            borderColor: isDragOver ? colors.primary[500] : colors.neutral[200], // Darker border (Stone-200)
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: isDragOver ? 'scale(1.02)' : 'scale(1)', // Slight scale up on drag
             boxShadow: isDragOver
-              ? '0 8px 32px rgba(13, 148, 136, 0.15)' // Teal shadow
+              ? '0 12px 48px rgba(13, 148, 136, 0.2)' // Enhanced teal shadow
               : '0 4px 20px rgba(0,0,0,0.06)',
           }}
           onDragOver={handleDragOver}
@@ -896,13 +897,20 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
           )}
 
           {/* Input Row */}
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            width: '100%',
+            backgroundColor: isDragOver ? 'transparent' : colors.neutral[50], // Very subtle grey background for input area
+            borderRadius: '999px', // Inner pill shape
+            paddingRight: 4, // Space for button
+          }}>
             <div style={{
-              marginLeft: 8,
+              marginLeft: 12, // Increased padding
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: colors.primary[500]
+              color: colors.primary[600] // Darker teal
             }}>
               <FlashIcon size={20} />
             </div>
@@ -910,33 +918,59 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             <TextField
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={contextNodes.length > 0 ? "Ask about these documents..." : "Drop to analyze..."}
+              placeholder={isDragOver ? "Drop to analyze!" : (contextNodes.length > 0 ? "Ask about these documents..." : "Drop to analyze...")}
               disabled={isLoading}
               onKeyDown={handleKeyDown}
               style={{
                 flex: 1,
-                marginLeft: 16,
-                color: '#4B5563',
+                marginLeft: 12,
+                color: '#1F2937', // Darker text
                 fontWeight: 500,
                 border: 'none',
                 outline: 'none',
-                background: 'transparent'
+                background: 'transparent',
+                height: 48, // Taller touch target
               }}
             />
 
-            <IconButton
-              type="button"
-              variant="default"
+            <div
               style={{
-                width: 40, height: 40,
-                borderRadius: '50%',
-                boxShadow: '0 2px 8px rgba(13, 148, 136, 0.4)' // Teal shadow
+                marginTop: 4, marginBottom: 4, // Vertical centering adjustment
+                marginRight: 4
               }}
-              onClick={handleSend}
-              disabled={!input.trim() && contextNodes.length === 0}
+              onMouseEnter={(e) => {
+                const btn = e.currentTarget.querySelector('button');
+                if (btn) {
+                  btn.style.transform = 'scale(1.05)';
+                  btn.style.backgroundColor = colors.primary[600]; // Darker on hover
+                }
+              }}
+              onMouseLeave={(e) => {
+                const btn = e.currentTarget.querySelector('button');
+                if (btn) {
+                  btn.style.transform = 'scale(1)';
+                  btn.style.backgroundColor = colors.primary[500]; // Back to normal
+                }
+              }}
             >
-              {isLoading ? <Spinner size="sm" color="inherit" /> : <AddIcon size={24} />}
-            </IconButton>
+              <IconButton
+                type="button"
+                variant="default"
+                style={{
+                  width: 40, height: 40,
+                  borderRadius: '50%',
+                  backgroundColor: colors.primary[500], // Explicit background
+                  color: 'white',
+                  boxShadow: '0 2px 8px rgba(13, 148, 136, 0.3)', // Refined shadow
+                  transition: 'all 0.2s',
+                  border: `1px solid ${colors.primary[600]}`, // Subtle border for definition
+                }}
+                onClick={handleSend}
+                disabled={!input.trim() && contextNodes.length === 0}
+              >
+                {isLoading ? <Spinner size="sm" color="inherit" /> : <AddIcon size={24} />}
+              </IconButton>
+            </div>
           </div>
         </Surface>
 
