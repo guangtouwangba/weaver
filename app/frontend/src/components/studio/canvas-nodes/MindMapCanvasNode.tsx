@@ -57,13 +57,13 @@ const MiniMindMapRenderer: React.FC<{ data: MindmapData; width: number; height: 
   return (
     <Stage width={width} height={height} scaleX={scale} scaleY={scale}>
       <Layer>
-        {data.edges.map((edge) => {
+        {data.edges.map((edge, idx) => {
           const source = data.nodes.find((n) => n.id === edge.source);
           const target = data.nodes.find((n) => n.id === edge.target);
           if (!source || !target) return null;
           return (
             <MindMapEdge
-              key={edge.id}
+              key={`${edge.id}-${idx}`}
               edge={edge}
               sourceNode={source}
               targetNode={target}
@@ -142,7 +142,7 @@ function MindMapCanvasNodeInner({
         bordered
         data-task-id={dataTaskId || id}
         onMouseDown={handleMouseDown}
-        sx={{
+        style={{
           position: isOverlayMode ? 'relative' : 'absolute',
           left: isOverlayMode ? 'auto' : screenX,
           top: isOverlayMode ? 'auto' : screenY,
@@ -151,7 +151,7 @@ function MindMapCanvasNodeInner({
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          bgcolor: 'rgba(255,255,255,0.98)',
+          backgroundColor: 'rgba(255,255,255,0.98)',
           boxShadow: isDragging
             ? '0 12px 40px rgba(16, 185, 129, 0.25)'
             : isOverlayMode
@@ -162,14 +162,6 @@ function MindMapCanvasNodeInner({
           transform: isOverlayMode ? 'none' : `scale(${viewport.scale > 0.5 ? 1 : viewport.scale * 2})`,
           transformOrigin: 'top left',
           zIndex: isDragging ? 1000 : 100,
-          '&:hover': {
-            boxShadow: isOverlayMode ? '0 10px 40px rgba(0,0,0,0.15)' : '0 6px 24px rgba(0,0,0,0.12)',
-          },
-          animation: 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          '@keyframes popIn': {
-            from: { opacity: 0, transform: 'scale(0.9)' },
-            to: { opacity: 1, transform: 'scale(1)' },
-          },
         }}
       >
         {/* Header - entire header is draggable */}
@@ -178,15 +170,14 @@ function MindMapCanvasNodeInner({
           align="center"
           justify="between"
           className="drag-handle"
-          sx={{
-            p: 1.5,
+          style={{
+            padding: 12,
             borderBottom: '1px solid rgba(0,0,0,0.05)',
             cursor: 'grab',
-            '&:active': { cursor: 'grabbing' },
             userSelect: 'none',
           }}
         >
-          <Stack direction="row" align="center" gap={1} sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" align="center" gap={1} style={{ flex: 1, minWidth: 0 }}>
             {/* Drag Indicator Icon */}
             <div
               style={{
@@ -228,7 +219,7 @@ function MindMapCanvasNodeInner({
           </Stack>
 
           {/* Actions */}
-          <Stack direction="row" gap={0} sx={{ flexShrink: 0 }}>
+          <Stack direction="row" gap={0} style={{ flexShrink: 0 }}>
             <IconButton
               size="sm"
               variant="ghost"
@@ -244,7 +235,7 @@ function MindMapCanvasNodeInner({
         </Stack>
 
         {/* Tags */}
-        <Stack direction="row" gap={0} sx={{ px: 1.5, py: 0.75, gap: 0.5 }}>
+        <Stack direction="row" gap={0} style={{ paddingLeft: 12, paddingRight: 12, paddingTop: 6, paddingBottom: 6, gap: 4 }}>
           <Chip
             label="MINDMAP"
             size="sm"
@@ -288,7 +279,7 @@ function MindMapCanvasNodeInner({
               align="center"
               justify="center"
               gap={1}
-              sx={{ height: '100%' }}
+              style={{ height: '100%' }}
             >
               <Spinner size="sm" color="secondary" />
               <Text variant="caption" color="secondary">

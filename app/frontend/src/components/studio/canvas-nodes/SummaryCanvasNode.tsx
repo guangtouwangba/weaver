@@ -68,7 +68,7 @@ function SummaryCanvasNodeInner({
     });
     if (e.target instanceof HTMLElement) {
       // Skip if clicking on buttons (close, expand, copy)
-      if (e.target.closest('button') || e.target.closest('.MuiIconButton-root')) {
+      if (e.target.closest('button')) {
         return;
       }
       if (e.target.closest('.drag-handle')) {
@@ -77,10 +77,6 @@ function SummaryCanvasNodeInner({
       }
     }
   };
-
-  // Note: handleMouseUp is no longer needed here.
-  // Parent (GenerationOutputsOverlay) handles mouseup via window event listener,
-  // which ensures drag state is properly cleared even when mouse is released outside the card.
 
   const handleCopy = () => {
     if (data.summary) {
@@ -97,12 +93,12 @@ function SummaryCanvasNodeInner({
         bordered
         data-task-id={dataTaskId || id}
         onMouseDown={handleMouseDown}
-        sx={{
+        style={{
           position: 'absolute',
           left: screenX,
           top: screenY,
           width: 320,
-          p: 2,
+          padding: 16,
           boxShadow: isDragging
             ? '0 12px 40px rgba(139, 92, 246, 0.25)'
             : shadows.lg,
@@ -111,14 +107,6 @@ function SummaryCanvasNodeInner({
           transform: `scale(${viewport.scale > 0.5 ? 1 : viewport.scale * 2})`,
           transformOrigin: 'top left',
           zIndex: isDragging ? 1000 : 100,
-          '&:hover': {
-            boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
-          },
-          animation: 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          '@keyframes popIn': {
-            from: { opacity: 0, transform: 'scale(0.9)' },
-            to: { opacity: 1, transform: 'scale(1)' }
-          }
         }}
       >
         {/* Header - entire header is draggable */}
@@ -126,10 +114,9 @@ function SummaryCanvasNodeInner({
           direction="row"
           align="start"
           className="drag-handle"
-          sx={{
-            mb: 1.5,
+          style={{
+            marginBottom: 12,
             cursor: 'grab',
-            '&:active': { cursor: 'grabbing' },
             userSelect: 'none',
           }}
         >
@@ -165,16 +152,16 @@ function SummaryCanvasNodeInner({
 
           {/* Title Info */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <Text variant="label" truncate sx={{ lineHeight: 1.2, mb: 0.25 }}>
+            <Text variant="label" truncate style={{ lineHeight: 1.2, marginBottom: 2 }}>
               {title}
             </Text>
-            <Text variant="caption" color="secondary" sx={{ fontSize: '0.65rem' }}>
+            <Text variant="caption" color="secondary" style={{ fontSize: '0.65rem' }}>
               AI Summary
             </Text>
           </div>
 
           {/* Actions */}
-          <Stack direction="row" gap={0} sx={{ flexShrink: 0, gap: 0.25 }}>
+          <Stack direction="row" gap={0} style={{ flexShrink: 0, gap: 2 }}>
             <IconButton size="sm" variant="ghost" onClick={handleCopy}>
               <ContentCopyIcon size={14} />
             </IconButton>
@@ -188,7 +175,7 @@ function SummaryCanvasNodeInner({
         </Stack>
 
         {/* Tags */}
-        <Stack direction="row" gap={0} sx={{ mb: 1.5, gap: 0.5 }}>
+        <Stack direction="row" gap={0} style={{ marginBottom: 12, gap: 4 }}>
           <Chip
             label="SUMMARY"
             size="sm"
@@ -207,8 +194,8 @@ function SummaryCanvasNodeInner({
         <Text
           variant="bodySmall"
           color="secondary"
-          sx={{
-            mb: 1.5,
+          style={{
+            marginBottom: 12,
             fontSize: '0.8rem',
             lineHeight: 1.5,
             display: '-webkit-box',
@@ -231,11 +218,11 @@ function SummaryCanvasNodeInner({
             }}
           >
             {data.keyFindings.slice(0, 2).map((finding, idx) => (
-              <Stack key={idx} direction="row" align="start" gap={1} sx={{ mb: idx === 0 && data.keyFindings.length > 1 ? 1 : 0 }}>
+              <Stack key={idx} direction="row" align="start" gap={1} style={{ marginBottom: idx === 0 && data.keyFindings.length > 1 ? 8 : 0 }}>
                 <div style={{ marginTop: 2 }}>
-                  {idx === 0 ? <TrendingUpIcon size={12} sx={{ color: colors.success[500] }} /> : <PeopleIcon size={12} sx={{ color: colors.primary[500] }} />}
+                  {idx === 0 ? <TrendingUpIcon size={12} style={{ color: colors.success[500] }} /> : <PeopleIcon size={12} style={{ color: colors.primary[500] }} />}
                 </div>
-                <Text variant="caption" sx={{ fontSize: '0.7rem', lineHeight: 1.4 }}>
+                <Text variant="caption" style={{ fontSize: '0.7rem', lineHeight: 1.4 }}>
                   <span style={{ fontWeight: 600 }}>{finding.label}:</span> {finding.content.slice(0, 60)}...
                 </Text>
               </Stack>
@@ -245,10 +232,10 @@ function SummaryCanvasNodeInner({
 
         {/* Expand Button */}
         <Button
-          fullWidth
           size="sm"
           onClick={handleExpand}
           endIcon={<ArrowForwardIcon size={14} />}
+          style={{ width: '100%' }}
         >
           Read More
         </Button>
@@ -266,8 +253,8 @@ function SummaryCanvasNodeInner({
           direction="row"
           align="center"
           justify="between"
-          sx={{
-            p: 2.5,
+          style={{
+            padding: 20,
             borderBottom: `1px solid ${colors.border.default}`,
           }}
         >
@@ -293,7 +280,7 @@ function SummaryCanvasNodeInner({
               </Text>
             </div>
           </Stack>
-          <Stack direction="row" gap={0} sx={{ gap: 0.5 }}>
+          <Stack direction="row" gap={0} style={{ gap: 4 }}>
             <IconButton size="sm" variant="ghost" onClick={handleCopy}>
               <ContentCopyIcon size={18} />
             </IconButton>
@@ -305,16 +292,16 @@ function SummaryCanvasNodeInner({
 
         {/* Modal Content */}
         <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
-          <Text variant="overline" color="primary" sx={{ mb: 1, display: 'block', fontWeight: 700 }}>
+          <Text variant="overline" color="primary" style={{ marginBottom: 8, display: 'block', fontWeight: 700 }}>
             EXECUTIVE SUMMARY
           </Text>
-          <Text variant="body" color="secondary" sx={{ lineHeight: 1.8, mb: 3 }}>
+          <Text variant="body" color="secondary" style={{ lineHeight: 1.8, marginBottom: 24 }}>
             {data.summary}
           </Text>
 
           {data.keyFindings && data.keyFindings.length > 0 && (
             <>
-              <Text variant="overline" color="primary" sx={{ mb: 2, display: 'block', fontWeight: 700 }}>
+              <Text variant="overline" color="primary" style={{ marginBottom: 16, display: 'block', fontWeight: 700 }}>
                 KEY FINDINGS
               </Text>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -324,9 +311,9 @@ function SummaryCanvasNodeInner({
                     elevation={0}
                     radius="md"
                     bordered
-                    sx={{ p: 2, bgcolor: colors.background.subtle }}
+                    style={{ padding: 16, backgroundColor: colors.background.subtle }}
                   >
-                    <Stack direction="row" align="center" gap={1} sx={{ mb: 0.5 }}>
+                    <Stack direction="row" align="center" gap={1} style={{ marginBottom: 4 }}>
                       <div
                         style={{
                           width: 6,
@@ -337,7 +324,7 @@ function SummaryCanvasNodeInner({
                       />
                       <Text variant="label">{finding.label}</Text>
                     </Stack>
-                    <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.6 }}>
+                    <Text variant="bodySmall" color="secondary" style={{ lineHeight: 1.6 }}>
                       {finding.content}
                     </Text>
                   </Surface>
