@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { Group, Rect, Text, Line, RegularPolygon } from 'react-konva';
-import { mindmapCardTokens as tokens } from '@/theme/theme';
+import { mindmapCardTokens as tokens } from '@/components/ui/tokens';
 
 interface AIInsightBadgeProps {
   x: number;
@@ -22,8 +22,8 @@ interface AIInsightBadgeProps {
 /**
  * Sparkle icon (✨ simplified)
  */
-const SparkleIcon: React.FC<{ x: number; y: number; size?: number }> = ({ 
-  x, y, size = 14 
+const SparkleIcon: React.FC<{ x: number; y: number; size?: number }> = ({
+  x, y, size = 14
 }) => {
   const center = size / 2;
   const points = [
@@ -34,7 +34,7 @@ const SparkleIcon: React.FC<{ x: number; y: number; size?: number }> = ({
     0, center,
     size, center,
   ];
-  
+
   return (
     <Group x={x} y={y}>
       {/* Main star cross */}
@@ -80,11 +80,11 @@ export const AIInsightBadge: React.FC<AIInsightBadgeProps> = ({
   const badgeWidth = Math.min(Math.max(displayText.length * 7 + 40, 100), 200);
   const badgeHeight = 28;
   const connectorSize = 8;
-  
+
   // Badge position (offset from provided x, y)
   const badgeX = x;
   const badgeY = y;
-  
+
   // Diamond connector position
   const diamondX = badgeX + badgeWidth / 2;
   const diamondY = badgeY + badgeHeight + connectorSize / 2;
@@ -104,10 +104,10 @@ export const AIInsightBadge: React.FC<AIInsightBadgeProps> = ({
         shadowOpacity={0.2}
         shadowOffsetY={2}
       />
-      
+
       {/* Sparkle icon */}
       <SparkleIcon x={badgeX + 8} y={badgeY + 7} size={14} />
-      
+
       {/* Text */}
       <Text
         x={badgeX + 26}
@@ -147,6 +147,7 @@ export const AIInsightBadge: React.FC<AIInsightBadgeProps> = ({
 };
 
 export default AIInsightBadge;
+
 
 
 

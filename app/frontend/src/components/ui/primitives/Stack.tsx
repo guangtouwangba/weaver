@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Box, BoxProps } from '@mui/material';
 import { spacing as spacingTokens } from '../tokens';
 
 /**
  * Stack Component
  *
  * A flexbox container with consistent spacing and alignment.
- * Wraps MUI Box with a simplified API.
+ * Pure CSS implementation.
  */
 
-export interface StackProps extends Omit<BoxProps, 'display' | 'flexDirection' | 'gap'> {
+export interface StackProps extends React.HTMLAttributes<HTMLDivElement> {
     /** Direction of the flex container */
     direction?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
     /** Gap between children (uses spacing scale) */
@@ -54,7 +53,8 @@ export const Stack = React.forwardRef<HTMLDivElement, StackProps>(
             wrap = false,
             inline = false,
             children,
-            sx,
+            style,
+            className,
             ...props
         },
         ref
@@ -66,21 +66,22 @@ export const Stack = React.forwardRef<HTMLDivElement, StackProps>(
         const wrapValue = wrap === true ? 'wrap' : wrap === false ? 'nowrap' : wrap;
 
         return (
-            <Box
+            <div
                 ref={ref}
-                sx={{
+                className={className}
+                style={{
                     display: inline ? 'inline-flex' : 'flex',
                     flexDirection: direction,
                     gap: `${gapValue}px`,
                     alignItems: align ? alignMap[align] : undefined,
                     justifyContent: justify ? justifyMap[justify] : undefined,
                     flexWrap: wrapValue,
-                    ...sx,
+                    ...style,
                 }}
                 {...props}
             >
                 {children}
-            </Box>
+            </div>
         );
     }
 );

@@ -2,37 +2,23 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import GlobalLayout from '@/components/layout/GlobalLayout';
-import StrategyTooltip, { StrategyOption } from '@/components/settings/StrategyTooltip';
+import { StrategyOption } from '@/components/settings/StrategyTooltip';
 import StrategyCard from '@/components/settings/StrategyCard';
 import { settingsApi, SettingMetadata } from '@/lib/api';
 import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Avatar, 
-  Divider, 
-  List, 
-  ListItemButton, 
-  ListItemIcon, 
-  ListItemText,
-  TextField,
-  Button,
-  Chip,
-  InputAdornment,
-  IconButton,
-  Tooltip,
-  CircularProgress,
-  Alert,
-  Snackbar,
-  Slider,
-  FormControl,
-  FormLabel,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
+  Stack, 
+  Text, 
+  Button, 
+  Surface, 
+  Spinner, 
+  Chip, 
+  IconButton, 
+  Avatar,
   Switch,
-  Box as MuiBox,
-} from '@mui/material';
+  Slider
+} from '@/components/ui/primitives';
+import { TextField } from '@/components/ui/composites';
+import { colors } from '@/components/ui/tokens';
 import { 
   AutoAwesomeIcon, 
   CheckIcon, 
@@ -40,21 +26,81 @@ import {
   SearchIcon, 
   TuneIcon,
   DescriptionIcon,
+  PersonIcon,
+  BrainIcon,
+  StorageIcon,
+  PaletteIcon,
+  LogoutIcon,
+  VisibilityIcon,
+  VisibilityOffIcon,
+  KeyIcon,
+  InfoIcon
 } from '@/components/ui/icons';
-import PersonMui from '@mui/icons-material/Person';
-import MemoryMui from '@mui/icons-material/Memory';
-import StorageMui from '@mui/icons-material/Storage';
-import PaletteMui from '@mui/icons-material/Palette';
-import LogoutMui from '@mui/icons-material/Logout';
-import VisibilityMui from '@mui/icons-material/Visibility';
-import VisibilityOffMui from '@mui/icons-material/VisibilityOff';
-import VpnKeyMui from '@mui/icons-material/VpnKey';
 
 // Mock user data (will be replaced with auth)
 const MOCK_USER = {
   name: "Alex Li",
   email: "alex@weaver.ai",
   avatar: "AL"
+};
+
+const NotificationToast = ({ 
+  open, 
+  message, 
+  severity, 
+  onClose 
+}: { 
+  open: boolean; 
+  message: string; 
+  severity: 'success' | 'error'; 
+  onClose: () => void; 
+}) => {
+  if (!open) return null;
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 24,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 2000,
+      animation: 'slideUp 0.3s ease-out'
+    }}>
+      <Surface
+        elevation={2}
+        radius="lg"
+        style={{
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          backgroundColor: severity === 'error' ? colors.error[50] : colors.success[50],
+          border: '1px solid',
+          borderColor: severity === 'error' ? colors.error[200] : colors.success[200],
+          color: severity === 'error' ? colors.error[700] : colors.success[700],
+        }}
+      >
+        {severity === 'error' ? (
+          <InfoIcon size={18} style={{ color: colors.error[500] }} />
+        ) : (
+          <CheckIcon size={18} style={{ color: colors.success[500] }} />
+        )}
+        <Text variant="bodySmall" fontWeight="500" color="inherit">
+          {message}
+        </Text>
+        <IconButton 
+          size="sm" 
+          onClick={onClose}
+          style={{ 
+            marginLeft: 8, 
+            color: severity === 'error' ? colors.error[500] : colors.success[500] 
+          }}
+        >
+          <CloseIcon size={16} />
+        </IconButton>
+      </Surface>
+    </div>
+  );
 };
 
 interface SettingsState {
@@ -98,7 +144,6 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [metadata, setMetadata] = useState<Record<string, SettingMetadata>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [validatingKey, setValidatingKey] = useState(false);
   const [keyValidation, setKeyValidation] = useState<{ valid: boolean; message: string } | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -108,11 +153,11 @@ export default function SettingsPage() {
   });
 
   const menuItems = [
-    { id: 'profile', label: 'Profile & Account', icon: <PersonMui sx={{ fontSize: 20 }} /> },
-    { id: 'ai', label: 'AI & Models', icon: <MemoryMui sx={{ fontSize: 20 }} /> },
-    { id: 'rag', label: 'RAG Strategy', icon: <SearchIcon size="md" /> },
-    { id: 'advanced', label: 'Advanced', icon: <TuneIcon size="md" /> },
-    { id: 'appearance', label: 'Appearance', icon: <PaletteMui sx={{ fontSize: 20 }} /> },
+    { id: 'profile', label: 'Profile & Account', icon: <PersonIcon size={20} /> },
+    { id: 'ai', label: 'AI & Models', icon: <BrainIcon size={20} /> },
+    { id: 'rag', label: 'RAG Strategy', icon: <SearchIcon size={20} /> },
+    { id: 'advanced', label: 'Advanced', icon: <TuneIcon size={20} /> },
+    { id: 'appearance', label: 'Appearance', icon: <PaletteIcon size={20} /> },
   ];
 
   // Load settings on mount
@@ -145,14 +190,11 @@ export default function SettingsPage() {
   // Save setting with debounce
   const saveSetting = useCallback(async (key: string, value: unknown) => {
     try {
-      setSaving(true);
       await settingsApi.updateUserSetting(key, value);
       setSnackbar({ open: true, message: 'Setting saved', severity: 'success' });
     } catch (error) {
       console.error('Failed to save setting:', error);
       setSnackbar({ open: true, message: 'Failed to save setting', severity: 'error' });
-    } finally {
-      setSaving(false);
     }
   }, []);
 
@@ -179,11 +221,6 @@ export default function SettingsPage() {
     }
     
     setSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  // Save on blur (for text fields)
-  const handleBlur = (key: keyof SettingsState) => () => {
-    saveSetting(key, settings[key]);
   };
 
   // Validate API key
@@ -217,471 +254,455 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <GlobalLayout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-          <CircularProgress />
-        </Box>
+        <Stack align="center" justify="center" style={{ minHeight: '100vh' }}>
+          <Spinner />
+        </Stack>
       </GlobalLayout>
     );
   }
 
   return (
     <GlobalLayout>
-      <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto', minHeight: '100vh' }}>
-        <Typography variant="h4" fontWeight="800" gutterBottom sx={{ mb: 4 }}>
+      <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto', minHeight: '100vh' }}>
+        <Text variant="h4" fontWeight="800" style={{ marginBottom: 32 }}>
           Settings
-        </Typography>
+        </Text>
 
-        <Box sx={{ display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' } }}>
+        <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           
-          {/* LEFT SIDEBAR: Navigation & Identity */}
-          <Paper 
+          {/* Sidebar */}
+          <Surface 
             elevation={0}
-            sx={{ 
-              width: { xs: '100%', md: 280 }, 
+            style={{ 
+              width: 280, 
               height: 'fit-content',
-              borderRadius: 4,
-              border: '1px solid',
-              borderColor: 'divider',
-              overflow: 'hidden'
+              borderRadius: 16,
+              border: `1px solid ${colors.border.default}`,
+              overflow: 'hidden',
+              flexShrink: 0
             }}
           >
-            {/* User Identity Card */}
-            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: 'background.default' }}>
+            {/* User Identity */}
+            <Stack align="center" style={{ padding: 24, backgroundColor: colors.background.default }}>
               <Avatar 
-                sx={{ 
+                style={{ 
                   width: 72, 
                   height: 72, 
-                  bgcolor: 'primary.main', 
+                  backgroundColor: colors.primary[500], 
                   fontSize: '1.75rem',
                   fontWeight: 600,
-                  mb: 2,
+                  marginBottom: 16,
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                 }}
               >
                 {MOCK_USER.avatar}
               </Avatar>
-              <Typography variant="h6" fontWeight="700">{MOCK_USER.name}</Typography>
-              <Typography variant="body2" color="text.secondary">{MOCK_USER.email}</Typography>
+              <Text variant="h6" fontWeight="700">{MOCK_USER.name}</Text>
+              <Text variant="bodySmall" color="secondary">{MOCK_USER.email}</Text>
               <Chip 
                 label="Pro Plan" 
-                size="small" 
-                color="primary" 
+                size="sm" 
                 variant="outlined" 
-                sx={{ mt: 1.5, height: 24, fontWeight: 600 }} 
+                style={{ marginTop: 12, height: 24, fontWeight: 600 }} 
               />
-            </Box>
+            </Stack>
             
-            <Divider />
+            <div style={{ height: 1, backgroundColor: '#E5E7EB', margin: 0 }} />
 
             {/* Navigation Menu */}
-            <List sx={{ p: 1 }}>
+            <Stack gap={4} style={{ padding: 8 }}>
               {menuItems.map((item) => (
-                <ListItemButton
+                <Surface
                   key={item.id}
-                  selected={activeTab === item.id}
+                  elevation={0}
                   onClick={() => setActiveTab(item.id)}
-                  sx={{
-                    borderRadius: 2,
-                    mb: 0.5,
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.50',
-                      color: 'primary.main',
-                    },
-                    '&:hover': {
-                      bgcolor: 'action.hover'
-                    }
+                  style={{
+                    padding: 12,
+                    cursor: 'pointer',
+                    backgroundColor: activeTab === item.id ? colors.primary[50] : 'transparent',
+                    color: activeTab === item.id ? colors.primary[500] : colors.text.secondary,
+                    borderRadius: 8,
+                    transition: 'all 0.2s'
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 40, color: activeTab === item.id ? 'primary.main' : 'text.secondary' }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={item.label} 
-                    primaryTypographyProps={{ fontWeight: activeTab === item.id ? 600 : 500 }}
-                  />
-                </ListItemButton>
+                  <Stack direction="row" align="center" gap={16}>
+                    <div style={{ display: 'flex' }}>{item.icon}</div>
+                    <Text fontWeight={activeTab === item.id ? 600 : 500} color={activeTab === item.id ? 'primary' : 'secondary'}>
+                      {item.label}
+                    </Text>
+                  </Stack>
+                </Surface>
               ))}
-            </List>
+            </Stack>
             
-            <Divider sx={{ my: 1 }} />
+            <div style={{ height: 1, backgroundColor: '#E5E7EB', margin: '8px 0' }} />
             
-            <Box sx={{ p: 1 }}>
-              <ListItemButton sx={{ borderRadius: 2, color: 'error.main' }}>
-                <ListItemIcon sx={{ minWidth: 40, color: 'error.main' }}>
-                  <LogoutMui sx={{ fontSize: 20 }} />
-                </ListItemIcon>
-                <ListItemText primary="Sign Out" primaryTypographyProps={{ fontWeight: 500 }} />
-              </ListItemButton>
-            </Box>
-          </Paper>
+            <Stack style={{ padding: 8 }}>
+              <Surface 
+                elevation={0}
+                style={{ 
+                    padding: 12, 
+                    borderRadius: 8, 
+                    color: colors.error[500], 
+                    cursor: 'pointer'
+                }}
+              >
+                <Stack direction="row" align="center" gap={16}>
+                  <div style={{ display: 'flex' }}><LogoutIcon size={20} /></div>
+                  <Text fontWeight={500} color="error">Sign Out</Text>
+                </Stack>
+              </Surface>
+            </Stack>
+          </Surface>
 
-          {/* RIGHT CONTENT: Configuration Panels */}
-          <Box sx={{ flex: 1 }}>
-            
-            {/* AI & Models Section */}
-            {activeTab === 'ai' && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {/* API Key Section */}
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.50', color: 'primary.main' }}>
-                      <VpnKeyMui sx={{ fontSize: 24 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" fontWeight="700">API Configuration</Typography>
-                      <Typography variant="body2" color="text.secondary">Configure your LLM provider</Typography>
-                    </Box>
-                  </Box>
+          {/* Content */}
+          <div style={{ flex: 1, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 24 }}>
+             {/* Panels */}
+             {activeTab === 'ai' && (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                 {/* API Key */}
+                 <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                   {/* Header */}
+                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                     <div style={{ padding: 8, borderRadius: 8, backgroundColor: colors.primary[50], color: colors.primary[500] }}>
+                       <KeyIcon size={24} />
+                     </div>
+                     <div>
+                       <Text variant="h6" fontWeight="700">API Configuration</Text>
+                       <Text variant="bodySmall" color="secondary">Configure your LLM provider</Text>
+                     </div>
+                   </div>
+                   
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                     <TextField
+                       label="API Key (OpenRouter / OpenAI)"
+                       type={showKey ? 'text' : 'password'}
+                       fullWidth
+                       value={settings.openrouter_api_key}
+                       onChange={handleChange('openrouter_api_key')}
+                       endAdornment={
+                         <IconButton onClick={() => setShowKey(!showKey)} size="sm">
+                           {showKey ? <VisibilityOffIcon size={20} /> : <VisibilityIcon size={20} />}
+                         </IconButton>
+                       }
+                       helperText="Your key is encrypted and stored securely."
+                     />
+                     
+                     <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                       <Button 
+                         variant="outline" 
+                         onClick={handleValidateApiKey}
+                         disabled={validatingKey}
+                         startIcon={validatingKey ? <Spinner size="sm" /> : null}
+                       >
+                         {validatingKey ? 'Validating...' : 'Validate & Save Key'}
+                       </Button>
+                       
+                       {keyValidation && (
+                         <Chip
+                           icon={keyValidation.valid ? <CheckIcon size={16} /> : <CloseIcon size={16} />}
+                           label={keyValidation.message}
+                           color={keyValidation.valid ? 'success' : 'error'}
+                           size="sm"
+                         />
+                       )}
+                     </div>
+                   </div>
+                 </Surface>
 
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                    <TextField
-                      label="API Key (OpenRouter / OpenAI)"
-                      type={showKey ? 'text' : 'password'}
-                      fullWidth
-                      value={settings.openrouter_api_key}
-                      onChange={handleChange('openrouter_api_key')}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton onClick={() => setShowKey(!showKey)} edge="end">
-                              {showKey ? <VisibilityOffMui sx={{ fontSize: 20 }} /> : <VisibilityMui sx={{ fontSize: 20 }} />}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                      helperText="Your key is encrypted and stored securely."
-                    />
-                    
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                      <Button 
-                        variant="outlined" 
-                        onClick={handleValidateApiKey}
-                        disabled={validatingKey}
-                        startIcon={validatingKey ? <CircularProgress size={16} /> : null}
-                      >
-                        {validatingKey ? 'Validating...' : 'Validate & Save Key'}
-                      </Button>
-                      
-                      {keyValidation && (
-                        <Chip
-                          icon={keyValidation.valid ? <Check size={16} /> : <X size={16} />}
-                          label={keyValidation.message}
-                          color={keyValidation.valid ? 'success' : 'error'}
-                          size="small"
-                        />
-                      )}
-                    </Box>
-                  </Box>
-                </Paper>
+                 {/* Model Selection */}
+                 <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                     <div style={{ padding: 8, borderRadius: 8, backgroundColor: colors.primary[50], color: colors.primary[500] }}>
+                      <AutoAwesomeIcon size={24} />
+                    </div>
+                     <div>
+                       <Text variant="h6" fontWeight="700">Model Selection</Text>
+                       <Text variant="bodySmall" color="secondary">Choose your AI models</Text>
+                     </div>
+                   </div>
 
-                {/* Model Selection */}
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'secondary.50', color: 'secondary.main' }}>
-                      <AutoAwesomeMui sx={{ fontSize: 24 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" fontWeight="700">Model Selection</Typography>
-                      <Typography variant="body2" color="text.secondary">Choose your AI models</Typography>
-                    </Box>
-                  </Box>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                     <div style={{ width: '100%' }}>
+                       <Text style={{ marginBottom: 16, fontWeight: 600 }}>LLM Model</Text>
+                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                         {getOptions('llm_model').map((opt) => (
+                           <StrategyCard 
+                             key={opt.value}
+                             option={opt}
+                             selected={settings.llm_model === opt.value}
+                             onClick={() => handleSelection('llm_model', opt.value)}
+                           />
+                         ))}
+                       </div>
+                     </div>
+                   </div>
+                 </Surface>
+               </div>
+             )}
 
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <FormControl fullWidth>
-                      <FormLabel sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>LLM Model</FormLabel>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
-                        {getOptions('llm_model').map((opt) => (
+             {/* RAG Strategy Section */}
+             {activeTab === 'rag' && (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                 {/* RAG Mode */}
+                 <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                     <div style={{ padding: 8, borderRadius: 8, backgroundColor: colors.info[50], color: colors.info[500] }}>
+                       <StorageIcon size={24} />
+                     </div>
+                     <div>
+                       <Text variant="h6" fontWeight="700">RAG Mode</Text>
+                       <Text variant="bodySmall" color="secondary">How documents are processed for answering questions</Text>
+                     </div>
+                   </div>
+
+                   <div style={{ width: '100%' }}>
+                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                       {getOptions('rag_mode').map((opt) => (
+                         <StrategyCard 
+                           key={opt.value}
+                           option={opt}
+                           selected={settings.rag_mode === opt.value}
+                           onClick={() => handleSelection('rag_mode', opt.value)}
+                         />
+                       ))}
+                     </div>
+                   </div>
+                 </Surface>
+
+                 {/* Document Processing Mode */}
+                 <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                     <div style={{ padding: 8, borderRadius: 8, backgroundColor: colors.success[50], color: colors.success[500] }}>
+                       <DescriptionIcon size={24} />
+                     </div>
+                     <div>
+                       <Text variant="h6" fontWeight="700">Document Processing</Text>
+                       <Text variant="bodySmall" color="secondary">How documents are parsed and text is extracted</Text>
+                     </div>
+                   </div>
+
+                   <div style={{ width: '100%' }}>
+                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                       {getOptions('document_processing_mode').map((opt) => (
+                         <StrategyCard 
+                           key={opt.value}
+                           option={opt}
+                           selected={settings.document_processing_mode === opt.value}
+                           onClick={() => handleSelection('document_processing_mode', opt.value)}
+                         />
+                       ))}
+                     </div>
+                   </div>
+                 </Surface>
+
+                 {/* Retrieval Strategy */}
+                 {settings.rag_mode === 'traditional' && (
+                   <>
+                     <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                         <div style={{ padding: 8, borderRadius: 8, backgroundColor: colors.warning[50], color: colors.warning[500] }}>
+                           <SearchIcon size={24} />
+                         </div>
+                         <div>
+                           <Text variant="h6" fontWeight="700">Retrieval Strategy</Text>
+                           <Text variant="bodySmall" color="secondary">How relevant content is found in your documents</Text>
+                         </div>
+                       </div>
+
+                       <div style={{ width: '100%' }}>
+                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                           {getOptions('retrieval_strategy').map((opt) => (
+                             <StrategyCard 
+                               key={opt.value}
+                               option={opt}
+                               selected={settings.retrieval_strategy === opt.value}
+                               onClick={() => handleSelection('retrieval_strategy', opt.value)}
+                             />
+                           ))}
+                         </div>
+                       </div>
+                     </Surface>
+
+                     {/* Retrieval Parameters */}
+                     <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                       <Text variant="h6" fontWeight="700" style={{ marginBottom: 16 }}>Retrieval Parameters</Text>
+                       
+                       <div style={{ marginTop: 24 }}>
+                         <Text variant="bodySmall" style={{ marginBottom: 4 }}>
+                           Top-K Documents: {settings.retrieval_top_k}
+                         </Text>
+                         <Text variant="caption" color="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                           Number of document chunks to retrieve for each query
+                         </Text>
+                         <Slider
+                           value={settings.retrieval_top_k}
+                           onChange={(val) => setSettings(prev => ({ ...prev, retrieval_top_k: val }))}
+                           onCommit={(val) => saveSetting('retrieval_top_k', val)}
+                           min={1}
+                           max={20}
+                           step={1}
+                         />
+                       </div>
+
+                       <div style={{ marginTop: 32 }}>
+                         <Text variant="bodySmall" style={{ marginBottom: 4 }}>
+                           Minimum Similarity: {(settings.retrieval_min_similarity * 100).toFixed(0)}%
+                         </Text>
+                         <Text variant="caption" color="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                           Minimum similarity threshold for retrieved documents
+                         </Text>
+                         <Slider
+                           value={settings.retrieval_min_similarity}
+                           onChange={(val) => setSettings(prev => ({ ...prev, retrieval_min_similarity: val }))}
+                           onCommit={(val) => saveSetting('retrieval_min_similarity', val)}
+                           min={0}
+                           max={1}
+                           step={0.05}
+                         />
+                       </div>
+                     </Surface>
+                   </>
+                 )}
+
+                 {/* Long Context Mode Settings */}
+                 {settings.rag_mode === 'long_context' && (
+                   <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                     <Text variant="h6" fontWeight="700" style={{ marginBottom: 16 }}>Context Window Settings</Text>
+                     <Text variant="bodySmall" color="secondary" style={{ marginBottom: 24 }}>
+                       Control how much of the model&apos;s context window is used for document content. 
+                       Documents exceeding this limit will use chunked retrieval instead.
+                     </Text>
+                     
+                     <div style={{ marginTop: 24 }}>
+                       <Text variant="bodySmall" style={{ marginBottom: 4 }}>
+                         Context Usage Ratio: {(settings.long_context_safety_ratio * 100).toFixed(0)}%
+                       </Text>
+                       <Text variant="caption" color="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                         Higher values allow more document content but leave less space for responses.
+                       </Text>
+                       <Slider
+                         value={settings.long_context_safety_ratio}
+                         onChange={(val) => setSettings(prev => ({ ...prev, long_context_safety_ratio: val }))}
+                         onCommit={(val) => saveSetting('long_context_safety_ratio', val)}
+                         min={0.3}
+                         max={0.9}
+                         step={0.05}
+                       />
+                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                         <Text variant="caption" color="secondary">
+                           Conservative (more response space)
+                         </Text>
+                         <Text variant="caption" color="secondary">
+                           Aggressive (more document content)
+                         </Text>
+                       </div>
+                     </div>
+
+                     {/* Fast Upload Mode Switch */}
+                     <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid ${colors.border.default}` }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                         <div>
+                           <Text fontWeight="600">Fast Upload Mode</Text>
+                           <Text variant="caption" color="secondary" style={{ display: 'block', marginTop: 4 }}>
+                             Skip summary generation and embeddings to speed up document processing. 
+                             Documents will be ready for querying immediately after upload.
+                           </Text>
+                         </div>
+                         <Switch
+                           checked={settings.fast_upload_mode}
+                           onChange={(checked) => {
+                             setSettings(prev => ({ ...prev, fast_upload_mode: checked }));
+                             saveSetting('fast_upload_mode', checked);
+                           }}
+                         />
+                       </div>
+                     </div>
+                   </Surface>
+                 )}
+               </div>
+             )}
+
+             {/* Advanced Section */}
+             {activeTab === 'advanced' && (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                      <div style={{ padding: 8, borderRadius: 8, backgroundColor: colors.neutral[100], color: colors.neutral[700] }}>
+                        <TuneIcon size={24} />
+                      </div>
+                      <div>
+                        <Text variant="h6" fontWeight="700">Advanced Settings</Text>
+                        <Text variant="bodySmall" color="secondary">Fine-tune your experience</Text>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                              <Text fontWeight="600">Intent Classification</Text>
+                              <Text variant="caption" color="secondary">Smartly determine if query needs RAG or not</Text>
+                          </div>
+                          <Switch 
+                              checked={settings.intent_classification_enabled}
+                              onChange={(checked) => {
+                                  setSettings(prev => ({ ...prev, intent_classification_enabled: checked }));
+                                  saveSetting('intent_classification_enabled', checked);
+                              }}
+                          />
+                       </div>
+                    </div>
+                  </Surface>
+
+                  <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                    <Text variant="h6" fontWeight="700" style={{ marginBottom: 16 }}>Citation Format</Text>
+                    <div style={{ width: '100%' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                        {getOptions('citation_format').map((opt) => (
                           <StrategyCard 
                             key={opt.value}
                             option={opt}
-                            selected={settings.llm_model === opt.value}
-                            onClick={() => handleSelection('llm_model', opt.value)}
+                            selected={settings.citation_format === opt.value}
+                            onClick={() => handleSelection('citation_format', opt.value)}
                           />
                         ))}
-                      </Box>
-                    </FormControl>
-                  </Box>
-                </Paper>
-              </Box>
-            )}
+                      </div>
+                    </div>
+                  </Surface>
+               </div>
+             )}
 
-            {/* RAG Strategy Section */}
-            {activeTab === 'rag' && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {/* RAG Mode */}
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'info.50', color: 'info.main' }}>
-                      <StorageMui sx={{ fontSize: 24 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" fontWeight="700">RAG Mode</Typography>
-                      <Typography variant="body2" color="text.secondary">How documents are processed for answering questions</Typography>
-                    </Box>
-                  </Box>
+             {/* Profile Section */}
+             {activeTab === 'profile' && (
+               <Surface elevation={0} style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border.default}` }}>
+                 <Text variant="h6" fontWeight="700" style={{ marginBottom: 24 }}>Personal Information</Text>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                   <TextField label="Display Name" defaultValue={MOCK_USER.name} fullWidth />
+                   <TextField label="Email Address" defaultValue={MOCK_USER.email} disabled fullWidth />
+                   <div>
+                     <Button style={{ backgroundColor: '#000', color: '#fff' }}>
+                       Save Changes
+                     </Button>
+                   </div>
+                 </div>
+               </Surface>
+             )}
 
-                  <FormControl fullWidth>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
-                      {getOptions('rag_mode').map((opt) => (
-                        <StrategyCard 
-                          key={opt.value}
-                          option={opt}
-                          selected={settings.rag_mode === opt.value}
-                          onClick={() => handleSelection('rag_mode', opt.value)}
-                        />
-                      ))}
-                    </Box>
-                  </FormControl>
-                </Paper>
+             {activeTab === 'appearance' && (
+               <Surface elevation={0} style={{ padding: 32, borderRadius: 16, border: `1px dashed ${colors.border.default}`, textAlign: 'center' }}>
+                 <Text color="secondary">Appearance settings coming soon.</Text>
+               </Surface>
+             )}
+          </div>
+        </div>
+      </div>
 
-                {/* Document Processing Mode */}
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'success.50', color: 'success.main' }}>
-                      <DescriptionMui sx={{ fontSize: 24 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" fontWeight="700">Document Processing</Typography>
-                      <Typography variant="body2" color="text.secondary">How documents are parsed and text is extracted</Typography>
-                    </Box>
-                  </Box>
-
-                  <FormControl fullWidth>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
-                      {getOptions('document_processing_mode').map((opt) => (
-                        <StrategyCard 
-                          key={opt.value}
-                          option={opt}
-                          selected={settings.document_processing_mode === opt.value}
-                          onClick={() => handleSelection('document_processing_mode', opt.value)}
-                        />
-                      ))}
-                    </Box>
-                  </FormControl>
-                </Paper>
-
-                {/* Retrieval Strategy - Only show for Traditional (chunk-based) mode */}
-                {settings.rag_mode === 'traditional' && (
-                  <>
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                        <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'warning.50', color: 'warning.main' }}>
-                          <SearchIcon size="lg" />
-                        </Box>
-                        <Box>
-                          <Typography variant="h6" fontWeight="700">Retrieval Strategy</Typography>
-                          <Typography variant="body2" color="text.secondary">How relevant content is found in your documents</Typography>
-                        </Box>
-                      </Box>
-
-                      <FormControl fullWidth>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
-                          {getOptions('retrieval_strategy').map((opt) => (
-                            <StrategyCard 
-                              key={opt.value}
-                              option={opt}
-                              selected={settings.retrieval_strategy === opt.value}
-                              onClick={() => handleSelection('retrieval_strategy', opt.value)}
-                            />
-                          ))}
-                        </Box>
-                      </FormControl>
-                    </Paper>
-
-                    {/* Retrieval Parameters */}
-                    <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="h6" fontWeight="700" gutterBottom>Retrieval Parameters</Typography>
-                      
-                      <Box sx={{ mt: 3 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                          Top-K Documents: {settings.retrieval_top_k}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                          Number of document chunks to retrieve for each query
-                        </Typography>
-                        <Slider
-                          value={settings.retrieval_top_k}
-                          onChange={handleChange('retrieval_top_k')}
-                          onChangeCommitted={(_, value) => saveSetting('retrieval_top_k', value)}
-                          min={1}
-                          max={20}
-                          marks={[
-                            { value: 1, label: '1' },
-                            { value: 5, label: '5' },
-                            { value: 10, label: '10' },
-                            { value: 20, label: '20' },
-                          ]}
-                          valueLabelDisplay="auto"
-                        />
-                      </Box>
-
-                      <Box sx={{ mt: 4 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                          Min Similarity: {(settings.retrieval_min_similarity * 100).toFixed(0)}%
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                          Minimum similarity threshold for retrieved documents
-                        </Typography>
-                        <Slider
-                          value={settings.retrieval_min_similarity}
-                          onChange={handleChange('retrieval_min_similarity')}
-                          onChangeCommitted={(_, value) => saveSetting('retrieval_min_similarity', value)}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          marks={[
-                            { value: 0, label: '0%' },
-                            { value: 0.5, label: '50%' },
-                            { value: 1, label: '100%' },
-                          ]}
-                          valueLabelDisplay="auto"
-                          valueLabelFormat={(v) => `${(v * 100).toFixed(0)}%`}
-                        />
-                      </Box>
-                    </Paper>
-                  </>
-                )}
-
-                {/* Long Context Mode Settings */}
-                {settings.rag_mode === 'long_context' && (
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="h6" fontWeight="700" gutterBottom>Context Window Settings</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      Control how much of the model&apos;s context window is used for document content. 
-                      Documents exceeding this limit will use chunked retrieval instead.
-                    </Typography>
-                    
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Context Usage Ratio: {(settings.long_context_safety_ratio * 100).toFixed(0)}%
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                        Higher values allow more document content but leave less space for responses.
-                      </Typography>
-                      <Slider
-                        value={settings.long_context_safety_ratio}
-                        onChange={handleChange('long_context_safety_ratio')}
-                        onChangeCommitted={(_, value) => saveSetting('long_context_safety_ratio', value)}
-                        min={0.3}
-                        max={0.9}
-                        step={0.05}
-                        marks={[
-                          { value: 0.4, label: '40%' },
-                          { value: 0.55, label: '55%' },
-                          { value: 0.7, label: '70%' },
-                          { value: 0.85, label: '85%' },
-                        ]}
-                        valueLabelDisplay="auto"
-                        valueLabelFormat={(v) => `${(v * 100).toFixed(0)}%`}
-                      />
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          Conservative (more response space)
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Aggressive (more document content)
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    {/* Fast Upload Mode Switch */}
-                    <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={settings.fast_upload_mode}
-                            onChange={(e) => {
-                              handleChange('fast_upload_mode')(e, e.target.checked);
-                              saveSetting('fast_upload_mode', e.target.checked);
-                            }}
-                            color="primary"
-                          />
-                        }
-                        label={
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight="600">
-                              Fast Upload Mode
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                              Skip summary generation and embeddings to speed up document processing. 
-                              Documents will be ready for querying immediately after upload.
-                            </Typography>
-                          </Box>
-                        }
-                        sx={{ alignItems: 'flex-start' }}
-                      />
-                    </Box>
-                  </Paper>
-                )}
-              </Box>
-            )}
-
-            {/* Advanced Section */}
-            {activeTab === 'advanced' && (
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="h6" fontWeight="700" gutterBottom>Advanced Settings</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Fine-tune the behavior of your research assistant
-                </Typography>
-
-                <FormControl fullWidth>
-                  <FormLabel sx={{ mb: 2, fontWeight: 600 }}>Citation Format</FormLabel>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2 }}>
-                    {getOptions('citation_format').map((opt) => (
-                      <StrategyCard 
-                        key={opt.value}
-                        option={opt}
-                        selected={settings.citation_format === opt.value}
-                        onClick={() => handleSelection('citation_format', opt.value)}
-                      />
-                    ))}
-                  </Box>
-                </FormControl>
-              </Paper>
-            )}
-
-            {/* Profile Section */}
-            {activeTab === 'profile' && (
-              <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="h6" fontWeight="700" gutterBottom>Personal Information</Typography>
-                <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <TextField label="Display Name" defaultValue={MOCK_USER.name} fullWidth />
-                  <TextField label="Email Address" defaultValue={MOCK_USER.email} disabled fullWidth />
-                  <Box>
-                    <Button variant="contained" sx={{ bgcolor: 'black', '&:hover': { bgcolor: '#333' } }}>
-                      Save Changes
-                    </Button>
-                  </Box>
-                </Box>
-              </Paper>
-            )}
-
-            {/* Placeholder for appearance tab */}
-            {activeTab === 'appearance' && (
-              <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px dashed', borderColor: 'divider', textAlign: 'center' }}>
-                <Typography color="text.secondary">Appearance settings coming soon.</Typography>
-              </Paper>
-            )}
-
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Snackbar for notifications */}
-      <Snackbar
+      <NotificationToast 
         open={snackbar.open}
-        autoHideDuration={3000}
+        message={snackbar.message}
+        severity={snackbar.severity}
         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert 
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
-          severity={snackbar.severity}
-          variant="filled"
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+      />
     </GlobalLayout>
   );
 }

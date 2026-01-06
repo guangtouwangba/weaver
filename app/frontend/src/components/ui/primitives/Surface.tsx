@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Paper, PaperProps } from '@mui/material';
 import { elevation, ElevationLevel, radii, RadiusScale, spacing as spacingTokens, colors } from '../tokens';
 
 /**
  * Surface Component
  *
  * An elevated container with consistent shadows and padding.
- * Wraps MUI Paper with design system tokens.
+ * Pure CSS implementation.
  */
 
-export interface SurfaceProps extends Omit<PaperProps, 'elevation'> {
+export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
     /** Elevation level (0-6) */
     elevation?: ElevationLevel;
     /** Border radius */
@@ -31,7 +30,8 @@ export const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(
             padding,
             bordered = false,
             children,
-            sx,
+            style,
+            className,
             ...props
         },
         ref
@@ -43,23 +43,21 @@ export const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(
             : undefined;
 
         return (
-            <Paper
+            <div
                 ref={ref}
-                elevation={0}
-                sx={{
+                className={className}
+                style={{
                     boxShadow: elevation[level],
                     borderRadius: `${radii[radius]}px`,
                     padding: paddingValue ? `${paddingValue}px` : undefined,
-                    bgcolor: colors.background.paper,
-                    ...(bordered && {
-                        border: `1px solid ${colors.border.default}`,
-                    }),
-                    ...sx,
+                    backgroundColor: colors.background.paper,
+                    border: bordered ? `1px solid ${colors.border.default}` : undefined,
+                    ...style,
                 }}
                 {...props}
             >
                 {children}
-            </Paper>
+            </div>
         );
     }
 );

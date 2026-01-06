@@ -12,9 +12,8 @@
  * - Node <-> Message bidirectional linking
  */
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
-import { Chip } from '@mui/material';
-import { Stack, IconButton, Tooltip, Spinner } from '@/components/ui';
+import { useCallback, useEffect, useState, useMemo, CSSProperties } from 'react';
+import { Stack, IconButton, Tooltip, Spinner, Chip } from '@/components/ui';
 import { colors } from '@/components/ui/tokens';
 import { PsychologyIcon, RefreshIcon, LinkIcon, DashboardIcon, DeleteIcon, LocalParkingIcon } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
@@ -27,11 +26,11 @@ import {
   layoutParkingNodes,
   ParkingSection,
 } from '@/lib/layout';
-import type { SxProps, Theme } from '@mui/material';
 
 interface ThinkingPathGeneratorProps {
   onStatusChange?: (status: 'idle' | 'analyzing' | 'error') => void;
-  sx?: SxProps<Theme>;
+  style?: CSSProperties;
+  className?: string;
 }
 
 // Pending node state (for optimistic UI)
@@ -44,7 +43,8 @@ interface PendingNode {
 
 export default function ThinkingPathGenerator({
   onStatusChange,
-  sx,
+  style,
+  className,
 }: ThinkingPathGeneratorProps) {
   const {
     projectId,
@@ -424,23 +424,24 @@ export default function ThinkingPathGenerator({
       direction="row"
       align="center"
       gap={1}
-      sx={{
+      className={className}
+      style={{
         position: 'absolute',
         bottom: 16,
         right: 16,
         zIndex: 1000,
-        ...sx,
+        ...style,
       }}
     >
       {/* Connection status */}
       <Tooltip title={`WebSocket: ${connectionStatus}`}>
         <Chip
-          size="small"
+          size="sm"
           icon={<PsychologyIcon size={14} />}
           label={isAnalyzing ? 'Analyzing...' : 'Auto'}
           color={getStatusColor()}
           variant="outlined"
-          sx={{ opacity: 0.8 }}
+          style={{ opacity: 0.8 }}
         />
       </Tooltip>
 
@@ -452,7 +453,7 @@ export default function ThinkingPathGenerator({
       {/* Pending nodes count */}
       {pendingNodes.size > 0 && (
         <Chip
-          size="small"
+          size="sm"
           label={`${pendingNodes.size} pending`}
           color="warning"
           variant="outlined"
@@ -463,12 +464,12 @@ export default function ThinkingPathGenerator({
       {parkedNodeIds.length > 0 && (
         <Tooltip title={`${parkedNodeIds.length} node(s) in Parking`}>
           <Chip
-            size="small"
+            size="sm"
             icon={<LocalParkingIcon size={12} />}
             label={`${parkedNodeIds.length} parked`}
             color="default"
             variant="outlined"
-            sx={{ opacity: 0.8 }}
+            style={{ opacity: 0.8 }}
           />
         </Tooltip>
       )}
@@ -538,7 +539,7 @@ export default function ThinkingPathGenerator({
               }
             }
           }}
-          sx={{ color: colors.error[500] }}
+          style={{ color: colors.error[500] }}
         >
           <DeleteIcon size="sm" />
         </IconButton>

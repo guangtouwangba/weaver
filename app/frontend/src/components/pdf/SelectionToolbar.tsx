@@ -1,8 +1,9 @@
 'use client';
 
-import { Box, Paper, IconButton, Tooltip } from '@mui/material';
 import { ContentCopyIcon, CloseIcon, DescriptionIcon } from '@/components/ui/icons';
 import { HighlightColor } from './types';
+import { IconButton, Tooltip, Surface } from '@/components/ui/primitives';
+import { colors } from '@/components/ui/tokens';
 
 interface SelectionToolbarProps {
   position: { x: number; y: number };
@@ -29,134 +30,93 @@ export function SelectionToolbar({
   onClose,
 }: SelectionToolbarProps) {
   return (
-    <Paper
-      elevation={0}
-      sx={{
+    <Surface
+      elevation={0} // Using custom shadow via style
+      style={{
         position: 'fixed',
         left: `${position.x}px`,
-        top: `${position.y - 56}px`, // 显示在选中区域上方
+        top: `${position.y - 56}px`,
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
-        gap: 0.5,
-        p: 0.75,
-        borderRadius: 3,
-        bgcolor: '#FFFFFF',
+        gap: 4,
+        padding: 6,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
         boxShadow: '0 2px 8px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.08)',
-        border: '1px solid',
-        borderColor: '#E5E7EB',
-        transform: 'translateX(-50%)', // 居中显示
+        border: `1px solid ${colors.border.default}`,
+        transform: 'translateX(-50%)',
         backdropFilter: 'blur(8px)',
       }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* 颜色选择按钮 */}
       {colorOptions.map((option) => (
-        <Tooltip key={option.color} title={option.label} placement="top" arrow>
-          <IconButton
-            size="small"
+        <Tooltip key={option.color} content={option.label}>
+          <button
             onClick={() => onColorSelect(option.color)}
-            sx={{
+            style={{
               width: 28,
               height: 28,
               minWidth: 28,
-              bgcolor: option.bgColor,
-              border: '1.5px solid',
-              borderColor: 'transparent',
-              borderRadius: 1.5,
+              backgroundColor: option.bgColor,
+              border: '1.5px solid transparent',
+              borderRadius: 6,
+              cursor: 'pointer',
               transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-              '&:hover': {
-                bgcolor: option.hoverColor,
-                borderColor: '#171717',
-                transform: 'scale(1.08)',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              },
-              '&:active': {
-                transform: 'scale(0.95)',
-              },
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = option.hoverColor;
+              e.currentTarget.style.transform = 'scale(1.08)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = option.bgColor;
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
             }}
           />
         </Tooltip>
       ))}
 
       {/* 分隔线 */}
-      <Box
-        sx={{
-          width: 1,
-          height: 20,
-          bgcolor: '#E5E7EB',
-          mx: 0.5,
-        }}
-      />
+      <div style={{ width: 1, height: 20, backgroundColor: colors.border.default, margin: '0 4px' }} />
 
       {/* 添加批注按钮 */}
-      <Tooltip title="添加批注" placement="top" arrow>
+      <Tooltip content="添加批注">
         <IconButton
-          size="small"
+          size="sm"
+          variant="ghost"
           onClick={onAddNote}
-          sx={{
-            width: 28,
-            height: 28,
-            minWidth: 28,
-            color: 'text.secondary',
-            borderRadius: 1.5,
-            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              bgcolor: '#F3F4F6',
-              color: 'text.primary',
-              transform: 'scale(1.05)',
-            },
-          }}
+          style={{ width: 28, height: 28, minWidth: 28 }}
         >
           <DescriptionIcon size={14} />
         </IconButton>
       </Tooltip>
 
       {/* 复制按钮 */}
-      <Tooltip title="复制" placement="top" arrow>
+      <Tooltip content="复制">
         <IconButton
-          size="small"
+          size="sm"
+          variant="ghost"
           onClick={onCopy}
-          sx={{
-            width: 28,
-            height: 28,
-            minWidth: 28,
-            color: 'text.secondary',
-            borderRadius: 1.5,
-            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              bgcolor: '#F3F4F6',
-              color: 'text.primary',
-              transform: 'scale(1.05)',
-            },
-          }}
+          style={{ width: 28, height: 28, minWidth: 28 }}
         >
           <ContentCopyIcon size={14} />
         </IconButton>
       </Tooltip>
 
       {/* 关闭按钮 */}
-      <Tooltip title="关闭" placement="top" arrow>
+      <Tooltip content="关闭">
         <IconButton
-          size="small"
+          size="sm"
+          variant="ghost"
           onClick={onClose}
-          sx={{
-            width: 28,
-            height: 28,
-            minWidth: 28,
-            color: 'text.secondary',
-            borderRadius: 1.5,
-            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              bgcolor: '#F3F4F6',
-              color: 'text.primary',
-              transform: 'scale(1.05)',
-            },
-          }}
+          style={{ width: 28, height: 28, minWidth: 28 }}
         >
           <CloseIcon size={14} />
         </IconButton>
       </Tooltip>
-    </Paper>
+    </Surface>
   );
 }

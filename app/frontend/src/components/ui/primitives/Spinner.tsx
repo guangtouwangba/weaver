@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import { CircularProgress, CircularProgressProps } from '@mui/material';
 import { colors } from '../tokens';
 
 /**
  * Spinner Component
  *
  * Loading indicator with consistent styling.
- * Wraps MUI CircularProgress.
+ * Pure CSS implementation.
  */
 
-export interface SpinnerProps extends Omit<CircularProgressProps, 'size' | 'color'> {
+export interface SpinnerProps extends React.HTMLAttributes<HTMLSpanElement> {
     /** Spinner size */
     size?: 'xs' | 'sm' | 'md' | 'lg' | number;
     /** Spinner color */
@@ -28,24 +27,39 @@ const sizeMap = {
 const colorMap = {
     primary: colors.primary[500],
     secondary: colors.neutral[500],
-    inherit: 'inherit',
+    inherit: 'currentColor',
 };
 
 export const Spinner = React.forwardRef<HTMLSpanElement, SpinnerProps>(
-    function Spinner({ size = 'md', color = 'primary', sx, ...props }, ref) {
+    function Spinner({ size = 'md', color = 'primary', style, className, ...props }, ref) {
         const sizeValue = typeof size === 'number' ? size : sizeMap[size];
         const colorValue = colorMap[color];
 
         return (
-            <CircularProgress
+            <span
                 ref={ref}
-                size={sizeValue}
-                sx={{
-                    color: colorValue,
-                    ...sx,
+                className={className}
+                style={{
+                    display: 'inline-block',
+                    width: sizeValue,
+                    height: sizeValue,
+                    border: `2px solid ${colorValue === 'currentColor' ? 'currentColor' : colors.neutral[200]}`,
+                    borderTopColor: colorValue === 'currentColor' ? 'transparent' : colorValue,
+                    borderRadius: '50%',
+                    animation: 'spin 0.75s linear infinite',
+                    ...style,
                 }}
                 {...props}
-            />
+            >
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `
+                }} />
+            </span>
         );
     }
 );

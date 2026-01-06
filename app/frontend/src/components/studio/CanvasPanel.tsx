@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Chip } from "@mui/material";
+import { Chip } from "@/components/ui/primitives";
 import {
   Stack,
   Surface,
@@ -147,7 +147,9 @@ export default function CanvasPanel() {
               color: 'white',
               tags: ['#pdf'],
               sourceId: data.sourceId,
-              sourcePage: data.pageNumber
+              sourcePage: data.pageNumber,
+              viewType: 'free',
+              subType: 'source'
             });
             return;
           }
@@ -165,7 +167,9 @@ export default function CanvasPanel() {
               color: 'white',
               tags: data.tags || ['#citation'],
               sourceId: data.sourceId,
-              sourcePage: data.pageNumber
+              sourcePage: data.pageNumber,
+              viewType: 'free',
+              subType: 'source'
             });
             return;
           }
@@ -187,7 +191,9 @@ export default function CanvasPanel() {
           width: 280,
           height: 200,
           color: 'white',
-          tags: []
+          tags: [],
+          viewType: 'free',
+          subType: 'note'
         });
       }
     }
@@ -196,7 +202,7 @@ export default function CanvasPanel() {
   return (
     <Stack
       direction="column"
-      sx={{
+      style={{
         flexGrow: 1,
         overflow: 'hidden',
         position: 'relative',
@@ -207,23 +213,24 @@ export default function CanvasPanel() {
         direction="row"
         align="center"
         justify="between"
-        sx={{
+        style={{
           height: 48,
           borderBottom: `1px solid ${colors.border.default}`,
-          px: 3,
-          bgcolor: colors.background.subtle,
+          paddingLeft: 24,
+          paddingRight: 24,
+          backgroundColor: colors.background.subtle,
           flexShrink: 0,
         }}
       >
         <Stack direction="row" align="center" gap={1}>
-          <DashboardIcon size={14} sx={{ color: colors.neutral[500] }} />
+          <DashboardIcon size={14} style={{ color: colors.neutral[500] }} />
           <Text variant="label">Canvas</Text>
           {isGenerating && (
             <Chip
-              size="small"
+              size="sm"
               icon={<Spinner size="xs" color="primary" />}
               label="Generating..."
-              sx={{ ml: 2, height: 24, fontSize: '0.75rem' }}
+              style={{ marginLeft: 16, height: 24, fontSize: '0.75rem' }}
             />
           )}
         </Stack>
@@ -403,7 +410,8 @@ export default function CanvasPanel() {
               }}
               onMouseEnter={() => setHoveredNodeId(node.id)}
               onMouseLeave={() => setHoveredNodeId(null)}
-              sx={{
+              className="canvas-node-surface"
+              style={{
                 position: 'absolute',
                 top: node.y,
                 left: node.x,
@@ -416,7 +424,6 @@ export default function CanvasPanel() {
                     : (node.color === 'blue' ? colors.primary[500] : 'transparent')),
                 overflow: 'visible',
                 cursor: 'grab',
-                '&:hover': { boxShadow: shadows.lg }
               }}
             >
               {/* Connection Handle */}
@@ -467,12 +474,12 @@ export default function CanvasPanel() {
                   }}
                 />
                 <div style={{ padding: 16 }}>
-                  <Text variant="label" sx={{ mb: 0.5 }}>{node.title}</Text>
-                  <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.5, mb: 1.5 }}>{node.content}</Text>
+                  <Text variant="label" style={{ marginBottom: 4 }}>{node.title}</Text>
+                  <Text variant="bodySmall" color="secondary" style={{ lineHeight: 1.5, marginBottom: 12 }}>{node.content}</Text>
                   {node.tags && (
-                    <Stack direction="row" gap={0} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                    <Stack direction="row" gap={0} style={{ flexWrap: 'wrap', gap: 4 }}>
                       {node.tags.map(tag => (
-                        <Chip key={tag} label={tag} size="small" sx={{ height: 20, fontSize: 10, bgcolor: colors.neutral[100] }} />
+                        <Chip key={tag} label={tag} size="sm" style={{ height: 20, fontSize: 10, backgroundColor: colors.neutral[100] }} />
                       ))}
                     </Stack>
                   )}
@@ -483,6 +490,14 @@ export default function CanvasPanel() {
         </div>
       </div>
       <ThinkingPathGenerator />
+      <style>{`
+        .canvas-node-surface {
+          transition: box-shadow 0.2s;
+        }
+        .canvas-node-surface:hover {
+          box-shadow: ${shadows.lg};
+        }
+      `}</style>
     </Stack>
   );
 }

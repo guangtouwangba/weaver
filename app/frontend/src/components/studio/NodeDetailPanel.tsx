@@ -179,38 +179,42 @@ export default function NodeDetailPanel({
   return (
     <Stack
       direction="column"
-      sx={{
+      style={{
         position: 'absolute',
         right: 0,
         top: 0,
         bottom: 0,
         width: 400,
-        bgcolor: colors.background.paper,
+        backgroundColor: colors.background.paper,
         borderLeft: `1px solid ${colors.border.default}`,
         zIndex: 1200,
         boxShadow: shadows.xl,
         animation: 'slideInRight 0.2s ease-out',
-        '@keyframes slideInRight': {
-          from: {
-            transform: 'translateX(100%)',
-            opacity: 0,
-          },
-          to: {
-            transform: 'translateX(0)',
-            opacity: 1,
-          },
-        },
       }}
     >
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes slideInRight {
+            from {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+        `
+      }} />
       {/* Header */}
       <Stack
         direction="row"
         align="start"
         gap={2}
-        sx={{
-          p: 2,
+        style={{
+          padding: 16,
           borderBottom: `1px solid ${colors.border.default}`,
-          bgcolor: typeInfo.bgColor,
+          backgroundColor: typeInfo.bgColor,
         }}
       >
         <div
@@ -227,7 +231,7 @@ export default function NodeDetailPanel({
         <div style={{ flex: 1, minWidth: 0 }}>
           <Text
             variant="overline"
-            sx={{
+            style={{
               color: typeInfo.color,
               fontWeight: 'bold',
               letterSpacing: '0.5px',
@@ -247,9 +251,9 @@ export default function NodeDetailPanel({
           ) : (
             <Text
               variant="h6"
-              sx={{
+              style={{
                 lineHeight: 1.3,
-                mt: 0.5,
+                marginTop: 4,
                 wordBreak: 'break-word',
               }}
             >
@@ -257,7 +261,7 @@ export default function NodeDetailPanel({
             </Text>
           )}
         </div>
-        <IconButton size="sm" variant="ghost" onClick={onClose} sx={{ flexShrink: 0 }}>
+        <IconButton size="sm" variant="ghost" onClick={onClose} style={{ flexShrink: 0 }}>
           <CloseIcon size={18} />
         </IconButton>
       </Stack>
@@ -290,11 +294,11 @@ export default function NodeDetailPanel({
             <Text
               variant="caption"
               color="secondary"
-              sx={{ fontWeight: 600, mb: 1, display: 'block' }}
+              style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}
             >
               Tags
             </Text>
-            <Stack direction="row" gap={0} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+            <Stack direction="row" gap={0} style={{ flexWrap: 'wrap', gap: 4 }}>
               {node.tags.map((tag) => (
                 <Chip
                   key={tag}
@@ -314,7 +318,7 @@ export default function NodeDetailPanel({
             <Text
               variant="caption"
               color="secondary"
-              sx={{ fontWeight: 600, mb: 1, display: 'block' }}
+              style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}
             >
               Properties
             </Text>
@@ -375,7 +379,7 @@ export default function NodeDetailPanel({
             startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
-            variant="outlined"
+            variant="outline"
             style={{
               marginBottom: 16,
               justifyContent: 'flex-start',
@@ -395,7 +399,7 @@ export default function NodeDetailPanel({
             startIcon={<OpenInNewIcon size={14} />}
             fullWidth
             onClick={handleOpenSource}
-            variant="outlined"
+            variant="outline"
             style={{
               marginBottom: 16,
               justifyContent: 'flex-start',
@@ -420,9 +424,9 @@ export default function NodeDetailPanel({
               borderRadius: radii.sm,
             }}
           >
-            <Stack direction="row" align="center" gap={1} sx={{ mb: 0.5 }}>
+            <Stack direction="row" align="center" gap={1} style={{ marginBottom: 4 }}>
               <LinkIcon size={12} />
-              <Text variant="caption" sx={{ fontWeight: 600 }}>
+              <Text variant="caption" style={{ fontWeight: 600 }}>
                 Linked to {node.messageIds.length} chat message(s)
               </Text>
             </Stack>
@@ -458,7 +462,7 @@ export default function NodeDetailPanel({
               </Button>
               <Button
                 size="sm"
-                variant="destructive"
+                variant="danger"
                 startIcon={<DeleteIcon size={14} />}
                 onClick={handleDelete}
               >

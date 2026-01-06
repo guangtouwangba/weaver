@@ -60,7 +60,7 @@ export interface Highlight {
   startOffset?: number;
   endOffset?: number;
   color: HighlightColor;
-  type?: AnnotationType;
+  type?: AnnotationType | string;
   textContent?: string;
   note?: string;
   createdAt?: string;

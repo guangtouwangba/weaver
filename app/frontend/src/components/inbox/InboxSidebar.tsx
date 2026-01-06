@@ -1,4 +1,5 @@
-import { Box, Chip, Typography } from '@mui/material';
+import { Chip, Text } from '@/components/ui/primitives';
+import { colors } from '@/components/ui/tokens';
 import InboxItemCard, { InboxItem } from './InboxItemCard';
 
 interface InboxSidebarProps {
@@ -9,37 +10,31 @@ interface InboxSidebarProps {
 
 export default function InboxSidebar({ items, selectedId, onSelect }: InboxSidebarProps) {
     return (
-        <Box sx={{
+        <div style={{
             width: 400,
             height: 'calc(100vh - 64px)',
-            borderRight: '1px solid',
-            borderColor: 'divider',
+            borderRight: `1px solid ${colors.border.default}`,
             display: 'flex',
             flexDirection: 'column',
-            bgcolor: 'white'
+            backgroundColor: 'white'
         }}>
-            <Box sx={{
-                p: 3, pb: 2,
+            <div style={{
+                padding: '24px 24px 16px 24px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between'
             }}>
-                <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ letterSpacing: 1 }}>
+                <Text variant="caption" style={{ fontWeight: 700, color: colors.text.secondary, letterSpacing: 1 }}>
                     COLLECTED ITEMS
-                </Typography>
+                </Text>
                 <Chip
                     label={`${items.length} New`}
-                    size="small"
-                    sx={{
-                        bgcolor: '#EEF2FF',
-                        color: '#4F46E5',
-                        fontWeight: 600,
-                        fontSize: '11px',
-                        height: 24,
-                        borderRadius: '12px'
-                    }}
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                    style={{ fontWeight: 600 }}
                 />
-            </Box>
+            </div>
 
-            <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 3, pb: 4 }}>
+            <div style={{ flexGrow: 1, overflowY: 'auto', padding: '0 24px 32px 24px' }}>
                 {items.map(item => (
                     <InboxItemCard
                         key={item.id}
@@ -49,11 +44,11 @@ export default function InboxSidebar({ items, selectedId, onSelect }: InboxSideb
                 ))}
 
                 {items.length === 0 && (
-                    <Box sx={{ textAlign: 'center', py: 8, opacity: 0.5 }}>
-                        <Typography variant="body2">No items found</Typography>
-                    </Box>
+                    <div style={{ textAlign: 'center', padding: '64px 0', opacity: 0.5 }}>
+                        <Text variant="bodySmall">No items found</Text>
+                    </div>
                 )}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }

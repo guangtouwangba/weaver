@@ -20,8 +20,7 @@
 
 import React, { useState, useRef, useEffect, memo } from 'react';
 import { Stage, Layer } from 'react-konva';
-import { Modal, Chip } from '@mui/material';
-import { Surface, Stack, Text, IconButton, Spinner } from '@/components/ui';
+import { Surface, Stack, Text, IconButton, Spinner, Modal, Chip } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
 import { MindmapData } from '@/lib/api';
@@ -120,7 +119,7 @@ function MindMapCanvasNodeInner({
     });
     if (e.target instanceof HTMLElement) {
       // Skip if clicking on buttons (close, expand)
-      if (e.target.closest('button') || e.target.closest('.MuiIconButton-root')) {
+      if (e.target.closest('button')) {
         return;
       }
       if (e.target.closest('.drag-handle')) {
@@ -219,7 +218,7 @@ function MindMapCanvasNodeInner({
 
             {/* Title */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Text variant="label" truncate sx={{ fontSize: '0.85rem' }}>
+              <Text variant="label" truncate style={{ fontSize: '0.85rem' }}>
                 {title}
               </Text>
             </div>
@@ -248,29 +247,31 @@ function MindMapCanvasNodeInner({
         <Stack direction="row" gap={0} sx={{ px: 1.5, py: 0.75, gap: 0.5 }}>
           <Chip
             label="MINDMAP"
-            size="small"
-            sx={{
-              bgcolor: colors.success[50],
+            size="sm"
+            style={{
+              backgroundColor: colors.success[50],
               color: colors.success[600],
               fontWeight: 600,
               fontSize: '0.55rem',
               height: 16,
               borderRadius: 0.5,
-              '& .MuiChip-label': { px: 0.75 },
+              paddingLeft: 4,
+              paddingRight: 4,
             }}
           />
           {nodeCount > 0 && (
             <Chip
               label={`${nodeCount} NODES`}
-              size="small"
-              sx={{
-                bgcolor: colors.neutral[100],
+              size="sm"
+              style={{
+                backgroundColor: colors.neutral[100],
                 color: colors.neutral[500],
                 fontWeight: 600,
                 fontSize: '0.55rem',
                 height: 16,
                 borderRadius: 0.5,
-                '& .MuiChip-label': { px: 0.75 },
+                paddingLeft: 4,
+                paddingRight: 4,
               }}
             />
           )}
@@ -314,7 +315,7 @@ function MindMapCanvasNodeInner({
       <Modal
         open={isExpanded}
         onClose={() => setIsExpanded(false)}
-        sx={{
+        style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -370,3 +371,5 @@ const MindMapCanvasNode = memo(MindMapCanvasNodeInner, (prevProps, nextProps) =>
 MindMapCanvasNode.displayName = 'MindMapCanvasNode';
 
 export default MindMapCanvasNode;
+
+

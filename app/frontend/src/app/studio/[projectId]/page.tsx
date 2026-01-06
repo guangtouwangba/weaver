@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
-  Box,
-  Typography,
-} from "@mui/material";
+  Text,
+} from "@/components/ui";
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { useStudio, StudioProvider } from "@/contexts/StudioContext";
 import ResourceSidebar from "@/components/studio/ResourceSidebar";
@@ -24,9 +23,9 @@ export default function StudioPage() {
   if (!projectId) {
     return (
       <GlobalLayout>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-          <Typography>Loading project...</Typography>
-        </Box>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <Text>Loading project...</Text>
+        </div>
       </GlobalLayout>
     );
   }
@@ -94,7 +93,7 @@ function StudioPageContent() {
 
   return (
     <GlobalLayout>
-      <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
 
         {/* Left: Resource Sidebar */}
         <ResourceSidebar
@@ -104,12 +103,10 @@ function StudioPageContent() {
         />
 
         {/* Main: Canvas Workspace */}
-        <Box sx={{ flexGrow: 1, position: 'relative', display: 'flex', flexDirection: 'column', bgcolor: '#F9FAFB' }}>
+        <div style={{ flexGrow: 1, position: 'relative', display: 'flex', flexDirection: 'column', backgroundColor: '#F9FAFB' }}>
 
           {/* Whiteboard Area */}
-
-          {/* Whiteboard Area */}
-          <Box sx={{ flexGrow: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flexGrow: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <KonvaCanvas
               nodes={canvasNodes}
               edges={canvasEdges}
@@ -146,20 +143,19 @@ function StudioPageContent() {
               width={400}
               onToggle={() => setIsChatOpen(!isChatOpen)}
             />
-          </Box>
-        </Box>
-      </Box >
+          </div>
+        </div>
+      </div>
 
       {/* Import Dialog */}
-      < ImportSourceDialog
+      <ImportSourceDialog
         open={isImportDialogOpen}
-        onClose={() => setIsImportDialogOpen(false)
-        }
+        onClose={() => setIsImportDialogOpen(false)}
         onFileSelect={handleFileSelect}
         onUrlImport={handleUrlImport}
       />
 
       <PDFPreviewModal />
-    </GlobalLayout >
+    </GlobalLayout>
   );
 }

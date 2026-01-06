@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box } from '@mui/material';
+import { colors } from '@/components/ui/tokens';
 
 interface ColumnContainerProps {
   children: React.ReactNode;
@@ -11,29 +11,27 @@ interface ColumnContainerProps {
   borderRight?: boolean;
 }
 
-export default function ColumnContainer({ 
-  children, 
-  flex, 
+export default function ColumnContainer({
+  children,
+  flex,
   width,
   borderLeft = false,
   borderRight = false
 }: ColumnContainerProps) {
   return (
-    <Box sx={{ 
-      flex: flex, 
+    <div style={{
+      flex: flex,
       width: width,
       flexShrink: width ? 0 : 1,
-      height: '100%', 
-      display: 'flex', 
+      height: '100%',
+      display: 'flex',
       flexDirection: 'column',
-      borderLeft: borderLeft ? '1px solid' : 'none',
-      borderRight: borderRight ? '1px solid' : 'none',
-      borderColor: 'divider',
+      borderLeft: borderLeft ? `1px solid ${colors.border.default}` : 'none',
+      borderRight: borderRight ? `1px solid ${colors.border.default}` : 'none',
       overflow: 'hidden',
-      bgcolor: 'background.paper'
+      backgroundColor: colors.background.paper
     }}>
       {children}
-    </Box>
+    </div>
   );
 }
-

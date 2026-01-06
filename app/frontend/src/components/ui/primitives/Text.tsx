@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Typography, TypographyProps } from '@mui/material';
 import { textVariants, TextVariant, colors } from '../tokens';
 
 /**
  * Text Component
  *
  * Semantic text with consistent typography and colors.
- * Wraps MUI Typography with design system tokens.
+ * Pure CSS implementation.
  */
 
-export interface TextProps extends Omit<TypographyProps, 'variant' | 'color'> {
+export interface TextProps extends React.HTMLAttributes<HTMLElement> {
     /** Typography variant */
     variant?: TextVariant;
     /** Text color using semantic names */
@@ -21,6 +20,8 @@ export interface TextProps extends Omit<TypographyProps, 'variant' | 'color'> {
     /** Max number of lines before truncating */
     lineClamp?: number;
     children?: React.ReactNode;
+    component?: React.ElementType;
+    fontWeight?: number | string;
 }
 
 const colorMap: Record<NonNullable<TextProps['color']>, string> = {
@@ -35,7 +36,7 @@ const colorMap: Record<NonNullable<TextProps['color']>, string> = {
     inherit: 'inherit',
 };
 
-const variantToComponent: Record<TextVariant, 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span'> = {
+const variantToComponent: Record<TextVariant, React.ElementType> = {
     h1: 'h1',
     h2: 'h2',
     h3: 'h3',
@@ -58,22 +59,27 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(
             truncate = false,
             lineClamp,
             children,
-            sx,
+            className,
+            style,
+            component,
+            fontWeight,
             ...props
         },
         ref
     ) {
         const variantStyle = textVariants[variant];
         const colorValue = colorMap[color];
+        const Component = component || variantToComponent[variant] || 'p';
 
         return (
-            <Typography
+            <Component
                 ref={ref}
-                component={variantToComponent[variant]}
-                sx={{
+                className={className}
+                style={{
+                    margin: 0,
                     fontFamily: variantStyle.fontFamily,
                     fontSize: variantStyle.fontSize,
-                    fontWeight: variantStyle.fontWeight,
+                    fontWeight: fontWeight || variantStyle.fontWeight,
                     lineHeight: variantStyle.lineHeight,
                     letterSpacing: 'letterSpacing' in variantStyle ? variantStyle.letterSpacing : undefined,
                     textTransform: 'textTransform' in variantStyle ? variantStyle.textTransform : undefined,
@@ -89,12 +95,12 @@ export const Text = React.forwardRef<HTMLElement, TextProps>(
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
                     }),
-                    ...sx,
+                    ...style,
                 }}
                 {...props}
             >
                 {children}
-            </Typography>
+            </Component>
         );
     }
 );

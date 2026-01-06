@@ -47,12 +47,21 @@ export type { SkeletonProps } from './Skeleton';
 export { Chip } from './Chip';
 export type { ChipProps } from './Chip';
 
+export { Avatar } from './Avatar';
+export type { AvatarProps } from './Avatar';
+
 // Form Controls
 export { Radio } from './Radio';
 export type { RadioProps } from './Radio';
 
 export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
+
+export { Switch } from './Switch';
+export type { SwitchProps } from './Switch';
+
+export { Slider } from './Slider';
+export type { SliderProps } from './Slider';
 
 // Overlays
 export { Modal } from './Modal';

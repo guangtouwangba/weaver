@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import GlobalLayout from '@/components/layout/GlobalLayout';
-import { Box, Typography, Button, CircularProgress, Paper, Avatar, Divider, TextField } from '@mui/material';
+import { Stack, Text, Button, Spinner, Surface } from '@/components/ui/primitives';
+import { colors } from '@/components/ui/tokens';
+import { TextField } from '@/components/ui/composites';
 import { FolderOpenIcon, AddIcon, DashboardIcon, ArrowForwardIcon } from '@/components/ui/icons';
 import { projectsApi, Project } from '@/lib/api';
+
 
 export default function StudioIndexPage() {
   const router = useRouter();
@@ -75,45 +78,21 @@ export default function StudioIndexPage() {
     setCreateDialogOpen(false);
   };
 
-  // Custom input style for a cleaner look
-  const inputSx = {
-    '& .MuiOutlinedInput-root': {
-      borderRadius: 2.5,
-      bgcolor: '#F9FAFB',
-      fontSize: '0.9rem',
-      '& fieldset': {
-        borderColor: '#E5E7EB',
-      },
-      '&:hover fieldset': {
-        borderColor: '#D1D5DB',
-      },
-      '&.Mui-focused fieldset': {
-        borderColor: 'primary.main',
-        borderWidth: 1,
-      },
-    },
-    '& .MuiInputLabel-root': {
-      color: '#6B7280',
-      fontWeight: 500,
-      fontSize: '0.85rem',
-    },
-  };
-
   if (loading) {
     return (
       <GlobalLayout>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          height: '100vh',
-          flexDirection: 'column',
-          gap: 2,
-          bgcolor: '#FAFAFA'
-        }}>
-          <CircularProgress size={32} sx={{ color: 'text.secondary' }} />
-          <Typography variant="body2" color="text.secondary">Loading workspace...</Typography>
-        </Box>
+        <Stack 
+          align="center" 
+          justify="center" 
+          sx={{ 
+            height: '100vh',
+            gap: 2,
+            bgcolor: '#FAFAFA'
+          }}
+        >
+          <Spinner size={32} color="secondary" />
+          <Text variant="bodySmall" color="secondary">Loading workspace...</Text>
+        </Stack>
       </GlobalLayout>
     );
   }
@@ -121,20 +100,20 @@ export default function StudioIndexPage() {
   if (error) {
     return (
       <GlobalLayout>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          height: '100vh',
-          flexDirection: 'column',
-          gap: 2,
-          bgcolor: '#FAFAFA'
-        }}>
-          <Typography color="error">{error}</Typography>
-          <Button variant="contained" onClick={() => router.push('/dashboard')}>
+        <Stack 
+          align="center" 
+          justify="center" 
+          sx={{ 
+            height: '100vh',
+            gap: 2,
+            bgcolor: '#FAFAFA'
+          }}
+        >
+          <Text color="error">{error}</Text>
+          <Button variant="primary" onClick={() => router.push('/dashboard')}>
             Go to Dashboard
           </Button>
-        </Box>
+        </Stack>
       </GlobalLayout>
     );
   }
@@ -142,15 +121,16 @@ export default function StudioIndexPage() {
   // No projects or multiple projects - show selection
   return (
     <GlobalLayout>
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        minHeight: '100vh',
-        p: 4,
-        bgcolor: '#F3F4F6'
-      }}>
-        <Paper 
+      <Stack 
+        align="center" 
+        justify="center" 
+        sx={{ 
+          minHeight: '100vh',
+          p: 4,
+          bgcolor: '#F3F4F6'
+        }}
+      >
+        <Surface 
           elevation={0}
           sx={{ 
             p: 0, 
@@ -164,35 +144,47 @@ export default function StudioIndexPage() {
           }}
         >
           {/* Header */}
-          <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'white' }}>
-            <Avatar sx={{ width: 56, height: 56, bgcolor: '#EFF6FF', color: 'primary.main', mx: 'auto', mb: 2 }}>
+          <Stack sx={{ p: 4, textAlign: 'center', bgcolor: 'white' }}>
+            <Stack 
+              align="center"
+              justify="center"
+              sx={{ 
+                width: 56, 
+                height: 56, 
+                bgcolor: '#EFF6FF', 
+                color: 'primary.main', 
+                mx: 'auto', 
+                mb: 2,
+                borderRadius: '50%'
+              }}
+            >
               <DashboardIcon size={28} />
-            </Avatar>
-            <Typography variant="h5" fontWeight="700" gutterBottom color="text.primary">
+            </Stack>
+            <Text variant="h5" fontWeight="700" gutterBottom color="primary">
               Welcome to Studio
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
+            </Text>
+            <Text variant="bodySmall" color="secondary">
               {projects.length > 0 
                 ? "Select a project to continue your research"
                 : "Your intelligent research workspace awaits"
               }
-            </Typography>
-          </Box>
+            </Text>
+          </Stack>
 
-          <Divider />
+          <Stack sx={{ borderBottom: 1, borderColor: 'divider' }} />
 
           {/* Content */}
-          <Box sx={{ p: 2, bgcolor: '#FAFAFA', minHeight: 200, display: 'flex', flexDirection: 'column', justifyContent: projects.length > 0 ? 'flex-start' : 'center' }}>
+          <Stack sx={{ p: 2, bgcolor: '#FAFAFA', minHeight: 200, justifyContent: projects.length > 0 ? 'flex-start' : 'center' }}>
             
             {projects.length > 0 ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography variant="caption" fontWeight="600" color="text.secondary" sx={{ px: 2, mb: 1, display: 'block' }}>
+              <Stack gap={1}>
+                <Text variant="caption" fontWeight="600" color="secondary" sx={{ px: 2, mb: 1, display: 'block' }}>
                   RECENT PROJECTS
-                </Typography>
+                </Text>
                 {projects.map((project) => (
                   <Button
                     key={project.id}
-                    variant="text"
+                    variant="ghost"
                     fullWidth
                     onClick={() => {
                       localStorage.setItem('lastProjectId', project.id);
@@ -215,32 +207,32 @@ export default function StudioIndexPage() {
                       }
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <FolderOpenIcon size={18} sx={{ color: 'primary.main' }} />
-                      <Typography variant="body2" fontWeight="500">{project.name}</Typography>
-                    </Box>
-                    <ArrowForwardIcon size={16} sx={{ color: 'grey.400' }} />
+                    <Stack direction="row" align="center" gap={1.5}>
+                      <FolderOpenIcon size={18} color="primary" />
+                      <Text variant="bodySmall" fontWeight="500">{project.name}</Text>
+                    </Stack>
+                    <ArrowForwardIcon size={16} style={{ color: colors.neutral[400] }} />
                   </Button>
                 ))}
-              </Box>
+              </Stack>
             ) : (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 280, mx: 'auto' }}>
+              <Stack sx={{ textAlign: 'center', py: 4 }}>
+                <Text variant="bodySmall" color="secondary" sx={{ mb: 3, maxWidth: 280, mx: 'auto' }}>
                   Create a project to start weaving documents into actionable insights.
-                </Typography>
-              </Box>
+                </Text>
+              </Stack>
             )}
-          </Box>
+          </Stack>
 
-          <Divider />
+          <Stack sx={{ borderBottom: 1, borderColor: 'divider' }} />
 
           {/* Footer */}
-          <Box sx={{ p: 2, bgcolor: 'white' }}>
+          <Stack sx={{ p: 2, bgcolor: 'white' }}>
             <Button
-              variant="contained"
+              variant="primary"
               fullWidth
-              size="large"
-              startIcon={<AddIcon size="md" />}
+              size="lg"
+              icon={<AddIcon size="md" />}
               onClick={() => setCreateDialogOpen(true)}
               sx={{ 
                 textTransform: 'none', 
@@ -256,12 +248,14 @@ export default function StudioIndexPage() {
             >
               Create New Project
             </Button>
-          </Box>
-        </Paper>
+          </Stack>
+        </Surface>
 
-        {/* Inline Modal - uses same layout as background card for perfect alignment */}
+        {/* Inline Modal */}
         {createDialogOpen && (
-          <Box
+          <Stack
+            align="center"
+            justify="center"
             sx={{
               position: 'fixed',
               top: 0,
@@ -270,14 +264,11 @@ export default function StudioIndexPage() {
               left: 72,  // Same as sidebar width to align with content area
               bgcolor: 'rgba(0, 0, 0, 0.5)',
               zIndex: 1300,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              p: 4,  // Same padding as the container
+              p: 4,
             }}
             onClick={handleCloseDialog}
           >
-            <Paper
+            <Surface
               elevation={0}
               onClick={(e) => e.stopPropagation()}
               sx={{
@@ -292,17 +283,16 @@ export default function StudioIndexPage() {
               }}
             >
               {/* Dialog Title */}
-              <Box sx={{ px: 3, pt: 2.5, pb: 1 }}>
-                <Typography variant="subtitle1" fontWeight="600">
+              <Stack sx={{ px: 3, pt: 2.5, pb: 1 }}>
+                <Text variant="h6" fontWeight="600">
                   Create New Project
-                </Typography>
-              </Box>
+                </Text>
+              </Stack>
               
               {/* Dialog Content */}
-              <Box sx={{ px: 3, pb: 2 }}>
+              <Stack sx={{ px: 3, pb: 2 }}>
                 <TextField
                   autoFocus
-                  margin="none"
                   label="Project Name"
                   placeholder="e.g., Quantum Computing Research"
                   fullWidth
@@ -310,13 +300,11 @@ export default function StudioIndexPage() {
                   onChange={(e) => setNewProjectName(e.target.value)}
                   disabled={creating}
                   error={!!createError}
-                  helperText={createError}
-                  sx={{ mb: 2.5, ...inputSx }}
-                  InputLabelProps={{ shrink: true }}
-                  size="small"
+                  helperText={createError || undefined}
+                  style={{ marginBottom: 20 }}
+                  size="sm"
                 />
                 <TextField
-                  margin="none"
                   label="Description"
                   placeholder="What is this project about?"
                   fullWidth
@@ -325,18 +313,17 @@ export default function StudioIndexPage() {
                   value={newProjectDescription}
                   onChange={(e) => setNewProjectDescription(e.target.value)}
                   disabled={creating}
-                  sx={inputSx}
-                  InputLabelProps={{ shrink: true }}
-                  size="small"
+                  size="sm"
                 />
-              </Box>
+              </Stack>
               
               {/* Dialog Actions */}
-              <Box sx={{ px: 3, pb: 2.5, pt: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Stack direction="row" sx={{ px: 3, pb: 2.5, pt: 1, justifyContent: 'flex-end', gap: 1 }}>
                 <Button
                   onClick={handleCloseDialog}
                   disabled={creating}
-                  size="small"
+                  size="sm"
+                  variant="ghost"
                   sx={{
                     color: 'text.secondary',
                     textTransform: 'none',
@@ -348,9 +335,9 @@ export default function StudioIndexPage() {
                 </Button>
                 <Button
                   onClick={handleCreateProject}
-                  variant="contained"
+                  variant="primary"
                   disabled={!newProjectName.trim() || creating}
-                  size="small"
+                  size="sm"
                   sx={{
                     textTransform: 'none',
                     borderRadius: 2,
@@ -364,13 +351,13 @@ export default function StudioIndexPage() {
                     },
                   }}
                 >
-                  {creating ? <CircularProgress size={16} color="inherit" /> : 'Create Project'}
+                  {creating ? <Spinner size={16} color="inherit" /> : 'Create Project'}
                 </Button>
-              </Box>
-            </Paper>
-          </Box>
+              </Stack>
+            </Surface>
+          </Stack>
         )}
-      </Box>
+      </Stack>
     </GlobalLayout>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Stack, Text } from '@/components/ui';
 import { colors, radii } from '@/components/ui/tokens';
 import { AddIcon } from '@/components/ui/icons';
@@ -22,6 +22,10 @@ export default function ImportSourceDropzone({
   onDrop,
   isDragging = false,
 }: ImportSourceDropzoneProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const isActive = isDragging || isHovered;
+
   return (
     <Stack
       direction="column"
@@ -33,19 +37,17 @@ export default function ImportSourceDropzone({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      sx={{
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
         border: '2px dashed',
-        borderColor: isDragging ? colors.primary[500] : colors.border.default,
-        borderRadius: `${radii.lg}px`,
-        p: 3,
+        borderColor: isActive ? colors.primary[500] : colors.border.default,
+        borderRadius: radii.lg,
+        padding: 24,
         cursor: 'pointer',
-        bgcolor: isDragging ? colors.primary[50] : 'transparent',
+        backgroundColor: isActive ? colors.primary[50] : 'transparent',
         transition: 'all 0.2s ease-in-out',
         minHeight: 120,
-        '&:hover': {
-          borderColor: colors.primary[500],
-          bgcolor: colors.primary[50],
-        }
       }}
     >
       <div
@@ -65,7 +67,7 @@ export default function ImportSourceDropzone({
       </div>
       <Text
         variant="bodySmall"
-        sx={{
+        style={{
           color: colors.neutral[600],
           fontWeight: 600,
         }}

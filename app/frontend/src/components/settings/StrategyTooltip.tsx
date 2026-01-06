@@ -1,7 +1,6 @@
 'use client';
 
-import { Chip } from '@mui/material';
-import { Stack, Text } from '@/components/ui';
+import { Chip, Stack, Text } from '@/components/ui/primitives';
 import { BoltIcon, AttachMoneyIcon, GpsFixedIcon } from '@/components/ui/icons';
 
 export interface StrategyOption {
@@ -48,40 +47,40 @@ const performanceLabels = {
 export default function StrategyTooltip({ option }: StrategyTooltipProps) {
   return (
     <div style={{ padding: 8, maxWidth: 280 }}>
-      <Text variant="label" sx={{ fontWeight: 700, mb: 0.5, display: 'block' }}>
+      <Text variant="label" style={{ fontWeight: 700, marginBottom: 4, display: 'block' }}>
         {option.label}
       </Text>
 
-      <Text variant="bodySmall" color="secondary" sx={{ mb: 1.5 }}>
+      <Text variant="bodySmall" color="secondary" style={{ marginBottom: 12 }}>
         {option.description}
       </Text>
 
-      <Stack direction="row" gap={1} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
+      <Stack direction="row" gap={1} style={{ marginBottom: 12, flexWrap: 'wrap' }}>
         <Chip
-          icon={<AttachMoneyIcon size={14} />}
+          icon={<AttachMoneyIcon size={14} style={{ color: costColors[option.cost] }} />}
           label={costLabels[option.cost]}
-          size="small"
-          sx={{
-            bgcolor: `${costColors[option.cost]}20`,
+          size="sm"
+          style={{
+            backgroundColor: `${costColors[option.cost]}20`,
             color: costColors[option.cost],
             fontWeight: 600,
-            '& .MuiChip-icon': { color: costColors[option.cost] },
+            border: 'none',
           }}
         />
         <Chip
-          icon={<BoltIcon size={14} />}
+          icon={<BoltIcon size={14} style={{ color: performanceColors[option.performance] }} />}
           label={performanceLabels[option.performance]}
-          size="small"
-          sx={{
-            bgcolor: `${performanceColors[option.performance]}20`,
+          size="sm"
+          style={{
+            backgroundColor: `${performanceColors[option.performance]}20`,
             color: performanceColors[option.performance],
             fontWeight: 600,
-            '& .MuiChip-icon': { color: performanceColors[option.performance] },
+            border: 'none',
           }}
         />
       </Stack>
 
-      <Stack direction="row" align="start" gap={0} sx={{ gap: 0.5 }}>
+      <Stack direction="row" align="start" gap={0} style={{ gap: 4 }}>
         <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
         <Text variant="caption" color="secondary">
           <strong>Best for:</strong> {option.best_for}

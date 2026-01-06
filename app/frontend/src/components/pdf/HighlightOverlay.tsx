@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography } from '@mui/material';
 import { DescriptionIcon } from '@/components/ui/icons';
 import { TextAnnotation, Highlight, TextSelection } from './types';
 
@@ -9,7 +8,7 @@ interface HighlightOverlayProps {
   searchHighlight?: {
     text: string;
     pageNumber: number;
-    rects: DOMRect[]; // We will assume search computes rects or we handle it
+    rects: DOMRect[];
   } | null;
   containerRef: React.RefObject<HTMLElement>;
   onHighlightClick?: (highlight: Highlight, event?: React.MouseEvent | MouseEvent) => void;
@@ -58,14 +57,7 @@ export function HighlightOverlay({
     const scrollLeft = containerRef.current.scrollLeft;
     const scrollTop = containerRef.current.scrollTop;
 
-    // The rects in TextSelection (from SelectionManager) are likely client rects (viewport relative)
-    // We need to convert them to be relative to the container *content* (including scroll) if the overlay is inside the scrollable area.
-    // However, usually the overlay is position:absolute inside a relative container.
-    // If the container scrolls, and the overlay is inside, we just need coords relative to the container's top-left.
-
-    // SelectionManager returns client rects.
     const adjustedRects = selection.rects.map(rect => {
-      // Convert client rect to offset relative to container
       return new DOMRect(
         rect.left - containerRect.left + scrollLeft,
         rect.top - containerRect.top + scrollTop,
@@ -78,28 +70,28 @@ export function HighlightOverlay({
 
 
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        pointerEvents: 'none', // Allow clicks to pass through to text layer unless hitting a pointer-events:auto element
+        pointerEvents: 'none',
         zIndex: 10,
       }}
     >
       {/* Current Selection Highlight (temporary) */}
       {highlightRects.map((rect, index) => (
-        <Box
+        <div
           key={`selection-${index}`}
-          sx={{
+          style={{
             position: 'absolute',
             left: rect.left,
             top: rect.top,
             width: rect.width,
             height: rect.height,
-            bgcolor: 'rgba(59, 130, 246, 0.3)', // Blueish for selection
+            backgroundColor: 'rgba(59, 130, 246, 0.3)', // Blueish
             borderRadius: '2px',
           }}
         />
@@ -113,13 +105,33 @@ export function HighlightOverlay({
           const isFirstRect = index === 0;
           const hasNote = highlight.note && highlight.note.trim().length > 0;
 
+          const type = (highlight as TextAnnotation).type;
+          const color = highlight.color;
+
+          let style: React.CSSProperties = {
+            position: 'absolute',
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+          };
+
+          if (type === 'underline') {
+            style.borderBottom = `2px solid ${solidColorMap[color] || solidColorMap.yellow}`;
+            style.backgroundColor = 'transparent';
+          } else if (type === 'strike') {
+            style.background = `linear-gradient(to bottom, transparent 45%, ${solidColorMap[color] || solidColorMap.yellow} 45%, ${solidColorMap[color] || solidColorMap.yellow} 55%, transparent 55%)`;
+          } else {
+            // Default Highlight
+            style.backgroundColor = colorMap[color] || colorMap.yellow;
+          }
+
           return (
-            <Box
+            <div
               key={`${highlight.id}-${index}`}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                // We need pointerEvents: auto on the highlight box to capture clicks
                 onHighlightClick?.(highlight, e.nativeEvent);
               }}
               onMouseEnter={() => {
@@ -130,47 +142,23 @@ export function HighlightOverlay({
               onMouseLeave={() => {
                 setHoveredHighlightId(null);
               }}
-              sx={{
-                position: 'absolute',
-                left: rect.left,
-                top: rect.top,
-                width: rect.width,
-                height: rect.height,
-                // Style based on annotation type
-                ...((highlight as TextAnnotation).type === 'underline' ? {
-                  borderBottom: `2px solid ${solidColorMap[highlight.color] || solidColorMap.yellow}`,
-                  backgroundColor: 'transparent !important',
-                } : (highlight as TextAnnotation).type === 'strike' ? {
-                  // Strikethrough using a pseudo-element logic or just linear-gradient to simulate line through center
-                  background: `linear-gradient(to bottom, transparent 45%, ${solidColorMap[highlight.color] || solidColorMap.yellow} 45%, ${solidColorMap[highlight.color] || solidColorMap.yellow} 55%, transparent 55%)`,
-                } : {
-                  // Default Highlight
-                  backgroundColor: colorMap[highlight.color] || colorMap.yellow,
-                  '&:hover': {
-                    backgroundColor: colorMap[highlight.color]?.replace('40', '60') || colorMap.yellow.replace('40', '60'),
-                  },
-                }),
-
-                // Common hover effect for non-fill types
-                ...((highlight as TextAnnotation).type === 'underline' || (highlight as TextAnnotation).type === 'strike' ? {
-                  '&:hover': {
-                    backgroundColor: `${colorMap[highlight.color] || colorMap.yellow} !important`, // Show light wash on hover
-                    opacity: 0.5
-                  }
-                } : {}),
+              className={type === 'highlight' ? 'hover:bg-opacity-60 cursor-pointer' : 'cursor-pointer'}
+              style={{
+                ...style,
+                pointerEvents: 'auto', // Capture clicks
               }}
             >
               {/* Note Icon */}
               {isFirstRect && hasNote && (
-                <Box
-                  sx={{
+                <div
+                  style={{
                     position: 'absolute',
                     top: -2,
                     right: -2,
                     width: 14,
                     height: 14,
                     borderRadius: '50%',
-                    bgcolor: '#FFFFFF',
+                    backgroundColor: '#FFFFFF',
                     border: '1.5px solid',
                     borderColor: colorMap[highlight.color]?.replace('40', 'FF') || '#FFEB3B',
                     display: 'flex',
@@ -182,9 +170,9 @@ export function HighlightOverlay({
                   }}
                 >
                   <DescriptionIcon size={8} style={{ color: '#6B7280' }} />
-                </Box>
+                </div>
               )}
-            </Box>
+            </div>
           );
         });
       })}
@@ -205,21 +193,19 @@ export function HighlightOverlay({
           : noteText;
 
         return (
-          <Paper
+          <div
             key={`note-${highlight.id}`}
-            elevation={0}
             onMouseEnter={() => setHoveredHighlightId(highlight.id)}
             onMouseLeave={() => setHoveredHighlightId(null)}
-            sx={{
+            style={{
               position: 'absolute',
               left: `${firstRect.left + firstRect.width + 8}px`,
               top: `${firstRect.top}px`,
               maxWidth: 280,
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: '#FFFFFF',
-              border: '1px solid',
-              borderColor: '#E5E7EB',
+              padding: 12,
+              borderRadius: 8,
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E5E7EB',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
               zIndex: 1000,
               pointerEvents: 'auto',
@@ -230,42 +216,41 @@ export function HighlightOverlay({
               onHighlightClick?.(highlight, e.nativeEvent);
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
               <DescriptionIcon size={14} style={{ color: '#6B7280', marginTop: 2, flexShrink: 0 }} />
-              <Typography
-                variant="caption"
-                sx={{
+              <span
+                style={{
                   fontSize: 12,
                   lineHeight: 1.5,
-                  color: 'text.primary',
+                  color: '#111827', // text.primary
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                 }}
               >
                 {notePreview}
-              </Typography>
-            </Box>
-          </Paper>
+              </span>
+            </div>
+          </div>
         );
       })}
 
       {/* Search Highlight */}
       {searchHighlight && searchHighlight.rects && searchHighlight.rects.map((rect, index) => (
-        <Box
+        <div
           key={`search-${index}`}
-          className="search-highlight" // Use CSS animation defined in global css
-          sx={{
+          className="search-highlight"
+          style={{
             position: 'absolute',
             left: rect.left,
             top: rect.top,
             width: rect.width,
             height: rect.height,
-            bgcolor: 'rgba(255, 235, 59, 0.4)',
+            backgroundColor: 'rgba(255, 235, 59, 0.4)',
             borderRadius: '2px',
             pointerEvents: 'none',
           }}
         />
       ))}
-    </Box>
+    </div>
   );
 }

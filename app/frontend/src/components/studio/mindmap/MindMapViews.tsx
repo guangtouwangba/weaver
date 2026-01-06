@@ -2,8 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Stage, Layer } from 'react-konva';
-import { Modal } from '@mui/material';
-import { Stack } from '@/components/ui';
+import { Modal } from '@/components/ui';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from './MindMapNode';
 import { MindMapEdge } from './MindMapEdge';
@@ -100,7 +99,7 @@ export const MindMapFullView: React.FC<MindMapFullViewProps> = ({
     <Modal
       open={open}
       onClose={onClose}
-      sx={{
+      style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -123,3 +122,4 @@ export const MindMapFullView: React.FC<MindMapFullViewProps> = ({
     </Modal>
   );
 };
+

@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Text } from '@/components/ui/primitives';
+import { colors } from '@/components/ui/tokens';
 
 interface ColumnHeaderProps {
   title: string;
@@ -11,22 +12,23 @@ interface ColumnHeaderProps {
 
 export default function ColumnHeader({ title, icon: Icon, action }: ColumnHeaderProps) {
   return (
-    <Box sx={{ 
-      height: 48, 
-      borderBottom: '1px solid', 
-      borderColor: 'divider', 
-      display: 'flex', 
-      alignItems: 'center', 
-      px: 2,
-      gap: 1,
-      bgcolor: 'background.default'
+    <div style={{
+      height: 48,
+      borderBottom: `1px solid ${colors.border.default}`,
+      display: 'flex',
+      alignItems: 'center',
+      paddingLeft: 16,
+      paddingRight: 16,
+      gap: 8,
+      backgroundColor: colors.background.default
     }}>
       {Icon && <Icon size={18} className="text-gray-500" />}
-      <Typography variant="subtitle2" fontWeight="600" sx={{ flexGrow: 1 }}>
-        {title}
-      </Typography>
+      <div style={{ flexGrow: 1 }}>
+        <Text variant="bodySmall" style={{ fontWeight: 600 }}>
+          {title}
+        </Text>
+      </div>
       {action}
-    </Box>
+    </div>
   );
 }
-

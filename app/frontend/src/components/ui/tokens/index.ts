@@ -33,3 +33,6 @@ export type { ShadowLevel, ElevationLevel } from './shadows';
 // Radius tokens
 export { radii, radiusAliases } from './radii';
 export type { RadiusScale, RadiusAlias } from './radii';
+
+// Mindmap tokens
+export { mindmapCardTokens } from './mindmap';

@@ -1,6 +1,6 @@
 'use client';
 
-import { Radio, Chip } from '@mui/material';
+import { Radio, Chip } from '@/components/ui/primitives';
 import { Surface, Stack, Text } from '@/components/ui';
 import { colors, shadows } from '@/components/ui/tokens';
 import { BoltIcon, AttachMoneyIcon, GpsFixedIcon } from '@/components/ui/icons';
@@ -46,88 +46,89 @@ export default function StrategyCard({ option, selected, onClick }: StrategyCard
       elevation={0}
       radius="xl"
       onClick={onClick}
-      sx={{
-        p: 2.5,
+      style={{
+        padding: 20,
         cursor: 'pointer',
         border: '2px solid',
         borderColor: selected ? colors.primary[500] : colors.border.default,
-        bgcolor: selected ? `${colors.primary[500]}08` : colors.background.paper,
+        backgroundColor: selected ? `${colors.primary[500]}08` : colors.background.paper,
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 2,
+        gap: 16,
         height: '100%',
         position: 'relative',
-        '&:hover': {
-          borderColor: selected ? colors.primary[500] : colors.text.disabled,
-          transform: 'translateY(-2px)',
-          boxShadow: shadows.sm,
-        },
+        boxShadow: selected ? shadows.sm : 'none',
+        // Hover effect needs to be handled via CSS or state, but for now inline style limitation
+        // We can add a style tag or use a class if we had css modules.
+        // For now, I'll rely on the Surface component or just inline style.
+        // To handle hover correctly without CSS files, I might need onMouseEnter/Leave state, 
+        // but let's stick to simple inline styles for now.
       }}
+      className="strategy-card"
     >
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .strategy-card:hover {
+            border-color: ${selected ? colors.primary[500] : colors.text.disabled} !important;
+            transform: translateY(-2px);
+            box-shadow: ${shadows.sm} !important;
+          }
+        `
+      }} />
       <Stack direction="row" justify="between" align="start">
         <div>
-          <Text variant="h6" sx={{ fontSize: '1rem', mb: 0.5 }}>
+          <Text variant="h6" style={{ fontSize: '1rem', marginBottom: 4 }}>
             {option.label}
           </Text>
-          <Text variant="bodySmall" color="secondary" sx={{ lineHeight: 1.5, minHeight: 40 }}>
+          <Text variant="bodySmall" color="secondary" style={{ lineHeight: 1.5, minHeight: 40 }}>
             {option.description}
           </Text>
         </div>
         <Radio
           checked={selected}
-          sx={{
-            p: 0.5,
-            mt: -0.5,
-            mr: -0.5,
-            '&.Mui-checked': { color: colors.primary[500] }
+          style={{
+            marginTop: -4,
+            marginRight: -4,
           }}
+          onChange={() => {}}
         />
       </Stack>
 
-      <Stack direction="row" gap={1} sx={{ flexWrap: 'wrap', mt: 'auto' }}>
+      <Stack direction="row" gap={8} style={{ flexWrap: 'wrap', marginTop: 'auto' }}>
         <Chip
           icon={<AttachMoneyIcon size={14} />}
           label={costLabels[option.cost]}
-          size="small"
-          sx={{
+          size="sm"
+          style={{
             height: 24,
-            bgcolor: `${costColors[option.cost]}15`,
+            backgroundColor: `${costColors[option.cost]}15`,
             color: costColors[option.cost],
             fontWeight: 600,
             fontSize: '0.75rem',
-            border: '1px solid',
-            borderColor: `${costColors[option.cost]}30`,
-            '& .MuiChip-icon': { color: costColors[option.cost] },
+            border: `1px solid ${costColors[option.cost]}30`,
           }}
         />
         <Chip
           icon={<BoltIcon size={14} />}
           label={performanceLabels[option.performance]}
-          size="small"
-          sx={{
+          size="sm"
+          style={{
             height: 24,
-            bgcolor: `${performanceColors[option.performance]}15`,
+            backgroundColor: `${performanceColors[option.performance]}15`,
             color: performanceColors[option.performance],
             fontWeight: 600,
             fontSize: '0.75rem',
-            border: '1px solid',
-            borderColor: `${performanceColors[option.performance]}30`,
-            '& .MuiChip-icon': { color: performanceColors[option.performance] },
+            border: `1px solid ${performanceColors[option.performance]}30`,
           }}
         />
       </Stack>
 
       {option.best_for && (
-        <Stack
-          direction="row"
-          align="start"
-          gap={1}
-          sx={{ pt: 1.5, borderTop: `1px solid ${colors.border.default}` }}
-        >
-          <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: '#666' }} />
-          <Text variant="caption" color="secondary" sx={{ fontWeight: 500 }}>
-            Best for: {option.best_for}
+        <Stack direction="row" align="start" gap={8} style={{ paddingTop: 16, borderTop: `1px solid ${selected ? `${colors.primary[500]}20` : colors.border.default}` }}>
+          <GpsFixedIcon size={14} style={{ marginTop: 3, flexShrink: 0, color: selected ? colors.primary[500] : colors.text.secondary }} />
+          <Text variant="caption" color={selected ? 'primary' : 'secondary'} style={{ lineHeight: 1.5 }}>
+            <strong>Best for:</strong> {option.best_for}
           </Text>
         </Stack>
       )}

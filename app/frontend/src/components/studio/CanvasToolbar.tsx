@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Fade, ToggleButton } from '@mui/material';
 import {
   Stack,
   Surface,
@@ -17,11 +16,11 @@ import {
   ZoomOutIcon,
   DeleteIcon,
   ExpandMoreIcon,
-  ExpandLessIcon
+  ExpandLessIcon,
+  MousePointerIcon,
+  HandIcon,
+  ScanIcon
 } from '@/components/ui/icons';
-import MouseMui from '@mui/icons-material/Mouse';
-import PanToolMui from '@mui/icons-material/PanTool';
-import CropFreeMui from '@mui/icons-material/CropFree';
 
 export type ToolMode = 'select' | 'hand';
 
@@ -81,7 +80,7 @@ export default function CanvasToolbar({
         </IconButton>
       </Tooltip>
 
-      <Fade in={!isCollapsed} unmountOnExit>
+      {!isCollapsed && (
         <Stack direction="column" gap={2} align="center">
 
           {/* 2. Operation Mode Capsule */}
@@ -95,7 +94,7 @@ export default function CanvasToolbar({
                   onClick={() => onChange('select')}
                   sx={{ borderRadius: 0 }}
                 >
-                  <MouseMui sx={{ fontSize: 18 }} />
+                  <MousePointerIcon size={18} />
                 </IconButton>
               </Tooltip>
 
@@ -107,7 +106,7 @@ export default function CanvasToolbar({
                   onClick={() => onChange('hand')}
                   sx={{ borderRadius: 0 }}
                 >
-                  <PanToolMui sx={{ fontSize: 18 }} />
+                  <HandIcon size={18} />
                 </IconButton>
               </Tooltip>
             </Stack>
@@ -153,7 +152,7 @@ export default function CanvasToolbar({
 
               <Tooltip title="Fit to Screen" placement="right">
                 <IconButton size="md" variant="ghost" onClick={onFitView} sx={{ borderRadius: 0 }}>
-                  <CropFreeMui sx={{ fontSize: 18 }} />
+                  <ScanIcon size={18} />
                 </IconButton>
               </Tooltip>
             </Stack>
@@ -180,7 +179,7 @@ export default function CanvasToolbar({
           </Tooltip>
 
         </Stack>
-      </Fade>
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { Group, Line, Circle } from 'react-konva';
 import Konva from 'konva';
 import { MindmapEdge as MindmapEdgeType, MindmapNode } from '@/lib/api';
-import { mindmapCardTokens as tokens } from '@/theme/theme';
+import { mindmapCardTokens as tokens } from '@/components/ui/tokens';
 
 interface CurvedMindMapEdgeProps {
   edge: MindmapEdgeType;
@@ -133,6 +133,7 @@ export const CurvedMindMapEdge: React.FC<CurvedMindMapEdgeProps> = ({
 };
 
 export default CurvedMindMapEdge;
+
 
 
 

@@ -1,5 +1,7 @@
-import { Box, Button, MenuItem, Paper, Select, Typography } from '@mui/material';
-import { PlusCircle } from 'lucide-react';
+import { Button, Surface, Text } from '@/components/ui/primitives';
+import { Menu, MenuItem } from '@/components/ui/composites';
+import { colors } from '@/components/ui/tokens';
+import { PlusCircle, ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export interface ProjectOption {
@@ -21,6 +23,8 @@ export default function InboxActionFooter({
     disabled = false
 }: InboxActionFooterProps) {
     const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+    const [anchorPosition, setAnchorPosition] = useState<{ top: number; left: number } | null>(null);
+    const [menuWidth, setMenuWidth] = useState<number>(200);
 
     // Set default when projects load
     useEffect(() => {
@@ -29,68 +33,103 @@ export default function InboxActionFooter({
         }
     }, [projects, selectedProjectId]);
 
-    return (
-        <Paper elevation={0} sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'white' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="subtitle2" fontWeight="bold">Add to Existing Project</Typography>
-                <Typography variant="caption" color="text.secondary">Or Start Fresh</Typography>
-            </Box>
+    const selectedProjectName = projects.find(p => p.id === selectedProjectId)?.name;
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-                <Box sx={{ flex: 1, display: 'flex', gap: 1 }}>
-                    <Select
-                        fullWidth
-                        size="small"
-                        value={selectedProjectId}
-                        onChange={(e) => setSelectedProjectId(e.target.value)}
-                        disabled={disabled || projects.length === 0}
-                        displayEmpty
-                        sx={{
-                            bgcolor: 'white',
-                            borderRadius: 2,
-                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#E5E7EB' }
-                        }}
-                    >
-                        {projects.length === 0 ? (
-                            <MenuItem value="" disabled>No projects available</MenuItem>
-                        ) : (
-                            projects.map(p => (
-                                <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                            ))
-                        )}
-                    </Select>
+    const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setAnchorPosition({ top: rect.bottom, left: rect.left });
+        setMenuWidth(rect.width);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorPosition(null);
+    };
+
+    const handleProjectSelect = (id: string) => {
+        setSelectedProjectId(id);
+        handleMenuClose();
+    };
+
+    return (
+        <Surface
+            elevation={0}
+            style={{
+                padding: 24,
+                borderTop: `1px solid ${colors.border.default}`,
+                backgroundColor: 'white',
+                borderRadius: 0 // Footer usually rectangular or inherits
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <Text variant="bodySmall" style={{ fontWeight: 700 }}>Add to Existing Project</Text>
+                <Text variant="caption" color="secondary">Or Start Fresh</Text>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1, display: 'flex', gap: 8 }}>
+                    {/* Project Selector mimicking Select */}
+                    <div style={{ flex: 1 }}>
+                        <Button
+                            variant="outline"
+                            onClick={handleMenuClick}
+                            disabled={disabled || projects.length === 0}
+                            iconRight={<ChevronDown size={16} />}
+                            style={{
+                                width: '100%',
+                                justifyContent: 'space-between',
+                                borderColor: colors.border.default,
+                                fontWeight: 400,
+                                color: selectedProjectId ? colors.text.primary : colors.text.muted
+                            }}
+                        >
+                            {selectedProjectName || (projects.length === 0 ? "No projects available" : "Select Project")}
+                        </Button>
+                        <Menu
+                            anchorPosition={anchorPosition || undefined}
+                            open={Boolean(anchorPosition)}
+                            onClose={handleMenuClose}
+                            style={{ width: menuWidth }}
+                        >
+                            {projects.length === 0 ? (
+                                <MenuItem disabled>No projects available</MenuItem>
+                            ) : (
+                                projects.map(p => (
+                                    <MenuItem
+                                        key={p.id}
+                                        onClick={() => handleProjectSelect(p.id)}
+                                        style={{ backgroundColor: p.id === selectedProjectId ? colors.neutral[100] : undefined }}
+                                    >
+                                        {p.name}
+                                    </MenuItem>
+                                ))
+                            )}
+                        </Menu>
+                    </div>
+
                     <Button
-                        variant="contained"
-                        disableElevation
+                        variant="primary"
                         disabled={disabled || !selectedProjectId}
                         onClick={() => onAddToProject(selectedProjectId)}
-                        sx={{
-                            bgcolor: '#EEF2FF', color: 'primary.main', fontWeight: 'bold',
-                            textTransform: 'none', borderRadius: 2, px: 3,
-                            '&:hover': { bgcolor: '#E0E7FF' },
-                            '&:disabled': { bgcolor: '#F3F4F6', color: '#9CA3AF' }
+                        style={{
+                            backgroundColor: '#EEF2FF',
+                            color: colors.primary[600],
+                            fontWeight: 700,
                         }}
                     >
                         Add
                     </Button>
-                </Box>
+                </div>
 
                 <Button
-                    variant="contained"
-                    startIcon={<PlusCircle size={18} />}
+                    variant="primary"
+                    icon={<PlusCircle size={18} />}
                     onClick={onCreateProject}
                     disabled={disabled}
-                    sx={{
-                        bgcolor: '#6366F1',
-                        textTransform: 'none',
-                        borderRadius: 2,
-                        px: 3,
-                        '&:hover': { bgcolor: '#4F46E5' }
-                    }}
+                    style={{ backgroundColor: colors.primary[500] }}
                 >
                     Create New Project
                 </Button>
-            </Box>
-        </Paper>
+            </div>
+        </Surface>
     );
 }

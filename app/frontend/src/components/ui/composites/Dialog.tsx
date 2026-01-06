@@ -1,25 +1,18 @@
 'use client';
 
 import React from 'react';
-import {
-    Dialog as MuiDialog,
-    DialogProps as MuiDialogProps,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-} from '@mui/material';
-import { Stack, Text, IconButton } from '../primitives';
-import { CloseIcon } from '../icons';
-import { colors, radii, shadows } from '../tokens';
+import { Modal, Stack, Text, IconButton, Button } from '@/components/ui'; // Check if Button is exported from ui root
+import { CloseIcon } from '@/components/ui/icons';
+import { colors } from '@/components/ui/tokens';
 
 /**
  * Dialog Component
  *
  * Modal dialog with consistent styling.
- * Wraps MUI Dialog with design system tokens.
+ * Re-implemented using design system primitives (Modal).
  */
 
-export interface DialogProps extends Omit<MuiDialogProps, 'title'> {
+export interface DialogProps {
     /** Dialog title */
     title?: React.ReactNode;
     /** Dialog body content */
@@ -29,17 +22,12 @@ export interface DialogProps extends Omit<MuiDialogProps, 'title'> {
     /** Whether to show close button */
     showCloseButton?: boolean;
     /** Close handler */
-    onClose?: () => void;
+    onClose: () => void;
     /** Dialog size */
     size?: 'sm' | 'md' | 'lg' | 'xl';
+    /** Whether the dialog is open */
+    open: boolean;
 }
-
-const sizeMap = {
-    sm: 400,
-    md: 560,
-    lg: 720,
-    xl: 960,
-};
 
 export const Dialog = React.forwardRef<HTMLDivElement, DialogProps>(
     function Dialog(
@@ -51,66 +39,68 @@ export const Dialog = React.forwardRef<HTMLDivElement, DialogProps>(
             onClose,
             size = 'md',
             open,
-            ...props
         },
         ref
     ) {
         return (
-            <MuiDialog
-                ref={ref}
+            <Modal
                 open={open}
                 onClose={onClose}
-                PaperProps={{
-                    sx: {
-                        width: '100%',
-                        maxWidth: sizeMap[size],
-                        borderRadius: `${radii.xl}px`,
-                        boxShadow: shadows.xl,
-                    },
-                }}
-                {...props}
+                size={size}
+                showCloseButton={false} // We implement our own header
             >
+                {/* Header */}
                 {(title || showCloseButton) && (
-                    <DialogTitle sx={{ p: 0 }}>
-                        <Stack
-                            direction="row"
-                            justify="between"
-                            align="center"
-                            sx={{ px: 3, py: 2.5, borderBottom: `1px solid ${colors.border.default}` }}
-                        >
-                            {title && (
-                                <Text variant="h5" color="primary">
-                                    {title}
-                                </Text>
-                            )}
-                            {showCloseButton && (
-                                <IconButton
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={onClose}
-                                    aria-label="Close"
-                                >
-                                    <CloseIcon size="sm" />
-                                </IconButton>
-                            )}
-                        </Stack>
-                    </DialogTitle>
+                    <Stack
+                        direction="row"
+                        justify="between"
+                        align="center"
+                        style={{
+                            padding: '16px 24px',
+                            borderBottom: `1px solid ${colors.border.default}`,
+                        }}
+                    >
+                        {title && (
+                            <Text variant="h5" color="primary">
+                                {title}
+                            </Text>
+                        )}
+                        {!title && <div />}
+                        {showCloseButton && (
+                            <IconButton
+                                size="sm"
+                                variant="ghost"
+                                onClick={onClose}
+                                aria-label="Close"
+                            >
+                                <CloseIcon size={16} />
+                            </IconButton>
+                        )}
+                    </Stack>
                 )}
 
+                {/* Content */}
                 {children && (
-                    <DialogContent sx={{ px: 3, py: 3 }}>
+                    <div style={{ padding: 24 }}>
                         {children}
-                    </DialogContent>
+                    </div>
                 )}
 
+                {/* Actions */}
                 {actions && (
-                    <DialogActions sx={{ px: 3, py: 2, borderTop: `1px solid ${colors.border.default}` }}>
-                        <Stack direction="row" gap={2} justify="end">
-                            {actions}
-                        </Stack>
-                    </DialogActions>
+                    <div
+                        style={{
+                            padding: '16px 24px',
+                            borderTop: `1px solid ${colors.border.default}`,
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 16,
+                        }}
+                    >
+                        {actions}
+                    </div>
                 )}
-            </MuiDialog>
+            </Modal>
         );
     }
 );
