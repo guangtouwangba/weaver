@@ -12,17 +12,18 @@ interface CanvasContextMenuProps {
   y: number;
   onClose: () => void;
   onOpenImport: () => void;
+  onAddStickyNote?: (position: { x: number; y: number }) => void;
   viewport?: { x: number; y: number; scale: number };
   canvasContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
-const MenuItem = ({ 
-  onClick, 
-  icon, 
-  children 
-}: { 
-  onClick: () => void; 
-  icon?: React.ReactNode; 
+const MenuItem = ({
+  onClick,
+  icon,
+  children
+}: {
+  onClick: () => void;
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) => {
   return (
@@ -63,7 +64,7 @@ const MenuDivider = () => (
   <div style={{ height: 1, backgroundColor: colors.border.default, margin: '4px 0' }} />
 );
 
-export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport, viewport, canvasContainerRef }: CanvasContextMenuProps) {
+export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport, onAddStickyNote, viewport, canvasContainerRef }: CanvasContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const { handleAddNode, handleGenerateContentConcurrent, handleImportSource } = useCanvasActions({ onOpenImport });
 
@@ -138,11 +139,14 @@ export default function CanvasContextMenu({ open, x, y, onClose, onOpenImport, v
       }}
     >
       <div style={{ paddingTop: 8, paddingBottom: 8 }}>
-        <MenuItem onClick={() => handleAction(() => handleAddNode('default', { x, y }))} icon={<AddIcon size={18} />}>
-          Add Node
-        </MenuItem>
-
-        <MenuItem onClick={() => handleAction(() => handleAddNode('sticky', { x, y }))} icon={<StickyNote2Icon size={18} />}>
+        <MenuItem onClick={() => handleAction(() => {
+          if (onAddStickyNote) {
+            const pos = screenToCanvasCoords(x, y);
+            onAddStickyNote(pos);
+          } else {
+            handleAddNode('sticky', { x, y });
+          }
+        })} icon={<StickyNote2Icon size={18} />}>
           Add Sticky Note
         </MenuItem>
 

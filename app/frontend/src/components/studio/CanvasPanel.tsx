@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Chip } from "@/components/ui/primitives";
 import {
   Stack,
@@ -16,6 +16,7 @@ import { useStudio } from '@/contexts/StudioContext';
 import { canvasApi } from '@/lib/api';
 import { CanvasNode } from '@/lib/api';
 import ThinkingPathGenerator from './ThinkingPathGenerator';
+import NoteEditor, { NoteData } from './NoteEditor';
 
 export default function CanvasPanel() {
   const {
@@ -36,6 +37,55 @@ export default function CanvasPanel() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [tempLineEnd, setTempLineEnd] = useState<{ x: number, y: number } | null>(null);
+
+  // NoteEditor modal state
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<{ id?: string; title: string; content: string; position: { x: number; y: number } } | null>(null);
+
+  // Handle saving a note from the editor
+  const handleNoteEditorSave = useCallback((data: NoteData) => {
+    if (editingNote?.id) {
+      // Update existing node
+      setCanvasNodes(prev => prev.map(n =>
+        n.id === editingNote.id
+          ? { ...n, title: data.title, content: data.content }
+          : n
+      ));
+    } else if (editingNote) {
+      // Create new node
+      addNodeToCanvas({
+        type: 'sticky',
+        title: data.title,
+        content: data.content,
+        x: editingNote.position.x,
+        y: editingNote.position.y,
+        width: 220,
+        height: 160,
+        color: '#fef3c7',
+        tags: [],
+        viewType: 'free',
+      });
+    }
+    setNoteEditorOpen(false);
+    setEditingNote(null);
+  }, [editingNote, setCanvasNodes, addNodeToCanvas]);
+
+  // Handle opening editor for new note
+  const handleCreateNote = useCallback((position: { x: number; y: number }) => {
+    setEditingNote({ title: '', content: '', position });
+    setNoteEditorOpen(true);
+  }, []);
+
+  // Handle opening editor for existing note
+  const handleEditNote = useCallback((node: CanvasNode) => {
+    setEditingNote({
+      id: node.id,
+      title: node.title || '',
+      content: node.content || '',
+      position: { x: node.x, y: node.y }
+    });
+    setNoteEditorOpen(true);
+  }, []);
 
   const lastMousePos = useRef({ x: 0, y: 0 });
   const mousePos = useRef({ x: 0, y: 0 });
@@ -376,6 +426,12 @@ export default function CanvasPanel() {
               elevation={selectedNodeId === node.id ? 4 : 2}
               radius="lg"
               draggable
+              onDoubleClick={() => {
+                // Open editor for sticky notes on double-click
+                if (node.type === 'sticky') {
+                  handleEditNote(node);
+                }
+              }}
               onDragStart={(e: React.DragEvent) => {
                 const payload = {
                   type: 'canvas_node',
@@ -498,6 +554,15 @@ export default function CanvasPanel() {
           box-shadow: ${shadows.lg};
         }
       `}</style>
+
+      {/* NoteEditor Modal */}
+      {noteEditorOpen && (
+        <NoteEditor
+          initialData={editingNote ? { id: editingNote.id, title: editingNote.title, content: editingNote.content } : undefined}
+          onSave={handleNoteEditorSave}
+          onCancel={() => { setNoteEditorOpen(false); setEditingNote(null); }}
+        />
+      )}
     </Stack>
   );
 }
