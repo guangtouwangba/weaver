@@ -364,13 +364,30 @@ export function StudioProvider({
   }, []);
 
   // Remove a generation task
-  const removeGenerationTask = useCallback((taskId: string) => {
+  const removeGenerationTask = useCallback(async (taskId: string) => {
+    // 1. Get task details before removing from state
+    const task = generationTasks.get(taskId);
+
+    // 2. Optimistically remove from UI immediately
     setGenerationTasks(prev => {
       const next = new Map(prev);
       next.delete(taskId);
       return next;
     });
-  }, []);
+
+    // 3. If it has a backend ID, delete it from the server
+    if (task?.outputId && projectId) {
+      try {
+        console.log(`[StudioContext] Deleting output ${task.outputId} for task ${taskId}`);
+        await outputsApi.delete(projectId, task.outputId);
+      } catch (error) {
+        console.error('[StudioContext] Failed to delete output persistence:', error);
+        // We don't rollback state here because the user intent was to remove it from view
+        // and we don't want it popping back up.
+        // It's better to fail silently on the backend delete than to have a "zombie" card.
+      }
+    }
+  }, [generationTasks, projectId]);
 
   // Get active (pending or generating) tasks of a specific type
   const getActiveGenerationsOfType = useCallback((type: GenerationType): GenerationTask[] => {
