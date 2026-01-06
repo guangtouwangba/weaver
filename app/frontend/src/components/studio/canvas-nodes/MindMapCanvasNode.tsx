@@ -153,7 +153,7 @@ function MindMapCanvasNodeInner({
           flexDirection: 'column',
           backgroundColor: 'rgba(255,255,255,0.98)',
           boxShadow: isDragging
-            ? '0 12px 40px rgba(16, 185, 129, 0.25)'
+            ? '0 12px 40px rgba(20, 184, 166, 0.25)'
             : isOverlayMode
               ? shadows.xl
               : shadows.lg,
@@ -164,20 +164,29 @@ function MindMapCanvasNodeInner({
           zIndex: isDragging ? 1000 : 100,
         }}
       >
-        {/* Header - entire header is draggable */}
+        {/* Header Row */}
         <Stack
           direction="row"
           align="center"
           justify="between"
-          className="drag-handle"
           style={{
             padding: 12,
             borderBottom: '1px solid rgba(0,0,0,0.05)',
-            cursor: 'grab',
-            userSelect: 'none',
           }}
         >
-          <Stack direction="row" align="center" gap={1} style={{ flex: 1, minWidth: 0 }}>
+          {/* Drag Handle Area */}
+          <Stack
+            direction="row"
+            align="center"
+            gap={1}
+            className="drag-handle"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              cursor: 'grab',
+              userSelect: 'none',
+            }}
+          >
             {/* Drag Indicator Icon */}
             <div
               style={{
@@ -218,7 +227,7 @@ function MindMapCanvasNodeInner({
             {isStreaming && <Spinner size="xs" color="secondary" />}
           </Stack>
 
-          {/* Actions */}
+          {/* Actions - Outside drag-handle */}
           <Stack direction="row" gap={0} style={{ flexShrink: 0 }}>
             <IconButton
               size="sm"

@@ -9,13 +9,14 @@ import { useState } from 'react';
 
 // Simple hash for consistent colors
 const getProjectColor = (name: string) => {
+  // Warm, brand-aligned palette
   const projectColors = [
-    '#4f46e5', // Indigo
-    '#059669', // Emerald
-    '#d97706', // Amber
-    '#dc2626', // Red
-    '#7c3aed', // Violet
-    '#2563eb', // Blue
+    '#0D9488', // Teal (primary)
+    '#0F766E', // Teal dark
+    '#115E59', // Teal darker
+    '#78716C', // Stone
+    '#57534E', // Stone dark
+    '#44403C', // Stone darker
   ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {

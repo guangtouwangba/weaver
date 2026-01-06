@@ -177,21 +177,21 @@ export default function PDFPreviewModal() {
     return (
         <div className="fixed inset-0 z-[1301] flex flex-col bg-white animate-in fade-in slide-in-from-bottom-4 duration-200">
             {/* Top Bar / Header */}
-            <div className="h-14 border-b border-gray-200 flex items-center justify-between px-4 bg-white shadow-sm z-10">
+            <div className="h-14 border-b border-stone-200 flex items-center justify-between px-4 bg-white shadow-sm z-10">
                 {/* Left: Back & Title */}
                 <div className="flex items-center gap-4 w-1/4">
                     <button
                         onClick={closeDocumentPreview}
-                        className="flex items-center text-gray-600 hover:text-gray-900 px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+                        className="flex items-center text-stone-600 hover:text-stone-900 px-2 py-1 rounded hover:bg-stone-100 transition-colors"
                     >
                         {/* Fallback chevron if lucide not avail, but assuming standard build */}
                         <span className="mr-2">←</span> Back
                     </button>
                     <div className="flex flex-col overflow-hidden">
-                        <span className="font-medium text-gray-900 truncate" title={activeDocument.filename}>
+                        <span className="font-medium text-stone-800 truncate" title={activeDocument.filename}>
                             {activeDocument.filename}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-stone-500">
                             Updated {new Date(activeDocument.updated_at || Date.now()).toLocaleDateString()}
                         </span>
                     </div>
@@ -199,7 +199,7 @@ export default function PDFPreviewModal() {
 
                 {/* Center: Zoom & Navigation */}
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                    <div className="flex items-center bg-stone-100 rounded-lg p-1">
                         <button onClick={handleZoomOut} className="p-1 hover:bg-white rounded shadow-sm disabled:opacity-50">
                             -
                         </button>
@@ -208,8 +208,8 @@ export default function PDFPreviewModal() {
                             +
                         </button>
                     </div>
-                    <div className="w-px h-6 bg-gray-300 mx-2" />
-                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                    <div className="w-px h-6 bg-stone-300 mx-2" />
+                    <div className="flex items-center bg-stone-100 rounded-lg p-1">
                         <button
                             onClick={() => handlePageChange(pageNumber - 1)}
                             disabled={pageNumber <= 1}
@@ -236,11 +236,11 @@ export default function PDFPreviewModal() {
                         <input
                             type="text"
                             placeholder="Find in document..."
-                            className="bg-gray-100 border-none rounded-lg py-1.5 pl-9 pr-3 text-sm w-48 focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="bg-stone-100 border-none rounded-lg py-1.5 pl-9 pr-3 text-sm w-48 focus:ring-2 focus:ring-teal-500 outline-none"
                         />
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">🔍</span>
                     </div>
-                    <button className="p-2 hover:bg-gray-100 rounded-full text-gray-600">
+                    <button className="p-2 hover:bg-stone-100 rounded-full text-stone-600">
                         ⋮
                     </button>
                 </div>
@@ -250,19 +250,19 @@ export default function PDFPreviewModal() {
             <div className="flex-1 flex overflow-hidden">
 
                 {/* Left Panel: Thumbnails */}
-                <div className="w-64 border-r border-gray-200 bg-gray-50 flex flex-col">
-                    <div className="h-10 border-b border-gray-200 flex items-center justify-between px-3 bg-white">
-                        <span className="text-xs font-semibold text-gray-500 uppercase">Pages</span>
-                        <div className="flex bg-gray-100 rounded p-0.5">
+                <div className="w-64 border-r border-stone-200 bg-stone-50 flex flex-col">
+                    <div className="h-10 border-b border-stone-200 flex items-center justify-between px-3 bg-white">
+                        <span className="text-xs font-semibold text-stone-500 uppercase">Pages</span>
+                        <div className="flex bg-stone-100 rounded p-0.5">
                             <button
                                 onClick={() => setSidebarMode('grid')}
-                                className={`p-1 rounded ${sidebarMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                                className={`p-1 rounded ${sidebarMode === 'grid' ? 'bg-white shadow-sm text-teal-600' : 'text-stone-400'}`}
                             >
                                 ⊞
                             </button>
                             <button
                                 onClick={() => setSidebarMode('list')}
-                                className={`p-1 rounded ${sidebarMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                                className={`p-1 rounded ${sidebarMode === 'list' ? 'bg-white shadow-sm text-teal-600' : 'text-stone-400'}`}
                             >
                                 ≣
                             </button>
@@ -279,7 +279,7 @@ export default function PDFPreviewModal() {
                 </div>
 
                 {/* Center Panel: Content */}
-                <div className="flex-1 bg-gray-100 relative items-center justify-center overflow-auto flex">
+                <div className="flex-1 bg-stone-100 relative items-center justify-center overflow-auto flex">
                     {/* 
                 The PDFViewer handles its own scrolling internally usually, 
                 but we need to make sure it expands to fill this container.
@@ -301,7 +301,7 @@ export default function PDFPreviewModal() {
                                 highlightText={sourceNavigation?.documentId === activeDocument.id ? sourceNavigation.searchText : undefined}
                             />
                         ) : (
-                            <div className="flex items-center justify-center h-full text-gray-400">
+                            <div className="flex items-center justify-center h-full text-stone-400">
                                 Document URL not available
                             </div>
                         )}
@@ -309,14 +309,14 @@ export default function PDFPreviewModal() {
                 </div>
 
                 {/* Right Panel: Tools & Comments */}
-                <div className="w-80 border-l border-gray-200 bg-white flex flex-col shadow-xl z-20">
+                <div className="w-80 border-l border-stone-200 bg-white flex flex-col shadow-xl z-20">
                     {/* Tabs */}
-                    <div className="flex border-b border-gray-200">
+                    <div className="flex border-b border-stone-200">
                         <button
                             onClick={() => setActiveRightTab('tools')}
                             className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeRightTab === 'tools'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                ? 'border-teal-500 text-teal-600'
+                                : 'border-transparent text-stone-500 hover:text-stone-700'
                                 }`}
                         >
                             Tools
@@ -324,8 +324,8 @@ export default function PDFPreviewModal() {
                         <button
                             onClick={() => setActiveRightTab('comments')}
                             className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeRightTab === 'comments'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                ? 'border-teal-500 text-teal-600'
+                                : 'border-transparent text-stone-500 hover:text-stone-700'
                                 }`}
                         >
                             Comments
@@ -342,7 +342,7 @@ export default function PDFPreviewModal() {
                                     activeColor={activeColor}
                                     onColorChange={setActiveColor}
                                 />
-                                <hr className="border-gray-100" />
+                                <hr className="border-stone-100" />
                                 <AnnotationsPanel
                                     highlights={highlights}
                                     onNavigate={(page) => setPageNumber(page)}
@@ -358,14 +358,14 @@ export default function PDFPreviewModal() {
 
                     {/* Footer Action */}
                     {activeRightTab === 'tools' && (
-                        <div className="p-4 border-t border-gray-200 bg-gray-50">
+                        <div className="p-4 border-t border-stone-200 bg-stone-50">
                             <button
                                 onClick={handleAddToWhiteboard}
-                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
+                                className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
                             >
                                 <span>+</span> Add to Whiteboard
                             </button>
-                            <p className="text-center text-[10px] text-gray-400 mt-2">
+                            <p className="text-center text-[10px] text-stone-400 mt-2">
                                 {selectedSnippet ? `"${selectedSnippet.text.slice(0, 40)}..."` : 'Select text to add as snippet'}
                             </p>
                         </div>

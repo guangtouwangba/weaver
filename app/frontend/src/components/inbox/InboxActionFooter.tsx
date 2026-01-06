@@ -111,7 +111,7 @@ export default function InboxActionFooter({
                         disabled={disabled || !selectedProjectId}
                         onClick={() => onAddToProject(selectedProjectId)}
                         style={{
-                            backgroundColor: '#EEF2FF',
+                            backgroundColor: '#F0FDFA', // Teal-50
                             color: colors.primary[600],
                             fontWeight: 700,
                         }}
@@ -125,7 +125,6 @@ export default function InboxActionFooter({
                     icon={<PlusCircle size={18} />}
                     onClick={onCreateProject}
                     disabled={disabled}
-                    style={{ backgroundColor: colors.primary[500] }}
                 >
                     Create New Project
                 </Button>

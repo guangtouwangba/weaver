@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
+import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
 
 // === Generation Task Types for Concurrent Outputs ===
 export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';

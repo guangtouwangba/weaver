@@ -95,17 +95,17 @@ const ThumbnailItem = memo(({
             className={`cursor-pointer mb-4 flex flex-col items-center group ${isActive ? 'opacity-100' : 'opacity-70 hover:opacity-100'}`}
         >
             <div className={`relative bg-white shadow-sm transition-all duration-200 ${isActive
-                ? 'ring-2 ring-blue-500 ring-offset-2'
-                : 'border border-gray-200 hover:border-gray-300'
+                ? 'ring-2 ring-teal-500 ring-offset-2'
+                : 'border border-stone-200 hover:border-stone-300'
                 }`}>
                 <canvas ref={canvasRef} className="block w-full h-auto" />
                 {!isRendered && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50 text-xs text-gray-400">
+                    <div className="absolute inset-0 flex items-center justify-center bg-stone-50 text-xs text-stone-400">
                         Loading...
                     </div>
                 )}
             </div>
-            <span className={`mt-1 text-xs font-medium ${isActive ? 'text-blue-600' : 'text-gray-500'}`}>
+            <span className={`mt-1 text-xs font-medium ${isActive ? 'text-teal-600' : 'text-stone-500'}`}>
                 {pageNumber}
             </span>
         </div>
@@ -150,7 +150,7 @@ export default function PageThumbnailSidebar({
     }, [fileUrl]);
 
     return (
-        <div className="w-full h-full bg-gray-50 p-4 min-h-0">
+        <div className="w-full h-full bg-stone-50 p-4 min-h-0">
             <div className="space-y-2">
                 {fileUrl && numPages > 0 ? (
                     Array.from({ length: numPages }).map((_, index) => (
@@ -164,12 +164,12 @@ export default function PageThumbnailSidebar({
                     ))
                 ) : (
                     !fileUrl ? (
-                        <div className="text-xs text-gray-400 text-center py-4">No Document</div>
+                        <div className="text-xs text-stone-400 text-center py-4">No Document</div>
                     ) : (
                         // Skeletons
                         Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="mb-4">
-                                <div className="aspect-[3/4] bg-gray-200 animate-pulse rounded-sm mb-1" />
+                                <div className="aspect-[3/4] bg-stone-200 animate-pulse rounded-sm mb-1" />
                             </div>
                         ))
                     )

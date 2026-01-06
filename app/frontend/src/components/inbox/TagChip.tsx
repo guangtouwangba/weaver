@@ -11,12 +11,12 @@ interface TagChipProps {
 
 // Map common tags to specific colors based on design
 const TAG_COLORS: Record<string, { bg: string; color: string }> = {
-    'Strategy': { bg: '#DBEAFE', color: '#1E40AF' },
-    'Finance': { bg: '#DCFCE7', color: '#166534' },
-    'Product': { bg: '#F3E8FF', color: '#6B21A8' },
+    'Strategy': { bg: '#E0F2FE', color: '#0369A1' }, // Sky
+    'Finance': { bg: '#DCFCE7', color: '#14532D' }, // Green
+    'Product': { bg: '#FAE8FF', color: '#86198F' }, // Fuchsia
     'UX': { bg: colors.neutral[100], color: colors.neutral[700] },
-    'Market': { bg: '#FFEDD5', color: '#9A3412' },
-    'Q1': { bg: '#E0E7FF', color: '#3730A3' },
+    'Market': { bg: '#FFEDD5', color: '#9A3412' }, // Orange
+    'Q1': { bg: '#E0E7FF', color: '#3730A3' }, // Indigo
 };
 
 export default function TagChip({ label, color, size = 'small' }: TagChipProps) {

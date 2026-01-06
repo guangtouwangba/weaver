@@ -41,14 +41,14 @@ export default function InboxItemCard({ item, onClick }: InboxItemCardProps) {
     }[item.type];
 
     const bgColors: Record<string, string> = {
-        article: '#EFF6FF',
-        link: '#F0FDF4',
-        video: '#FEF2F2',
-        note: '#FEFCE8',
-        pdf: '#FFF7ED'
+        article: '#F0FDFA', // Teal-50
+        link: '#F0FDF4',    // Green-50
+        video: '#FEF2F2',   // Red-50
+        note: '#FEFCE8',    // Yellow-50
+        pdf: '#FFF7ED'      // Orange-50
     };
 
-    const bgColor = bgColors[item.type] || '#F3F4F6';
+    const bgColor = bgColors[item.type] || '#F5F5F4';
 
     return (
         <Surface
@@ -69,7 +69,7 @@ export default function InboxItemCard({ item, onClick }: InboxItemCardProps) {
             // Hover styling handled via CSS class if Tailwind available, or style injection.
             // For now, removing hover transform or relying on parent CSS?
             // I'll add a data attribute and use global css if needed, but for now simple style.
-            className={item.isSelected ? 'border-primary-500 bg-primary-50' : 'hover:border-gray-400 hover:shadow-sm hover:-translate-y-[1px]'}
+            className={item.isSelected ? 'border-primary-500 bg-primary-50' : 'hover:border-stone-400 hover:shadow-sm hover:-translate-y-[1px]'}
         >
             {item.isSelected && (
                 <div style={{
