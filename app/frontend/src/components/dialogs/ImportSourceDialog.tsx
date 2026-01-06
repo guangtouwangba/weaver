@@ -128,11 +128,11 @@ export default function ImportSourceDialog({
           onDrop={handleDrop}
           style={{
             border: '2px dashed',
-            borderColor: isDragging ? '#4f46e5' : '#E5E7EB',
+            borderColor: isDragging ? colors.primary[500] : colors.border.default,
             borderRadius: 8,
             padding: 32,
             textAlign: 'center',
-            backgroundColor: isDragging ? '#eff6ff' : 'transparent',
+            backgroundColor: isDragging ? colors.primary[50] : 'transparent',
             transition: 'all 0.2s',
             marginBottom: 32,
             cursor: 'pointer',
@@ -145,14 +145,15 @@ export default function ImportSourceDialog({
                 width: 64,
                 height: 64,
                 borderRadius: '50%',
-                backgroundColor: '#4f46e5',
+                backgroundColor: colors.primary[50], // Soft background
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 8,
+                color: colors.primary[600], // Colored icon
               }}
             >
-              <CloudUploadIcon size={32} style={{ color: 'white' }} />
+              <CloudUploadIcon size={32} style={{ color: 'currentColor' }} />
             </div>
             <div>
               <div style={{ marginBottom: 4 }}>
@@ -162,9 +163,9 @@ export default function ImportSourceDialog({
                     handleBrowseClick();
                   }}
                   style={{
-                    color: '#4f46e5',
+                    color: colors.primary[600],
                     cursor: 'pointer',
-                    fontWeight: 500,
+                    fontWeight: 600,
                   }}
                 >
                   Click to upload
@@ -222,7 +223,7 @@ export default function ImportSourceDialog({
                 }
               }}
               startAdornment={
-                <LinkIcon size={18} color="#9CA3AF" />
+                <LinkIcon size={18} color="secondary" />
               }
             />
             <Button
