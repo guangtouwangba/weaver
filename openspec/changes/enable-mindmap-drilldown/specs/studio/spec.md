@@ -7,8 +7,11 @@ The system SHALL enrich mindmap nodes with source references linking to original
 
 #### Scenario: Node generation includes source refs
 - **WHEN** the backend generates a mindmap node
-- **THEN** the node SHALL include `source_refs` containing document references
-- **AND** each reference SHALL contain `document_id`, `page_number`, and `quote`
+- **THEN** the node SHALL include `source_refs` containing source references
+- **AND** each reference SHALL contain `source_id`, `source_type`, `location` (optional), and `quote`
+- **AND** for PDF documents, `location` SHALL indicate the page number
+- **AND** for Time-based media (Video/Audio), `location` SHALL indicate the timestamp in seconds
+- **AND** for Web sources (URL), `location` SHALL be the URL with optional text fragment anchors
 
 #### Scenario: Source refs serialization
 - **WHEN** mindmap data is returned via API
@@ -51,13 +54,37 @@ The system SHALL provide a panel to display source references when a mindmap nod
   - Document name with file icon
   - Page number indicator
   - Quoted text excerpt (up to 300 characters with ellipsis)
-  - "Open in PDF" action button
+  - Action button appropriate for content type ("Open PDF", "Play Video", "Visit Link")
 
 #### Scenario: Navigate to PDF
 - **WHEN** a user clicks "Open in PDF" on a source reference card
 - **THEN** the PDF Preview Modal SHALL open
 - **AND** it SHALL navigate to the referenced page number
 - **AND** it SHALL highlight the quoted text if exact match is found
+
+#### Scenario: Navigate to Video/Audio
+- **WHEN** a user clicks "Play Video" (or "Play Audio") on a source reference card
+- **THEN** the Media Preview Modal SHALL open with the referenced file
+- **AND** the player SHALL automatically seek to the timestamp specified in `location`
+- **AND** the player SHALL start playback immediately
+
+#### Scenario: Navigate to Web URL
+- **WHEN** a user clicks "Visit Link" on a source reference card
+- **THEN** the URL SHALL open in a new browser tab
+- **AND** if supported, it SHALL use Scroll-to-Text Fragment to highlight the quoted text
+
+#### Scenario: Preview launch failure
+- **WHEN** the system attempts to open a source reference (PDF, Video, etc.)
+- **AND** the file cannot be opened (e.g., deleted, corrupted, unsupported)
+- **THEN** the system SHALL display a user-friendly error toast
+- **AND** the Source Context Panel SHALL remain open
+- **AND** the quoted text SHALL remain visible so the user still has context
+
+#### Scenario: Invalid location fallback
+- **WHEN** the system opens a source reference
+- **AND** the specified location (page/timestamp) is invalid or out of bounds
+- **THEN** the viewer SHALL open at the beginning (Page 1 or 00:00)
+- **AND** a warning toast SHALL indicate that the specific location could not be found
 
 #### Scenario: Close panel and return
 - **WHEN** a user clicks the close button on the Source Context Panel

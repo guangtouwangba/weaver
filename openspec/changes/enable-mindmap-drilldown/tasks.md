@@ -2,9 +2,9 @@
 
 ## Phase 1: Backend - Source Reference Support
 
-- [ ] 1.1 Define `SourceRef` data class in `output.py` (document_id, page_number, quote)
+- [ ] 1.1 Define `SourceRef` data class in `output.py` (source_id, source_type, location, quote)
 - [ ] 1.2 Add `source_refs: List[SourceRef]` to `MindmapNode` model
-- [ ] 1.3 Update `mindmap_graph.py` prompts to request source quotes for each node
+- [ ] 1.3 Update `mindmap_graph.py` to populate `source_type` (default "document") and `location`
 - [ ] 1.4 Parse LLM response and populate `source_refs` in node creation
 - [ ] 1.5 Unit test: verify source refs are generated and serialized correctly
 
@@ -18,8 +18,8 @@
 ## Phase 3: Source Context Display
 
 - [ ] 3.1 Create `SourceContextPanel` component (slide-out or inline expansion)
-- [ ] 3.2 Display source references: document name, page, quoted text
-- [ ] 3.3 Add "Open in PDF" action that navigates to PDF Preview Modal at specific page
+- [ ] 3.2 Display source references with appropriate icons (File, Video, Link)
+- [ ] 3.3 Add "Open" action that triggers appropriate viewer (PDF Preview, Video Player, New Tab) depending on `source_type`
 - [ ] 3.4 Style panel to match warm Stone theme
 
 ## Phase 4: Integration & Polish
