@@ -187,17 +187,18 @@ export default function DashboardPage() {
                           key={tab}
                           onClick={() => setActiveTab(tab)}
                           style={{
-                            padding: '4px 16px',
-                            borderRadius: 8,
+                            padding: '8px 16px',
                             cursor: 'pointer',
-                            backgroundColor: isSelected ? '#F0FDFA' : 'transparent', // Teal-50
+                            backgroundColor: 'transparent',
+                            borderBottom: isSelected ? '2px solid #0D9488' : '2px solid transparent', // Teal-600 to match text
                             color: isSelected ? '#0D9488' : '#6B7280', // Teal-600
                             fontWeight: isSelected ? 600 : 500,
                             transition: 'all 0.2s',
                             fontSize: '0.95rem',
+                            marginBottom: '-2px',
                           }}
-                          onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#111827'; } }}
-                          onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6B7280'; } }}
+                          onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.color = '#111827'; } }}
+                          onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.color = '#6B7280'; } }}
                         >
                           {tab}
                         </div>
