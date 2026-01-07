@@ -414,10 +414,13 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   if (extraction.status !== 'completed') return;
                   const dragData = {
                     type: 'url',
+                    id: extraction.id,
                     platform: extraction.platform,
                     contentType: extraction.platform === 'youtube' || extraction.platform === 'bilibili' || extraction.platform === 'douyin' ? 'video' : 'article',
                     title: extraction.title,
                     url: extraction.url,
+                    content: extraction.content?.content,
+                    status: extraction.status,
                     thumbnailUrl: extraction.thumbnailUrl,
                     metadata: extraction.metadata,
                     videoId: extraction.metadata?.videoId,
@@ -536,10 +539,13 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   onDragStart={(e: React.DragEvent) => {
                     const dragData = {
                       type: 'url',
+                      id: urlContent.id,
                       platform: urlContent.platform,
                       contentType: urlContent.content_type,
                       title: urlContent.title,
                       url: urlContent.url,
+                      content: urlContent.content,
+                      status: urlContent.status,
                       thumbnailUrl: urlContent.thumbnail_url,
                       metadata: {
                         videoId: metadata?.video_id,

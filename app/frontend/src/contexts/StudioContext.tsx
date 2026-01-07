@@ -53,6 +53,13 @@ interface ChatMessage {
     title: string;
     content: string;
   }>;
+  // Context references from backend (persisted with user messages)
+  context_refs?: {
+    url_ids?: string[];
+    urls?: Array<{ id: string; title: string; platform?: string; url?: string }>;
+    node_ids?: string[];
+    nodes?: Array<{ id: string; title: string }>;
+  };
 }
 
 interface StudioContextType {
@@ -1071,6 +1078,7 @@ export function StudioProvider({
                   content: m.content,
                   session_id: m.session_id,
                   sources: m.sources,
+                  context_refs: m.context_refs,
                   timestamp: new Date(m.created_at),
                 }))
               );

@@ -155,6 +155,11 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5  # Number of top similar documents to retrieve for RAG
     retrieval_min_similarity: float = 0.0  # Minimum similarity threshold (0.0 = no filter)
 
+    # Query Rewrite Configuration
+    # use_llm_rewrite: If True, use LLM for query rewriting (more accurate, ~1-2s latency)
+    #                  If False (default), use rule-based expansion (faster, no extra LLM call)
+    use_llm_rewrite: bool = False  # Disabled by default for faster response time
+
     # Intent Classification Configuration
     intent_classification_enabled: bool = True  # Enable intent-based adaptive RAG strategies
     intent_cache_enabled: bool = True  # Cache intent classification results

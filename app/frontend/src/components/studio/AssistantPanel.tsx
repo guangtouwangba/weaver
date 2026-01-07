@@ -44,7 +44,10 @@ import {
   ArrowUpwardIcon,
   CheckIcon,
   CloseIcon,
-  BoltIcon as FlashIcon // mapped
+  // Platform icons for URL context
+  YoutubeIcon,
+  VideoIcon,
+  GlobeIcon,
 } from '@/components/ui/icons';
 import {
   DescriptionIcon as PdfIcon
@@ -58,6 +61,7 @@ import { chatApi, Citation, ChatSession, ProjectDocument } from '@/lib/api';
 import { isCommand, parseCommand } from '@/lib/commandParser';
 import { useCanvasDispatch } from '@/hooks/useCanvasDispatch';
 import CommandPalette from './CommandPalette';
+import { ThinkingIndicatorInline } from './ThinkingIndicator';
 
 // Helper function to clean up content before rendering
 function cleanContent(content: string): string {
@@ -324,6 +328,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Thinking status for real-time AI processing feedback
+  const [thinkingStatus, setThinkingStatus] = useState<{ step?: string; message?: string } | null>(null);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
   const { dispatch } = useCanvasDispatch();
@@ -336,6 +342,13 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     title: string;
     content: string;
     sourceMessageId?: string;
+    // URL-specific fields
+    type?: 'document' | 'node' | 'url';
+    platform?: 'youtube' | 'bilibili' | 'douyin' | 'web';
+    contentType?: 'video' | 'article' | 'link';
+    thumbnailUrl?: string;
+    sourceUrl?: string;
+    status?: 'pending' | 'processing' | 'completed' | 'failed';
   }
   const [contextNodes, setContextNodes] = useState<ContextNode[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -520,18 +533,28 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         query: userInput,
       }]);
 
-      // Stream response with session_id and context_nodes (full content)
+      // Separate URL context from regular nodes
+      const regularNodes = currentContextNodes.filter(n => n.type !== 'url');
+      const urlNodes = currentContextNodes.filter(n => n.type === 'url');
+
+      // Stream response with session_id, context_nodes, and context_url_ids
       for await (const chunk of chatApi.stream(projectId, {
         message: userInput,
         document_id: activeDocumentId || undefined,
         session_id: activeSessionId || undefined,
-        context_nodes: currentContextNodes.length > 0 ? currentContextNodes.map(n => ({
+        context_nodes: regularNodes.length > 0 ? regularNodes.map(n => ({
           id: n.id,
           title: n.title,
           content: n.content,
         })) : undefined,
+        context_url_ids: urlNodes.length > 0 ? urlNodes.map(n => n.id) : undefined,
       })) {
-        if (chunk.type === 'token' && chunk.content) {
+        if (chunk.type === 'status') {
+          // Update thinking status for real-time feedback
+          setThinkingStatus({ step: chunk.step, message: chunk.message });
+        } else if (chunk.type === 'token' && chunk.content) {
+          // Clear thinking status when tokens start flowing
+          setThinkingStatus(null);
           // Update message content - avoid flushSync in loops to prevent max update depth
           setChatMessages(prev => prev.map(m =>
             m.id === aiMsgId
@@ -557,9 +580,11 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               : m
           ));
         } else if (chunk.type === 'done') {
-          // Final scroll when done
+          // Clear thinking status and final scroll when done
+          setThinkingStatus(null);
           setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 0);
         } else if (chunk.type === 'error') {
+          setThinkingStatus(null);
           setChatMessages(prev => prev.map(m =>
             m.id === aiMsgId
               ? { ...m, content: (m.content || '') + `\n\n[Error: ${chunk.content || 'Unknown error'}]` }
@@ -569,6 +594,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       }
     } catch (err) {
       console.error("Chat error:", err);
+      setThinkingStatus(null);
       // Update error message - aiMsgId is now in scope
       setChatMessages(prev => prev.map(m =>
         m.id === aiMsgId
@@ -577,6 +603,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       ));
     } finally {
       setIsLoading(false);
+      setThinkingStatus(null);
       // Final scroll
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 0);
     }
@@ -646,7 +673,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             id: data.id,
             title: data.title,
             content: data.content,
-            sourceMessageId: data.sourceMessageId
+            sourceMessageId: data.sourceMessageId,
+            type: 'node',
           }]);
         }
       }
@@ -657,7 +685,29 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             id: data.documentId,
             title: data.title,
             content: `[Document] ${data.title} (${data.pageCount || 0} pages)`,
-            sourceMessageId: undefined
+            sourceMessageId: undefined,
+            type: 'document',
+          }]);
+        }
+      }
+      // Handle URL Content Drop (YouTube, Bilibili, Douyin, Web)
+      else if (data.type === 'url') {
+        if (!contextNodes.some(n => n.id === data.id)) {
+          const platformLabel = data.platform === 'youtube' ? 'YouTube' 
+            : data.platform === 'bilibili' ? 'Bilibili'
+            : data.platform === 'douyin' ? 'Douyin'
+            : 'Web';
+          setContextNodes(prev => [...prev, {
+            id: data.id,
+            title: data.title || data.url,
+            content: data.content || `[${platformLabel}] ${data.title || data.url}`,
+            sourceMessageId: undefined,
+            type: 'url',
+            platform: data.platform,
+            contentType: data.contentType,
+            thumbnailUrl: data.thumbnailUrl,
+            sourceUrl: data.url,
+            status: data.status,
           }]);
         }
       }
@@ -868,6 +918,19 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               RECENT CONTEXT
             </Text>
             <div style={{ display: 'flex', gap: 8 }}>
+              {chatMessages.length > 0 && (
+                <Tooltip title="Clear chat history">
+                  <IconButton 
+                    size="sm" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setChatMessages([]); 
+                    }}
+                  >
+                    <DeleteIcon size={16} />
+                  </IconButton>
+                </Tooltip>
+              )}
               <IconButton size="sm" onClick={() => setIsContextCollapsed(!isContextCollapsed)}>
                 {isContextCollapsed ? <ExpandLessIcon size={16} /> : <ExpandMoreIcon size={16} />}
               </IconButton>
@@ -910,12 +973,93 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                   )}
 
                   <div style={{ flex: 1 }}>
-                    <MarkdownContent
-                      content={msg.content || (msg.role === 'ai' && isLoading ? 'Thinking...' : '')}
-                      citations={msg.citations}
-                      documents={documents}
-                      onCitationClick={() => { }}
-                    />
+                    {/* Show context references for user messages */}
+                    {msg.role === 'user' && msg.context_refs && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                        {/* Rich URL info */}
+                        {msg.context_refs.urls?.map((urlInfo) => {
+                          const getPlatformIcon = (platform?: string) => {
+                            switch (platform) {
+                              case 'youtube': return <YoutubeIcon size={12} />;
+                              case 'bilibili': return <VideoIcon size={12} />;
+                              case 'douyin': return <VideoIcon size={12} />;
+                              case 'web': return <GlobeIcon size={12} />;
+                              default: return <LinkIcon size={12} />;
+                            }
+                          };
+                          const getPlatformColor = (platform?: string) => {
+                            switch (platform) {
+                              case 'youtube': return { bg: '#FEE2E2', border: '#FECACA', text: '#DC2626' };
+                              case 'bilibili': return { bg: '#DBEAFE', border: '#BFDBFE', text: '#2563EB' };
+                              case 'douyin': return { bg: colors.neutral[100], border: colors.neutral[300], text: colors.neutral[800] };
+                              default: return { bg: colors.primary[50], border: colors.primary[200], text: colors.primary[700] };
+                            }
+                          };
+                          const colorScheme = getPlatformColor(urlInfo.platform);
+                          return (
+                            <Chip
+                              key={urlInfo.id}
+                              label={urlInfo.title || 'URL'}
+                              size="sm"
+                              icon={getPlatformIcon(urlInfo.platform)}
+                              style={{
+                                height: 20,
+                                backgroundColor: colorScheme.bg,
+                                borderColor: colorScheme.border,
+                                color: colorScheme.text,
+                                fontSize: '11px',
+                                maxWidth: 150,
+                              }}
+                            />
+                          );
+                        })}
+                        {/* Fallback for plain url_ids */}
+                        {msg.context_refs.url_ids?.map((urlId) => (
+                          <Chip
+                            key={urlId}
+                            label="URL"
+                            size="sm"
+                            icon={<LinkIcon size={12} />}
+                            style={{
+                              height: 20,
+                              backgroundColor: colors.primary[50],
+                              borderColor: colors.primary[200],
+                              color: colors.primary[700],
+                              fontSize: '11px',
+                            }}
+                          />
+                        ))}
+                        {msg.context_refs.nodes?.map((node) => (
+                          <Chip
+                            key={node.id}
+                            label={node.title}
+                            size="sm"
+                            style={{
+                              height: 20,
+                              backgroundColor: colors.neutral[100],
+                              borderColor: colors.neutral[200],
+                              color: colors.neutral[700],
+                              fontSize: '11px',
+                              maxWidth: 120,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {/* Show ThinkingIndicator for empty AI message during loading */}
+                    {msg.role === 'ai' && !msg.content && isLoading ? (
+                      <ThinkingIndicatorInline 
+                        step={thinkingStatus?.step} 
+                        message={thinkingStatus?.message}
+                      />
+                    ) : (
+                      <MarkdownContent
+                        content={msg.content || ''}
+                        citations={msg.citations}
+                        documents={documents}
+                        onCitationClick={() => { }}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
@@ -951,20 +1095,42 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
           {/* Context Nodes (Now Inside Input Container) */}
           {contextNodes.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingLeft: 16, paddingRight: 16, paddingTop: 12, paddingBottom: 4, width: '100%' }}>
-              {contextNodes.map(node => (
-                <Chip
-                  key={node.id}
-                  label={node.title}
-                  onDelete={() => removeContextNode(node.id)}
-                  size="sm"
-                  style={{
-                    height: 28,
-                    backgroundColor: colors.neutral[100], // Stone-100
-                    borderColor: 'rgba(0,0,0,0.05)',
-                    color: colors.neutral[700], // Stone-700
-                  }}
-                />
-              ))}
+              {contextNodes.map(node => {
+                // Get platform-specific styling for URL content
+                const getPlatformStyle = () => {
+                  if (node.type !== 'url') return { bg: colors.neutral[100], color: colors.neutral[700], icon: null };
+                  switch (node.platform) {
+                    case 'youtube':
+                      return { bg: '#FEE2E2', color: '#DC2626', icon: <YoutubeIcon size={14} /> };
+                    case 'bilibili':
+                      return { bg: '#DBEAFE', color: '#2563EB', icon: <VideoIcon size={14} /> };
+                    case 'douyin':
+                      return { bg: colors.neutral[200], color: colors.neutral[800], icon: <VideoIcon size={14} /> };
+                    case 'web':
+                    default:
+                      return { bg: colors.neutral[100], color: colors.neutral[700], icon: <GlobeIcon size={14} /> };
+                  }
+                };
+                const style = getPlatformStyle();
+                const truncatedTitle = node.title.length > 30 ? node.title.slice(0, 30) + '...' : node.title;
+
+                return (
+                  <Tooltip key={node.id} title={node.title}>
+                    <Chip
+                      icon={style.icon}
+                      label={truncatedTitle}
+                      onDelete={() => removeContextNode(node.id)}
+                      size="sm"
+                      style={{
+                        height: 28,
+                        backgroundColor: style.bg,
+                        borderColor: 'rgba(0,0,0,0.05)',
+                        color: style.color,
+                      }}
+                    />
+                  </Tooltip>
+                );
+              })}
             </div>
           )}
 
@@ -1009,20 +1175,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             display: 'flex',
             alignItems: 'center',
             width: '100%',
-            backgroundColor: isDragOver ? 'transparent' : colors.neutral[50], // Very subtle grey background for input area
-            borderRadius: '999px', // Inner pill shape
-            paddingRight: 4, // Space for button
           }}>
-            <div style={{
-              marginLeft: 12, // Increased padding
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: colors.primary[600] // Darker teal
-            }}>
-              <FlashIcon size={20} />
-            </div>
-
             <TextField
               value={input}
               onChange={handleInputChange}

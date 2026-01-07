@@ -28,6 +28,7 @@ class ChatMessageRequest(BaseModel):
         None  # Optional: explicit context from canvas nodes (DB lookup)
     )
     context_nodes: Optional[List[ContextNode]] = None  # Optional: explicit context content (direct)
+    context_url_ids: Optional[List[str]] = None  # Optional: URL content IDs for video/article context
 
 
 class SourceReference(BaseModel):
@@ -82,6 +83,7 @@ class HistoryMessage(BaseModel):
     content: str
     session_id: Optional[UUID] = None
     sources: Optional[List[Dict[str, Any]]] = None
+    context_refs: Optional[Dict[str, Any]] = None  # {url_ids: [], node_ids: [], nodes: []}
     created_at: str
 
 

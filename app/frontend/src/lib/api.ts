@@ -116,6 +116,7 @@ export interface ChatMessage {
     title: string;
     content: string;
   }>;
+  context_url_ids?: string[];  // Optional: URL content IDs for video/article context
 }
 
 export interface ChatResponse {
@@ -142,6 +143,12 @@ export interface ChatHistoryResponse {
       snippet: string;
       similarity: number;
     }>;
+    context_refs?: {
+      url_ids?: string[];
+      urls?: Array<{ id: string; title: string; platform?: string; url?: string }>;
+      node_ids?: string[];
+      nodes?: Array<{ id: string; title: string }>;
+    };
     created_at: string;
   }>;
 }
@@ -560,6 +567,8 @@ export const chatApi = {
     sources?: ChatResponse['sources'];
     data?: Citation;  // Single citation event
     citations?: Citation[];  // All citations at end
+    step?: string;  // For status events: rewriting, memory, analyzing, retrieving, ranking, generating
+    message?: string;  // Human-readable status message
   }> {
     const response = await fetch(
       `${getApiUrl()}/api/v1/projects/${projectId}/chat/stream`,
