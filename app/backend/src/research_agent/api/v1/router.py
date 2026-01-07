@@ -13,6 +13,7 @@ from research_agent.api.v1 import (
     projects,
     settings,
     tags,
+    url,
     verify_relation,
 )
 
@@ -31,4 +32,5 @@ api_router.include_router(maintenance.router, tags=["maintenance"])
 api_router.include_router(inbox.router, prefix="/inbox", tags=["inbox"])
 api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(api_keys.router, prefix="/settings/api-keys", tags=["api-keys"])
+api_router.include_router(url.router, tags=["url"])
 # Note: websocket router is mounted at root level in main.py (not under /api/v1)

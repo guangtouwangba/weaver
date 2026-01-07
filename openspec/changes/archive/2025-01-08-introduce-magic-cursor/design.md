@@ -61,3 +61,4 @@ The Magic Cursor is a client-side interaction mode that triggers standard backen
 - **Persistence:** Does the "Snapshot Context" box remain visible? *Decision: No, it's invisible until "Refresh" is hovered or clicked (TBD).*
 - **Refresh Logic:** Does refresh strictly use the *same box* or the *same nodes*? *Proposal says "re-scan the box", implying spatial query.*
 
+

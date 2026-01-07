@@ -26,6 +26,7 @@ class TaskType(str, Enum):
     CLEANUP_CANVAS = "cleanup_canvas"  # Async cleanup of old generation canvas items
     FILE_CLEANUP = "file_cleanup"  # Async cleanup of orphan files from storage
     GENERATE_THUMBNAIL = "thumbnail_generator"  # Generate PDF thumbnail image
+    PROCESS_URL = "process_url"  # Extract content from URL
 
 
 @dataclass

@@ -3,8 +3,10 @@
 ## Background
 
 The current canvas implementation has user-facing actions scattered across multiple components and hooks:
-- `KonvaCanvas.tsx` uses callbacks like `onNodesChange`, `onEdgesChange`, `onNodeAdd`
-- `useCanvasActions.ts` provides functions like `handleAddNode`, `handleDeleteNode`, `handleSynthesizeNodes`
+- `KonvaCanvas.tsx` uses callbacks like `onNodesChange`, `onEdgesChange`, `onNodeAdd` and handles selection/drag state internally
+- `CanvasPanelKonva.tsx` provides viewport actions (`handleZoomIn`, `handleZoomOut`, `handleFitView`)
+- `useCanvasActions.ts` provides functions like `handleAddNode`, `handleDeleteNode`, `handleSynthesizeNodes`, `handleGenerateContentConcurrent`
+- `CanvasContextMenu.tsx` triggers actions at right-click positions
 - No centralized, programmatic interface exists for external control (e.g., AI agents)
 
 ## Goals

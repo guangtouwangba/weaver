@@ -96,6 +96,9 @@ import {
     Hand,
     Scan,
     ListChecks,
+    Globe,
+    Youtube,
+    Video,
 } from 'lucide-react';
 
 // Action icons
@@ -201,6 +204,11 @@ export const MousePointerIcon = createIcon(MousePointer2, 'MousePointerIcon');
 export const HandIcon = createIcon(Hand, 'HandIcon');
 export const ScanIcon = createIcon(Scan, 'ScanIcon');
 export const PlaylistAddCheckIcon = createIcon(ListChecks, 'PlaylistAddCheckIcon');
+
+// Platform icons
+export const GlobeIcon = createIcon(Globe, 'GlobeIcon');
+export const YoutubeIcon = createIcon(Youtube, 'YoutubeIcon');
+export const VideoIcon = createIcon(Video, 'VideoIcon');
 
 // Re-export types
 export type { IconProps, IconSize, IconColor } from './types';

@@ -21,9 +21,12 @@ import {
   DeleteIcon,
   AccountTreeIcon,
   ShareIcon,
+  LinkIcon,
+  GlobeIcon,
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
-import { documentsApi, ProjectDocument } from '@/lib/api';
+import { documentsApi, ProjectDocument, urlApi, UrlContent } from '@/lib/api';
+import { PlatformIcon, detectPlatform, type Platform } from '@/lib/platform-icons';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
 import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
@@ -47,6 +50,18 @@ interface SourcePanelProps {
 // Upload state type
 type UploadState = 'idle' | 'uploading' | 'processing' | 'success' | 'error';
 
+// URL extraction state
+interface PendingUrlExtraction {
+  id: string;
+  url: string;
+  platform: Platform;
+  status: 'extracting' | 'completed' | 'failed';
+  title?: string;
+  thumbnailUrl?: string;
+  errorMessage?: string;
+  content?: UrlContent;
+}
+
 export default function SourcePanel({ visible, width, onToggle }: SourcePanelProps) {
   const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, sourceNavigation } = useStudio();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
@@ -68,6 +83,9 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<ProjectDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // URL extraction state
+  const [pendingUrlExtractions, setPendingUrlExtractions] = useState<PendingUrlExtraction[]>([]);
 
   // Vertical Resize State
   const [splitRatio, setSplitRatio] = useState(0.4);
@@ -280,9 +298,74 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     }
   };
 
-  const handleUrlImport = (url: string) => {
-    // TODO: Implement URL import functionality
-    console.log('URL import not yet implemented:', url);
+  const handleUrlImport = async (url: string) => {
+    const platform = detectPlatform(url);
+    const extractionId = `url-${Date.now()}`;
+
+    // Add pending extraction to list immediately
+    const pendingExtraction: PendingUrlExtraction = {
+      id: extractionId,
+      url,
+      platform,
+      status: 'extracting',
+    };
+    setPendingUrlExtractions(prev => [pendingExtraction, ...prev]);
+
+    try {
+      // Start extraction - returns immediately with pending status
+      const pendingContent = await urlApi.extract(url);
+
+      // Poll for completion in background
+      const completedContent = await urlApi.waitForCompletion(pendingContent.id, {
+        maxAttempts: 120,
+        intervalMs: 1000,
+        onStatusChange: (status) => {
+          // Update title/thumbnail as they become available
+          if (status.title || status.thumbnail_url) {
+            setPendingUrlExtractions(prev =>
+              prev.map(p =>
+                p.id === extractionId
+                  ? { ...p, title: status.title || p.title, thumbnailUrl: status.thumbnail_url || p.thumbnailUrl }
+                  : p
+              )
+            );
+          }
+        },
+      });
+
+      // Update to completed
+      setPendingUrlExtractions(prev =>
+        prev.map(p =>
+          p.id === extractionId
+            ? {
+                ...p,
+                status: 'completed',
+                title: completedContent.title || undefined,
+                thumbnailUrl: completedContent.thumbnail_url || undefined,
+                content: completedContent,
+              }
+            : p
+        )
+      );
+    } catch (error) {
+      console.error('URL extraction failed:', error);
+      // Update to failed
+      setPendingUrlExtractions(prev =>
+        prev.map(p =>
+          p.id === extractionId
+            ? {
+                ...p,
+                status: 'failed',
+                errorMessage: error instanceof Error ? error.message : 'Failed to extract URL',
+              }
+            : p
+        )
+      );
+    }
+  };
+
+  const handleRemoveUrlExtraction = (id: string) => {
+    setPendingUrlExtractions(prev => prev.filter(p => p.id !== id));
   };
 
   // PDF Pagination
@@ -812,6 +895,134 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                   </Surface>
                 )
               )}
+
+              {/* URL Extraction Cards */}
+              {pendingUrlExtractions.map((extraction) => (
+                viewMode === 'list' ? (
+                  <div
+                    key={extraction.id}
+                    style={{
+                      display: 'flex',
+                      gap: 12,
+                      padding: 12,
+                      marginBottom: 8,
+                      borderRadius: 8,
+                      backgroundColor: extraction.status === 'failed' ? '#FEF2F2' : '#F9FAFB',
+                      border: '1px solid',
+                      borderColor: extraction.status === 'failed' 
+                        ? '#FECACA' 
+                        : extraction.status === 'completed' 
+                        ? colors.success[200] 
+                        : colors.border.default,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        backgroundColor: extraction.status === 'failed' 
+                          ? '#FEE2E2' 
+                          : extraction.status === 'completed'
+                          ? colors.success[50]
+                          : colors.neutral[100],
+                        borderRadius: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {extraction.status === 'extracting' ? (
+                        <LinkIcon size={16} style={{ color: colors.primary[500], animation: 'pulse 1.5s ease-in-out infinite' }} />
+                      ) : extraction.status === 'failed' ? (
+                        <ErrorIcon size={16} style={{ color: '#EF4444' }} />
+                      ) : (
+                        <PlatformIcon platform={extraction.platform} size={16} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text variant="bodySmall" className="truncate" weight="500">
+                        {extraction.title || extraction.url.slice(0, 40) + '...'}
+                      </Text>
+                      <Text variant="caption" color="secondary">
+                        {extraction.status === 'extracting' 
+                          ? 'Extracting content...' 
+                          : extraction.status === 'failed'
+                          ? extraction.errorMessage || 'Failed to extract'
+                          : extraction.platform.charAt(0).toUpperCase() + extraction.platform.slice(1)}
+                      </Text>
+                    </div>
+                    {extraction.status !== 'extracting' && (
+                      <IconButton
+                        size="sm"
+                        onClick={() => handleRemoveUrlExtraction(extraction.id)}
+                        style={{ opacity: 0.6 }}
+                      >
+                        <DeleteIcon size={14} />
+                      </IconButton>
+                    )}
+                  </div>
+                ) : (
+                  // Grid version
+                  <Surface
+                    key={extraction.id}
+                    elevation={0}
+                    style={{
+                      padding: 0,
+                      overflow: 'hidden',
+                      borderRadius: 8,
+                      border: '1px solid',
+                      borderColor: extraction.status === 'failed'
+                        ? '#FECACA'
+                        : extraction.status === 'completed'
+                        ? colors.success[200]
+                        : colors.primary[300],
+                      opacity: extraction.status === 'extracting' ? 0.8 : 1,
+                      cursor: extraction.status === 'completed' ? 'pointer' : 'default',
+                    }}
+                  >
+                    {/* Thumbnail area */}
+                    <div
+                      style={{
+                        width: '100%',
+                        height: 80,
+                        backgroundColor: extraction.status === 'failed' 
+                          ? '#FEE2E2' 
+                          : colors.neutral[100],
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundImage: extraction.thumbnailUrl ? `url(${extraction.thumbnailUrl})` : undefined,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }}
+                    >
+                      {!extraction.thumbnailUrl && (
+                        extraction.status === 'extracting' ? (
+                          <LinkIcon size={24} style={{ color: colors.primary[500], animation: 'pulse 1.5s ease-in-out infinite' }} />
+                        ) : extraction.status === 'failed' ? (
+                          <ErrorIcon size={24} style={{ color: '#EF4444' }} />
+                        ) : (
+                          <PlatformIcon platform={extraction.platform} size={24} />
+                        )
+                      )}
+                    </div>
+                    {/* Info area */}
+                    <div style={{ padding: 8 }}>
+                      <Text variant="caption" className="truncate" style={{ display: 'block', marginBottom: 2 }}>
+                        {extraction.title || extraction.url.slice(0, 30) + '...'}
+                      </Text>
+                      <Text variant="caption" color="secondary">
+                        {extraction.status === 'extracting' 
+                          ? 'Extracting...' 
+                          : extraction.status === 'failed'
+                          ? 'Failed'
+                          : extraction.platform}
+                      </Text>
+                    </div>
+                  </Surface>
+                )
+              ))}
 
               {documents.map(renderFileCard)}
             </div>

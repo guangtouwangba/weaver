@@ -4,10 +4,9 @@ import { useState, useRef, DragEvent } from 'react';
 import {
   Modal,
   Button,
-  IconButton,
 } from '@/components/ui/primitives';
 import { TextField } from '@/components/ui/composites';
-import { CloseIcon, CloudUploadIcon, FolderOpenIcon, LinkIcon } from '@/components/ui/icons';
+import { CloudUploadIcon, FolderOpenIcon, LinkIcon } from '@/components/ui/icons';
 import { colors } from '@/components/ui/tokens';
 
 interface ImportSourceDialogProps {
@@ -89,11 +88,16 @@ export default function ImportSourceDialog({
   };
 
   const handleUrlImport = () => {
-    if (url.trim() && onUrlImport) {
-      onUrlImport(url.trim());
-      setUrl('');
-      onClose();
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return;
+
+    // Call the URL import callback (SourcePanel handles extraction)
+    if (onUrlImport) {
+      onUrlImport(trimmedUrl);
     }
+
+    setUrl('');
+    onClose();
   };
 
   const handleClose = () => {
@@ -214,7 +218,7 @@ export default function ImportSourceDialog({
           <div style={{ display: 'flex', gap: 8 }}>
             <TextField
               fullWidth
-              placeholder="Paste a link to a webpage, article, or image..."
+              placeholder="Paste a link to a webpage, YouTube video, or article..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => {

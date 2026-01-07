@@ -4,3 +4,4 @@
 - [x] Validate proposal `openspec validate introduce-magic-cursor --strict`
 - [x] Submit proposal for review
 
+
