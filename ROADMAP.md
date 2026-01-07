@@ -13,6 +13,7 @@
 
 ### Phase 1: Ingestion (Data -> Nodes)
 **Goal**: "Capture & Structure"
+- [x] **URL Content Extraction**: Import content from web pages, YouTube, Bilibili, and Douyin via URLs.
 - [ ] **Unified Ingestion**: Chrome Extension + Entity Resolution.
 
 ### Phase 2: Sensemaking (Nodes -> Graph)

@@ -104,7 +104,7 @@ export default function DocumentPreviewCard({
                 className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors`}
                 style={{
                     backgroundColor: isActive ? 'transparent' : '#FEF2F2', // Ghost active, or Red-50 default
-                    color: isActive ? '#388E3C' : '#EF4444', // Sage-500 active, or Red-500 default
+                    color: isActive ? '#7C3AED' : '#EF4444', // Violet-500 active, or Red-500 default
                 }}
             >
                 <PdfIcon size={24} className="currentColor" />
@@ -116,7 +116,7 @@ export default function DocumentPreviewCard({
                     className={`text-sm font-medium truncate transition-colors`}
                     title={doc.filename}
                     style={{
-                        color: isActive ? '#388E3C' : '#111827' // Sage-500 active, or Gray-900 default
+                        color: isActive ? '#7C3AED' : '#111827' // Violet-500 active, or Gray-900 default
                     }}
                 >
                     {doc.filename}

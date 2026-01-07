@@ -38,3 +38,4 @@ The system SHALL generate specialized "Super Cards" as result containers.
 - **AND** it features a receipt-like style with torn edges
 - **AND** it contains interactive checkboxes
 
+

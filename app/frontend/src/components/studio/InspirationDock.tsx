@@ -39,7 +39,7 @@ export default function InspirationDock() {
 
   const [showMoreActions, setShowMoreActions] = useState(false);
 
-  const projectColor = '#0D9488'; // Teal (primary)
+  const projectColor = '#7C3AED'; // Violet (primary)
 
   // Get loading states for each action type
   const isGeneratingSummary = useMemo(() =>

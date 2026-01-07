@@ -10,10 +10,13 @@ import {
   DeleteIcon,
   CloudUploadIcon,
   UploadFileIcon,
-  MenuOpenIcon
+  MenuOpenIcon,
+  CloseIcon,
+  ErrorOutlineIcon,
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
-import { documentsApi, ProjectDocument } from '@/lib/api';
+import { documentsApi, ProjectDocument, urlApi, UrlContent } from '@/lib/api';
+import { PlatformIcon, detectPlatform, type Platform } from '@/lib/platform-icons';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
 import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
@@ -23,6 +26,18 @@ interface ResourceSidebarProps {
   width?: number;
   collapsed?: boolean;
   onToggle?: () => void;
+}
+
+// Type for pending URL extraction
+interface PendingUrlExtraction {
+  id: string;
+  url: string;
+  platform: Platform;
+  status: 'extracting' | 'completed' | 'failed';
+  title?: string;
+  thumbnailUrl?: string;
+  errorMessage?: string;
+  content?: UrlContent;
 }
 
 // Helper function to format file size
@@ -88,6 +103,9 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+  // URL extraction state
+  const [pendingUrlExtractions, setPendingUrlExtractions] = useState<PendingUrlExtraction[]>([]);
 
   // Drag handlers
   const handleDragEnter = (e: React.DragEvent) => {
@@ -170,6 +188,78 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         return newSet;
       });
     }
+  };
+
+  // Handle URL import
+  const handleUrlImport = async (url: string) => {
+    const platform = detectPlatform(url);
+    const extractionId = `url-${Date.now()}`;
+
+    // Add pending extraction to list immediately
+    const pendingExtraction: PendingUrlExtraction = {
+      id: extractionId,
+      url,
+      platform,
+      status: 'extracting',
+    };
+    setPendingUrlExtractions(prev => [pendingExtraction, ...prev]);
+
+    try {
+      // Start extraction - returns immediately with pending status
+      const pendingContent = await urlApi.extract(url);
+
+      // Poll for completion in background
+      const completedContent = await urlApi.waitForCompletion(pendingContent.id, {
+        maxAttempts: 120,
+        intervalMs: 1000,
+        onStatusChange: (status) => {
+          // Update title/thumbnail as they become available
+          if (status.title || status.thumbnail_url) {
+            setPendingUrlExtractions(prev =>
+              prev.map(p =>
+                p.id === extractionId
+                  ? { ...p, title: status.title || p.title, thumbnailUrl: status.thumbnail_url || p.thumbnailUrl }
+                  : p
+              )
+            );
+          }
+        },
+      });
+
+      // Update to completed
+      setPendingUrlExtractions(prev =>
+        prev.map(p =>
+          p.id === extractionId
+            ? {
+                ...p,
+                status: 'completed',
+                title: completedContent.title || undefined,
+                thumbnailUrl: completedContent.thumbnail_url || undefined,
+                content: completedContent,
+              }
+            : p
+        )
+      );
+    } catch (error) {
+      console.error('URL extraction failed:', error);
+      // Update to failed
+      setPendingUrlExtractions(prev =>
+        prev.map(p =>
+          p.id === extractionId
+            ? {
+                ...p,
+                status: 'failed',
+                errorMessage: error instanceof Error ? error.message : 'Failed to extract URL',
+              }
+            : p
+        )
+      );
+    }
+  };
+
+  // Remove URL extraction from list
+  const handleRemoveUrlExtraction = (id: string) => {
+    setPendingUrlExtractions(prev => prev.filter(p => p.id !== id));
   };
 
   if (collapsed) {
@@ -290,6 +380,84 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
               </Stack>
             )}
 
+            {/* URL Extraction Cards */}
+            {pendingUrlExtractions.map((extraction) => (
+              <Stack
+                key={extraction.id}
+                direction="row"
+                align="center"
+                gap={2}
+                style={{
+                  padding: 16,
+                  borderRadius: `${radii.lg}px`,
+                  border: `1px solid ${extraction.status === 'failed' ? colors.error[200] : colors.neutral[200]}`,
+                  backgroundColor: extraction.status === 'failed' ? colors.error[50] : colors.neutral[50],
+                }}
+              >
+                {/* Platform Icon */}
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: radii.md,
+                    backgroundColor: extraction.thumbnailUrl ? 'transparent' : colors.neutral[200],
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {extraction.thumbnailUrl ? (
+                    <img
+                      src={extraction.thumbnailUrl}
+                      alt={extraction.title || 'Thumbnail'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <PlatformIcon platform={extraction.platform} size={24} />
+                  )}
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {extraction.status === 'extracting' ? (
+                    <>
+                      <SkeletonBar width="80%" height={20} style={{ marginBottom: 8, backgroundColor: 'rgba(0, 0, 0, 0.08)' }} />
+                      <SkeletonBar width="50%" height={16} style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }} />
+                    </>
+                  ) : extraction.status === 'failed' ? (
+                    <>
+                      <Text variant="bodySmall" style={{ fontWeight: 500, color: colors.error[700] }}>
+                        Failed to extract
+                      </Text>
+                      <Text variant="caption" color="secondary" style={{ display: 'block', marginTop: 4 }}>
+                        {extraction.errorMessage || 'Unknown error'}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text variant="bodySmall" style={{ fontWeight: 500 }}>
+                        {extraction.title || extraction.url}
+                      </Text>
+                      <Text variant="caption" color="secondary" style={{ display: 'block', marginTop: 4 }}>
+                        {extraction.platform.charAt(0).toUpperCase() + extraction.platform.slice(1)}
+                      </Text>
+                    </>
+                  )}
+                </div>
+
+                {/* Status/Action */}
+                {extraction.status === 'extracting' ? (
+                  <Spinner size="sm" style={{ color: colors.primary[500] }} />
+                ) : extraction.status === 'failed' ? (
+                  <IconButton size="sm" onClick={() => handleRemoveUrlExtraction(extraction.id)}>
+                    <CloseIcon size={16} />
+                  </IconButton>
+                ) : null}
+              </Stack>
+            ))}
+
             {/* Document Cards */}
             {documents.map(doc => (
               <DocumentPreviewCard
@@ -321,6 +489,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
         onFileSelect={handleFileUpload}
+        onUrlImport={handleUrlImport}
       />
 
       <style>{`

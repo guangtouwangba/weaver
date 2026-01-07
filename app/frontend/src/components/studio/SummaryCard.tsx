@@ -53,13 +53,13 @@ export default function SummaryCard({
               width: 40,
               height: 40,
               borderRadius: radii.lg,
-              background: 'linear-gradient(135deg, #2DD4BF 0%, #0D9488 100%)', // Teal-400 to Teal-600
+              background: 'linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%)', // Violet-400 to Violet-500
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
               marginRight: 16,
-              boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)', // Teal shadow
+              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)', // Violet shadow
               flexShrink: 0,
             }}
           >
@@ -161,7 +161,7 @@ export default function SummaryCard({
             borderRadius: 50,
             textTransform: 'none',
             paddingTop: 8, paddingBottom: 8,
-            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)', // Teal shadow
+            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)', // Violet shadow
           }}
           endIcon={<ArrowForwardIcon size="sm" />}
         >
@@ -194,7 +194,7 @@ export default function SummaryCard({
                 width: 40,
                 height: 40,
                 borderRadius: radii.lg,
-                background: 'linear-gradient(135deg, #2DD4BF 0%, #0D9488 100%)', // Teal-400 to Teal-600
+                background: 'linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%)', // Violet-400 to Violet-500
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

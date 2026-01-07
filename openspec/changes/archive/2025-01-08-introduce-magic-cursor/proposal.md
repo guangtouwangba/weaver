@@ -26,3 +26,4 @@ Currently, the whiteboard lacks a dedicated mode for AI operations, relying on g
 - **Visual Design:** The "flowing gradient" selection and "Super Card" styles will need close coordination with the design system (Tailwind/CSS).
 - **Backend implications:** The "Snapshot Context" requires storing the selection coordinates and re-querying the spatial index upon refresh.
 
+

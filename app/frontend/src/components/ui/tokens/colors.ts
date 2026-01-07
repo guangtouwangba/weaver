@@ -4,41 +4,54 @@
  * Design System Color Tokens
  *
  * Semantic color palette for the application.
- * These tokens provide a consistent color language across all components.
+ * Theme: Violet + Cool Gray - Modern, clean, creative
  */
 
 export const colors = {
-    // Primary brand color (Teal - warm, approachable)
-    // Primary brand color (Sage Green - matte, natural, less fatigue)
+    // Primary brand color (Violet - creative, intelligent)
     primary: {
-        50: '#F5F9F6',  // very light sage/mint
-        100: '#E6F4EA',
-        200: '#CEE9D5',
-        300: '#A6D6B4',
-        400: '#75BA8C',
-        500: '#388E3C', // User requested "Forest/Olive" lean
-        600: '#2E7D32',
-        700: '#1B5E20',
-        800: '#144616', // darker forest
-        900: '#0C2B0E',
-        950: '#051406',
+        50: '#F5F3FF',   // very light violet
+        100: '#EDE9FE',  // tag backgrounds
+        200: '#DDD6FE',  // disabled states
+        300: '#C4B5FD',  // focus rings
+        400: '#A78BFA',  // secondary actions
+        500: '#7C3AED',  // main brand color
+        600: '#6D28D9',  // hover states
+        700: '#5B21B6',  // active states, dark text
+        800: '#4C1D95',  // headers on light bg
+        900: '#3B0764',  // darkest
+        950: '#2E1065',
     },
 
-
-    // Neutral / Gray scale (Warm Stone palette)
-    // Yellow/brown undertones for paper-like reading experience
+    // Neutral / Gray scale (Cool Gray palette)
+    // Clean, crisp, modern feel
     neutral: {
-        50: '#FAFAF9',
-        100: '#F5F5F4',
-        200: '#E7E5E4',
-        300: '#D6D3D1',
-        400: '#A8A29E',
-        500: '#78716C',
-        600: '#57534E',
-        700: '#44403C',
-        800: '#292524',
-        900: '#1C1917',
-        950: '#0C0A09',
+        50: '#F9FAFB',   // page background
+        100: '#F3F4F6',  // card backgrounds, panels
+        200: '#E5E7EB',  // borders, dividers
+        300: '#D1D5DB',  // disabled borders
+        400: '#9CA3AF',  // placeholder text
+        500: '#6B7280',  // secondary text
+        600: '#4B5563',  // labels
+        700: '#374151',  // subheadings
+        800: '#1F2937',  // primary text
+        900: '#111827',  // headlines
+        950: '#030712',
+    },
+
+    // Accent color (Rose/Coral - for likes, hearts, notifications)
+    accent: {
+        50: '#FFF1F2',
+        100: '#FFE4E6',
+        200: '#FECDD3',
+        300: '#FDA4AF',
+        400: '#FB7185',
+        500: '#F43F5E',  // hearts, likes
+        600: '#E11D48',
+        700: '#BE123C',
+        800: '#9F1239',
+        900: '#881337',
+        950: '#4C0519',
     },
 
     // Success / Green
@@ -97,28 +110,44 @@ export const colors = {
         900: '#1E3A8A',
     },
 
-    // Background colors (warm tones)
+    // Background colors (cool, clean)
     background: {
-        default: '#FAFAF9', // gray.50 - warm canvas
-        paper: '#FAFAF9',
-        subtle: '#F5F5F4', // gray.100
-        muted: '#E7E5E4', // gray.200
+        default: '#FFFFFF',  // pure white
+        paper: '#FFFFFF',
+        subtle: '#F9FAFB',   // neutral.50
+        muted: '#F3F4F6',    // neutral.100
     },
 
-    // Text colors (warm tones, reduced contrast)
+    // Text colors (cool gray, clean contrast)
     text: {
-        primary: '#292524', // gray.800 - brownish-gray
-        secondary: '#78716C', // gray.500
-        muted: '#A8A29E', // gray.400
-        disabled: '#D6D3D1', // gray.300
-        inverse: '#FAFAF9', // gray.50
+        primary: '#1F2937',   // neutral.800
+        secondary: '#6B7280', // neutral.500
+        muted: '#9CA3AF',     // neutral.400
+        disabled: '#D1D5DB',  // neutral.300
+        inverse: '#FFFFFF',
     },
 
-    // Border colors (warm tones)
+    // Border colors (cool gray)
     border: {
-        default: '#E7E5E4', // gray.200
-        muted: '#F5F5F4', // gray.100
-        strong: '#D6D3D1', // gray.300
+        default: '#E5E7EB',  // neutral.200
+        muted: '#F3F4F6',    // neutral.100
+        strong: '#D1D5DB',   // neutral.300
+    },
+
+    // Selection state (distinctive dashed purple)
+    selection: {
+        border: '#7C3AED',       // primary.500
+        borderStyle: 'dashed',
+        background: '#F5F3FF',   // primary.50
+        focusRing: '#C4B5FD',    // primary.300
+    },
+
+    // Tab states
+    tab: {
+        active: '#7C3AED',       // primary.500 (violet)
+        inactive: '#6B7280',     // neutral.500
+        hover: '#A78BFA',        // primary.400
+        activeBackground: '#F5F3FF', // primary.50
     },
 } as const;
 

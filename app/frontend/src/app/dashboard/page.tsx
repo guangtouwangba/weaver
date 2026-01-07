@@ -190,8 +190,8 @@ export default function DashboardPage() {
                             padding: '8px 16px',
                             cursor: 'pointer',
                             backgroundColor: 'transparent',
-                            borderBottom: isSelected ? '2px solid #0D9488' : '2px solid transparent', // Teal-600 to match text
-                            color: isSelected ? '#0D9488' : '#6B7280', // Teal-600
+                            borderBottom: isSelected ? '2px solid #7C3AED' : '2px solid transparent', // Violet-500 to match text
+                            color: isSelected ? '#7C3AED' : '#6B7280', // Violet-500
                             fontWeight: isSelected ? 600 : 500,
                             transition: 'all 0.2s',
                             fontSize: '0.95rem',

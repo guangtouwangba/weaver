@@ -55,6 +55,9 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { useStudio } from '@/contexts/StudioContext';
 import { chatApi, Citation, ChatSession, ProjectDocument } from '@/lib/api';
+import { isCommand, parseCommand } from '@/lib/commandParser';
+import { useCanvasDispatch } from '@/hooks/useCanvasDispatch';
+import CommandPalette from './CommandPalette';
 
 // Helper function to clean up content before rendering
 function cleanContent(content: string): string {
@@ -321,6 +324,9 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
+  const { dispatch } = useCanvasDispatch();
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -432,8 +438,47 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     }
   };
 
+  // Handle slash command execution
+  const executeCommand = (commandInput: string): boolean => {
+    const result = parseCommand(commandInput);
+    
+    if (!result.success) {
+      setCommandFeedback(result.error || 'Invalid command');
+      setTimeout(() => setCommandFeedback(null), 3000);
+      return false;
+    }
+    
+    if (result.action) {
+      const actionResult = dispatch(result.action);
+      if (actionResult.success) {
+        setCommandFeedback(`✓ ${result.action.type}`);
+      } else {
+        setCommandFeedback(`✗ ${actionResult.error}`);
+      }
+      setTimeout(() => setCommandFeedback(null), 2000);
+      return true;
+    } else if (result.error) {
+      // Help text
+      setCommandFeedback(result.error);
+      setTimeout(() => setCommandFeedback(null), 5000);
+      return true;
+    }
+    
+    return false;
+  };
+
   const handleSend = async () => {
     if ((!input.trim() && contextNodes.length === 0) || isLoading) return;
+
+    // Check if this is a slash command
+    if (isCommand(input)) {
+      const executed = executeCommand(input);
+      if (executed) {
+        setInput('');
+        setShowCommandPalette(false);
+      }
+      return;
+    }
 
     const currentContextNodes = [...contextNodes]; // Capture current nodes
 
@@ -538,10 +583,37 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Let command palette handle its own keys when open
+    if (showCommandPalette && ['ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
+      return; // CommandPalette handles these
+    }
+    
+    if (e.key === 'Escape') {
+      setShowCommandPalette(false);
+      return;
+    }
+    
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInput(value);
+    
+    // Show command palette when typing /
+    if (value === '/' || (value.startsWith('/') && !value.includes(' '))) {
+      setShowCommandPalette(true);
+    } else if (!value.startsWith('/')) {
+      setShowCommandPalette(false);
+    }
+  };
+
+  const handleCommandSelect = (command: string) => {
+    setInput(command);
+    setShowCommandPalette(false);
   };
 
   // Drag & Drop Handlers for Input Area
@@ -896,6 +968,42 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             </div>
           )}
 
+          {/* Command Palette */}
+          {showCommandPalette && (
+            <div style={{ marginBottom: 8, width: '100%' }}>
+              <CommandPalette
+                input={input}
+                onSelect={handleCommandSelect}
+                onClose={() => setShowCommandPalette(false)}
+              />
+            </div>
+          )}
+
+          {/* Command Feedback */}
+          {commandFeedback && (
+            <div
+              style={{
+                marginBottom: 8,
+                padding: '8px 12px',
+                backgroundColor: commandFeedback.startsWith('✓') 
+                  ? 'rgba(34, 197, 94, 0.1)' 
+                  : commandFeedback.startsWith('✗')
+                  ? 'rgba(239, 68, 68, 0.1)'
+                  : 'rgba(13, 148, 136, 0.1)',
+                borderRadius: radii.md,
+                fontSize: '0.75rem',
+                color: commandFeedback.startsWith('✓')
+                  ? colors.success[600]
+                  : commandFeedback.startsWith('✗')
+                  ? colors.error[600]
+                  : colors.text.secondary,
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {commandFeedback}
+            </div>
+          )}
+
           {/* Input Row */}
           <div style={{
             display: 'flex',
@@ -917,8 +1025,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
 
             <TextField
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={isDragOver ? "Drop to analyze!" : (contextNodes.length > 0 ? "Ask about these documents..." : "Drop to analyze...")}
+              onChange={handleInputChange}
+              placeholder={isDragOver ? "Drop to analyze!" : (contextNodes.length > 0 ? "Ask about these documents..." : "Type / for commands...")}
               disabled={isLoading}
               onKeyDown={handleKeyDown}
               style={{

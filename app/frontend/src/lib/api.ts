@@ -1296,3 +1296,95 @@ export const tagsApi = {
     fetchApi<void>(`/api/v1/tags/${tagId}`, { method: 'DELETE' }),
 };
 
+// =============================================================================
+// URL Content Extraction API
+// =============================================================================
+
+export interface UrlContent {
+  id: string;
+  url: string;
+  normalized_url: string;
+  platform: 'youtube' | 'bilibili' | 'douyin' | 'web';
+  content_type: 'video' | 'article' | 'link';
+  title: string | null;
+  content: string | null;
+  thumbnail_url: string | null;
+  meta_data: Record<string, unknown>;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  extracted_at: string | null;
+}
+
+export interface UrlContentStatus {
+  id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  error_message: string | null;
+  title: string | null;
+  thumbnail_url: string | null;
+}
+
+export const urlApi = {
+  /**
+   * Extract content from a URL.
+   * Returns immediately with status="pending".
+   * Use getStatus() to poll for completion.
+   */
+  extract: (url: string, force: boolean = false) =>
+    fetchApi<UrlContent>('/api/v1/url/extract', {
+      method: 'POST',
+      body: JSON.stringify({ url, force }),
+    }),
+
+  /**
+   * Get full URL content by ID.
+   */
+  get: (id: string) =>
+    fetchApi<UrlContent>(`/api/v1/url/extract/${id}`),
+
+  /**
+   * Get lightweight status for polling.
+   */
+  getStatus: (id: string) =>
+    fetchApi<UrlContentStatus>(`/api/v1/url/extract/${id}/status`),
+
+  /**
+   * Poll for extraction completion with retry.
+   * @param id URL content ID
+   * @param options Polling options
+   * @returns Full URL content when completed
+   */
+  waitForCompletion: async (
+    id: string,
+    options: {
+      maxAttempts?: number;
+      intervalMs?: number;
+      onStatusChange?: (status: UrlContentStatus) => void;
+    } = {}
+  ): Promise<UrlContent> => {
+    const { maxAttempts = 60, intervalMs = 1000, onStatusChange } = options;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const status = await urlApi.getStatus(id);
+      
+      if (onStatusChange) {
+        onStatusChange(status);
+      }
+
+      if (status.status === 'completed') {
+        return urlApi.get(id);
+      }
+
+      if (status.status === 'failed') {
+        throw new Error(status.error_message || 'URL extraction failed');
+      }
+
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+
+    throw new Error('URL extraction timed out');
+  },
+};
+

@@ -16,7 +16,7 @@ const getProjectColor = (name: string) => {
     { bg: '#FEF3C7', color: '#B45309' }, // Amber
     { bg: '#ECFCCB', color: '#4D7C0F' }, // Lime
     { bg: '#D1FAE5', color: '#047857' }, // Emerald
-    { bg: '#CCFBF1', color: '#0F766E' }, // Teal
+    { bg: '#EDE9FE', color: '#6D28D9' }, // Violet
     { bg: '#E0F2FE', color: '#0369A1' }, // Sky
     { bg: '#E0E7FF', color: '#4338CA' }, // Indigo
     { bg: '#FAE8FF', color: '#A21CAF' }, // Fuchsia

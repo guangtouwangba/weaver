@@ -51,6 +51,14 @@ dependencies = [
     
     # Observability
     "langfuse>=3.0.0",
+    
+    # Task Queue
+    "arq>=0.26.0",  # Redis-based async task queue
+    
+    # URL Content Extraction
+    "trafilatura>=2.0.0",  # Web page article extraction
+    "youtube-transcript-api>=0.6.0",  # YouTube transcript extraction
+    "bilibili-api-python>=16.0.0",  # Bilibili video metadata
 ]
 
 [project.optional-dependencies]

@@ -249,6 +249,35 @@ async def generate_thumbnail(ctx: Dict[str, Any], payload: Dict[str, Any]) -> No
             raise
 
 
+async def process_url(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
+    """
+    Extract content from a URL.
+
+    Args:
+        ctx: ARQ context
+        payload: Task payload containing:
+            - url_content_id: UUID of the UrlContent record
+            - url: The URL to extract content from
+    """
+    from research_agent.infrastructure.database.session import get_async_session
+    from research_agent.shared.utils.logger import logger
+    from research_agent.worker.tasks.url_processor import URLProcessorTask
+
+    logger.info(f"📥 ARQ: Starting URL extraction - payload={payload}")
+
+    task = URLProcessorTask()
+
+    async with get_async_session() as session:
+        try:
+            await task.execute(payload, session)
+            logger.info(
+                f"✅ ARQ: URL extraction completed - url_content_id={payload.get('url_content_id')}"
+            )
+        except Exception as e:
+            logger.error(f"❌ ARQ: URL extraction failed - {e}", exc_info=True)
+            raise
+
+
 # =============================================================================
 # Scheduled Tasks (Cron Jobs)
 # =============================================================================
@@ -292,6 +321,7 @@ class WorkerSettings:
         sync_canvas,
         cleanup_canvas,
         generate_thumbnail,
+        process_url,
     ]
 
     # Scheduled tasks (cron jobs)

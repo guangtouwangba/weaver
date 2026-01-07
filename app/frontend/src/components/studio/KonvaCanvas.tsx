@@ -135,11 +135,11 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       topBarColor: '#3B82F6',
     },
     source_web: {
-      borderColor: '#0D9488',  // Teal - Web pages
+      borderColor: '#7C3AED',  // Violet - Web pages
       borderStyle: 'solid',
-      bgColor: '#F0FDFA',      // Light teal
+      bgColor: '#F5F3FF',      // Light violet
       icon: '🌐',              // Globe icon
-      topBarColor: '#0D9488',
+      topBarColor: '#7C3AED',
     },
     source_text: {
       borderColor: '#78716C',  // Stone - Plain text
@@ -222,11 +222,11 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       topBarColor: '#8B5CF6',
     },
     mindmap_output: {
-      borderColor: '#0D9488',  // Teal for mindmap
+      borderColor: '#7C3AED',  // Violet for mindmap
       borderStyle: 'solid',
-      bgColor: '#F0FDFA',      // Light teal
+      bgColor: '#F5F3FF',      // Light violet
       icon: '🔀',              // Network icon for mindmap
-      topBarColor: '#0D9488',
+      topBarColor: '#7C3AED',
     },
     // === Other Node Types ===
     knowledge: {
@@ -273,11 +273,11 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       topBarColor: '#EC4899',
     },
     compare: {
-      borderColor: '#0D9488',  // Teal
+      borderColor: '#7C3AED',  // Violet
       borderStyle: 'solid',
-      bgColor: '#F0FDFA',      // Light teal
+      bgColor: '#F5F3FF',      // Light violet
       icon: '⚖️',
-      topBarColor: '#0D9488',
+      topBarColor: '#7C3AED',
     },
     // === Sticky Note ===
     sticky: {
@@ -361,7 +361,7 @@ const SourcePreviewCard = ({
   isActiveThinking?: boolean;
 }) => {
   const thumbUrl = node.fileMetadata?.thumbnailUrl;
-  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#0D9488' : '#E7E5E4'));
+  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : '#E5E7EB'));
   const strokeWidth = isSelected || isHighlighted ? 2 : 1;
   const shadowBlur = isSelected ? 12 : 4;
   const shadowOpacity = isSelected ? 0.15 : 0.05;
@@ -523,9 +523,10 @@ const SuperArticleCard = ({
         height={height}
         fill={bgColor}
         cornerRadius={12}
-        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : '#E5E7EB')}
         strokeWidth={isSelected ? 2 : 1}
-        shadowColor="rgba(102, 126, 234, 0.15)"
+        dash={isSelected && !isHighlighted ? [6, 4] : undefined}
+        shadowColor={isSelected ? 'rgba(124, 58, 237, 0.15)' : 'rgba(102, 126, 234, 0.15)'}
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
@@ -661,9 +662,10 @@ const SuperActionListCard = ({
         height={height}
         fill={bgColor}
         cornerRadius={12}
-        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : '#E5E7EB')}
         strokeWidth={isSelected ? 2 : 1}
-        shadowColor="rgba(245, 158, 11, 0.15)"
+        dash={isSelected && !isHighlighted ? [6, 4] : undefined}
+        shadowColor={isSelected ? 'rgba(124, 58, 237, 0.15)' : 'rgba(245, 158, 11, 0.15)'}
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
@@ -832,9 +834,10 @@ const MindmapKonvaCard = ({
         height={height}
         fill={bgColor}
         cornerRadius={12}
-        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : '#E5E7EB')}
         strokeWidth={isSelected ? 2 : 1}
-        shadowColor="rgba(16, 185, 129, 0.15)"
+        dash={isSelected && !isHighlighted ? [6, 4] : undefined}
+        shadowColor={isSelected ? 'rgba(124, 58, 237, 0.15)' : 'rgba(16, 185, 129, 0.15)'}
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
@@ -1009,9 +1012,10 @@ const SummaryKonvaCard = ({
         height={height}
         fill={bgColor}
         cornerRadius={12}
-        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : '#E5E7EB')}
         strokeWidth={isSelected ? 2 : 1}
-        shadowColor="rgba(139, 92, 246, 0.15)"
+        dash={isSelected && !isHighlighted ? [6, 4] : undefined}
+        shadowColor={isSelected ? 'rgba(124, 58, 237, 0.15)' : 'rgba(139, 92, 246, 0.15)'}
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
@@ -1163,11 +1167,13 @@ const KnowledgeNode = ({
   const isThinkingStep = node.type === 'thinking_step';
   const isThinkingBranch = node.type === 'thinking_branch';
 
-  // Highlight animation effect
+  // Highlight animation effect - Violet selection with dashed border
   const highlightStrokeWidth = isActiveThinking ? 4 : (isMergeTarget ? 3 : (isHighlighted ? 3 : (isSelected ? 2 : 1)));
-  const highlightStrokeColor = isActiveThinking ? '#8B5CF6' : (isMergeTarget ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? style.borderColor : style.borderColor)));
-  const highlightShadowColor = isMergeTarget ? '#8B5CF6' : (isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : 'black'));
+  const highlightStrokeColor = isActiveThinking ? '#8B5CF6' : (isMergeTarget ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : style.borderColor)));
+  const highlightShadowColor = isMergeTarget ? '#8B5CF6' : (isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : 'black')));
   const highlightShadowBlur = isMergeTarget ? 24 : (isActiveThinking ? 20 : (isHighlighted ? 16 : (isSelected ? 12 : 8)));
+  // Use dashed border for selection (distinctive visual signature)
+  const selectionDash = isSelected && !isActiveThinking && !isMergeTarget && !isHighlighted ? [6, 4] : undefined;
 
   // Check if this is a source node (for visual distinction)
   const isSourceNode = node.subType === 'source';
@@ -1266,8 +1272,8 @@ const KnowledgeNode = ({
             cornerRadius={12}
             stroke={highlightStrokeColor}
             strokeWidth={highlightStrokeWidth}
-            dash={style.borderStyle === 'dashed' ? [8, 4] : undefined}
-            shadowColor={isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : 'black')}
+            dash={selectionDash || (style.borderStyle === 'dashed' ? [8, 4] : undefined)}
+            shadowColor={isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : highlightShadowColor)}
             shadowBlur={isActiveThinking ? 20 : (isHighlighted ? 16 : (isSelected ? 12 : 8))}
             shadowOpacity={isActiveThinking ? 0.4 : (isHighlighted ? 0.3 : (isSelected ? 0.15 : 0.08))}
             shadowOffsetY={4}

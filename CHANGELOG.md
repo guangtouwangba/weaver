@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-01-07
+
+#### URL Content Extraction Module (@siqiuchen)
+
+**Feature:**
+Added a reusable URL extractor module that can extract content from web pages, YouTube videos, Bilibili videos, and Douyin videos. This enables importing external content via URLs in the Import Source dialog.
+
+**Backend Changes:**
+- Created `url_extractor` infrastructure module with:
+  - Platform detection for YouTube, Bilibili, Douyin, and generic web pages
+  - URL validation and normalization (removes tracking params, normalizes variants)
+  - `WebPageExtractor`: Uses trafilatura for article text extraction
+  - `YouTubeExtractor`: Uses youtube-transcript-api for transcript extraction
+  - `BilibiliExtractor`: Uses bilibili-api-python for video metadata and subtitles
+  - `DouyinExtractor`: Basic metadata extraction with scraping fallback
+  - `URLExtractorFactory`: Returns appropriate handler based on URL
+- Added `UrlContentModel` for persisting extracted content with deduplication
+- Added `SQLAlchemyUrlContentRepository` with CRUD operations
+- Created ARQ task `process_url` for async URL extraction
+- Added API endpoints:
+  - `POST /api/v1/url/extract` - Start extraction (returns pending status)
+  - `GET /api/v1/url/extract/{id}` - Get extraction result
+  - `GET /api/v1/url/extract/{id}/status` - Lightweight status polling
+- Added Redis service to docker-compose.yml for local development
+
+**Frontend Changes:**
+- Updated `ImportSourceDialog` with URL extraction integration:
+  - Loading state with spinner during extraction
+  - Error display for failed extractions
+  - New `onUrlExtracted` callback prop for extracted content
+- Added URL API functions: `extractUrl`, `getUrlContent`, `waitForCompletion`
+- Added platform icons (YouTube, Globe, Video) and utility functions
+- Created `platform-icons.tsx` with `PlatformIcon` component and helpers
+
+**Dependencies Added:**
+- `arq>=0.26.0` - Redis-based async task queue
+- `trafilatura>=2.0.0` - Web page article extraction
+- `youtube-transcript-api>=0.6.0` - YouTube transcript extraction
+- `bilibili-api-python>=16.0.0` - Bilibili video metadata
+
+**Files Changed:**
+- `app/backend/pyproject.toml` - New dependencies
+- `app/backend/src/research_agent/config.py` - Redis and extraction config
+- `app/backend/docker-compose.yml` - Redis service
+- `app/backend/env.example` - Redis URL documentation
+- `app/backend/alembic/versions/20250107_000001_add_url_contents_table.py` - Migration
+- `app/backend/src/research_agent/infrastructure/database/models.py` - UrlContentModel
+- `app/backend/src/research_agent/infrastructure/database/repositories/sqlalchemy_url_content_repo.py` - Repository
+- `app/backend/src/research_agent/infrastructure/url_extractor/` - New module
+- `app/backend/src/research_agent/worker/arq_config.py` - Registered task
+- `app/backend/src/research_agent/worker/tasks/url_processor.py` - ARQ task
+- `app/backend/src/research_agent/api/v1/url.py` - API endpoints
+- `app/backend/src/research_agent/api/v1/router.py` - Router registration
+- `app/backend/src/research_agent/application/dto/url_content.py` - DTOs
+- `app/frontend/src/lib/api.ts` - URL API functions
+- `app/frontend/src/lib/platform-icons.tsx` - Platform icon utility
+- `app/frontend/src/components/dialogs/ImportSourceDialog.tsx` - URL extraction UI
+- `app/frontend/src/components/ui/icons/index.ts` - Platform icons
+
 ### Fixed - 2026-01-07
 
 #### Output Node Deletion Persistence (@siqiuchen)

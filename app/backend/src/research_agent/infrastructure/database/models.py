@@ -793,6 +793,46 @@ class InboxItemTagModel(Base):
     )
 
 
+class UrlContentModel(Base):
+    """URL Content ORM model for storing extracted content from URLs."""
+
+    __tablename__ = "url_contents"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    url: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    normalized_url: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    platform: Mapped[str] = mapped_column(String(50), nullable=False)  # youtube, bilibili, douyin, web
+    content_type: Mapped[str] = mapped_column(String(50), nullable=False)  # video, article, link
+
+    # Extracted content
+    title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Article text or transcript
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Platform-specific metadata
+    meta_data: Mapped[Dict[str, Any]] = mapped_column(
+        JSONB, server_default="{}", nullable=False, default=dict
+    )
+
+    # Processing status
+    status: Mapped[str] = mapped_column(
+        String(20), server_default="pending", nullable=False
+    )  # pending, processing, completed, failed
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    extracted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Optional: User ownership (for multi-tenant)
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
 class ApiKeyModel(Base):
     """API Key ORM model for external collection access."""
 

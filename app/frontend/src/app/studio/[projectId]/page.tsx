@@ -13,7 +13,8 @@ import KonvaCanvas from "@/components/studio/KonvaCanvas";
 import CanvasControls from "@/components/studio/CanvasControls";
 import ImportSourceDialog from "@/components/dialogs/ImportSourceDialog";
 import PDFPreviewModal from "@/components/pdf/PDFPreviewModal";
-import { documentsApi, canvasApi } from "@/lib/api";
+import { documentsApi, canvasApi, urlApi } from "@/lib/api";
+import { detectPlatform, type Platform } from '@/lib/platform-icons';
 
 export default function StudioPage() {
   const params = useParams();
@@ -106,8 +107,22 @@ function StudioPageContent() {
 
   // Handle URL Import from Dialog
   const handleUrlImport = async (url: string) => {
-    // Placeholder for URL import logic
-    console.log('Importing URL:', url);
+    try {
+      console.log('Importing URL:', url);
+      // Start extraction
+      const pendingContent = await urlApi.extract(url);
+      console.log('URL extraction started:', pendingContent.id);
+
+      // Poll for completion
+      const completedContent = await urlApi.waitForCompletion(pendingContent.id, {
+        maxAttempts: 120,
+        intervalMs: 1000,
+      });
+      console.log('URL extraction completed:', completedContent);
+      // TODO: Add to documents list or handle completed extraction
+    } catch (error) {
+      console.error('URL extraction failed:', error);
+    }
   };
 
   return (
