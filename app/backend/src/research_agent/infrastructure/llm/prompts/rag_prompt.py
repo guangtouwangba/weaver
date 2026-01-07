@@ -96,6 +96,52 @@ Please answer the question above **in detail** based on the context.
 Ensure you incorporate all relevant information from the documents to provide a thorough explanation."""
 
 
+def build_rag_prompt_with_history(
+    query: str, 
+    context_chunks: list[dict],
+    chat_history: str = "",
+) -> str:
+    """
+    Build RAG prompt with document context AND conversation history.
+    
+    This enables the LLM to understand pronoun references (it, that, this, etc.)
+    without needing a separate query rewrite step.
+    
+    Args:
+        query: Current user question
+        context_chunks: Retrieved document chunks
+        chat_history: Formatted conversation history string
+        
+    Returns:
+        Complete prompt with context and history
+    """
+    context = "\n\n".join(
+        [f"[Page {c.get('page_number', '?')}]: {c['content']}" for c in context_chunks]
+    )
+
+    history_section = ""
+    if chat_history:
+        history_section = f"""
+Previous conversation (for context, resolve any pronouns like "it", "that", "this"):
+{chat_history}
+
+---
+"""
+
+    return f"""{history_section}Context from documents:
+{context}
+
+Current question: {query}
+
+Instructions:
+- Answer the current question based on the document context above.
+- If the question uses pronouns or references previous topics (e.g., "it", "that", "this topic"), 
+  resolve them using the previous conversation context.
+- Provide a detailed and comprehensive answer.
+- Always cite the source page numbers when possible using [Page X] format.
+- Answer in the same language as the user's question."""
+
+
 def get_generation_prompt(intent_type: str) -> str:
     """Get generation prompt for specific intent type."""
     return GENERATION_PROMPTS.get(intent_type, GENERATION_PROMPTS["factual"])

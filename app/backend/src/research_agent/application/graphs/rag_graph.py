@@ -288,6 +288,106 @@ def get_cache_key(question: str, chat_history: list[tuple[str, str]]) -> str:
     return hashlib.md5(key_str.encode()).hexdigest()
 
 
+def expand_query_with_history(
+    question: str, 
+    chat_history: list[tuple[str, str]],
+    max_context_words: int = 30,
+) -> str:
+    """
+    Rule-based query expansion using chat history context.
+    
+    This is a lightweight alternative to LLM-based rewriting that:
+    1. Extracts topic keywords from recent conversation
+    2. Appends them as context to the original query
+    3. Returns an expanded query suitable for retrieval
+    
+    Args:
+        question: Original user question
+        chat_history: List of (human, ai) message tuples
+        max_context_words: Max words to add from history
+        
+    Returns:
+        Expanded query string for retrieval
+    """
+    if not chat_history or not needs_rewriting(question, chat_history):
+        return question
+    
+    # Extract key terms from last 2 conversation turns
+    context_terms = []
+    for human_msg, ai_msg in chat_history[-2:]:
+        # Extract from human question (likely contains topic)
+        words = human_msg.split()
+        # Filter out common stop words and short words
+        stop_words = {
+            "what", "how", "why", "when", "where", "who", "which", "is", "are", 
+            "the", "a", "an", "to", "of", "in", "for", "and", "or", "it", "that",
+            "this", "these", "those", "them", "they", "its", "his", "her", "their",
+            "can", "could", "would", "should", "will", "do", "does", "did", "have",
+            "has", "had", "be", "been", "being", "was", "were", "about", "with",
+            "的", "是", "在", "有", "了", "和", "与", "这", "那", "什么", "怎么",
+            "如何", "为什么", "哪个", "哪些", "可以", "能", "会", "要", "我", "你",
+        }
+        keywords = [
+            w.strip("?？!！,.，。") for w in words 
+            if len(w) > 2 and w.lower() not in stop_words
+        ]
+        context_terms.extend(keywords[:5])  # Limit per turn
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_terms = []
+    for term in context_terms:
+        if term.lower() not in seen:
+            seen.add(term.lower())
+            unique_terms.append(term)
+    
+    # Limit total context length
+    context_words = unique_terms[:max_context_words]
+    
+    if not context_words:
+        return question
+    
+    # Build expanded query with context
+    context_str = " ".join(context_words)
+    expanded = f"{question} [Context: {context_str}]"
+    
+    logger.info(f"[Rule-based Expansion] '{question}' -> '{expanded}'")
+    return expanded
+
+
+def build_history_context_for_prompt(
+    chat_history: list[tuple[str, str]],
+    max_turns: int = 3,
+) -> str:
+    """
+    Build a concise history context string for inclusion in generation prompt.
+    
+    This allows the LLM to understand pronoun references without needing
+    a separate rewrite step.
+    
+    Args:
+        chat_history: List of (human, ai) message tuples
+        max_turns: Maximum number of conversation turns to include
+        
+    Returns:
+        Formatted history context string
+    """
+    if not chat_history:
+        return ""
+    
+    recent = chat_history[-max_turns:]
+    
+    lines = []
+    for i, (human_msg, ai_msg) in enumerate(recent, 1):
+        # Truncate long messages
+        human_truncated = human_msg[:200] + "..." if len(human_msg) > 200 else human_msg
+        ai_truncated = ai_msg[:300] + "..." if len(ai_msg) > 300 else ai_msg
+        lines.append(f"Q{i}: {human_truncated}")
+        lines.append(f"A{i}: {ai_truncated}")
+    
+    return "\n".join(lines)
+
+
 def validate_rewrite(original: str, rewritten: str, max_expansion_ratio: float = 3.0) -> bool:
     """
     Validate rewrite quality.
@@ -1440,6 +1540,7 @@ async def stream_rag_response(
     llm: ChatOpenAI,
     chat_history: list[tuple[str, str]] = None,
     use_rewrite: bool = True,
+    use_llm_rewrite: bool = False,  # NEW: Use LLM for rewrite (False = use rule-based expansion)
     use_intent_classification: bool = True,
     use_rerank: bool = True,
     use_grading: bool = True,
@@ -1461,7 +1562,9 @@ async def stream_rag_response(
         retriever: PGVector retriever
         llm: Language model
         chat_history: List of (human, ai) message tuples
-        use_rewrite: Enable query rewriting
+        use_rewrite: Enable query expansion (either LLM-based or rule-based)
+        use_llm_rewrite: If True, use LLM for rewriting (slower, more accurate).
+                        If False (default), use rule-based expansion (faster, no extra LLM call)
         use_intent_classification: Enable intent classification and adaptive strategies
         use_rerank: Enable reranking
         use_grading: Enable grading
@@ -1483,22 +1586,40 @@ async def stream_rag_response(
         "canvas_context": canvas_context,
     }
 
-    # Step 1: Query rewriting (optional)
+    # Step 1: Query rewriting / expansion (optional)
+    # Build history context for prompt-based resolution (used in generation step)
+    history_context_for_prompt = ""
+    if chat_history:
+        history_context_for_prompt = build_history_context_for_prompt(chat_history, max_turns=3)
+        state["history_context"] = history_context_for_prompt
+    
     if use_rewrite and chat_history:
-        logger.info("[Stream] Rewriting query...")
-        rewrite_result = await transform_query(
-            state,
-            llm,
-            enable_validation=enable_rewrite_validation,
-            enable_cache=enable_rewrite_cache,
-            max_expansion_ratio=max_expansion_ratio,
-        )
-        state.update(rewrite_result)  # Merge instead of replace
+        if use_llm_rewrite:
+            # LLM-based rewrite (more accurate but adds latency)
+            if needs_rewriting(question, chat_history):
+                yield {"type": "status", "step": "rewriting", "message": "Refining your question..."}
+            logger.info("[Stream] LLM-based query rewriting...")
+            rewrite_result = await transform_query(
+                state,
+                llm,
+                enable_validation=enable_rewrite_validation,
+                enable_cache=enable_rewrite_cache,
+                max_expansion_ratio=max_expansion_ratio,
+            )
+            state.update(rewrite_result)
+        else:
+            # Rule-based expansion (faster, no LLM call)
+            # The actual pronoun resolution happens in the generation prompt
+            expanded_query = expand_query_with_history(question, chat_history)
+            state["rewritten_question"] = expanded_query
+            state["question"] = question  # Keep original for display
+            logger.info(f"[Stream] Rule-based expansion: '{question}' -> '{expanded_query}'")
     else:
         state["rewritten_question"] = question
 
     # Step 1.5: Memory retrieval (semantic history) - if session and embedding_service available
     if session and embedding_service and project_id:
+        yield {"type": "status", "step": "memory", "message": "Recalling context..."}
         logger.info("[Stream] Retrieving relevant memories...")
         try:
             # Get session summary (short-term working memory)
@@ -1532,6 +1653,7 @@ async def stream_rag_response(
 
     # Step 2: Intent classification (optional)
     if use_intent_classification:
+        yield {"type": "status", "step": "analyzing", "message": "Understanding your intent..."}
         logger.info("[Stream] Classifying intent...")
         intent_result = await classify_intent(
             state,
@@ -1545,6 +1667,7 @@ async def stream_rag_response(
         )
 
     # Step 3: Retrieve documents (with adaptive strategy or long context)
+    yield {"type": "status", "step": "retrieving", "message": "Searching knowledge base..."}
     if rag_mode in ("long_context", "auto") and session and project_id and embedding_service:
         from research_agent.config import get_settings
         from research_agent.domain.services.document_selector import DocumentSelectorService
@@ -1621,6 +1744,7 @@ async def stream_rag_response(
 
     # Step 4: Rerank (optional)
     if use_rerank:
+        yield {"type": "status", "step": "ranking", "message": "Ranking relevant content..."}
         logger.info("[Stream] Reranking documents...")
         rerank_result = await rerank(state, llm)
         state.update(rerank_result)  # Merge instead of replace
@@ -1638,18 +1762,24 @@ async def stream_rag_response(
         documents = state.get("filtered_documents", [])
 
     filtered_count = len(documents)
-    logger.info(f"[Stream] {filtered_count} documents for generation")
+    canvas_context = state.get("canvas_context", "")
+    logger.info(f"[Stream] {filtered_count} documents for generation, canvas_context={len(canvas_context)} chars")
 
-    if filtered_count == 0:
-        logger.warning("[Stream] No relevant documents found")
+    # Allow generation if we have canvas_context (URL content, canvas nodes) even without documents
+    if filtered_count == 0 and not canvas_context:
+        logger.warning("[Stream] No relevant documents found and no canvas context")
         yield {
             "type": "token",
             "content": "I don't have enough relevant information to answer this question.",
         }
         yield {"type": "done"}
         return
+    
+    if filtered_count == 0 and canvas_context:
+        logger.info("[Stream] No relevant documents, but proceeding with canvas/URL context")
 
     # Step 6: Stream generation (with adaptive strategy or long context)
+    yield {"type": "status", "step": "generating", "message": "Generating response..."}
     current_rag_mode = state.get("rag_mode", "traditional")
     long_context_content = state.get("long_context_content", "")
 
@@ -1823,9 +1953,17 @@ async def stream_rag_response(
     # Build memory context (session summary + relevant past discussions)
     memory_context = format_memory_for_context(state)
     canvas_context = state.get("canvas_context", "")
+    history_context = state.get("history_context", "")  # NEW: Conversation history for pronoun resolution
 
-    # Combine document context with memory context and canvas context
+    # Combine document context with memory context, canvas context, and history
     context_parts = []
+
+    # Add conversation history for pronoun resolution (rule-based rewrite mode)
+    if history_context:
+        context_parts.append(
+            f"## Recent Conversation (for context, use to resolve pronouns like 'it', 'that', 'this')\n{history_context}"
+        )
+        logger.info(f"[Generate] Including history context for pronoun resolution: {len(history_context)} chars")
 
     if canvas_context:
         context_parts.append(
@@ -1853,14 +1991,18 @@ async def stream_rag_response(
         system_prompt = """You are an assistant for question-answering tasks.
         Use the following pieces of retrieved context to answer the question.
         The context may include:
+        - Recent Conversation: Previous Q&A for understanding pronoun references (it, that, this, etc.)
         - User Specified Context: Information explicitly selected by the user (Highest Priority)
         - Conversation Summary: A summary of earlier parts of the conversation
         - Relevant Past Discussions: Similar questions and answers from previous sessions
         - Retrieved Documents: Information from the knowledge base
         
+        IMPORTANT: If the question contains pronouns or references like "it", "that", "this", "them", 
+        or references to previous topics, resolve them using the Recent Conversation context.
+        
         Use all available context to provide the most helpful answer.
         If you don't know the answer, just say that you don't know.
-        Use three sentences maximum and keep the answer concise."""
+        Answer in the same language as the question."""
 
     # Create prompt and chain (moved outside the else block to fix the bug)
     prompt = ChatPromptTemplate.from_messages(

@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2026-01-07
+
+#### Real-time AI Thinking Status Feedback (@siqiuchen)
+
+**Feature:**
+Added real-time status updates during AI chat response generation, showing users what the assistant is doing (refining question, searching knowledge, generating response) instead of just "Thinking...".
+
+**Backend Changes:**
+- Added status events to `stream_rag_response()` in `rag_graph.py`:
+  - `rewriting`: When refining the user's question with context
+  - `memory`: When recalling relevant context from history
+  - `analyzing`: When classifying user intent
+  - `retrieving`: When searching the knowledge base
+  - `ranking`: When ranking relevant content
+  - `generating`: When starting response generation
+- Updated `StreamEvent` dataclass to include `step` and `message` fields
+- Added status event handling in `StreamMessageUseCase`
+- Updated chat API endpoint to forward status events to frontend
+
+**Frontend Changes:**
+- Created `ThinkingIndicator` component with animated states
+- Created `ThinkingIndicatorInline` for message bubble display
+- Added `thinkingStatus` state to `AssistantPanel`
+- Updated stream handler to process status events
+- AI messages now show dynamic status (e.g., "Searching knowledge...") instead of static "Thinking..."
+
+**UX Improvements:**
+- Users can see real-time progress of AI processing
+- Smooth animations with macOS-inspired design
+- Status transitions with visual feedback
+
+---
+
+#### Query Rewrite Optimization (Phase 2) (@siqiuchen)
+
+**Problem:**
+Query rewrite using a separate LLM call added 1-2 seconds latency for follow-up questions containing pronouns (it, that, this, etc.).
+
+**Solution:**
+Replaced LLM-based query rewrite with rule-based expansion + prompt-based pronoun resolution:
+
+1. **Rule-based Query Expansion** (`expand_query_with_history`):
+   - Extracts topic keywords from recent conversation
+   - Appends context to query for better retrieval
+   - Zero LLM latency
+
+2. **Prompt-based Pronoun Resolution** (`build_history_context_for_prompt`):
+   - Includes conversation history in the generation prompt
+   - LLM resolves pronouns during answer generation (no extra call)
+
+**Backend Changes:**
+- Added `expand_query_with_history()` function for rule-based expansion
+- Added `build_history_context_for_prompt()` for formatting history
+- Added `use_llm_rewrite` parameter to `stream_rag_response()`
+- Added `USE_LLM_REWRITE` config option (default: false)
+- Updated system prompt to instruct LLM to resolve pronouns
+- Added `history_context` to state for generation step
+
+**Configuration:**
+```env
+# Use LLM rewrite (slower, more accurate) or rule-based (faster, default)
+USE_LLM_REWRITE=false
+```
+
+**Performance Improvement:**
+- Reduced latency by ~1-2 seconds for follow-up questions
+- Same quality through prompt-based resolution
+- Optional fallback to LLM rewrite via config
+
+---
+
 ### Fixed - 2026-01-07
 
 #### URL Content Persistence Across Page Refresh (@siqiuchen)

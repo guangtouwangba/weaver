@@ -307,6 +307,8 @@ class ChatMessageModel(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # 'user' or 'ai'
     content: Mapped[str] = mapped_column(Text, nullable=False)
     sources: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=True)
+    # Context references for user messages: {url_ids: [], node_ids: [], nodes: []}
+    context_refs: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

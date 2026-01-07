@@ -243,6 +243,7 @@ class SQLAlchemyChatRepository:
             role=message.role,
             content=message.content,
             sources=message.sources,
+            context_refs=message.context_refs,
             created_at=message.created_at,
         )
         self._session.add(model)
@@ -300,6 +301,7 @@ class SQLAlchemyChatRepository:
                 role=m.role,
                 content=m.content,
                 sources=m.sources,
+                context_refs=m.context_refs,
                 created_at=m.created_at,
             )
             for m in models

@@ -45,7 +45,11 @@ class ChatMessage:
         role: 'user' or 'ai'
         content: The message content
         session_id: The session this message belongs to (optional for backward compatibility)
-        sources: RAG sources referenced in the response
+        sources: RAG sources referenced in the response (for AI messages)
+        context_refs: Context references attached to the message (for user messages)
+            - url_ids: List of URL content IDs
+            - node_ids: List of canvas node IDs
+            - nodes: List of direct node content {id, title, content}
         id: Unique message identifier
         created_at: When the message was created
     """
@@ -55,5 +59,6 @@ class ChatMessage:
     content: str
     session_id: Optional[UUID] = None
     sources: Optional[List[Dict[str, Any]]] = None
+    context_refs: Optional[Dict[str, Any]] = None  # {url_ids: [], node_ids: [], nodes: []}
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=datetime.utcnow)

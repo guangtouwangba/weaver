@@ -378,10 +378,18 @@ async def stream_message(
                 context_nodes=[n.model_dump() for n in request.context_nodes]
                 if request.context_nodes
                 else None,
+                context_url_ids=request.context_url_ids,
             )
         ):
             if event.type == "token":
                 data = {"type": "token", "content": event.content}
+            elif event.type == "status":
+                # Forward thinking status to frontend for real-time feedback
+                data = {
+                    "type": "status",
+                    "step": event.step,
+                    "message": event.message,
+                }
             elif event.type == "sources":
                 data = {
                     "type": "sources",
@@ -453,6 +461,7 @@ async def get_chat_history(
                 content=m.content,
                 session_id=m.session_id,
                 sources=m.sources,
+                context_refs=m.context_refs,
                 created_at=m.created_at,
             )
             for m in result.messages

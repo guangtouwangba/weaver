@@ -67,6 +67,9 @@ class StreamMessageInput:
     context_nodes: Optional[List[dict]] = (
         None  # Direct context nodes with content (no DB lookup needed)
     )
+    context_url_ids: Optional[List[str]] = (
+        None  # IDs of URL content to include as context (video transcripts, articles)
+    )
     auto_thinking_path: bool = True  # Enable automatic thinking path generation
 
 
@@ -74,10 +77,12 @@ class StreamMessageInput:
 class StreamEvent:
     """Streaming event."""
 
-    type: str  # "token" | "sources" | "done" | "error" | "citations"
+    type: str  # "token" | "sources" | "done" | "error" | "citations" | "status"
     content: Optional[str] = None
     sources: Optional[List[SourceRef]] = None
     citations: Optional[List[dict]] = None  # Citations from long context mode
+    step: Optional[str] = None  # For status events: rewriting, memory, analyzing, retrieving, ranking, generating
+    message: Optional[str] = None  # Human-readable status message
 
 
 class StreamMessageUseCase:
@@ -117,13 +122,56 @@ class StreamMessageUseCase:
             default_session = await repo.get_or_create_default_session(input.project_id)
             session_id = default_session.id
 
-        # Save User Message
+        # Build context references for the user message
+        context_refs = None
+        if input.context_url_ids or input.context_node_ids or input.context_nodes:
+            context_refs = {}
+            
+            # Fetch URL content metadata for display
+            if input.context_url_ids:
+                try:
+                    from research_agent.infrastructure.database.repositories.sqlalchemy_url_content_repo import (
+                        SQLAlchemyUrlContentRepository,
+                    )
+                    from uuid import UUID as UUID_type
+                    
+                    url_repo = SQLAlchemyUrlContentRepository(self._session)
+                    urls = []
+                    for url_id in input.context_url_ids:
+                        try:
+                            url_content = await url_repo.get_by_id(UUID_type(url_id))
+                            if url_content:
+                                urls.append({
+                                    "id": str(url_content.id),
+                                    "title": url_content.title,
+                                    "platform": url_content.platform,
+                                    "url": url_content.url,
+                                })
+                        except Exception as e:
+                            logger.warning(f"Failed to fetch URL content {url_id}: {e}")
+                            urls.append({"id": url_id, "title": "URL"})
+                    context_refs["urls"] = urls
+                except Exception as e:
+                    logger.error(f"Failed to fetch URL metadata: {e}")
+                    context_refs["url_ids"] = input.context_url_ids
+                    
+            if input.context_node_ids:
+                context_refs["node_ids"] = input.context_node_ids
+            if input.context_nodes:
+                # Store simplified node info for display (id, title only)
+                context_refs["nodes"] = [
+                    {"id": n.get("id"), "title": n.get("title", "Untitled")}
+                    for n in input.context_nodes
+                ]
+
+        # Save User Message with context references
         await repo.save(
             ChatMessage(
                 project_id=input.project_id,
                 session_id=session_id,
                 role="user",
                 content=input.message,
+                context_refs=context_refs,
             )
         )
 
@@ -186,6 +234,57 @@ class StreamMessageUseCase:
                         f"[CanvasContext] Failed to retrieve canvas nodes: {e}", exc_info=True
                     )
 
+            # === URL Content Context Retrieval ===
+            url_context = ""
+            if input.context_url_ids:
+                try:
+                    from research_agent.infrastructure.database.repositories.sqlalchemy_url_content_repo import (
+                        SQLAlchemyUrlContentRepository,
+                    )
+
+                    url_repo = SQLAlchemyUrlContentRepository(self._session)
+                    url_context_parts = []
+                    max_content_length = 50000  # Truncate long transcripts/articles
+
+                    for url_id in input.context_url_ids:
+                        try:
+                            url_content = await url_repo.get_by_id(UUID(url_id))
+                            if url_content and url_content.content:
+                                # Build platform label
+                                platform_label = url_content.platform.capitalize()
+                                if url_content.content_type == "video":
+                                    platform_label = f"{platform_label} Video"
+                                elif url_content.content_type == "article":
+                                    platform_label = f"{platform_label} Article"
+
+                                # Truncate content if too long
+                                content = url_content.content
+                                if len(content) > max_content_length:
+                                    content = content[:max_content_length] + "\n\n[Content truncated...]"
+
+                                url_context_parts.append(
+                                    f"## {platform_label}: {url_content.title}\n"
+                                    f"Source: {url_content.url}\n\n{content}"
+                                )
+                        except Exception as e:
+                            logger.warning(f"[UrlContext] Failed to fetch URL content {url_id}: {e}")
+
+                    if url_context_parts:
+                        url_context = "\n\n---\n\n".join(url_context_parts)
+                        logger.info(
+                            f"[UrlContext] Added {len(url_context_parts)} URL contents ({len(url_context)} chars)"
+                        )
+
+                except Exception as e:
+                    logger.error(f"[UrlContext] Failed to retrieve URL content: {e}", exc_info=True)
+
+            # Combine canvas context and URL context
+            if url_context:
+                if canvas_context:
+                    canvas_context = canvas_context + "\n\n---\n\n" + url_context
+                else:
+                    canvas_context = url_context
+
             if input.use_rewrite:
                 # Convert to (human, ai) tuples
                 chat_history = [
@@ -221,6 +320,7 @@ class StreamMessageUseCase:
                 llm=llm,
                 chat_history=chat_history,
                 use_rewrite=input.use_rewrite,
+                use_llm_rewrite=settings.use_llm_rewrite,  # NEW: Use LLM rewrite or rule-based expansion
                 use_intent_classification=input.use_intent_classification,
                 use_rerank=input.use_rerank,
                 use_grading=input.use_grading,
@@ -268,6 +368,13 @@ class StreamMessageUseCase:
                     citations_data = event.get("citations", [])
                     logger.info(f"[Stream] Received {len(citations_data)} citations")
                     # Citations will be included in the final response
+                elif event["type"] == "status":
+                    # Forward thinking status events to frontend
+                    yield StreamEvent(
+                        type="status",
+                        step=event.get("step"),
+                        message=event.get("message"),
+                    )
                 elif event["type"] == "token":
                     content = event.get("content", "")
                     full_response += content
