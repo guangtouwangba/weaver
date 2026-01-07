@@ -84,6 +84,7 @@ import ActionListEditor, { ActionListData } from './ActionListEditor';
 import { MindMapEditor } from './mindmap/MindMapEditor';
 import { MindmapData, SummaryData } from '@/lib/api';
 import useOutputWebSocket from '@/hooks/useOutputWebSocket';
+import YouTubePlayerModal from './YouTubePlayerModal';
 
 interface Viewport {
   x: number;
@@ -147,6 +148,13 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       bgColor: '#FAFAF9',      // Light stone
       icon: '📄',              // Document icon
       topBarColor: '#78716C',
+    },
+    source_youtube: {
+      borderColor: '#FF0000',  // YouTube Red
+      borderStyle: 'solid',
+      bgColor: '#FEF2F2',      // Light red
+      icon: '▶️',              // Play icon
+      topBarColor: '#FF0000',
     },
     // === Thinking Path Node Types (User Conversation Visualization) ===
     question: {
@@ -480,6 +488,247 @@ const SourcePreviewCard = ({
             fill="#78716C"
           />
         </Group>
+      </Group>
+    </Group>
+  );
+};
+
+// --- YouTube Play Icon Path ---
+const YOUTUBE_PLAY_ICON = "M8 5v14l11-7z";
+
+// --- YouTube Preview Card (for video URLs) ---
+const YouTubePreviewCard = ({
+  node,
+  width,
+  height,
+  isSelected,
+  isHighlighted,
+  isActiveThinking,
+  onPlayClick,
+}: {
+  node: CanvasNode;
+  width: number;
+  height: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+  isActiveThinking?: boolean;
+  onPlayClick?: () => void;
+}) => {
+  const thumbUrl = node.fileMetadata?.thumbnailUrl;
+  const duration = node.fileMetadata?.duration; // in seconds
+  const channelName = node.fileMetadata?.channelName || 'Unknown Channel';
+  const viewCount = node.fileMetadata?.viewCount || '';
+  const publishedAt = node.fileMetadata?.publishedAt || '';
+  
+  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#7C3AED' : '#E5E7EB'));
+  const strokeWidth = isSelected || isHighlighted ? 2 : 1;
+  const shadowBlur = isSelected ? 12 : 4;
+  const shadowOpacity = isSelected ? 0.15 : 0.05;
+
+  // Format duration from seconds to MM:SS or HH:MM:SS
+  const formatDuration = (seconds: number) => {
+    if (!seconds) return '';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Card dimensions
+  const cardWidth = Math.max(width, 240);
+  const thumbnailHeight = 135; // 16:9 aspect ratio for thumbnail
+  const headerHeight = 40;
+  const footerHeight = 70;
+  const displayHeight = headerHeight + thumbnailHeight + footerHeight;
+
+  return (
+    <Group>
+      {/* Main Card Container */}
+      <Rect
+        width={cardWidth}
+        height={displayHeight}
+        fill="white"
+        cornerRadius={12}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        shadowColor="black"
+        shadowBlur={shadowBlur}
+        shadowOpacity={shadowOpacity}
+        shadowOffsetY={4}
+      />
+
+      {/* Header - YouTube Brand */}
+      <Group x={12} y={12}>
+        {/* YouTube Logo (Red Play Button) */}
+        <Rect
+          width={24}
+          height={17}
+          fill="#FF0000"
+          cornerRadius={4}
+        />
+        <Group x={7} y={3} scaleX={0.45} scaleY={0.45}>
+          <Path data={YOUTUBE_PLAY_ICON} fill="white" />
+        </Group>
+        <Text
+          x={30}
+          y={1}
+          text="YouTube"
+          fontSize={12}
+          fontStyle="bold"
+          fill="#FF0000"
+          fontFamily="Inter, sans-serif"
+        />
+      </Group>
+
+      {/* Header Separator */}
+      <Line points={[0, headerHeight, cardWidth, headerHeight]} stroke="#F5F5F4" strokeWidth={1} />
+
+      {/* Thumbnail Area */}
+      <Group y={headerHeight}>
+        {/* Background for thumbnail area */}
+        <Rect
+          width={cardWidth}
+          height={thumbnailHeight}
+          fill="#000000"
+        />
+        
+        {thumbUrl ? (
+          <URLImage
+            src={thumbUrl}
+            x={0}
+            y={0}
+            width={cardWidth}
+            height={thumbnailHeight}
+          />
+        ) : (
+          /* Placeholder */
+          <Group>
+            <Rect width={cardWidth} height={thumbnailHeight} fill="#1a1a1a" />
+            <Text 
+              x={cardWidth / 2 - 40} 
+              y={thumbnailHeight / 2 - 10} 
+              text="No Thumbnail" 
+              fontSize={14} 
+              fill="#666666" 
+            />
+          </Group>
+        )}
+
+        {/* Play Button Overlay (centered, semi-transparent) */}
+        <Group
+          x={cardWidth / 2}
+          y={thumbnailHeight / 2}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            onPlayClick?.();
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            onPlayClick?.();
+          }}
+        >
+          {/* Circular background */}
+          <Circle
+            radius={28}
+            fill="rgba(0, 0, 0, 0.7)"
+          />
+          {/* Play triangle */}
+          <Group x={-8} y={-10} scaleX={0.9} scaleY={0.9}>
+            <Path data={YOUTUBE_PLAY_ICON} fill="white" />
+          </Group>
+        </Group>
+
+        {/* Duration Badge (bottom-right of thumbnail) */}
+        {duration && (
+          <Group x={cardWidth - 50} y={thumbnailHeight - 24}>
+            <Rect
+              width={42}
+              height={18}
+              fill="rgba(0, 0, 0, 0.8)"
+              cornerRadius={4}
+            />
+            <Text
+              x={4}
+              y={3}
+              text={formatDuration(duration)}
+              fontSize={11}
+              fill="white"
+              fontFamily="monospace"
+            />
+          </Group>
+        )}
+      </Group>
+
+      {/* Footer - Video Info */}
+      <Group y={headerHeight + thumbnailHeight + 8}>
+        {/* Video Title */}
+        <Text
+          x={12}
+          y={0}
+          width={cardWidth - 24}
+          height={36}
+          text={node.title}
+          fontSize={13}
+          fontStyle="bold"
+          fill="#0F0F0F"
+          wrap="word"
+          ellipsis={true}
+          fontFamily="Inter, sans-serif"
+        />
+
+        {/* Channel and metadata row */}
+        <Group y={38}>
+          {/* Channel Avatar placeholder (circular) */}
+          <Circle
+            x={20}
+            y={10}
+            radius={10}
+            fill="#E5E5E5"
+          />
+          <Text
+            x={20}
+            y={5}
+            text="📺"
+            fontSize={10}
+          />
+
+          {/* Channel Name and metadata */}
+          <Text
+            x={36}
+            y={2}
+            text={channelName}
+            fontSize={11}
+            fill="#606060"
+            fontFamily="Inter, sans-serif"
+          />
+          <Text
+            x={36}
+            y={16}
+            text={[viewCount, publishedAt].filter(Boolean).join(' • ')}
+            fontSize={10}
+            fill="#909090"
+            fontFamily="Inter, sans-serif"
+          />
+        </Group>
+      </Group>
+
+      {/* Source URL indicator (bottom) */}
+      <Group x={12} y={displayHeight - 18}>
+        <Text
+          text="🔗"
+          fontSize={10}
+        />
+        <Text
+          x={16}
+          text={node.fileMetadata?.sourceUrl ? new URL(node.fileMetadata.sourceUrl).hostname : 'youtube.com'}
+          fontSize={9}
+          fill="#909090"
+          width={cardWidth - 40}
+          ellipsis={true}
+        />
       </Group>
     </Group>
   );
@@ -1180,6 +1429,9 @@ const KnowledgeNode = ({
   // Check if this node has a source reference (for link-back feature)
   const hasSourceRef = !isSourceNode && node.sourceId;
   
+  // Check if this is a YouTube source node
+  const isYouTubeNode = isSourceNode && node.fileMetadata?.platform === 'youtube';
+  
   // Check for Magic Cursor generated super cards
   const isSuperArticle = node.type === 'super_article';
   const isSuperActionList = node.type === 'super_action_list';
@@ -1249,6 +1501,17 @@ const KnowledgeNode = ({
           height={height}
           isSelected={isSelected}
           isHighlighted={isHighlighted}
+        />
+      ) : isYouTubeNode ? (
+        /* Use YouTubePreviewCard for YouTube video source nodes */
+        <YouTubePreviewCard
+          node={node}
+          width={width}
+          height={height}
+          isSelected={isSelected}
+          isHighlighted={isHighlighted}
+          isActiveThinking={isActiveThinking}
+          onPlayClick={() => onDoubleClick?.()}
         />
       ) : isSourceNode ? (
         /* Use SourcePreviewCard for PDF Source Nodes */
@@ -1752,6 +2015,17 @@ export default function KonvaCanvas({
     type: 'source' | 'target';
     x?: number;
     y?: number;
+  } | null>(null);
+
+  // YouTube Player Modal State
+  const [youtubeModal, setYoutubeModal] = useState<{
+    open: boolean;
+    videoId: string;
+    title: string;
+    channelName?: string;
+    viewCount?: string;
+    publishedAt?: string;
+    sourceUrl?: string;
   } | null>(null);
 
   // Merge/Synthesis State
@@ -3525,6 +3799,38 @@ export default function KonvaCanvas({
                 onNodeAdd(nodeData);
                 handled = true;
               }
+              
+              // Handle YouTube URL drops from sidebar
+              if (data.type === 'url' && data.platform === 'youtube') {
+                const youtubeCardHeight = 245; // Taller for YouTube card
+                const nodeData = {
+                  type: 'knowledge',
+                  title: data.title || 'YouTube Video',
+                  content: '',
+                  x: centeredX,
+                  y: canvasY - youtubeCardHeight / 2,
+                  width: cardWidth,
+                  height: youtubeCardHeight,
+                  color: 'red',
+                  tags: ['#youtube', '#source'],
+                  fileMetadata: {
+                    platform: 'youtube',
+                    fileType: 'youtube',
+                    videoId: data.metadata?.videoId || data.videoId,
+                    thumbnailUrl: data.thumbnailUrl,
+                    duration: data.metadata?.duration || data.duration,
+                    channelName: data.metadata?.channelName || data.channelName,
+                    channelAvatar: data.metadata?.channelAvatar,
+                    viewCount: data.metadata?.viewCount || data.viewCount,
+                    publishedAt: data.metadata?.publishedAt || data.publishedAt,
+                    sourceUrl: data.url || data.sourceUrl,
+                  },
+                  viewType: 'free' as const,
+                  subType: 'source' as const,
+                };
+                onNodeAdd(nodeData);
+                handled = true;
+              }
             } catch (err) {
               console.error('[KonvaCanvas] onDrop - Error parsing JSON:', err);
             }
@@ -4138,8 +4444,19 @@ export default function KonvaCanvas({
                     onNodeClick?.(node);
                   }}
                   onDoubleClick={() => {
-                    // Phase 1: Handle double-click for source nodes (drill-down)
-                    if (node.subType === 'source' && node.sourceId) {
+                    // Handle YouTube video nodes - open player modal
+                    if (node.subType === 'source' && node.fileMetadata?.platform === 'youtube' && node.fileMetadata?.videoId) {
+                      setYoutubeModal({
+                        open: true,
+                        videoId: node.fileMetadata.videoId,
+                        title: node.title,
+                        channelName: node.fileMetadata.channelName,
+                        viewCount: node.fileMetadata.viewCount,
+                        publishedAt: node.fileMetadata.publishedAt,
+                        sourceUrl: node.fileMetadata.sourceUrl,
+                      });
+                    } else if (node.subType === 'source' && node.sourceId) {
+                      // Phase 1: Handle double-click for other source nodes (drill-down)
                       onOpenSource?.(node.sourceId, node.sourcePage);
                     } else if (node.type === 'super_article') {
                       // Open Article Editor for super_article nodes
@@ -4891,6 +5208,20 @@ export default function KonvaCanvas({
             </div>
           );
         })()}
+
+        {/* YouTube Player Modal */}
+        {youtubeModal && (
+          <YouTubePlayerModal
+            open={youtubeModal.open}
+            onClose={() => setYoutubeModal(null)}
+            videoId={youtubeModal.videoId}
+            title={youtubeModal.title}
+            channelName={youtubeModal.channelName}
+            viewCount={youtubeModal.viewCount}
+            publishedAt={youtubeModal.publishedAt}
+            sourceUrl={youtubeModal.sourceUrl}
+          />
+        )}
       </div>
     </div>
   );

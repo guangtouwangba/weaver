@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-01-07
+
+#### URL Content Persistence Across Page Refresh (@siqiuchen)
+
+**Bug:**
+YouTube videos imported via URL would disappear from the sidebar after page refresh, even though they were persisted to the database.
+
+**Root Cause:**
+The `UrlContentModel` lacked a `project_id` field to associate URL content with projects, and there was no API endpoint to load URL contents by project on page load.
+
+**Backend Changes:**
+- Added `project_id` field to `UrlContentModel` with foreign key to projects table
+- Added `list_by_project` method to `SQLAlchemyUrlContentRepository`
+- Updated `URLExtractRequest` DTO to accept optional `project_id`
+- Added `GET /api/v1/url/projects/{project_id}/contents` endpoint
+- Added `DELETE /api/v1/url/extract/{id}` endpoint for cleanup
+- Created migration `20250107_000002_add_project_id_to_url_contents.py`
+
+**Frontend Changes:**
+- Updated `urlApi.extract()` to accept `{ projectId }` option
+- Added `urlApi.listByProject()` and `urlApi.delete()` methods
+- Added `urlContents` state to `StudioContext` with load on mount
+- Updated `ResourceSidebar` to display persisted URL contents from context
+- URL contents now persist and reload correctly after page refresh
+
+---
+
 ### Added - 2026-01-07
 
 #### URL Content Extraction Module (@siqiuchen)

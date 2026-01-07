@@ -1315,6 +1315,12 @@ export interface UrlContent {
   created_at: string;
   updated_at: string;
   extracted_at: string | null;
+  project_id: string | null;
+}
+
+export interface UrlContentListResponse {
+  items: UrlContent[];
+  total: number;
 }
 
 export interface UrlContentStatus {
@@ -1331,10 +1337,28 @@ export const urlApi = {
    * Returns immediately with status="pending".
    * Use getStatus() to poll for completion.
    */
-  extract: (url: string, force: boolean = false) =>
+  extract: (url: string, options: { force?: boolean; projectId?: string } = {}) =>
     fetchApi<UrlContent>('/api/v1/url/extract', {
       method: 'POST',
-      body: JSON.stringify({ url, force }),
+      body: JSON.stringify({ 
+        url, 
+        force: options.force ?? false,
+        project_id: options.projectId,
+      }),
+    }),
+
+  /**
+   * List all URL contents for a project.
+   */
+  listByProject: (projectId: string) =>
+    fetchApi<UrlContentListResponse>(`/api/v1/url/projects/${projectId}/contents`),
+
+  /**
+   * Delete a URL content record.
+   */
+  delete: (id: string) =>
+    fetchApi<void>(`/api/v1/url/extract/${id}`, {
+      method: 'DELETE',
     }),
 
   /**

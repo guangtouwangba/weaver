@@ -50,6 +50,7 @@ class SQLAlchemyUrlContentRepository:
         status: Optional[str] = None,
         platform: Optional[str] = None,
         user_id: Optional[str] = None,
+        project_id: Optional[UUID] = None,
     ) -> Sequence[UrlContentModel]:
         """List URL content with optional filters."""
         stmt = select(UrlContentModel)
@@ -63,10 +64,30 @@ class SQLAlchemyUrlContentRepository:
         if user_id:
             stmt = stmt.where(UrlContentModel.user_id == user_id)
 
+        if project_id:
+            stmt = stmt.where(UrlContentModel.project_id == project_id)
+
         # Order by creation time, newest first
         stmt = stmt.order_by(desc(UrlContentModel.created_at))
         stmt = stmt.offset(skip).limit(limit)
 
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def list_by_project(
+        self,
+        project_id: UUID,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> Sequence[UrlContentModel]:
+        """List URL contents for a specific project."""
+        stmt = (
+            select(UrlContentModel)
+            .where(UrlContentModel.project_id == project_id)
+            .order_by(desc(UrlContentModel.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

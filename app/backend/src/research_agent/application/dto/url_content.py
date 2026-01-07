@@ -12,6 +12,7 @@ class URLExtractRequest(BaseModel):
 
     url: str
     force: bool = False  # Force re-extraction even if cached
+    project_id: Optional[UUID] = None  # Associate with a project for persistence
 
     @field_validator("url")
     @classmethod
@@ -52,8 +53,18 @@ class URLExtractResponse(BaseModel):
     updated_at: datetime
     extracted_at: Optional[datetime] = None
 
+    # Project association
+    project_id: Optional[UUID] = None
+
     class Config:
         from_attributes = True
+
+
+class URLContentListResponse(BaseModel):
+    """Response for listing URL contents."""
+
+    items: list["URLExtractResponse"]
+    total: int
 
 
 class URLExtractStatusResponse(BaseModel):

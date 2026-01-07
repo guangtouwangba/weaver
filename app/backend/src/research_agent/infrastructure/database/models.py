@@ -829,6 +829,14 @@ class UrlContentModel(Base):
     )
     extracted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Project association (for studio sidebar persistence)
+    project_id: Mapped[Optional[UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True
+    )
+
     # Optional: User ownership (for multi-tenant)
     user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
