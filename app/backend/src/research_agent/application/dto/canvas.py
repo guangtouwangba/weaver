@@ -1,7 +1,7 @@
 """Canvas DTOs for API requests/responses."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ class CanvasNodeDTO(BaseModel):
 
     id: str
     type: str = "card"
+    subType: Optional[str] = None  # 'source' for PDF documents
     title: str = ""
     content: str = ""
     x: float = 0
@@ -19,9 +20,10 @@ class CanvasNodeDTO(BaseModel):
     width: float = 200
     height: float = 150
     color: str = "default"
-    tags: List[str] = []
+    tags: list[str] = []
     sourceId: Optional[str] = None
     sourcePage: Optional[int] = None
+    fileMetadata: Optional[dict[str, Any]] = None  # Metadata including thumbnail URL
     # New fields for view system
     viewType: str = "free"  # 'free' | 'thinking'
     sectionId: Optional[str] = None
@@ -36,6 +38,9 @@ class CanvasEdgeDTO(BaseModel):
     id: Optional[str] = None
     source: str
     target: str
+    relationType: Optional[str] = None  # 'structural', 'supports', 'contradicts', 'correlates'
+    label: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 class CanvasViewportDTO(BaseModel):
@@ -53,7 +58,7 @@ class CanvasSectionDTO(BaseModel):
     title: str
     viewType: str = "free"  # 'free' | 'thinking'
     isCollapsed: bool = False
-    nodeIds: List[str] = []
+    nodeIds: list[str] = []
     x: float = 0
     y: float = 0
     width: Optional[float] = None
@@ -69,28 +74,28 @@ class CanvasViewStateDTO(BaseModel):
 
     viewType: str  # 'free' | 'thinking'
     viewport: CanvasViewportDTO
-    selectedNodeIds: List[str] = []
-    collapsedSectionIds: List[str] = []
+    selectedNodeIds: list[str] = []
+    collapsedSectionIds: list[str] = []
 
 
 class CanvasDataRequest(BaseModel):
     """Request DTO for saving canvas data."""
 
-    nodes: List[CanvasNodeDTO] = []
-    edges: List[CanvasEdgeDTO] = []
-    sections: List[CanvasSectionDTO] = []
+    nodes: list[CanvasNodeDTO] = []
+    edges: list[CanvasEdgeDTO] = []
+    sections: list[CanvasSectionDTO] = []
     viewport: CanvasViewportDTO = CanvasViewportDTO()  # Legacy: for backward compatibility
-    viewStates: Dict[str, CanvasViewStateDTO] = {}  # Key: 'free' | 'thinking'
+    viewStates: dict[str, CanvasViewStateDTO] = {}  # Key: 'free' | 'thinking'
 
 
 class CanvasDataResponse(BaseModel):
     """Response DTO for canvas data."""
 
-    nodes: List[CanvasNodeDTO]
-    edges: List[CanvasEdgeDTO]
-    sections: List[CanvasSectionDTO] = []
+    nodes: list[CanvasNodeDTO]
+    edges: list[CanvasEdgeDTO]
+    sections: list[CanvasSectionDTO] = []
     viewport: CanvasViewportDTO  # Legacy: for backward compatibility
-    viewStates: Dict[str, CanvasViewStateDTO] = {}  # Key: 'free' | 'thinking'
+    viewStates: dict[str, CanvasViewStateDTO] = {}  # Key: 'free' | 'thinking'
     updated_at: Optional[datetime] = None
     version: Optional[int] = None  # Canvas version for optimistic locking
 
@@ -114,9 +119,10 @@ class CreateCanvasNodeRequest(BaseModel):
     width: float = 200
     height: float = 150
     color: str = "default"
-    tags: List[str] = []
+    tags: list[str] = []
     sourceId: Optional[str] = None
     sourcePage: Optional[int] = None
+    fileMetadata: Optional[dict[str, Any]] = None
     viewType: str = "free"  # 'free' | 'thinking'
     sectionId: Optional[str] = None
     promotedFrom: Optional[str] = None
@@ -133,9 +139,10 @@ class UpdateCanvasNodeRequest(BaseModel):
     width: Optional[float] = None
     height: Optional[float] = None
     color: Optional[str] = None
-    tags: Optional[List[str]] = None
+    tags: Optional[list[str]] = None
     sourceId: Optional[str] = None
     sourcePage: Optional[int] = None
+    fileMetadata: Optional[dict[str, Any]] = None
     viewType: Optional[str] = None
     sectionId: Optional[str] = None
     promotedFrom: Optional[str] = None

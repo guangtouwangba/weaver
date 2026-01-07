@@ -30,15 +30,29 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
 
         if existing:
             # Update existing
-            existing.data = canvas.to_dict()
+            canvas_data = canvas.to_dict()
+            # Debug: log fileMetadata for first node
+            if canvas_data.get("nodes"):
+                first_node = canvas_data["nodes"][0]
+                logger.info(
+                    f"[Canvas Save] First node fileMetadata: {first_node.get('fileMetadata')}"
+                )
+            existing.data = canvas_data
             existing.version = existing.version + 1
             canvas.version = existing.version
         else:
             # Create new
+            canvas_data = canvas.to_dict()
+            # Debug: log fileMetadata for first node
+            if canvas_data.get("nodes"):
+                first_node = canvas_data["nodes"][0]
+                logger.info(
+                    f"[Canvas Save] First node fileMetadata: {first_node.get('fileMetadata')}"
+                )
             model = CanvasModel(
                 id=canvas.id,
                 project_id=canvas.project_id,
-                data=canvas.to_dict(),
+                data=canvas_data,
                 version=1,
             )
             self._session.add(model)
@@ -122,7 +136,18 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         model = result.scalar_one_or_none()
 
         if model:
+            # Debug: log raw data from database
+            if model.data.get("nodes"):
+                first_node = model.data["nodes"][0]
+                logger.info(
+                    f"[Canvas Load] Raw DB first node fileMetadata: {first_node.get('fileMetadata')}"
+                )
             canvas = Canvas.from_dict(model.data, project_id)
+            # Debug: log after parsing
+            if canvas.nodes:
+                logger.info(
+                    f"[Canvas Load] Parsed first node file_metadata: {canvas.nodes[0].file_metadata}"
+                )
             canvas.id = model.id
             canvas.version = model.version
             canvas.updated_at = model.updated_at

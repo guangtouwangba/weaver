@@ -13,7 +13,9 @@ import {
   AddCircleIcon,
   ImageSearchIcon,
   MousePointerIcon,
-  HandIcon
+  HandIcon,
+  LinkIcon,
+  AccountTreeIcon
 } from '@/components/ui/icons';
 import { Minus } from 'lucide-react';
 
@@ -22,8 +24,8 @@ interface CanvasControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
-  interactionMode?: 'select' | 'pan';
-  onModeChange?: (mode: 'select' | 'pan') => void;
+  interactionMode?: 'select' | 'pan' | 'connect' | 'logic_connect';
+  onModeChange?: (mode: 'select' | 'pan' | 'connect' | 'logic_connect') => void;
   onDelete?: () => void;
   hasSelection?: boolean;
 }
@@ -79,6 +81,26 @@ export default function CanvasControls({
               onClick={() => onModeChange?.('pan')}
             >
               <HandIcon size={20} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Connect (L)" placement="bottom">
+            <IconButton
+              size="sm"
+              variant={interactionMode === 'connect' ? 'default' : 'ghost'}
+              active={interactionMode === 'connect'}
+              onClick={() => onModeChange?.('connect')}
+            >
+              <LinkIcon size={20} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Logic Connect (K)" placement="bottom">
+            <IconButton
+              size="sm"
+              variant={interactionMode === 'logic_connect' ? 'default' : 'ghost'}
+              active={interactionMode === 'logic_connect'}
+              onClick={() => onModeChange?.('logic_connect')}
+            >
+              <AccountTreeIcon size={20} />
             </IconButton>
           </Tooltip>
         </Surface>

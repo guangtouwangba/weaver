@@ -196,6 +196,7 @@ export interface CanvasNode {
     pageCount?: number;
     author?: string;
     lastModified?: string;
+    thumbnailUrl?: string;  // PDF first page thumbnail
   };
   // === Thinking Graph Fields (Dynamic Mind Map) ===
   thinkingStepIndex?: number;  // Step number in the thinking sequence
@@ -246,6 +247,7 @@ export interface CanvasEdge {
   | 'groups'            // Grouping relationship
   | 'belongs_to'        // Legacy: belongs to group
   | 'related'           // Legacy: generic relation
+  | 'correlates'        // Strong thematic connection
   // User-defined
   | 'custom';
 
@@ -631,6 +633,23 @@ export const canvasApi = {
       `/api/v1/projects/${projectId}/canvas${viewType ? `?view_type=${viewType}` : ''}`,
       {
         method: 'DELETE',
+      }
+    ),
+
+  verifyRelation: (
+    sourceContent: string,
+    targetContent: string,
+    relationType: string
+  ) =>
+    fetchApi<{ valid: boolean; reasoning: string; confidence: number }>(
+      `/api/v1/canvas/verify-relation`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          source_content: sourceContent,
+          target_content: targetContent,
+          relation_type: relationType,
+        }),
       }
     ),
 };

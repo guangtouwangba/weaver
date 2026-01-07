@@ -13,6 +13,7 @@ from research_agent.api.v1 import (
     projects,
     settings,
     tags,
+    verify_relation,
 )
 
 api_router = APIRouter()
