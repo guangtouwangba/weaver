@@ -21,10 +21,11 @@ import {
   HandIcon,
   ScanIcon,
   LinkIcon,
-  AccountTreeIcon
+  AccountTreeIcon,
+  AutoAwesomeIcon,
 } from '@/components/ui/icons';
 
-export type ToolMode = 'select' | 'hand' | 'connect' | 'logic_connect';
+export type ToolMode = 'select' | 'hand' | 'magic' | 'connect' | 'logic_connect';
 
 interface CanvasToolbarProps {
   activeTool: ToolMode;
@@ -112,6 +113,18 @@ export default function CanvasToolbar({
                   style={{ borderRadius: 0 }}
                 >
                   <HandIcon size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Magic Cursor (M) - AI Generation" placement="right">
+                <IconButton
+                  size="md"
+                  variant={activeTool === 'magic' ? 'default' : 'ghost'}
+                  active={activeTool === 'magic'}
+                  onClick={() => onChange('magic')}
+                  style={{ borderRadius: 0 }}
+                >
+                  <AutoAwesomeIcon size={18} />
                 </IconButton>
               </Tooltip>
 

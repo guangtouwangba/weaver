@@ -13,7 +13,11 @@ from research_agent.domain.agents.base_agent import OutputEvent, OutputEventType
 from research_agent.domain.agents.flashcard_agent import FlashcardAgent
 from research_agent.domain.agents.mindmap_agent import MindmapAgent
 from research_agent.domain.agents.summary_agent import SummaryAgent
+from research_agent.domain.agents.article_agent import ArticleAgent
+from research_agent.domain.agents.action_list_agent import ActionListAgent
 from research_agent.domain.entities.output import (
+    ActionListData,
+    ArticleData,
     FlashcardData,
     MindmapData,
     MindmapEdge,
@@ -104,15 +108,13 @@ class OutputGenerationService:
         Returns:
             Dict with task_id and output_id
         """
-        # Validate document_ids is not empty, except for 'custom' type with node_data
-        # Custom type can work with canvas node_data instead of documents
-        is_custom_with_node_data = (
-            output_type == "custom" and
-            options and
-            (options.get("node_data") or options.get("mode"))
-        )
+        # Validate document_ids is not empty, except for types that use node_data
+        # Custom, article, and action_list types can work with canvas node_data instead of documents
+        types_with_node_data = ("custom", "article", "action_list")
+        has_node_data = options and (options.get("node_data") or options.get("mode"))
+        is_type_with_node_data = output_type in types_with_node_data and has_node_data
         
-        if not document_ids and not is_custom_with_node_data:
+        if not document_ids and not is_type_with_node_data:
             raise ValueError("At least one document ID is required for output generation")
 
         task_id = str(uuid4())
@@ -209,14 +211,12 @@ class OutputGenerationService:
                     # Branch based on output type
                     output_type = task_info.output_type
                     
-                    # For 'custom' type with node_data, skip document loading
-                    is_custom_with_node_data = (
-                        output_type == "custom" and
-                        options and
-                        (options.get("node_data") or options.get("mode"))
-                    )
+                    # Types that use node_data instead of documents
+                    types_with_node_data = ("custom", "article", "action_list")
+                    has_node_data = options and (options.get("node_data") or options.get("mode"))
+                    is_type_with_node_data = output_type in types_with_node_data and has_node_data
                     
-                    if is_custom_with_node_data:
+                    if is_type_with_node_data:
                         # Use node_data from options instead of documents
                         node_data = options.get("node_data", [])
                         if not node_data:
@@ -260,6 +260,30 @@ class OutputGenerationService:
                             llm_service=llm_service,
                             session=session,
                         )
+                    elif output_type == "article":
+                        # Article generation (Magic Cursor)
+                        await self._run_article_generation(
+                            task_id=task_id,
+                            project_id=project_id,
+                            output_id=output_id,
+                            document_content=document_content,
+                            title=title,
+                            options=options,
+                            llm_service=llm_service,
+                            session=session,
+                        )
+                    elif output_type == "action_list":
+                        # Action list generation (Magic Cursor)
+                        await self._run_action_list_generation(
+                            task_id=task_id,
+                            project_id=project_id,
+                            output_id=output_id,
+                            document_content=document_content,
+                            title=title,
+                            options=options,
+                            llm_service=llm_service,
+                            session=session,
+                        )
                     elif output_type == "custom" and options.get("mode"):
                         # Custom type with mode = synthesis
                         await self._run_custom_synthesis_generation(
@@ -279,6 +303,7 @@ class OutputGenerationService:
                             project_id=project_id,
                             output_id=output_id,
                             document_content=document_content,
+                            document_ids=document_ids,
                             title=title,
                             options=options,
                             llm_service=llm_service,
@@ -329,6 +354,7 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
+        document_ids: List[UUID],
         title: Optional[str],
         options: Dict[str, Any],
         llm_service: OpenRouterLLMService,
@@ -346,10 +372,14 @@ class OutputGenerationService:
 
         # Run generation and stream events
         mindmap_data = MindmapData()
+        
+        # Get the first document ID for source references
+        primary_document_id = str(document_ids[0]) if document_ids else None
 
         async for event in agent.generate(
             document_content=document_content,
             document_title=title or "Document",
+            document_id=primary_document_id,
             **options,
         ):
             # Check if task was cancelled
@@ -583,6 +613,138 @@ class OutputGenerationService:
             )
         else:
             logger.error(f"[OutputService] Flashcard generation returned no data: {task_id}")
+
+    async def _run_article_generation(
+        self,
+        task_id: str,
+        project_id: str,
+        output_id: UUID,
+        document_content: str,
+        title: Optional[str],
+        options: Dict[str, Any],
+        llm_service: OpenRouterLLMService,
+        session: AsyncSession,
+    ) -> None:
+        """Run article generation (Magic Cursor: Draft Article)."""
+        node_data = options.get("node_data", [])
+        snapshot_context = options.get("snapshot_context")
+        
+        # Create agent
+        agent = ArticleAgent(llm_service=llm_service)
+
+        # Run generation and stream events
+        article_data: Optional[ArticleData] = None
+
+        async for event in agent.generate(
+            document_content=document_content,
+            document_title=title or "Generated Article",
+            node_data=node_data,
+            snapshot_context=snapshot_context,
+        ):
+            # Check if task was cancelled
+            if task_id not in self._active_tasks:
+                logger.info(f"[OutputService] Task cancelled: {task_id}")
+                return
+
+            # Stream event to clients
+            await output_notification_service.notify_event(
+                project_id=project_id,
+                task_id=task_id,
+                event=event,
+            )
+
+            # Capture final article data from GENERATION_COMPLETE event
+            if event.type == OutputEventType.GENERATION_COMPLETE and event.node_data:
+                article_data = ArticleData.from_dict(event.node_data)
+
+        # Save final result
+        if article_data:
+            output_repo = SQLAlchemyOutputRepository(session)
+            output = await output_repo.find_by_id(output_id)
+            if output:
+                output.mark_complete(article_data.to_dict())
+                await output_repo.update(output)
+
+            # Notify completion
+            await output_notification_service.notify_generation_complete(
+                project_id=project_id,
+                task_id=task_id,
+                output_id=str(output_id),
+                message=f"Generated article with {len(article_data.sections)} sections",
+            )
+
+            logger.info(
+                f"[OutputService] Article task complete: {task_id}, "
+                f"sections={len(article_data.sections)}"
+            )
+        else:
+            logger.error(f"[OutputService] Article generation returned no data: {task_id}")
+
+    async def _run_action_list_generation(
+        self,
+        task_id: str,
+        project_id: str,
+        output_id: UUID,
+        document_content: str,
+        title: Optional[str],
+        options: Dict[str, Any],
+        llm_service: OpenRouterLLMService,
+        session: AsyncSession,
+    ) -> None:
+        """Run action list generation (Magic Cursor: Action List)."""
+        node_data = options.get("node_data", [])
+        snapshot_context = options.get("snapshot_context")
+        
+        # Create agent
+        agent = ActionListAgent(llm_service=llm_service)
+
+        # Run generation and stream events
+        action_list_data: Optional[ActionListData] = None
+
+        async for event in agent.generate(
+            document_content=document_content,
+            document_title=title or "Action Items",
+            node_data=node_data,
+            snapshot_context=snapshot_context,
+        ):
+            # Check if task was cancelled
+            if task_id not in self._active_tasks:
+                logger.info(f"[OutputService] Task cancelled: {task_id}")
+                return
+
+            # Stream event to clients
+            await output_notification_service.notify_event(
+                project_id=project_id,
+                task_id=task_id,
+                event=event,
+            )
+
+            # Capture final action list data from GENERATION_COMPLETE event
+            if event.type == OutputEventType.GENERATION_COMPLETE and event.node_data:
+                action_list_data = ActionListData.from_dict(event.node_data)
+
+        # Save final result
+        if action_list_data:
+            output_repo = SQLAlchemyOutputRepository(session)
+            output = await output_repo.find_by_id(output_id)
+            if output:
+                output.mark_complete(action_list_data.to_dict())
+                await output_repo.update(output)
+
+            # Notify completion
+            await output_notification_service.notify_generation_complete(
+                project_id=project_id,
+                task_id=task_id,
+                output_id=str(output_id),
+                message=f"Extracted {len(action_list_data.items)} action items",
+            )
+
+            logger.info(
+                f"[OutputService] Action list task complete: {task_id}, "
+                f"items={len(action_list_data.items)}"
+            )
+        else:
+            logger.error(f"[OutputService] Action list generation returned no data: {task_id}")
 
     async def _load_document_content(
         self,

@@ -1007,3 +1007,284 @@ The system SHALL provide AI capabilities to verify the logical validity of defin
 - **THEN** the system provides constructive feedback (e.g., "The evidence A discusses X, but conclusion B is about Y. Connection is weak.")
 - **AND** suggestions for strengthening the argument are offered
 
+### Requirement: Magic Cursor Tool
+The Studio toolbar SHALL include a "Magic Cursor" tool that enables AI-assisted generation workflows.
+
+#### Scenario: Activate Magic Cursor
+- **WHEN** the user clicks the "Magic Cursor" icon (Sparkle) in the toolbar
+- **THEN** the cursor changes to a "Magic Wand" or "Sparkle" visual style
+- **AND** the standard selection behavior is replaced by Magic Selection
+
+### Requirement: Magic Selection Interaction
+The Magic Cursor SHALL provide a distinctive "Flowing Gradient" selection box to indicate active AI context capture.
+
+#### Scenario: Selection Visuals
+- **WHEN** the user drags to select an area with the Magic Cursor
+- **THEN** the selection box displays a flowing gradient border ("Magic selection")
+- **AND** the fill is a subtle iridescent wash
+- **AND** the selection captures all nodes intersecting the box
+
+#### Scenario: Intent Menu
+- **WHEN** the user releases the mouse after a magic selection
+- **AND** at least one node is within the selection
+- **THEN** an "Intent Menu" automatically floats at the bottom-right corner of the selection
+- **AND** options include "Draft Article" and "Action List"
+- **AND** clicking an option triggers the corresponding generation flow
+
+#### Scenario: Empty Selection
+- **WHEN** the user releases the mouse after a magic selection
+- **AND** no nodes are within the selection
+- **THEN** the selection box is cleared
+- **AND** no Intent Menu is shown
+
+### Requirement: Intent Menu Actions
+The Intent Menu SHALL offer immediate AI generation options based on the selected context.
+
+#### Scenario: Intent Menu Items
+- **WHEN** the Intent Menu appears
+- **THEN** it displays primary actions:
+  - "Draft Article"
+  - "Action List"
+
+#### Scenario: Select Action
+- **WHEN** the user selects an action (e.g., "Draft Article") from the menu
+- **THEN** the menu disappears
+- **AND** a generation task is initiated using the selected nodes as context
+- **AND** a "Result Container" placeholder appears near the selection
+
+### Requirement: Result Container (Super Cards)
+The system SHALL display generation results in distinct "Super Cards" that visually differentiate them from standard notes.
+
+#### Scenario: Document Card Appearance
+- **WHEN** a "Draft Article" action completes
+- **THEN** a "Document Card" is created on the canvas
+- **AND** it features an A4-paper-like aspect ratio and styling
+- **AND** it includes a distinct header/footer
+- **AND** it includes an "Export PDF" action
+- **AND** hovering the card visually highlights the source nodes used for generation (bi-directional linking)
+
+#### Scenario: Ticket Card Appearance
+- **WHEN** an "Action List" action completes
+- **THEN** a "Ticket Card" is created on the canvas
+- **AND** it features a "receipt" or "ticket" visual style (possibly with torn edges)
+- **AND** it creates interactive checklist items
+- **AND** it includes integration actions like "Add to Calendar" or "Sync to Todoist"
+
+### Requirement: Snapshot Context Refresh
+Generated Super Cards SHALL retain a link to their original spatial context to allow context-aware refreshing.
+
+#### Scenario: Refresh Result
+- **WHEN** the user clicks the "Refresh" button on a Super Card
+- **THEN** the system re-scans the original spatial coordinates (Snapshot Context) of the generation
+- **AND** identifies any *new* or *modified* nodes within that area
+- **AND** initiates a re-generation using the updated set of nodes
+- **AND** updates the card content with the new result
+
+### Requirement: Article Generation from Magic Selection
+The system SHALL generate structured articles from canvas nodes selected via Magic Cursor.
+
+#### Scenario: Draft Article action
+- **WHEN** the user selects "Draft Article" from the Intent Menu
+- **THEN** the system collects content from all selected nodes
+- **AND** sends a generation request to the backend with node data
+- **AND** displays a loading indicator on the selection area
+- **AND** the Intent Menu closes immediately
+
+#### Scenario: Article generation completes
+- **WHEN** article generation completes successfully
+- **THEN** a new Super Card (Document Card) appears on the canvas
+- **AND** the card is positioned at the bottom-right of the selection, offset by 20px
+- **AND** the card contains the generated article with sections
+- **AND** the magic selection box is cleared
+- **AND** the tool mode switches back to "select"
+
+#### Scenario: Article generation fails
+- **WHEN** article generation encounters an error
+- **THEN** an error toast notification is displayed
+- **AND** the magic selection remains visible for retry
+- **AND** the user can retry or dismiss the selection
+
+### Requirement: Action List Generation from Magic Selection
+The system SHALL extract action items and tasks from canvas nodes selected via Magic Cursor.
+
+#### Scenario: Action List action
+- **WHEN** the user selects "Action List" from the Intent Menu
+- **THEN** the system collects content from all selected nodes
+- **AND** sends a generation request to the backend with node data
+- **AND** displays a loading indicator on the selection area
+- **AND** the Intent Menu closes immediately
+
+#### Scenario: Action list generation completes
+- **WHEN** action list generation completes successfully
+- **THEN** a new Super Card (Ticket Card) appears on the canvas
+- **AND** the card is positioned at the bottom-right of the selection, offset by 20px
+- **AND** the card contains checkable action items
+- **AND** each item can be toggled between done/not done
+- **AND** the magic selection box is cleared
+
+#### Scenario: No actions found
+- **WHEN** action list generation completes
+- **AND** no actionable items were identified in the content
+- **THEN** a toast notification informs the user "No action items found"
+- **AND** no new card is created
+- **AND** the selection is cleared
+
+### Requirement: Node Content as Generation Input
+The system SHALL use canvas node content (not document content) for Magic Cursor generation.
+
+#### Scenario: Collect node content
+- **WHEN** a Magic Cursor generation is triggered
+- **THEN** the system collects the `title` and `content` fields from each selected node
+- **AND** combines them into a structured input for the AI agent
+- **AND** preserves node IDs for source attribution
+
+#### Scenario: Empty node content
+- **WHEN** all selected nodes have empty content
+- **THEN** generation is skipped
+- **AND** a toast notification displays "Selected nodes have no content"
+
+#### Scenario: Maximum node limit
+- **WHEN** more than 50 nodes are selected via Magic Cursor
+- **THEN** only the first 50 nodes (by position, top-left to bottom-right) are included
+- **AND** a toast notification displays "Selection limited to 50 nodes"
+
+### Requirement: Result Card Positioning
+The system SHALL position generated Super Cards to avoid overlapping with source nodes.
+
+#### Scenario: Result card offset
+- **WHEN** a generation completes and creates a Super Card
+- **THEN** the card is positioned at the bottom-right corner of the original selection
+- **AND** offset by 20px from the selection boundary
+- **AND** the card does not overlap with the selected source nodes
+
+### Requirement: Super Card Interaction
+The system SHALL allow users to open Super Cards for viewing and editing.
+
+#### Scenario: Open Document Card
+- **WHEN** the user clicks on a Document Card
+- **THEN** a modal or panel opens displaying the full article content
+- **AND** the content is rendered in rich text format with sections
+- **AND** the user can edit the article text
+
+#### Scenario: Open Ticket Card
+- **WHEN** the user clicks on a Ticket Card
+- **THEN** a modal or panel opens displaying all action items
+- **AND** the user can add, edit, or delete action items
+- **AND** the user can reorder items via drag and drop
+
+#### Scenario: Save edits
+- **WHEN** the user makes edits in the Super Card modal
+- **AND** closes the modal or clicks "Save"
+- **THEN** the changes are persisted to the backend
+- **AND** the card preview on the canvas updates to reflect changes
+
+#### Scenario: Toggle action item on canvas
+- **WHEN** the user clicks a checkbox on a Ticket Card directly on the canvas
+- **THEN** the item's done/not-done state toggles immediately
+- **AND** the change is persisted without opening the modal
+
+### Requirement: Generation Loading State
+The system SHALL provide visual feedback during Magic Cursor generation.
+
+#### Scenario: Loading indicator
+- **WHEN** generation is in progress
+- **THEN** the magic selection box displays a pulsing animation
+- **AND** a small "Generating..." label appears near the selection
+- **AND** the user cannot start another magic selection
+
+#### Scenario: Cancel during loading
+- **WHEN** the user presses Escape during generation
+- **THEN** the generation request is cancelled (if supported)
+- **AND** the loading state is cleared
+- **AND** no result card is created
+
+### Requirement: Mindmap Node Source References
+The system SHALL enrich mindmap nodes with source references linking to original document content.
+
+#### Scenario: Node generation includes source refs
+- **WHEN** the backend generates a mindmap node
+- **THEN** the node SHALL include `source_refs` containing source references
+- **AND** each reference SHALL contain `source_id`, `source_type`, `location` (optional), and `quote`
+- **AND** for PDF documents, `location` SHALL indicate the page number
+- **AND** for Time-based media (Video/Audio), `location` SHALL indicate the timestamp in seconds
+- **AND** for Web sources (URL), `location` SHALL be the URL with optional text fragment anchors
+
+#### Scenario: Source refs serialization
+- **WHEN** mindmap data is returned via API
+- **THEN** each node's `source_refs` SHALL be included in the JSON response
+- **AND** the frontend data model SHALL parse and store these references
+
+---
+
+### Requirement: Interactive Mindmap Node Click
+The mindmap nodes SHALL be clickable entry points for source exploration.
+
+#### Scenario: Node click triggers drilldown
+- **WHEN** a user clicks on a mindmap node in the MindMapEditor
+- **THEN** the Source Context Panel SHALL open
+- **AND** the panel SHALL display the clicked node's source references
+
+#### Scenario: Node hover affordance
+- **WHEN** a user hovers over a mindmap node
+- **THEN** the cursor SHALL change to pointer
+- **AND** the node SHALL display a subtle highlight effect indicating interactivity
+
+#### Scenario: Node without source refs
+- **WHEN** a user clicks a node that has no source references
+- **THEN** the Source Context Panel SHALL display a message indicating "This concept is synthesized from multiple sections"
+
+---
+
+### Requirement: Source Context Panel Display
+The system SHALL provide a panel to display source references when a mindmap node is selected.
+
+#### Scenario: Panel appearance
+- **WHEN** the Source Context Panel opens
+- **THEN** it SHALL slide in from the right side of the MindMapEditor
+- **AND** it SHALL display the selected node's label as a header
+- **AND** it SHALL list all source references as cards
+
+#### Scenario: Source reference card content
+- **WHEN** a source reference card is displayed
+- **THEN** it SHALL show:
+  - Document name with file icon
+  - Page number indicator
+  - Quoted text excerpt (up to 300 characters with ellipsis)
+  - Action button appropriate for content type ("Open PDF", "Play Video", "Visit Link")
+
+#### Scenario: Navigate to PDF
+- **WHEN** a user clicks "Open in PDF" on a source reference card
+- **THEN** the PDF Preview Modal SHALL open
+- **AND** it SHALL navigate to the referenced page number
+- **AND** it SHALL highlight the quoted text if exact match is found
+
+#### Scenario: Navigate to Video/Audio
+- **WHEN** a user clicks "Play Video" (or "Play Audio") on a source reference card
+- **THEN** the Media Preview Modal SHALL open with the referenced file
+- **AND** the player SHALL automatically seek to the timestamp specified in `location`
+- **AND** the player SHALL start playback immediately
+
+#### Scenario: Navigate to Web URL
+- **WHEN** a user clicks "Visit Link" on a source reference card
+- **THEN** the URL SHALL open in a new browser tab
+- **AND** if supported, it SHALL use Scroll-to-Text Fragment to highlight the quoted text
+
+#### Scenario: Preview launch failure
+- **WHEN** the system attempts to open a source reference (PDF, Video, etc.)
+- **AND** the file cannot be opened (e.g., deleted, corrupted, unsupported)
+- **THEN** the system SHALL display a user-friendly error toast
+- **AND** the Source Context Panel SHALL remain open
+- **AND** the quoted text SHALL remain visible so the user still has context
+
+#### Scenario: Invalid location fallback
+- **WHEN** the system opens a source reference
+- **AND** the specified location (page/timestamp) is invalid or out of bounds
+- **THEN** the viewer SHALL open at the beginning (Page 1 or 00:00)
+- **AND** a warning toast SHALL indicate that the specific location could not be found
+
+#### Scenario: Close panel and return
+- **WHEN** a user clicks the close button on the Source Context Panel
+- **THEN** the panel SHALL close
+- **AND** the user SHALL return to the mindmap view
+- **AND** no node SHALL be selected
+

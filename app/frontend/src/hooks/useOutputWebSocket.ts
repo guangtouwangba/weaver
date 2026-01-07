@@ -18,7 +18,7 @@ export interface UseOutputWebSocketOptions {
   onEdgeAdded?: (edgeId: string, edgeData: MindmapEdge) => void;
   onProgress?: (progress: number, message?: string) => void;
   onGenerationStarted?: (outputType: string) => void;
-  onGenerationComplete?: (message?: string) => void;
+  onGenerationComplete?: (outputId?: string, message?: string, nodeData?: Record<string, unknown>) => void;
   onGenerationError?: (error: string) => void;
   onLevelComplete?: (currentLevel: number, totalLevels: number) => void;
   onConnectionStatusChange?: (
@@ -140,7 +140,12 @@ export function useOutputWebSocket(
               break;
 
             case 'generation_complete':
-              callbacks.onGenerationComplete?.(data.message);
+              // Pass outputId and nodeData (for article/action_list results)
+              callbacks.onGenerationComplete?.(
+                data.outputId,
+                data.message,
+                data.nodeData as Record<string, unknown> | undefined
+              );
               break;
 
             case 'generation_error':
@@ -212,6 +217,7 @@ export function useOutputWebSocket(
 }
 
 export default useOutputWebSocket;
+
 
 
 

@@ -56,3 +56,4 @@ export const sizeMap: Record<IconSize, number> = {
   xl: 32,
 };
 
+

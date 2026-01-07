@@ -733,6 +733,7 @@ export interface OutputWebSocketEvent {
   timestamp?: string;
   // Generation lifecycle
   outputType?: string;
+  outputId?: string;  // ID of the generated output (for generation_complete)
   message?: string;
   progress?: number;
   errorMessage?: string;
@@ -1007,6 +1008,21 @@ export interface SummaryData {
   documentTitle: string;
 }
 
+/**
+ * Reference to source content for traceability and drilldown.
+ * Supports multiple source types for future extensibility:
+ * - document: PDF, markdown, etc. (location = page number)
+ * - video/audio: Media files (location = timestamp in seconds)
+ * - web: URLs (location = URL with optional text fragment)
+ * - node: Canvas nodes (location = node ID)
+ */
+export interface SourceRef {
+  sourceId: string;       // ID of the source entity (document_id, node_id, etc.)
+  sourceType: 'document' | 'node' | 'video' | 'audio' | 'web';
+  location?: string;      // Page number, timestamp, URL fragment, etc.
+  quote: string;          // Exact quoted text or transcript segment
+}
+
 export interface MindmapNode {
   id: string;
   label: string;
@@ -1019,6 +1035,7 @@ export interface MindmapNode {
   height: number;
   color: string;
   status: 'generating' | 'complete' | 'error';
+  sourceRefs?: SourceRef[];  // Source references for drilldown
 }
 
 export interface MindmapEdge {
@@ -1034,14 +1051,54 @@ export interface MindmapData {
   rootId?: string;
 }
 
+// Article Data (Magic Cursor: Draft Article)
+export interface ArticleSection {
+  heading: string;
+  content: string;
+}
+
+export interface ArticleData {
+  title: string;
+  sections: ArticleSection[];
+  sourceRefs: SourceRef[];
+  snapshotContext?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+// Action List Data (Magic Cursor: Action List)
+export interface ActionItem {
+  id: string;
+  text: string;
+  done: boolean;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface ActionListData {
+  title: string;
+  items: ActionItem[];
+  sourceRefs: SourceRef[];
+  snapshotContext?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+export type OutputType = 'mindmap' | 'summary' | 'flashcards' | 'custom' | 'article' | 'action_list';
+
 export interface OutputResponse {
   id: string;
   project_id: string;
-  output_type: 'mindmap' | 'summary' | 'flashcards' | 'custom';
+  output_type: OutputType;
   document_ids: string[];
   status: 'generating' | 'complete' | 'error' | 'cancelled';
   title?: string;
-  data?: SummaryData | MindmapData | Record<string, unknown>;
+  data?: SummaryData | MindmapData | ArticleData | ActionListData | Record<string, unknown>;
   error_message?: string;
   created_at: string;
   updated_at: string;
@@ -1063,7 +1120,7 @@ export interface OutputListResponse {
 export const outputsApi = {
   generate: (
     projectId: string,
-    outputType: 'mindmap' | 'summary' | 'flashcards' | 'custom',
+    outputType: OutputType,
     documentIds: string[],
     title?: string,
     options?: Record<string, unknown>

@@ -16,8 +16,8 @@ class GenerateOutputRequest(BaseModel):
 
     output_type: str = Field(
         ...,
-        description="Type of output to generate (mindmap, summary, etc.)",
-        pattern="^(mindmap|summary|flashcards|podcast|quiz|timeline|compare|custom)$",
+        description="Type of output to generate (mindmap, summary, article, action_list, etc.)",
+        pattern="^(mindmap|summary|flashcards|podcast|quiz|timeline|compare|custom|article|action_list)$",
     )
     document_ids: List[UUID] = Field(
         default_factory=list,

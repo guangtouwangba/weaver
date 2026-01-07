@@ -94,7 +94,8 @@ import {
     Database,
     MousePointer2,
     Hand,
-    Scan
+    Scan,
+    ListChecks,
 } from 'lucide-react';
 
 // Action icons
@@ -199,6 +200,7 @@ export const PanelRightOpenIcon = createIcon(PanelRightOpen, 'PanelRightOpenIcon
 export const MousePointerIcon = createIcon(MousePointer2, 'MousePointerIcon');
 export const HandIcon = createIcon(Hand, 'HandIcon');
 export const ScanIcon = createIcon(Scan, 'ScanIcon');
+export const PlaylistAddCheckIcon = createIcon(ListChecks, 'PlaylistAddCheckIcon');
 
 // Re-export types
 export type { IconProps, IconSize, IconColor } from './types';

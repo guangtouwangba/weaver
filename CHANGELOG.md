@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-01-08
+
+#### Magic Cursor Super Cards - Article & Action List Generation (@siqiuchen)
+
+**Feature:**
+Magic Cursor now generates properly styled Super Cards for articles and action lists, with loading animations during generation.
+
+**Frontend Changes:**
+- Added `SuperArticleCard` component for displaying generated articles:
+  - Shows article title, section count, and content preview
+  - Purple accent color (#667eea) with document icon
+  - "Double-click to view" footer hint
+- Added `SuperActionListCard` component for displaying action items:
+  - Shows task checkboxes with completion status
+  - Amber accent color (#f59e0b) with checklist icon
+  - Progress indicator (X/Y completed)
+  - Visual distinction for completed items (strikethrough, gray text)
+- Added loading animation during Magic Cursor generation:
+  - Animated card placeholder at result position
+  - "Generating Article..." or "Extracting Actions..." status text
+  - Loading dots animation
+- Added `super_article` and `super_action_list` node styles to `getNodeStyle`
+
+**Bug Fix:**
+- Fixed WebSocket event race condition where multiple `generation_complete` events would prematurely clear the generation task state, causing the result node to not be created
+
+**Files Changed:**
+- `app/frontend/src/components/studio/KonvaCanvas.tsx` - Super Card components, loading animation, node type routing
+- `app/frontend/src/components/studio/ArticleEditor.tsx` - New modal for editing generated articles
+- `app/frontend/src/components/studio/ActionListEditor.tsx` - New modal for editing action lists with checkbox functionality
+
+### Added - 2025-01-07
+
+#### Interactive Mindmap Drilldown with Source References (@aqiu)
+
+**Feature:**
+Mindmap nodes now link to their source documents, enabling users to explore the original content that supports each concept in the mindmap.
+
+**Backend Changes:**
+- Added `SourceRef` data class in `output.py` with fields: `source_id`, `source_type`, `location`, `quote`
+- Extended `MindmapNode` model with `source_refs: List[SourceRef]` field
+- Updated LLM prompts in `mindmap_graph.py` to request source quotes and locations during generation
+- `MindmapAgent.generate()` now accepts optional `document_id` parameter for source tracking
+
+**Frontend Changes:**
+- Added `SourceRef` interface and `sourceRefs` field to `MindmapNode` type in `api.ts`
+- Updated `RichMindMapNode` with:
+  - Visual affordance (magnifying glass icon) when source refs are available
+  - Hover effect with pointer cursor indicating clickability
+  - Click handler triggering drilldown
+- Added `onNodeDrilldown` callback to `MindMapEditor`
+- Created `SourceContextPanel` component:
+  - Slide-out panel from right side
+  - Displays source references as cards with quoted text
+  - Icons for different source types (document, video, audio, web)
+  - "Open" action buttons for each source type
+  - Graceful handling when no source refs available
+
+**User Experience:**
+1. Generate a mindmap from a document
+2. Click on any node with a magnifying glass icon
+3. Source Context Panel slides in showing quoted text from the original document
+4. Click "Open PDF" to view the source at the referenced page
+
+**Files Changed:**
+- `app/backend/src/research_agent/domain/entities/output.py` - SourceRef data class
+- `app/backend/src/research_agent/application/graphs/mindmap_graph.py` - Source ref extraction
+- `app/backend/src/research_agent/domain/agents/mindmap_agent.py` - document_id parameter
+- `app/frontend/src/lib/api.ts` - SourceRef interface
+- `app/frontend/src/components/studio/mindmap/RichMindMapNode.tsx` - Drilldown UI
+- `app/frontend/src/components/studio/mindmap/MindMapEditor.tsx` - Panel integration
+- `app/frontend/src/components/studio/mindmap/SourceContextPanel.tsx` - New component
+
 ### Performance - 2025-12-26
 
 #### Canvas Drag Performance Optimization (@aqiu)
