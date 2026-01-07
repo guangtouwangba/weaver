@@ -18,6 +18,8 @@ class OutputType(str, Enum):
     TIMELINE = "timeline"
     COMPARE = "compare"
     CUSTOM = "custom"
+    ARTICLE = "article"  # Magic Cursor: Draft Article
+    ACTION_LIST = "action_list"  # Magic Cursor: Action List
 
 
 class OutputStatus(str, Enum):
@@ -27,6 +29,42 @@ class OutputStatus(str, Enum):
     COMPLETE = "complete"
     ERROR = "error"
     CANCELLED = "cancelled"
+
+
+@dataclass
+class SourceRef:
+    """Reference to source content for traceability.
+    
+    Supports multiple source types for future extensibility:
+    - document: PDF, markdown, etc. (location = page number)
+    - video/audio: Media files (location = timestamp in seconds)
+    - web: URLs (location = URL with optional text fragment)
+    - node: Canvas nodes (location = node ID)
+    """
+
+    source_id: str  # ID of the source entity (document_id, node_id, etc.)
+    quote: str  # Exact quoted text or transcript segment
+    source_type: str = "document"  # 'document', 'node', 'video', 'audio', 'web'
+    location: Optional[str] = None  # Page number, timestamp, URL fragment, etc.
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "sourceId": self.source_id,
+            "sourceType": self.source_type,
+            "location": self.location,
+            "quote": self.quote,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SourceRef":
+        """Create from dictionary."""
+        return cls(
+            source_id=data.get("sourceId", data.get("source_id", "")),
+            source_type=data.get("sourceType", data.get("source_type", "document")),
+            location=data.get("location"),
+            quote=data.get("quote", ""),
+        )
 
 
 @dataclass
@@ -44,6 +82,7 @@ class MindmapNode:
     height: float = 100
     color: str = "default"
     status: str = "complete"  # "generating" | "complete" | "error"
+    source_refs: List["SourceRef"] = field(default_factory=list)  # Source references for drilldown
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -59,11 +98,13 @@ class MindmapNode:
             "height": self.height,
             "color": self.color,
             "status": self.status,
+            "sourceRefs": [ref.to_dict() for ref in self.source_refs],
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MindmapNode":
         """Create from dictionary."""
+        source_refs_data = data.get("sourceRefs", data.get("source_refs", []))
         return cls(
             id=data["id"],
             label=data["label"],
@@ -76,6 +117,7 @@ class MindmapNode:
             height=data.get("height", 100),
             color=data.get("color", "default"),
             status=data.get("status", "complete"),
+            source_refs=[SourceRef.from_dict(ref) for ref in source_refs_data],
         )
 
 
@@ -262,6 +304,126 @@ class FlashcardData:
         )
 
 
+# =============================================================================
+# Article Data Structures (Magic Cursor: Draft Article)
+# =============================================================================
+
+
+@dataclass
+class ArticleSection:
+    """Represents a section in an article."""
+
+    heading: str
+    content: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "heading": self.heading,
+            "content": self.content,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ArticleSection":
+        """Create from dictionary."""
+        return cls(
+            heading=data["heading"],
+            content=data["content"],
+        )
+
+
+@dataclass
+class ArticleData:
+    """Data structure for an article output (Magic Cursor: Draft Article)."""
+
+    title: str = ""
+    sections: List[ArticleSection] = field(default_factory=list)
+    source_refs: List[SourceRef] = field(default_factory=list)
+    snapshot_context: Optional[Dict[str, Any]] = None  # Selection box coordinates
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for storage."""
+        return {
+            "title": self.title,
+            "sections": [s.to_dict() for s in self.sections],
+            "sourceRefs": [ref.to_dict() for ref in self.source_refs],
+            "snapshotContext": self.snapshot_context,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ArticleData":
+        """Create from dictionary."""
+        return cls(
+            title=data.get("title", ""),
+            sections=[ArticleSection.from_dict(s) for s in data.get("sections", [])],
+            source_refs=[SourceRef.from_dict(ref) for ref in data.get("sourceRefs", [])],
+            snapshot_context=data.get("snapshotContext"),
+        )
+
+
+# =============================================================================
+# Action List Data Structures (Magic Cursor: Action List)
+# =============================================================================
+
+
+@dataclass
+class ActionItem:
+    """Represents an action item in a task list."""
+
+    id: str
+    text: str
+    done: bool = False
+    priority: str = "medium"  # "high", "medium", "low"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "text": self.text,
+            "done": self.done,
+            "priority": self.priority,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ActionItem":
+        """Create from dictionary."""
+        return cls(
+            id=data["id"],
+            text=data["text"],
+            done=data.get("done", False),
+            priority=data.get("priority", "medium"),
+        )
+
+
+@dataclass
+class ActionListData:
+    """Data structure for action list output (Magic Cursor: Action List)."""
+
+    title: str = "Action Items"
+    items: List[ActionItem] = field(default_factory=list)
+    source_refs: List[SourceRef] = field(default_factory=list)
+    snapshot_context: Optional[Dict[str, Any]] = None  # Selection box coordinates
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for storage."""
+        return {
+            "title": self.title,
+            "items": [item.to_dict() for item in self.items],
+            "sourceRefs": [ref.to_dict() for ref in self.source_refs],
+            "snapshotContext": self.snapshot_context,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ActionListData":
+        """Create from dictionary."""
+        return cls(
+            title=data.get("title", "Action Items"),
+            items=[ActionItem.from_dict(item) for item in data.get("items", [])],
+            source_refs=[SourceRef.from_dict(ref) for ref in data.get("sourceRefs", [])],
+            snapshot_context=data.get("snapshotContext"),
+        )
+
+
 @dataclass
 class Output:
     """Output entity - represents a generated output (mindmap, summary, etc.)."""
@@ -321,4 +483,16 @@ class Output:
         if self.output_type != OutputType.FLASHCARDS or not self.data:
             return None
         return FlashcardData.from_dict(self.data)
+
+    def get_article_data(self) -> Optional[ArticleData]:
+        """Get article data if this is an article output."""
+        if self.output_type != OutputType.ARTICLE or not self.data:
+            return None
+        return ArticleData.from_dict(self.data)
+
+    def get_action_list_data(self) -> Optional[ActionListData]:
+        """Get action list data if this is an action list output."""
+        if self.output_type != OutputType.ACTION_LIST or not self.data:
+            return None
+        return ActionListData.from_dict(self.data)
 

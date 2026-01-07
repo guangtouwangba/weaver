@@ -59,10 +59,11 @@ import { useStudio } from '@/contexts/StudioContext';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
 import InspirationDock from './InspirationDock';
+import IntentMenu, { IntentAction } from './IntentMenu';
 import CanvasContextMenu from './CanvasContextMenu';
 import LinkTypeDialog, { LinkTypeDialogProps } from './LinkTypeDialog';
 import GenerationOutputsOverlay from './GenerationOutputsOverlay';
-import { CanvasNode, CanvasEdge, canvasApi } from '@/lib/api';
+import { CanvasNode, CanvasEdge, canvasApi, outputsApi, OutputType } from '@/lib/api';
 import {
   getAnchorPoint,
   resolveAnchor,
@@ -78,6 +79,8 @@ import { useViewportCulling } from '@/hooks/useViewportCulling';
 import GridBackground from './canvas/GridBackground';
 import SynthesisModeMenu, { SynthesisMode } from './canvas/SynthesisModeMenu';
 import NoteEditor, { NoteData } from './NoteEditor';
+import ArticleEditor, { ArticleData } from './ArticleEditor';
+import ActionListEditor, { ActionListData } from './ActionListEditor';
 import useOutputWebSocket from '@/hooks/useOutputWebSocket';
 
 interface Viewport {
@@ -281,6 +284,21 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       bgColor: '#FEF3C7', // Amber 100
       icon: '📝',
       topBarColor: '#FCD34D',
+    },
+    // === Magic Cursor Super Cards ===
+    super_article: {
+      borderColor: '#667eea',  // Purple/Indigo - Article
+      borderStyle: 'solid',
+      bgColor: '#FAFBFF',      // Light purple-blue
+      icon: '📄',              // Document icon
+      topBarColor: '#667eea',
+    },
+    super_action_list: {
+      borderColor: '#f59e0b',  // Amber - Action List
+      borderStyle: 'solid',
+      bgColor: '#FFFCF5',      // Light amber
+      icon: '✅',              // Checklist icon
+      topBarColor: '#f59e0b',
     }
   };
 
@@ -465,6 +483,315 @@ const SourcePreviewCard = ({
   );
 };
 
+// --- Super Article Card (Magic Cursor Generated) ---
+const SuperArticleCard = ({
+  node,
+  width,
+  height,
+  isSelected,
+  isHighlighted,
+}: {
+  node: CanvasNode;
+  width: number;
+  height: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+}) => {
+  // Parse article data from content
+  let articleData: { title: string; sections: Array<{ heading: string; content: string }> } | null = null;
+  try {
+    articleData = JSON.parse(node.content || '{}');
+  } catch {
+    articleData = null;
+  }
+
+  const borderColor = '#667eea';
+  const bgColor = '#FAFBFF';
+  
+  // Get first section preview
+  const firstSection = articleData?.sections?.[0];
+  const sectionCount = articleData?.sections?.length || 0;
+  const previewText = firstSection?.content?.substring(0, 150) || 'Article content...';
+
+  return (
+    <Group>
+      {/* Card Background */}
+      <Rect
+        width={width}
+        height={height}
+        fill={bgColor}
+        cornerRadius={12}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        strokeWidth={isSelected ? 2 : 1}
+        shadowColor="rgba(102, 126, 234, 0.15)"
+        shadowBlur={isSelected ? 16 : 8}
+        shadowOffsetY={4}
+      />
+      
+      {/* Top Accent Bar - Gradient effect with two rects */}
+      <Rect
+        y={0}
+        width={width}
+        height={5}
+        fill={borderColor}
+        cornerRadius={[12, 12, 0, 0]}
+      />
+      
+      {/* Document Icon */}
+      <Text
+        x={12}
+        y={14}
+        text="📄"
+        fontSize={16}
+      />
+      
+      {/* Type Badge */}
+      <Rect
+        x={width - 60}
+        y={12}
+        width={48}
+        height={20}
+        fill="#EEF2FF"
+        cornerRadius={10}
+      />
+      <Text
+        x={width - 55}
+        y={16}
+        text="Article"
+        fontSize={10}
+        fontStyle="bold"
+        fill={borderColor}
+      />
+      
+      {/* Title */}
+      <Text
+        x={36}
+        y={14}
+        width={width - 105}
+        text={articleData?.title || node.title || 'Generated Article'}
+        fontSize={14}
+        fontStyle="bold"
+        fill="#1F2937"
+        wrap="word"
+        ellipsis
+      />
+      
+      {/* Divider */}
+      <Rect
+        x={12}
+        y={42}
+        width={width - 24}
+        height={1}
+        fill="#E5E7EB"
+      />
+      
+      {/* Content Preview */}
+      <Text
+        x={12}
+        y={52}
+        width={width - 24}
+        height={height - 90}
+        text={previewText + (previewText.length >= 150 ? '...' : '')}
+        fontSize={12}
+        fill="#6B7280"
+        wrap="word"
+        ellipsis
+        lineHeight={1.4}
+      />
+      
+      {/* Footer - Section count */}
+      <Rect
+        x={12}
+        y={height - 28}
+        width={width - 24}
+        height={20}
+        fill="#F3F4F6"
+        cornerRadius={4}
+      />
+      <Text
+        x={20}
+        y={height - 24}
+        text={`📑 ${sectionCount} section${sectionCount !== 1 ? 's' : ''} • Double-click to view`}
+        fontSize={10}
+        fill="#6B7280"
+      />
+    </Group>
+  );
+};
+
+// --- Super Action List Card (Magic Cursor Generated) ---
+const SuperActionListCard = ({
+  node,
+  width,
+  height,
+  isSelected,
+  isHighlighted,
+}: {
+  node: CanvasNode;
+  width: number;
+  height: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+}) => {
+  // Parse action list data from content
+  let actionData: { title: string; items: Array<{ id: string; text: string; done: boolean; priority?: string }> } | null = null;
+  try {
+    actionData = JSON.parse(node.content || '{}');
+  } catch {
+    actionData = null;
+  }
+
+  const borderColor = '#f59e0b';
+  const bgColor = '#FFFCF5';
+  
+  const items = actionData?.items || [];
+  const completedCount = items.filter(item => item.done).length;
+  const totalCount = items.length;
+  
+  // Show first 4 items max
+  const visibleItems = items.slice(0, 4);
+
+  return (
+    <Group>
+      {/* Card Background */}
+      <Rect
+        width={width}
+        height={height}
+        fill={bgColor}
+        cornerRadius={12}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        strokeWidth={isSelected ? 2 : 1}
+        shadowColor="rgba(245, 158, 11, 0.15)"
+        shadowBlur={isSelected ? 16 : 8}
+        shadowOffsetY={4}
+      />
+      
+      {/* Top Accent Bar */}
+      <Rect
+        y={0}
+        width={width}
+        height={5}
+        fill={borderColor}
+        cornerRadius={[12, 12, 0, 0]}
+      />
+      
+      {/* Checklist Icon */}
+      <Text
+        x={12}
+        y={14}
+        text="✅"
+        fontSize={16}
+      />
+      
+      {/* Type Badge */}
+      <Rect
+        x={width - 52}
+        y={12}
+        width={40}
+        height={20}
+        fill="#FEF3C7"
+        cornerRadius={10}
+      />
+      <Text
+        x={width - 46}
+        y={16}
+        text="Tasks"
+        fontSize={10}
+        fontStyle="bold"
+        fill="#D97706"
+      />
+      
+      {/* Title */}
+      <Text
+        x={36}
+        y={14}
+        width={width - 100}
+        text={actionData?.title || node.title || 'Action Items'}
+        fontSize={14}
+        fontStyle="bold"
+        fill="#1F2937"
+        wrap="word"
+        ellipsis
+      />
+      
+      {/* Divider */}
+      <Rect
+        x={12}
+        y={42}
+        width={width - 24}
+        height={1}
+        fill="#E5E7EB"
+      />
+      
+      {/* Action Items List */}
+      {visibleItems.map((item, index) => (
+        <Group key={item.id} y={52 + index * 26}>
+          {/* Checkbox */}
+          <Rect
+            x={12}
+            width={16}
+            height={16}
+            fill={item.done ? '#10B981' : '#FFFFFF'}
+            stroke={item.done ? '#10B981' : '#D1D5DB'}
+            strokeWidth={1.5}
+            cornerRadius={4}
+          />
+          {item.done && (
+            <Text
+              x={14}
+              y={1}
+              text="✓"
+              fontSize={12}
+              fontStyle="bold"
+              fill="#FFFFFF"
+            />
+          )}
+          {/* Item Text */}
+          <Text
+            x={34}
+            y={2}
+            width={width - 50}
+            text={item.text}
+            fontSize={12}
+            fill={item.done ? '#9CA3AF' : '#374151'}
+            textDecoration={item.done ? 'line-through' : undefined}
+            ellipsis
+          />
+        </Group>
+      ))}
+      
+      {/* More items indicator */}
+      {items.length > 4 && (
+        <Text
+          x={12}
+          y={52 + 4 * 26}
+          text={`+ ${items.length - 4} more items...`}
+          fontSize={11}
+          fill="#9CA3AF"
+          fontStyle="italic"
+        />
+      )}
+      
+      {/* Footer - Progress */}
+      <Rect
+        x={12}
+        y={height - 28}
+        width={width - 24}
+        height={20}
+        fill="#F3F4F6"
+        cornerRadius={4}
+      />
+      <Text
+        x={20}
+        y={height - 24}
+        text={`${completedCount}/${totalCount} completed • Double-click to edit`}
+        fontSize={10}
+        fill="#6B7280"
+      />
+    </Group>
+  );
+};
+
 // Knowledge Node Component
 const KnowledgeNode = ({
   node,
@@ -531,6 +858,11 @@ const KnowledgeNode = ({
   const isSourceNode = node.subType === 'source';
   // Check if this node has a source reference (for link-back feature)
   const hasSourceRef = !isSourceNode && node.sourceId;
+  
+  // Check for Magic Cursor generated super cards
+  const isSuperArticle = node.type === 'super_article';
+  const isSuperActionList = node.type === 'super_action_list';
+  const isSuperCard = isSuperArticle || isSuperActionList;
 
   // Calculate opacity: reduce if this node is being used as synthesis input
   const nodeOpacity = isSynthesisSource ? 0.4 : 1;
@@ -559,8 +891,25 @@ const KnowledgeNode = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {/* Use SourcePreviewCard for PDF Source Nodes */}
-      {isSourceNode ? (
+      {/* Use SuperArticleCard for Magic Cursor article outputs */}
+      {isSuperArticle ? (
+        <SuperArticleCard
+          node={node}
+          width={width}
+          height={height}
+          isSelected={isSelected}
+          isHighlighted={isHighlighted}
+        />
+      ) : isSuperActionList ? (
+        <SuperActionListCard
+          node={node}
+          width={width}
+          height={height}
+          isSelected={isSelected}
+          isHighlighted={isHighlighted}
+        />
+      ) : isSourceNode ? (
+        /* Use SourcePreviewCard for PDF Source Nodes */
         <SourcePreviewCard
           node={node}
           width={width}
@@ -1021,6 +1370,21 @@ export default function KonvaCanvas({
     startX: number; startY: number; x: number; y: number; width: number; height: number
   } | null>(null);
 
+  // Magic Cursor state
+  const [magicSelection, setMagicSelection] = useState<{
+    rect: { x: number; y: number; width: number; height: number };
+    nodeIds: string[];
+    screenPosition: { x: number; y: number };
+  } | null>(null);
+  
+  // Magic Cursor generation state
+  const [magicGenerationTask, setMagicGenerationTask] = useState<{
+    taskId: string;
+    outputType: 'article' | 'action_list';
+    snapshotContext: { x: number; y: number; width: number; height: number };
+  } | null>(null);
+  const [isGeneratingMagic, setIsGeneratingMagic] = useState(false);
+
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId?: string; sectionId?: string } | null>(null);
@@ -1067,6 +1431,10 @@ export default function KonvaCanvas({
   // Node Editing State
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
+  
+  // Super Card Editing State
+  const [editingSuperCardId, setEditingSuperCardId] = useState<string | null>(null);
+  const [editingSuperCardType, setEditingSuperCardType] = useState<'article' | 'action_list' | null>(null);
   const onCreateNotePosition = useRef<{ x: number; y: number } | null>(null);
 
   // Handle opening editor for new note from Context Menu
@@ -1248,12 +1616,21 @@ export default function KonvaCanvas({
         setSelectedNodeIds(new Set(allVisibleIds));
       }
 
-      // Tool Shortcuts (V for Select, H for Hand)
+      // Tool Shortcuts (V for Select, H for Hand, M for Magic, L for Connect, K for Logic Connect)
       if (e.key.toLowerCase() === 'v') {
         onToolChange?.('select');
       }
       if (e.key.toLowerCase() === 'h') {
         onToolChange?.('hand');
+      }
+      if (e.key.toLowerCase() === 'm') {
+        onToolChange?.('magic');
+      }
+      if (e.key.toLowerCase() === 'l') {
+        onToolChange?.('connect');
+      }
+      if (e.key.toLowerCase() === 'k') {
+        onToolChange?.('logic_connect');
       }
 
       // Cmd+D / Ctrl+D for Duplicate
@@ -1746,6 +2123,78 @@ export default function KonvaCanvas({
     }
   });
 
+  // WebSocket for Magic Cursor generation (article/action_list)
+  const magicWsEnabled = !!projectId && !!magicGenerationTask?.taskId;
+  
+  useOutputWebSocket({
+    projectId: projectId || '',
+    taskId: magicGenerationTask?.taskId || null,
+    enabled: magicWsEnabled,
+    onGenerationComplete: async (outputId, message) => {
+      console.log('[KonvaCanvas] Magic generation complete:', outputId, message);
+      
+      // IMPORTANT: Only process events with a valid outputId
+      // Multiple events may be received; ignore ones without outputId
+      if (!outputId) {
+        console.log('[KonvaCanvas] Ignoring generation_complete without outputId');
+        return; // Early return - don't clear state for invalid events
+      }
+      
+      if (magicGenerationTask && projectId) {
+        try {
+          // Fetch the full output data
+          const output = await outputsApi.get(projectId, outputId);
+          console.log('[KonvaCanvas] Fetched output:', output);
+          
+          if (output && output.data) {
+            const { snapshotContext, outputType } = magicGenerationTask;
+            
+            // Position at bottom-right of selection + 20px offset
+            const newNodeX = snapshotContext.x + snapshotContext.width + 20;
+            const newNodeY = snapshotContext.y;
+            
+            // Get title from output data
+            const outputData = output.data as Record<string, unknown>;
+            const title = (outputData.title as string) || 
+              (outputType === 'article' ? 'Generated Article' : 'Action Items');
+            
+            // Create the new canvas node
+            const newNode: Partial<CanvasNode> = {
+              id: `supercard-${outputId}`,
+              type: outputType === 'article' ? 'super_article' : 'super_action_list',
+              title,
+              content: JSON.stringify(output.data), // Store full data as JSON
+              x: newNodeX,
+              y: newNodeY,
+              width: outputType === 'article' ? 320 : 280,
+              height: outputType === 'article' ? 200 : 180,
+              color: outputType === 'article' ? '#667eea' : '#f59e0b',
+              viewType: 'free',
+              tags: ['magic-cursor', outputType],
+            };
+            
+            // Add the node via callback
+            onNodeAdd?.(newNode);
+            
+            console.log('[KonvaCanvas] Created Super Card node:', newNode);
+          }
+        } catch (fetchError) {
+          console.error('[KonvaCanvas] Failed to fetch output:', fetchError);
+        }
+      }
+      
+      // Clear generation state - only after processing valid event
+      setMagicGenerationTask(null);
+      setIsGeneratingMagic(false);
+    },
+    onGenerationError: (error) => {
+      console.error('[KonvaCanvas] Magic generation error:', error);
+      // TODO: Show toast notification
+      setMagicGenerationTask(null);
+      setIsGeneratingMagic(false);
+    }
+  });
+
   const getNodeIdFromEvent = (e: Konva.KonvaEventObject<DragEvent>) => {
     // The drag event target might be a child element (e.g., Rect inside Group)
     // We need to traverse up to find the Group with the node-{uuid} ID
@@ -2147,8 +2596,6 @@ export default function KonvaCanvas({
       const box = selectionRect;
       // Optimization: only check intersection if box has size
       if (box.width > 0 || box.height > 0) {
-        const newSelection = new Set(selectedNodeIds);
-
         // Use spatial index for efficient box selection
         const intersectingItems = spatialIndex.search({
           minX: box.x,
@@ -2157,11 +2604,30 @@ export default function KonvaCanvas({
           maxY: box.y + box.height
         });
 
-        intersectingItems.forEach((item: SpatialItem) => {
-          newSelection.add(item.nodeId);
-        });
+        const selectedIds = intersectingItems.map((item: SpatialItem) => item.nodeId);
 
-        setSelectedNodeIds(newSelection);
+        // Magic Mode: Show Intent Menu instead of just selecting
+        if (toolMode === 'magic' && selectedIds.length > 0) {
+          // Calculate screen position for Intent Menu (bottom-right of selection)
+          const screenX = (box.x + box.width) * viewport.scale + viewport.x;
+          const screenY = (box.y + box.height) * viewport.scale + viewport.y;
+          
+          setMagicSelection({
+            rect: { x: box.x, y: box.y, width: box.width, height: box.height },
+            nodeIds: selectedIds,
+            screenPosition: { x: screenX + 8, y: screenY + 8 },
+          });
+          
+          // Also update selection for visual feedback
+          setSelectedNodeIds(new Set(selectedIds));
+        } else {
+          // Normal selection mode
+          const newSelection = new Set(selectedNodeIds);
+          intersectingItems.forEach((item: SpatialItem) => {
+            newSelection.add(item.nodeId);
+          });
+          setSelectedNodeIds(newSelection);
+        }
       }
       setSelectionRect(null);
     }
@@ -2171,10 +2637,92 @@ export default function KonvaCanvas({
   const getCursorStyle = () => {
     if (isPanning) return 'grabbing';
     if (toolMode === 'hand' || isSpacePressed) return 'grab';
+    if (toolMode === 'magic') return 'crosshair'; // Magic mode always shows crosshair
     if (selectionRect) return 'crosshair';
     if (hoveredNodeId && toolMode === 'select') return 'move';
     return 'default';
   };
+
+  // Handle Intent Menu action
+  const handleIntentAction = useCallback(async (action: IntentAction) => {
+    if (!magicSelection || !projectId) return;
+    
+    // Validate max nodes (50 limit per design)
+    const MAX_NODES = 50;
+    if (magicSelection.nodeIds.length > MAX_NODES) {
+      console.warn(`[KonvaCanvas] Too many nodes selected (${magicSelection.nodeIds.length}). Max is ${MAX_NODES}.`);
+      // TODO: Show toast notification
+      return;
+    }
+    
+    console.log('[KonvaCanvas] Intent action:', action, 'for nodes:', magicSelection.nodeIds);
+    
+    // Gather node data for generation
+    const nodeData = magicSelection.nodeIds.map(nodeId => {
+      const node = nodes.find(n => n.id === nodeId);
+      return {
+        id: nodeId,
+        title: node?.title || 'Untitled',
+        content: node?.content || '',
+      };
+    }).filter(nd => nd.content || nd.title);
+    
+    // Map intent action to output type
+    const outputTypeMap: Record<IntentAction, OutputType> = {
+      'draft_article': 'article',
+      'action_list': 'action_list',
+    };
+    const outputType = outputTypeMap[action];
+    
+    // Store snapshot context for future refresh
+    const snapshotContext = {
+      x: magicSelection.rect.x,
+      y: magicSelection.rect.y,
+      width: magicSelection.rect.width,
+      height: magicSelection.rect.height,
+    };
+    
+    try {
+      // Set loading state
+      setIsGeneratingMagic(true);
+      
+      // Call the API to start generation
+      const response = await outputsApi.generate(
+        projectId,
+        outputType,
+        [], // No document IDs - using canvas node data
+        action === 'draft_article' ? 'Generated Article' : 'Action Items',
+        {
+          node_data: nodeData,
+          snapshot_context: snapshotContext,
+        }
+      );
+      
+      console.log('[KonvaCanvas] Generation started:', response);
+      
+      // Set the task ID to enable WebSocket listening
+      setMagicGenerationTask({
+        taskId: response.task_id,
+        outputType: outputType as 'article' | 'action_list',
+        snapshotContext,
+      });
+      
+    } catch (error) {
+      console.error('[KonvaCanvas] Generation failed:', error);
+      setIsGeneratingMagic(false);
+      // TODO: Show error toast
+    }
+    
+    // Clear magic selection
+    setMagicSelection(null);
+    
+    // Switch back to select mode
+    onToolChange?.('select');
+  }, [magicSelection, projectId, nodes, onToolChange]);
+
+  const handleIntentMenuClose = useCallback(() => {
+    setMagicSelection(null);
+  }, []);
 
   // Edge style configuration for different relation types
   interface EdgeStyleConfig {
@@ -3209,6 +3757,14 @@ export default function KonvaCanvas({
                     // Phase 1: Handle double-click for source nodes (drill-down)
                     if (node.subType === 'source' && node.sourceId) {
                       onOpenSource?.(node.sourceId, node.sourcePage);
+                    } else if (node.type === 'super_article') {
+                      // Open Article Editor for super_article nodes
+                      setEditingSuperCardId(node.id);
+                      setEditingSuperCardType('article');
+                    } else if (node.type === 'super_action_list') {
+                      // Open Action List Editor for super_action_list nodes
+                      setEditingSuperCardId(node.id);
+                      setEditingSuperCardType('action_list');
                     } else {
                       setEditingNodeId(node.id);
                     }
@@ -3251,11 +3807,121 @@ export default function KonvaCanvas({
                 y={selectionRect.y}
                 width={selectionRect.width}
                 height={selectionRect.height}
-                fill="rgba(59, 130, 246, 0.1)"
-                stroke="#3B82F6"
-                strokeWidth={1}
+                fill={toolMode === 'magic' 
+                  ? "rgba(102, 126, 234, 0.15)" 
+                  : "rgba(59, 130, 246, 0.1)"}
+                stroke={toolMode === 'magic' ? "#764ba2" : "#3B82F6"}
+                strokeWidth={toolMode === 'magic' ? 2 : 1}
+                dash={toolMode === 'magic' ? [8, 4] : undefined}
                 listening={false}
+                cornerRadius={toolMode === 'magic' ? 4 : 0}
               />
+            )}
+
+            {/* Magic Selection Persistent Box (for Intent Menu) */}
+            {magicSelection && !isGeneratingMagic && (
+              <Rect
+                x={magicSelection.rect.x}
+                y={magicSelection.rect.y}
+                width={magicSelection.rect.width}
+                height={magicSelection.rect.height}
+                fill="rgba(102, 126, 234, 0.1)"
+                stroke="#667eea"
+                strokeWidth={2}
+                dash={[8, 4]}
+                listening={false}
+                cornerRadius={4}
+              />
+            )}
+
+            {/* Magic Cursor Loading Animation */}
+            {isGeneratingMagic && magicGenerationTask && (
+              <Group
+                x={magicGenerationTask.snapshotContext.x + magicGenerationTask.snapshotContext.width + 20}
+                y={magicGenerationTask.snapshotContext.y}
+              >
+                {/* Loading Card Background */}
+                <Rect
+                  width={magicGenerationTask.outputType === 'article' ? 320 : 280}
+                  height={magicGenerationTask.outputType === 'article' ? 200 : 180}
+                  fill="#FFFFFF"
+                  cornerRadius={12}
+                  stroke={magicGenerationTask.outputType === 'article' ? '#667eea' : '#f59e0b'}
+                  strokeWidth={2}
+                  dash={[8, 4]}
+                  shadowColor="rgba(0, 0, 0, 0.1)"
+                  shadowBlur={12}
+                  shadowOffsetY={4}
+                />
+                
+                {/* Top Accent Bar */}
+                <Rect
+                  y={0}
+                  width={magicGenerationTask.outputType === 'article' ? 320 : 280}
+                  height={5}
+                  fill={magicGenerationTask.outputType === 'article' ? '#667eea' : '#f59e0b'}
+                  cornerRadius={[12, 12, 0, 0]}
+                />
+                
+                {/* Loading Icon */}
+                <Text
+                  x={(magicGenerationTask.outputType === 'article' ? 320 : 280) / 2 - 12}
+                  y={60}
+                  text="✨"
+                  fontSize={24}
+                />
+                
+                {/* Loading Text */}
+                <Text
+                  x={0}
+                  y={95}
+                  width={magicGenerationTask.outputType === 'article' ? 320 : 280}
+                  text={magicGenerationTask.outputType === 'article' ? 'Generating Article...' : 'Extracting Actions...'}
+                  fontSize={14}
+                  fontStyle="bold"
+                  fill="#6B7280"
+                  align="center"
+                />
+                
+                {/* Subtitle */}
+                <Text
+                  x={0}
+                  y={118}
+                  width={magicGenerationTask.outputType === 'article' ? 320 : 280}
+                  text="AI is analyzing your content"
+                  fontSize={12}
+                  fill="#9CA3AF"
+                  align="center"
+                />
+                
+                {/* Animated dots indicator (static representation) */}
+                <Group y={145}>
+                  <Rect
+                    x={(magicGenerationTask.outputType === 'article' ? 320 : 280) / 2 - 25}
+                    width={8}
+                    height={8}
+                    fill={magicGenerationTask.outputType === 'article' ? '#667eea' : '#f59e0b'}
+                    cornerRadius={4}
+                    opacity={0.3}
+                  />
+                  <Rect
+                    x={(magicGenerationTask.outputType === 'article' ? 320 : 280) / 2 - 5}
+                    width={8}
+                    height={8}
+                    fill={magicGenerationTask.outputType === 'article' ? '#667eea' : '#f59e0b'}
+                    cornerRadius={4}
+                    opacity={0.6}
+                  />
+                  <Rect
+                    x={(magicGenerationTask.outputType === 'article' ? 320 : 280) / 2 + 15}
+                    width={8}
+                    height={8}
+                    fill={magicGenerationTask.outputType === 'article' ? '#667eea' : '#f59e0b'}
+                    cornerRadius={4}
+                    opacity={1}
+                  />
+                </Group>
+              </Group>
             )}
 
             {/* Drag Preview */}
@@ -3489,6 +4155,15 @@ export default function KonvaCanvas({
           );
         })()}
 
+        {/* Magic Cursor Intent Menu */}
+        {magicSelection && (
+          <IntentMenu
+            position={magicSelection.screenPosition}
+            onSelect={handleIntentAction}
+            onClose={handleIntentMenuClose}
+          />
+        )}
+
         {/* Node Editor Overlay */}
         {(editingNodeId || isCreatingNote) && (() => {
           let initialData;
@@ -3515,6 +4190,80 @@ export default function KonvaCanvas({
               onCancel={() => {
                 setEditingNodeId(null);
                 setIsCreatingNote(false);
+              }}
+            />
+          );
+        })()}
+
+        {/* Super Card Article Editor */}
+        {editingSuperCardId && editingSuperCardType === 'article' && (() => {
+          const node = nodes.find(n => n.id === editingSuperCardId);
+          if (!node) return null;
+          
+          let articleData: ArticleData;
+          try {
+            articleData = JSON.parse(node.content || '{}');
+          } catch {
+            articleData = { title: node.title || 'Untitled Article', sections: [] };
+          }
+          
+          return (
+            <ArticleEditor
+              nodeId={node.id}
+              initialData={articleData}
+              onSave={(nodeId, data) => {
+                // Update the node with new data
+                if (onNodesChange) {
+                  const updatedNodes = nodes.map(n =>
+                    n.id === nodeId
+                      ? { ...n, title: data.title, content: JSON.stringify(data) }
+                      : n
+                  );
+                  onNodesChange(updatedNodes);
+                }
+                setEditingSuperCardId(null);
+                setEditingSuperCardType(null);
+              }}
+              onCancel={() => {
+                setEditingSuperCardId(null);
+                setEditingSuperCardType(null);
+              }}
+            />
+          );
+        })()}
+
+        {/* Super Card Action List Editor */}
+        {editingSuperCardId && editingSuperCardType === 'action_list' && (() => {
+          const node = nodes.find(n => n.id === editingSuperCardId);
+          if (!node) return null;
+          
+          let actionData: ActionListData;
+          try {
+            actionData = JSON.parse(node.content || '{}');
+          } catch {
+            actionData = { title: node.title || 'Action Items', items: [] };
+          }
+          
+          return (
+            <ActionListEditor
+              nodeId={node.id}
+              initialData={actionData}
+              onSave={(nodeId, data) => {
+                // Update the node with new data
+                if (onNodesChange) {
+                  const updatedNodes = nodes.map(n =>
+                    n.id === nodeId
+                      ? { ...n, title: data.title, content: JSON.stringify(data) }
+                      : n
+                  );
+                  onNodesChange(updatedNodes);
+                }
+                setEditingSuperCardId(null);
+                setEditingSuperCardType(null);
+              }}
+              onCancel={() => {
+                setEditingSuperCardId(null);
+                setEditingSuperCardType(null);
               }}
             />
           );

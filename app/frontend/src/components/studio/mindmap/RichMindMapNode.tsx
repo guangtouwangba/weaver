@@ -29,6 +29,8 @@ interface RichMindMapNodeProps {
   onDoubleClick?: (nodeId: string) => void;
   onClick?: (nodeId: string, e: Konva.KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (nodeId: string, x: number, y: number) => void;
+  /** Callback when user clicks to drilldown into source references */
+  onDrilldown?: (nodeId: string) => void;
 }
 
 // ============================================================================
@@ -193,6 +195,37 @@ const BrainIcon: React.FC<{ x: number; y: number; size?: number; color?: string 
 };
 
 /**
+ * Source indicator icon (magnifying glass) for drilldown affordance
+ */
+const SourceIndicator: React.FC<{ x: number; y: number; size?: number; isHovered?: boolean }> = ({
+  x, y, size = 16, isHovered = false
+}) => {
+  return (
+    <Group x={x} y={y}>
+      {/* Circle lens */}
+      <Circle
+        x={size * 0.4}
+        y={size * 0.4}
+        radius={size * 0.35}
+        stroke={isHovered ? tokens.card.borderActive : tokens.text.muted}
+        strokeWidth={1.5}
+        fill="transparent"
+      />
+      {/* Handle */}
+      <Line
+        points={[
+          size * 0.65, size * 0.65,
+          size * 0.9, size * 0.9,
+        ]}
+        stroke={isHovered ? tokens.card.borderActive : tokens.text.muted}
+        strokeWidth={1.5}
+        lineCap="round"
+      />
+    </Group>
+  );
+};
+
+/**
  * Tag/Chip component for categorical data
  */
 const TagChip: React.FC<{
@@ -238,13 +271,18 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
   onDoubleClick,
   onClick,
   onDragEnd,
+  onDrilldown,
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const glowRef = useRef<Konva.Rect>(null);
+  const [isHovered, setIsHovered] = React.useState(false);
 
   const width = node.width || 200;
   const height = node.height || 80;
   const isRoot = node.depth === 0;
+  
+  // Check if node has source references for drilldown
+  const hasSourceRefs = node.sourceRefs && node.sourceRefs.length > 0;
 
   // Determine node variant based on status and depth
   const variant: NodeVariant = useMemo(() => {
@@ -386,17 +424,46 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
     );
   }
 
+  // Handle single click for drilldown (if not editing)
+  const handleClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Call standard onClick first
+    onClick?.(node.id, e);
+    
+    // If we have source refs and a drilldown handler, trigger drilldown
+    if (hasSourceRefs && onDrilldown) {
+      onDrilldown(node.id);
+    }
+  };
+
   return (
     <Group
       ref={groupRef}
       x={node.x}
       y={node.y}
       draggable
-      onClick={(e) => onClick?.(node.id, e)}
-      onTap={(e) => onClick?.(node.id, e)}
+      onClick={handleClick}
+      onTap={handleClick}
       onDblClick={() => onDoubleClick?.(node.id)}
       onDblTap={() => onDoubleClick?.(node.id)}
       onDragEnd={(e) => onDragEnd?.(node.id, e.target.x(), e.target.y())}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        // Change cursor to pointer if drilldown is available
+        if (hasSourceRefs && onDrilldown) {
+          const stage = groupRef.current?.getStage();
+          if (stage) {
+            stage.container().style.cursor = 'pointer';
+          }
+        }
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        // Reset cursor
+        const stage = groupRef.current?.getStage();
+        if (stage) {
+          stage.container().style.cursor = 'default';
+        }
+      }}
     >
 
       {/* Selection indicator */}
@@ -518,11 +585,21 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
           {/* Checkmark icon */}
           <CheckmarkIcon x={finalWidth - 24} y={8} size={16} />
 
+          {/* Source indicator (magnifying glass) when source refs available */}
+          {hasSourceRefs && lodLevel === 'full' && (
+            <SourceIndicator 
+              x={finalWidth - 44} 
+              y={8} 
+              size={16} 
+              isHovered={isHovered}
+            />
+          )}
+
           {/* Title */}
           <Text
             x={16}
             y={16}
-            width={finalWidth - 48}
+            width={finalWidth - (hasSourceRefs ? 64 : 48)}
             text={node.label}
             fontSize={14}
             fontStyle="bold"

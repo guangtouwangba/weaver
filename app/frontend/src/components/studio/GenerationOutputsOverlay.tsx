@@ -189,7 +189,39 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     removeGenerationTask,
     updateGenerationTaskPosition,
     saveGenerationOutput,
+    navigateToSource,
+    openDocumentPreview,
   } = useStudio();
+  
+  // Handler for opening source references from mindmap drilldown
+  const handleOpenSourceRef = useCallback((
+    sourceId: string, 
+    sourceType: string, 
+    location?: string, 
+    quote?: string
+  ) => {
+    console.log('[GenerationOutputsOverlay] Opening source ref:', { sourceId, sourceType, location, quote });
+    
+    if (sourceType === 'document') {
+      // Parse page number from location if available
+      const pageNumber = location ? parseInt(location, 10) : 1;
+      const validPage = isNaN(pageNumber) ? 1 : pageNumber;
+      
+      // Use navigateToSource to jump to the specific page with the quote as search text
+      navigateToSource(sourceId, validPage, quote);
+      
+      // Also open the document preview modal
+      openDocumentPreview(sourceId);
+    } else if (sourceType === 'web' && location) {
+      // For web sources, open in a new tab
+      window.open(location, '_blank', 'noopener,noreferrer');
+    } else if (sourceType === 'node') {
+      // For canvas nodes, we could navigate to the node
+      // This would require additional context method
+      console.log('[GenerationOutputsOverlay] Navigate to canvas node:', sourceId);
+    }
+    // Video/audio types would need additional handling when media preview is available
+  }, [navigateToSource, openDocumentPreview]);
 
   // Drag state - only tracks if drag is active and initial conditions
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -419,6 +451,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
               onDragEnd={() => setDragState(null)}
               isDragging={isDragging}
               onDataChange={(newData) => saveGenerationOutput(task.id, newData as Record<string, unknown>, task.title)}
+              onOpenSourceRef={handleOpenSourceRef}
             />
           );
         }

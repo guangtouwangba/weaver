@@ -7,7 +7,7 @@ from uuid import uuid4
 from langgraph.graph import END, START, StateGraph
 
 from research_agent.domain.agents.base_agent import OutputEvent, OutputEventType
-from research_agent.domain.entities.output import MindmapEdge, MindmapNode
+from research_agent.domain.entities.output import MindmapEdge, MindmapNode, SourceRef
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
 from research_agent.shared.utils.logger import logger
 
@@ -35,6 +35,7 @@ class MindmapState(TypedDict):
     # Input
     document_content: str
     document_title: str
+    document_id: Optional[str]  # Document ID for source references
     max_depth: int
     max_branches: int
 
@@ -76,7 +77,9 @@ Document Content:
 Respond with a JSON object containing:
 {{
   "label": "Main topic label (brief, 3-5 words max)",
-  "content": "A one-sentence summary of the main topic"
+  "content": "A one-sentence summary of the main topic",
+  "source_quote": "The EXACT quote from the document that best represents this main topic (copy verbatim, max 200 chars)",
+  "source_location": "Page number or section if identifiable (e.g., 'Page 1', 'Introduction'), or null if not identifiable"
 }}
 
 Remember: Respond with ONLY the JSON object, nothing else."""
@@ -93,12 +96,16 @@ Depth Level: {depth} (0=root, higher=more specific)
 Generate {max_branches} key sub-topics or aspects that branch from "{current_node_label}".
 Each branch should be distinct and cover different aspects.
 
+IMPORTANT: For each branch, include the EXACT quote from the source document that supports this sub-topic.
+
 Respond with a JSON object containing:
 {{
   "branches": [
     {{
       "label": "Branch label (brief, 3-5 words max)",
-      "content": "A brief explanation of this sub-topic"
+      "content": "A brief explanation of this sub-topic",
+      "source_quote": "The EXACT quote from the document supporting this branch (copy verbatim, max 200 chars)",
+      "source_location": "Page number or section if identifiable (e.g., 'Page 3'), or null"
     }}
   ]
 }}
@@ -214,6 +221,21 @@ async def generate_root(state: MindmapState) -> MindmapState:
             return {**state, "error": "Failed to parse root node response"}
 
         node_id = f"node-{uuid4().hex[:8]}"
+        
+        # Build source references from LLM response
+        source_refs: List[SourceRef] = []
+        document_id = state.get("document_id")
+        source_quote = data.get("source_quote", "")
+        source_location = data.get("source_location")
+        
+        if source_quote and document_id:
+            source_refs.append(SourceRef(
+                source_id=document_id,
+                source_type="document",
+                location=source_location,
+                quote=source_quote[:300],  # Limit quote length
+            ))
+        
         node = MindmapNode(
             id=node_id,
             label=data["label"],
@@ -226,6 +248,7 @@ async def generate_root(state: MindmapState) -> MindmapState:
             height=NODE_HEIGHT,
             color="primary",
             status="complete",
+            source_refs=source_refs,
         )
 
         # Emit node added event
@@ -348,6 +371,20 @@ async def expand_level(state: MindmapState) -> MindmapState:
                     )
                 )
 
+                # Build source references from LLM response
+                source_refs: List[SourceRef] = []
+                document_id = state.get("document_id")
+                source_quote = branch.get("source_quote", "")
+                source_location = branch.get("source_location")
+                
+                if source_quote and document_id:
+                    source_refs.append(SourceRef(
+                        source_id=document_id,
+                        source_type="document",
+                        location=source_location,
+                        quote=source_quote[:300],  # Limit quote length
+                    ))
+
                 node = MindmapNode(
                     id=node_id,
                     label=branch.get("label", f"Branch {i + 1}"),
@@ -360,6 +397,7 @@ async def expand_level(state: MindmapState) -> MindmapState:
                     height=NODE_HEIGHT,
                     color=_get_color_for_level(current_depth),
                     status="complete",
+                    source_refs=source_refs,
                 )
 
                 nodes[node_id] = node.to_dict()

@@ -107,6 +107,7 @@ class MindmapAgent(BaseOutputAgent):
         self,
         document_content: str,
         document_title: str | None = None,
+        document_id: str | None = None,
         max_depth: int | None = None,
         max_branches: int | None = None,
         **kwargs: Any,
@@ -117,6 +118,7 @@ class MindmapAgent(BaseOutputAgent):
         Args:
             document_content: Full document text or summary
             document_title: Optional document title
+            document_id: Optional document ID for source references
             max_depth: Override default max depth
             max_branches: Override default max branches per node
 
@@ -142,6 +144,7 @@ class MindmapAgent(BaseOutputAgent):
         initial_state: MindmapState = {
             "document_content": document_content,
             "document_title": title,
+            "document_id": document_id,
             "max_depth": depth,
             "max_branches": branches,
             "current_depth": 0,

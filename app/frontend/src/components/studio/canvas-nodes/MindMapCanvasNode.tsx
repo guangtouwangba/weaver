@@ -45,6 +45,8 @@ interface MindMapCanvasNodeProps {
   onDataChange?: (data: MindmapData) => void;
   /** External drag state control from parent (GenerationOutputsOverlay) */
   isDragging?: boolean;
+  /** Callback when user wants to open a source reference (e.g., PDF preview) */
+  onOpenSourceRef?: (sourceId: string, sourceType: string, location?: string, quote?: string) => void;
 }
 
 // Mini renderer for preview (compact card view)
@@ -54,12 +56,32 @@ const MiniMindMapRenderer: React.FC<{ data: MindmapData; width: number; height: 
   height,
   scale = 1,
 }) => {
+  // Deduplicate nodes by ID to prevent React key errors
+  const uniqueNodes = React.useMemo(() => {
+    const seen = new Set<string>();
+    return data.nodes.filter(node => {
+      if (seen.has(node.id)) return false;
+      seen.add(node.id);
+      return true;
+    });
+  }, [data.nodes]);
+
+  // Deduplicate edges by ID
+  const uniqueEdges = React.useMemo(() => {
+    const seen = new Set<string>();
+    return data.edges.filter(edge => {
+      if (seen.has(edge.id)) return false;
+      seen.add(edge.id);
+      return true;
+    });
+  }, [data.edges]);
+
   return (
     <Stage width={width} height={height} scaleX={scale} scaleY={scale}>
       <Layer>
-        {data.edges.map((edge, idx) => {
-          const source = data.nodes.find((n) => n.id === edge.source);
-          const target = data.nodes.find((n) => n.id === edge.target);
+        {uniqueEdges.map((edge, idx) => {
+          const source = uniqueNodes.find((n) => n.id === edge.source);
+          const target = uniqueNodes.find((n) => n.id === edge.target);
           if (!source || !target) return null;
           return (
             <MindMapEdge
@@ -70,7 +92,7 @@ const MiniMindMapRenderer: React.FC<{ data: MindmapData; width: number; height: 
             />
           );
         })}
-        {data.nodes.map((node) => (
+        {uniqueNodes.map((node) => (
           <MindMapNode key={node.id} node={node} />
         ))}
       </Layer>
@@ -92,6 +114,7 @@ function MindMapCanvasNodeInner({
   onDragEnd,
   onDataChange,
   isDragging = false, // Controlled by parent (GenerationOutputsOverlay)
+  onOpenSourceRef,
 }: MindMapCanvasNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -336,6 +359,7 @@ function MindMapCanvasNodeInner({
             title={title}
             onClose={() => setIsExpanded(false)}
             onSave={onDataChange}
+            onOpenSourceRef={onOpenSourceRef}
           />
         </div>
       </Modal>

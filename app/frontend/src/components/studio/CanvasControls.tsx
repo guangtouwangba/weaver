@@ -15,7 +15,8 @@ import {
   MousePointerIcon,
   HandIcon,
   LinkIcon,
-  AccountTreeIcon
+  AccountTreeIcon,
+  AutoAwesomeIcon,
 } from '@/components/ui/icons';
 import { Minus } from 'lucide-react';
 
@@ -24,8 +25,8 @@ interface CanvasControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
-  interactionMode?: 'select' | 'pan' | 'connect' | 'logic_connect';
-  onModeChange?: (mode: 'select' | 'pan' | 'connect' | 'logic_connect') => void;
+  interactionMode?: 'select' | 'pan' | 'magic' | 'connect' | 'logic_connect';
+  onModeChange?: (mode: 'select' | 'pan' | 'magic' | 'connect' | 'logic_connect') => void;
   onDelete?: () => void;
   hasSelection?: boolean;
 }
@@ -81,6 +82,20 @@ export default function CanvasControls({
               onClick={() => onModeChange?.('pan')}
             >
               <HandIcon size={20} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Magic Cursor (M)" placement="bottom">
+            <IconButton
+              size="sm"
+              variant={interactionMode === 'magic' ? 'default' : 'ghost'}
+              active={interactionMode === 'magic'}
+              onClick={() => onModeChange?.('magic')}
+              style={interactionMode === 'magic' ? {
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: '#fff',
+              } : undefined}
+            >
+              <AutoAwesomeIcon size={20} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Connect (L)" placement="bottom">

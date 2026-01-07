@@ -59,15 +59,13 @@ async def generate_output(
         f"type={request.output_type}, docs={request.document_ids}"
     )
 
-    # Validate document_ids is not empty, except for 'custom' type with node_data
-    # Custom type can work with canvas node_data instead of documents
-    is_custom_with_node_data = (
-        request.output_type == "custom" and
-        request.options and
-        (request.options.get("node_data") or request.options.get("mode"))
-    )
+    # Validate document_ids is not empty, except for types that use node_data
+    # Custom, article, and action_list types can work with canvas node_data instead of documents
+    types_with_node_data = ("custom", "article", "action_list")
+    has_node_data = request.options and (request.options.get("node_data") or request.options.get("mode"))
+    is_type_with_node_data = request.output_type in types_with_node_data and has_node_data
     
-    if not request.document_ids and not is_custom_with_node_data:
+    if not request.document_ids and not is_type_with_node_data:
         raise HTTPException(
             status_code=400,
             detail="At least one document ID is required for output generation"

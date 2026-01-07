@@ -48,6 +48,7 @@ import {
 import { MindmapData, MindmapNode, MindmapEdge } from '@/lib/api';
 import { RichMindMapNode } from './RichMindMapNode';
 import { CurvedMindMapEdge } from './CurvedMindMapEdge';
+import { SourceContextPanel } from './SourceContextPanel';
 import { applyLayout, resolveOverlaps, LayoutType } from './layoutAlgorithms';
 import { useHistory } from '@/hooks/useHistory';
 import { outputsApi } from '@/lib/api';
@@ -61,6 +62,8 @@ interface MindMapEditorProps {
   title: string;
   onClose: () => void;
   onSave?: (data: MindmapData) => void;
+  /** Callback when user wants to open a source reference (e.g., PDF preview) */
+  onOpenSourceRef?: (sourceId: string, sourceType: string, location?: string, quote?: string) => void;
 }
 
 interface ViewportState {
@@ -373,6 +376,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   title,
   onClose,
   onSave,
+  onOpenSourceRef,
 }) => {
   // State
   // Initialize with deduplicated nodes to prevent unique key errors
@@ -436,6 +440,10 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState<'add' | 'edit'>('add');
   const [editingNode, setEditingNode] = useState<MindmapNode | null>(null);
+  
+  // Drilldown state for source context panel
+  const [drilldownNodeId, setDrilldownNodeId] = useState<string | null>(null);
+  const [showSourcePanel, setShowSourcePanel] = useState(false);
 
   // Refs
   const stageRef = useRef<Konva.Stage>(null);
@@ -659,6 +667,27 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
       setEditDialogOpen(true);
     }
   }, [data.nodes]);
+
+  // Node drilldown (show source context panel)
+  const handleNodeDrilldown = useCallback((nodeId: string) => {
+    const node = data.nodes.find((n) => n.id === nodeId);
+    if (node && node.sourceRefs && node.sourceRefs.length > 0) {
+      setDrilldownNodeId(nodeId);
+      setShowSourcePanel(true);
+    }
+  }, [data.nodes]);
+
+  // Close source panel
+  const handleCloseSourcePanel = useCallback(() => {
+    setShowSourcePanel(false);
+    setDrilldownNodeId(null);
+  }, []);
+  
+  // Get the node being drilled down into
+  const drilldownNode = useMemo(
+    () => data.nodes.find((n) => n.id === drilldownNodeId),
+    [data.nodes, drilldownNodeId]
+  );
 
   // Add node
   const handleAddNode = useCallback(() => {
@@ -1046,6 +1075,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
                 onClick={handleNodeSelect}
                 onDoubleClick={handleNodeDoubleClick}
                 onDragEnd={handleNodeDragEnd}
+                onDrilldown={handleNodeDrilldown}
               />
             ))}
           </Layer>
@@ -1099,6 +1129,16 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
               Drag canvas to pan • Scroll to zoom • Click node to select • Double-click to edit
             </Text>
           </div>
+        )}
+
+        {/* Source Context Panel for drilldown */}
+        {drilldownNode && (
+          <SourceContextPanel
+            node={drilldownNode}
+            isOpen={showSourcePanel}
+            onClose={handleCloseSourcePanel}
+            onOpenSource={onOpenSourceRef}
+          />
         )}
       </div>
 
