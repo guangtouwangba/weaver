@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-01-07
+
+#### Unified Canvas Node Model - Magic Cursor Selects All Content Types (@aqiu)
+
+**Feature:**
+All canvas elements (notes, mindmaps, summaries, super cards) are now unified under a single `CanvasNode` data model. This enables Magic Cursor to select any content type for AI generation.
+
+**Technical Changes:**
+- Extended `CanvasNode` interface with `outputId`, `outputData`, and `generatedFrom` fields
+- Created `MindmapKonvaCard` component for rendering mindmap previews on canvas:
+  - Shows root node and first-level children
+  - Node count badge and tree structure visualization
+  - Double-click to open full MindMapEditor
+- Created `SummaryKonvaCard` component for rendering summary previews on canvas:
+  - Shows title, excerpt, and key findings count
+  - Purple accent styling to match summary theme
+  - Double-click to open summary viewer
+- Updated `KnowledgeNode` to route `mindmap` and `summary` types to new Konva cards
+- Updated project data loading to convert outputs to CanvasNodes instead of GenerationTasks
+- Updated Magic Cursor content extraction to handle mindmap/summary node types:
+  - Extracts node labels from mindmaps
+  - Extracts summary text and key findings from summaries
+- Simplified `GenerationOutputsOverlay` to only render loading states
+
+**Benefits:**
+- Magic Cursor can now select mindmaps, summaries, and notes together
+- Unified selection enables generating content from mixed sources
+- Consistent interaction patterns across all content types
+- All content types appear in spatial index for efficient queries
+
+**Files Changed:**
+- `app/frontend/src/lib/api.ts` - Extended CanvasNode interface
+- `app/frontend/src/contexts/StudioContext.tsx` - PendingGeneration interface, output-to-node conversion
+- `app/frontend/src/components/studio/KonvaCanvas.tsx` - MindmapKonvaCard, SummaryKonvaCard, content extraction
+- `app/frontend/src/components/studio/GenerationOutputsOverlay.tsx` - Simplified to loading-only
+- `app/frontend/src/components/studio/InspirationDock.tsx` - Updated completion detection
+
 ### Added - 2025-01-08
 
 #### Magic Cursor Super Cards - Article & Action List Generation (@siqiuchen)

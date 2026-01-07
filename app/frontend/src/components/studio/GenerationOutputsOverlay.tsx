@@ -1,29 +1,25 @@
 'use client';
 
 /**
- * GenerationOutputsOverlay - Renders completed generation tasks as canvas overlays
- * Watches the generationTasks state and renders SummaryCanvasNode or MindMapCanvasNode
- * for each completed task at its captured position.
+ * GenerationOutputsOverlay - Renders loading cards during generation
+ * 
+ * With the Unified Node Model, completed outputs are now CanvasNodes rendered
+ * in KonvaCanvas. This overlay only shows loading placeholders for pending/generating tasks.
  * 
  * Features:
- * - Draggable output cards with position persistence
- * - Loading placeholder cards for generating tasks
+ * - Loading placeholder cards for pending/generating tasks
  * - Viewport-aware positioning
+ * - Draggable loading cards
  * 
- * Performance Optimizations (Phase 1):
- * - Drag position tracked via useRef to avoid React state updates during drag
- * - DOM updates via CSS transform during drag (bypasses React reconciliation)
- * - RAF throttling for mouse move handler
- * - Final position committed to state only on drag end
+ * Note: Completed outputs (mindmap, summary, article, action_list) are rendered
+ * as CanvasNodes in KonvaCanvas, not here.
  */
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Surface, Stack, Text, Spinner } from '@/components/ui';
-import { colors, radii, shadows } from '@/components/ui/tokens';
+import { colors } from '@/components/ui/tokens';
 import { useStudio, GenerationType, GenerationTask } from '@/contexts/StudioContext';
-import { SummaryCanvasNode, MindMapCanvasNode } from './canvas-nodes';
-import { SummaryData, MindmapData } from '@/lib/api';
-import { AutoAwesomeIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
+import { AutoAwesomeIcon, AccountTreeIcon } from '@/components/ui/icons';
 
 interface GenerationOutputsOverlayProps {
   viewport: { x: number; y: number; scale: number };
@@ -186,42 +182,8 @@ function LoadingCard({
 export default function GenerationOutputsOverlay({ viewport }: GenerationOutputsOverlayProps) {
   const {
     generationTasks,
-    removeGenerationTask,
     updateGenerationTaskPosition,
-    saveGenerationOutput,
-    navigateToSource,
-    openDocumentPreview,
   } = useStudio();
-  
-  // Handler for opening source references from mindmap drilldown
-  const handleOpenSourceRef = useCallback((
-    sourceId: string, 
-    sourceType: string, 
-    location?: string, 
-    quote?: string
-  ) => {
-    console.log('[GenerationOutputsOverlay] Opening source ref:', { sourceId, sourceType, location, quote });
-    
-    if (sourceType === 'document') {
-      // Parse page number from location if available
-      const pageNumber = location ? parseInt(location, 10) : 1;
-      const validPage = isNaN(pageNumber) ? 1 : pageNumber;
-      
-      // Use navigateToSource to jump to the specific page with the quote as search text
-      navigateToSource(sourceId, validPage, quote);
-      
-      // Also open the document preview modal
-      openDocumentPreview(sourceId);
-    } else if (sourceType === 'web' && location) {
-      // For web sources, open in a new tab
-      window.open(location, '_blank', 'noopener,noreferrer');
-    } else if (sourceType === 'node') {
-      // For canvas nodes, we could navigate to the node
-      // This would require additional context method
-      console.log('[GenerationOutputsOverlay] Navigate to canvas node:', sourceId);
-    }
-    // Video/audio types would need additional handling when media preview is available
-  }, [navigateToSource, openDocumentPreview]);
 
   // Drag state - only tracks if drag is active and initial conditions
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -243,16 +205,17 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     }
   });
 
-  // Get all tasks that should be rendered
+  // Get tasks that should show loading cards (unified node model: completed outputs are now CanvasNodes)
   const renderableTasks = useMemo(() => {
     const tasks: GenerationTask[] = [];
     generationTasks.forEach(task => {
-      // Show completed tasks, generating tasks (for streaming preview), and pending/generating for loading cards
-      if (task.status === 'complete' || task.status === 'generating' || task.status === 'pending') {
+      // Only show pending/generating tasks as loading cards
+      // Completed tasks are now CanvasNodes rendered in KonvaCanvas
+      if ((task.status === 'pending' || task.status === 'generating') && !task.result) {
         tasks.push(task);
       }
     });
-    console.log('[Overlay] Rendering tasks:', tasks.map(t => t.id));
+    console.log('[Overlay] Rendering loading tasks:', tasks.map(t => t.id));
     return tasks;
   }, [generationTasks]);
 
@@ -400,65 +363,19 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
           pointer-events: auto;
         }
       `}</style>
+      {/* Only render loading cards for pending/generating tasks */}
+      {/* Completed outputs are now CanvasNodes rendered in KonvaCanvas (unified node model) */}
       {renderableTasks.map(task => {
-        const handleClose = () => removeGenerationTask(task.id);
         const isDragging = dragState?.taskId === task.id;
-
-        // Show loading card for pending/generating tasks without result
-        if ((task.status === 'pending' || task.status === 'generating') && !task.result) {
-          return (
-            <LoadingCard
-              key={task.id}
-              task={task}
-              viewport={viewport}
-              onDragStart={handleDragStart}
-              isDragging={isDragging}
-            />
-          );
-        }
-
-        if (task.type === 'summary' && task.result) {
-          return (
-            <SummaryCanvasNode
-              key={task.id}
-              id={task.id}
-              data-task-id={task.id}
-              title={task.title || 'Summary'}
-              data={task.result as SummaryData}
-              position={task.position}
-              viewport={viewport}
-              onClose={handleClose}
-              onDragStart={(e) => handleDragStart(e, task.id)}
-              onDragEnd={() => setDragState(null)}
-              isDragging={isDragging}
-            />
-          );
-        }
-
-        if (task.type === 'mindmap' && task.result) {
-          return (
-            <MindMapCanvasNode
-              key={task.id}
-              id={task.id}
-              data-task-id={task.id}
-              title={task.title || 'Mind Map'}
-              data={task.result as MindmapData}
-              position={task.position}
-              viewport={viewport}
-              isStreaming={task.status === 'generating'}
-              onClose={handleClose}
-              onDragStart={(e) => handleDragStart(e, task.id)}
-              onDragEnd={() => setDragState(null)}
-              isDragging={isDragging}
-              onDataChange={(newData) => saveGenerationOutput(task.id, newData as Record<string, unknown>, task.title)}
-              onOpenSourceRef={handleOpenSourceRef}
-            />
-          );
-        }
-
-        // For other types, we could add more canvas node types here
-        // For now, just return null for unsupported types
-        return null;
+        return (
+          <LoadingCard
+            key={task.id}
+            task={task}
+            viewport={viewport}
+            onDragStart={handleDragStart}
+            isDragging={isDragging}
+          />
+        );
       })}
     </div>
   );
