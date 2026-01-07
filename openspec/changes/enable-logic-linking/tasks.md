@@ -1,23 +1,22 @@
 ## 1. Implementation
-- [ ] 1.1 **Frontend**: Implement "Drag to Connect" interaction in `MindMapEditor`.
-    - Handle drag start from node (or dedicated handle).
-    - Draw temporary line during drag.
-    - Hit testing for target node.
-- [ ] 1.2 **Frontend**: Create `LinkTypeDialog` component.
-    - Options: "Structural (Parent/Child)", "Support (Green)", "Contradict (Red)", "Related (Dashed)".
-- [ ] 1.3 **Backend**: Update `MindmapEdge` schema.
-    - Add `relation_type` (enum) and `metadata` (json) fields.
-    - Update `create_edge` and `update_edge` endpoints.
-- [ ] 1.4 **Frontend**: specific rendering for Edge Types.
-    - Update `MindMapEdge` to render different strokes/colors/arrows based on `relation_type`.
-- [ ] 1.5 **Frontend**: Implement AI Verification Trigger.
-    - Add "Verify Relation" action to Context Menu when an edge or 2 connected nodes are selected.
-- [ ] 1.6 **Backend**: Implement Relation Verification Endpoint.
-    - New endpoint `POST /api/mindmap/verify-relation`.
-    - Input: source node content, target node content, relation type.
-    - Logic: LLM check "Does A support/contradict B?".
-    - Output: { valid: boolean, reasoning: string, confidence: number }.
+- [x] 1.1 **Frontend**: Implement "Drag to Connect" interaction in `KonvaCanvas` (Generic Canvas).
+    - [x] Handle drag start from node (or dedicated handle) via Connect Modes.
+    - [x] Draw temporary line during drag.
+    - [x] Hit testing for target node.
+- [x] 1.2 **Frontend**: Create `LinkTypeDialog` component.
+    - [x] Options: "Support (Green)", "Contradict (Red)", "Correlates (Blue)", "Causes (Orange)".
+- [x] 1.3 **Backend**: Update `CanvasEdge` schema.
+    - [x] Add `relationType`, `label`, and `metadata` to `CanvasEdgeDTO` and `CanvasEdge` interface.
+- [x] 1.4 **Frontend**: specific rendering for Edge Types.
+    - [x] `KonvaCanvas` already supports rendering styles based on `relationType`.
+- [x] 1.5 **Frontend**: Implement AI Verification Trigger.
+    - [x] Add "Verify Relation" action to `KonvaCanvas` Context Menu when 2 connected nodes are selected.
+- [x] 1.6 **Backend**: Implement Relation Verification Endpoint.
+    - [x] New endpoint `POST /api/v1/canvas/verify-relation`.
+    - [x] Input: source content, target content, relation type.
+    - [x] Logic: LLM check.
+    - [x] Output: { valid, reasoning, confidence }.
 
 ## 2. Validation
-- [ ] 2.1 **Manual**: Drag connect two nodes -> Dialog appears -> Select "Support" -> Verify Green Line.
-- [ ] 2.2 **Manual**: Select the two nodes -> Trigger Verification -> Verify AI response works.
+- [ ] 2.1 **Manual**: Switch to "Logic Connect" tool -> Click Source -> Click/Drag to Target -> Dialog appears -> Select "Support" -> Verify Edge Created.
+- [ ] 2.2 **Manual**: Select the two nodes -> Right Click -> "Verify Relation" -> Verify AI reasoning alert.

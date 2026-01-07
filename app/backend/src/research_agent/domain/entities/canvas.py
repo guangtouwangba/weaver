@@ -12,6 +12,7 @@ class CanvasNode:
 
     id: str
     type: str = "card"
+    sub_type: Optional[str] = None  # 'source' for PDF documents
     title: str = ""
     content: str = ""
     x: float = 0
@@ -22,6 +23,7 @@ class CanvasNode:
     tags: List[str] = field(default_factory=list)
     source_id: Optional[str] = None  # Document ID if from PDF
     source_page: Optional[int] = None  # Page number if from PDF
+    file_metadata: Optional[Dict[str, Any]] = None  # Metadata including thumbnail URL
     # New fields for view system
     view_type: str = "free"  # 'free' | 'thinking'
     section_id: Optional[str] = None
@@ -153,6 +155,8 @@ class Canvas:
                     node.source_id = kwargs["source_id"]
                 if "source_page" in kwargs:
                     node.source_page = kwargs["source_page"]
+                if "file_metadata" in kwargs:
+                    node.file_metadata = kwargs["file_metadata"]
                 if "view_type" in kwargs:
                     node.view_type = kwargs["view_type"]
                 if "section_id" in kwargs:
@@ -231,6 +235,7 @@ class Canvas:
                 {
                     "id": n.id,
                     "type": n.type,
+                    "subType": n.sub_type,
                     "title": n.title,
                     "content": n.content,
                     "x": n.x,
@@ -241,6 +246,7 @@ class Canvas:
                     "tags": n.tags,
                     "sourceId": n.source_id,
                     "sourcePage": n.source_page,
+                    "fileMetadata": n.file_metadata,
                     "viewType": n.view_type,
                     "sectionId": n.section_id,
                     "promotedFrom": n.promoted_from,
@@ -321,6 +327,7 @@ class Canvas:
                 {
                     "id": n.id,
                     "type": n.type,
+                    "subType": n.sub_type,
                     "title": n.title,
                     "content": n.content,
                     "x": n.x,
@@ -331,6 +338,7 @@ class Canvas:
                     "tags": n.tags,
                     "sourceId": n.source_id,
                     "sourcePage": n.source_page,
+                    "fileMetadata": n.file_metadata,
                     "viewType": n.view_type,
                     "sectionId": n.section_id,
                     "promotedFrom": n.promoted_from,
@@ -405,6 +413,7 @@ class Canvas:
             CanvasNode(
                 id=n["id"],
                 type=n.get("type", "card"),
+                sub_type=n.get("subType"),
                 title=n.get("title", ""),
                 content=n.get("content", ""),
                 x=n.get("x", 0),
@@ -415,6 +424,7 @@ class Canvas:
                 tags=n.get("tags", []),
                 source_id=n.get("sourceId"),
                 source_page=n.get("sourcePage"),
+                file_metadata=n.get("fileMetadata"),
                 view_type=n.get("viewType", "free"),  # Default to 'free' for backward compatibility
                 section_id=n.get("sectionId"),
                 promoted_from=n.get("promotedFrom"),

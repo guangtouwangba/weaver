@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Surface, Stack, Text, IconButton } from '@/components/ui';
-import { colors, radii, shadows } from '@/components/ui/tokens';
+import { Surface, Stack, Text, IconButton, Spinner } from '@/components/ui';
+import { colors, radii, shadows, spacing } from '@/components/ui/tokens';
 import {
     AutoAwesomeIcon,
     LinkIcon,
@@ -46,16 +46,17 @@ export default function SynthesisModeMenu({
             <Surface
                 elevation={3}
                 radius="lg"
-                sx={{
+                style={{
                     ...menuStyle,
-                    p: 3,
+                    padding: spacing[3],
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 2,
+                    gap: spacing[2],
                 }}
             >
-                <Text variant="label" sx={{ color: '#8B5CF6' }}>
+                <Spinner size="sm" />
+                <Text variant="label" style={{ color: '#8B5CF6' }}>
                     Synthesizing...
                 </Text>
             </Surface>
@@ -66,16 +67,12 @@ export default function SynthesisModeMenu({
         <Surface
             elevation={3}
             radius="lg"
-            sx={{
+            style={{
                 ...menuStyle,
-                p: 0,
+                padding: 0,
                 overflow: 'hidden',
                 minWidth: 320,
-                animation: 'popIn 0.2s ease-out',
-                '@keyframes popIn': {
-                    from: { opacity: 0, transform: position ? 'translate(-50%, -90%) scale(0.9)' : 'translate(-50%, -40%) scale(0.9)' },
-                    to: { opacity: 1, transform: position ? 'translate(-50%, -100%) scale(1)' : 'translate(-50%, -50%) scale(1)' },
-                },
+                backgroundColor: colors.background.paper,
             }}
         >
             {/* Header */}
@@ -83,9 +80,9 @@ export default function SynthesisModeMenu({
                 direction="row"
                 justify="between"
                 align="center"
-                sx={{
-                    p: 2,
-                    bgcolor: colors.background.subtle,
+                style={{
+                    padding: spacing[2],
+                    backgroundColor: colors.background.subtle,
                     borderBottom: `1px solid ${colors.border.default}`,
                 }}
             >
@@ -101,7 +98,7 @@ export default function SynthesisModeMenu({
             </Stack>
 
             {/* Options */}
-            <Stack gap={0} sx={{ p: 1 }}>
+            <Stack gap={0} style={{ padding: spacing[1] }}>
                 <ModeOption
                     icon={<LinkIcon size="md" color="primary" />}
                     title="Connect"
@@ -141,21 +138,23 @@ function ModeOption({
     onClick: () => void,
     color: string
 }) {
+    const [isHovered, setIsHovered] = React.useState(false);
+
     return (
         <Stack
             direction="row"
             align="center"
             gap={2}
             onClick={onClick}
-            sx={{
-                p: 2,
-                borderRadius: `${radii.md}px`,
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            style={{
+                padding: spacing[2],
+                borderRadius: radii.md,
                 cursor: 'pointer',
                 transition: 'all 0.1s',
-                '&:hover': {
-                    bgcolor: color,
-                    transform: 'translateX(4px)',
-                },
+                backgroundColor: isHovered ? color : 'transparent',
+                transform: isHovered ? 'translateX(4px)' : 'none',
             }}
         >
             <div
@@ -169,15 +168,16 @@ function ModeOption({
                     justifyContent: 'center',
                     boxShadow: shadows.xs,
                     border: `1px solid ${colors.neutral[100]}`,
+                    flexShrink: 0,
                 }}
             >
                 {icon}
             </div>
-            <div>
-                <Text variant="label" sx={{ color: colors.text.primary }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Text variant="label" style={{ color: colors.text.primary, display: 'block', marginBottom: 2 }}>
                     {title}
                 </Text>
-                <Text variant="caption" color="secondary">
+                <Text variant="caption" color="secondary" style={{ display: 'block' }}>
                     {description}
                 </Text>
             </div>

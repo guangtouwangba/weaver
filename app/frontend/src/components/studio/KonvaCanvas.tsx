@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Stage, Layer, Group, Rect, Text, Line, Circle, Image, Path } from 'react-konva';
 
 
+
 const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
 
@@ -17,20 +18,29 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
       console.log('[DEBUG] URLImage no src');
       return;
     }
-    console.log('[DEBUG] URLImage loading:', src);
+
+    // Resolve relative API paths to full URLs
+    let fullSrc = src;
+    if (src.startsWith('/api/')) {
+      // Get base URL from environment or default to localhost
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      fullSrc = `${baseUrl}${src}`;
+    }
+
+    console.log('[DEBUG] URLImage loading:', fullSrc);
     const img = new window.Image();
-    img.src = src;
+    img.src = fullSrc;
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
-      console.log('[DEBUG] URLImage loaded:', src, 'size:', img.width, 'x', img.height);
+      console.log('[DEBUG] URLImage loaded:', fullSrc, 'size:', img.width, 'x', img.height);
       if (img.width > 0 && img.height > 0) {
         setImage(img);
       } else {
-        console.warn('[DEBUG] URLImage loaded with 0 dimensions:', src);
+        console.warn('[DEBUG] URLImage loaded with 0 dimensions:', fullSrc);
       }
     };
     img.onerror = (e) => {
-      console.error('[DEBUG] URLImage error:', src, e);
+      console.error('[DEBUG] URLImage error:', fullSrc, e);
     };
   }, [src]);
 
@@ -50,8 +60,9 @@ import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
 import InspirationDock from './InspirationDock';
 import CanvasContextMenu from './CanvasContextMenu';
+import LinkTypeDialog, { LinkTypeDialogProps } from './LinkTypeDialog';
 import GenerationOutputsOverlay from './GenerationOutputsOverlay';
-import { CanvasNode, CanvasEdge } from '@/lib/api';
+import { CanvasNode, CanvasEdge, canvasApi } from '@/lib/api';
 import {
   getAnchorPoint,
   resolveAnchor,
@@ -804,54 +815,175 @@ const KnowledgeNode = ({
               fontStyle="italic"
             />
           )}
+        </>
+      )}
 
-          {/* Phase 2: Connection Handle (Right side - output) */}
-          {(isHovered || isSelected || isConnecting) && (
-            <Group
-              x={width}
-              y={height / 2}
-              onMouseDown={(e) => {
-                e.cancelBubble = true;
-                onConnectionStart?.();
-              }}
-              onTouchStart={(e) => {
-                e.cancelBubble = true;
-                onConnectionStart?.();
-              }}
-            >
-              <Rect
-                x={-8}
-                y={-8}
-                width={16}
-                height={16}
-                fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
-                stroke="#3B82F6"
-                strokeWidth={2}
-                cornerRadius={8}
-              />
-            </Group>
-          )}
+      {/* Connection Handles - rendered for ALL node types (draw.io style: 4 directions) */}
+      {(isHovered || isSelected || isConnecting) && (
+        <>
+          {/* Top Handle (N) */}
+          <Group
+            x={width / 2}
+            y={0}
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+            onTouchStart={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+          >
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
+              stroke="#3B82F6"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
 
-          {/* Phase 2: Connection Target Handle (Left side - input) */}
-          {isConnectTarget && (
-            <Group x={0} y={height / 2}>
-              <Rect
-                x={-8}
-                y={-8}
-                width={16}
-                height={16}
-                fill="#10B981"
-                stroke="#059669"
-                strokeWidth={2}
-                cornerRadius={8}
-              />
-            </Group>
-          )}
+          {/* Bottom Handle (S) */}
+          <Group
+            x={width / 2}
+            y={height}
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+            onTouchStart={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+          >
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
+              stroke="#3B82F6"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
+
+          {/* Left Handle (W) */}
+          <Group
+            x={0}
+            y={height / 2}
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+            onTouchStart={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+          >
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
+              stroke="#3B82F6"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
+
+          {/* Right Handle (E) */}
+          <Group
+            x={width}
+            y={height / 2}
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+            onTouchStart={(e) => {
+              e.cancelBubble = true;
+              onConnectionStart?.();
+            }}
+          >
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill={isConnecting ? '#3B82F6' : '#FFFFFF'}
+              stroke="#3B82F6"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
+        </>
+      )}
+
+      {/* Connection Target Handles - show on all 4 sides when this node is a potential target */}
+      {isConnectTarget && (
+        <>
+          {/* Top Target */}
+          <Group x={width / 2} y={0}>
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill="#10B981"
+              stroke="#059669"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
+          {/* Bottom Target */}
+          <Group x={width / 2} y={height}>
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill="#10B981"
+              stroke="#059669"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
+          {/* Left Target */}
+          <Group x={0} y={height / 2}>
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill="#10B981"
+              stroke="#059669"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
+          {/* Right Target */}
+          <Group x={width} y={height / 2}>
+            <Rect
+              x={-6}
+              y={-6}
+              width={12}
+              height={12}
+              fill="#10B981"
+              stroke="#059669"
+              strokeWidth={2}
+              cornerRadius={6}
+            />
+          </Group>
         </>
       )}
     </Group>
   );
 };
+
 
 export default function KonvaCanvas({
   nodes: propNodes,
@@ -898,6 +1030,10 @@ export default function KonvaCanvas({
   const [connectingLineEnd, setConnectingLineEnd] = useState<{ x: number; y: number } | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [edgeLabelDialog, setEdgeLabelDialog] = useState<{
+    edge: CanvasEdge;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [linkTypeDialog, setLinkTypeDialog] = useState<{
     edge: CanvasEdge;
     position: { x: number; y: number };
   } | null>(null);
@@ -1219,6 +1355,34 @@ export default function KonvaCanvas({
   const handleNodeSelect = useCallback((nodeId: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     // In Hand mode or holding space, let event bubble to Stage for panning
     if (toolMode === 'hand' || isSpacePressed) return;
+
+    // Connect Mode Logic: Start connection
+    if (toolMode === 'connect' || toolMode === 'logic_connect') {
+      e.cancelBubble = true;
+      setConnectingFromNodeId(nodeId);
+      const stage = e.target.getStage();
+      const pointer = stage?.getPointerPosition();
+      if (pointer) {
+        const canvasX = (pointer.x - viewport.x) / viewport.scale;
+        const canvasY = (pointer.y - viewport.y) / viewport.scale;
+        setConnectingLineEnd({ x: canvasX, y: canvasY });
+      }
+      return;
+    }
+
+    // Connect Mode Logic
+    if (toolMode === 'connect' || toolMode === 'logic_connect') {
+      e.cancelBubble = true;
+      setConnectingFromNodeId(nodeId);
+      const stage = e.target.getStage();
+      const pointer = stage?.getPointerPosition();
+      if (pointer) {
+        const canvasX = (pointer.x - viewport.x) / viewport.scale;
+        const canvasY = (pointer.y - viewport.y) / viewport.scale;
+        setConnectingLineEnd({ x: canvasX, y: canvasY });
+      }
+      return;
+    }
 
     e.cancelBubble = true; // Prevent stage click (only in select mode)
 
@@ -1603,14 +1767,16 @@ export default function KonvaCanvas({
   const handleNodeDragMoveWithMerge = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const nodeId = getNodeIdFromEvent(e);
+      console.log('[Synthesis Debug] handleNodeDragMoveWithMerge called, nodeId:', nodeId);
+
       if (!nodeId) {
-        console.warn('[Merge] Could not get nodeId from event');
+        console.warn('[Synthesis Debug] Could not get nodeId from event');
         return;
       }
 
       const draggedNode = nodes.find((n) => n.id === nodeId);
       if (!draggedNode) {
-        console.warn('[Merge] Could not find node:', nodeId);
+        console.warn('[Synthesis Debug] Could not find node:', nodeId);
         return;
       }
 
@@ -1633,6 +1799,8 @@ export default function KonvaCanvas({
       let closestNodeId: string | null = null;
       let closestDistance = Infinity;
 
+      console.log('[Synthesis Debug] Checking proximity against', nodes.length - 1, 'other nodes, threshold:', MERGE_PROXIMITY_THRESHOLD);
+
       for (const node of nodes) {
         if (node.id === nodeId) continue;
 
@@ -1649,13 +1817,15 @@ export default function KonvaCanvas({
         if (distance < closestDistance && distance < MERGE_PROXIMITY_THRESHOLD) {
           closestDistance = distance;
           closestNodeId = node.id;
+          console.log('[Synthesis Debug] Found close node:', node.id, 'distance:', Math.round(distance));
         }
       }
 
       if (closestNodeId && closestNodeId !== mergeTargetNodeId) {
-        console.log('[Merge] Potential merge detected:', nodeId, '->', closestNodeId, 'dist:', Math.round(closestDistance));
+        console.log('[Synthesis Debug] ✅ Merge detected:', nodeId, '->', closestNodeId, 'dist:', Math.round(closestDistance));
       }
 
+      console.log('[Synthesis Debug] Setting mergeTargetNodeId:', closestNodeId, 'draggedNodeId:', closestNodeId ? nodeId : null);
       setMergeTargetNodeId(closestNodeId);
       if (closestNodeId) setDraggedNodeId(nodeId);
     },
@@ -1859,21 +2029,44 @@ export default function KonvaCanvas({
         onNodesChange(updatedNodes);
       }
     } else if (onNodeAdd) {
-      // Create new note
+      // Use saved click position if available, otherwise use fallback
+      const noteWidth = 220;
+      const noteHeight = 160;
+
+      let newX: number;
+      let newY: number;
+
+      if (onCreateNotePosition.current) {
+        // Use the position where user clicked
+        newX = onCreateNotePosition.current.x - noteWidth / 2; // Center the note on click
+        newY = onCreateNotePosition.current.y - noteHeight / 2;
+        onCreateNotePosition.current = null; // Clear after use
+      } else {
+        // Fallback: place at viewport position with offset
+        const baseX = (viewport.x * -1 + 100) / viewport.scale;
+        const baseY = (viewport.y * -1 + 100) / viewport.scale;
+        const offset = 30;
+        const existingNotesCount = nodes.filter(n => n.type === 'sticky').length;
+        const offsetMultiplier = existingNotesCount % 5;
+        newX = baseX + (offsetMultiplier * offset);
+        newY = baseY + (offsetMultiplier * offset);
+      }
+
       onNodeAdd({
         type: 'sticky',
         title: data.title,
         content: data.content,
-        x: (viewport.x * -1 + 100) / viewport.scale, // Simple fallback for now, will improve pos
-        y: (viewport.y * -1 + 100) / viewport.scale,
-        width: 220,
-        height: 160,
+        x: newX,
+        y: newY,
+        width: noteWidth,
+        height: noteHeight,
         color: '#fef3c7',
         tags: [],
         viewType: 'free',
       });
     }
     setEditingNodeId(null);
+    setIsCreatingNote(false);
   };
 
   const handleNodeEditCancel = () => {
@@ -1916,7 +2109,8 @@ export default function KonvaCanvas({
               source: connectingFromNodeId,
               target: targetNode.id,
               label: '',
-              relationType: 'related',
+              relationType: toolMode === 'logic_connect' ? 'related' : 'related', // 'structural' not in type
+
             };
             onEdgesChange([...edges, newEdge]);
 
@@ -1928,7 +2122,13 @@ export default function KonvaCanvas({
               // Convert to screen coordinates
               const screenX = midX * viewport.scale + viewport.x;
               const screenY = midY * viewport.scale + viewport.y;
-              setEdgeLabelDialog({ edge: newEdge, position: { x: screenX, y: screenY } });
+
+              if (toolMode === 'logic_connect') {
+                setLinkTypeDialog({ edge: newEdge, position: { x: screenX, y: screenY } });
+                // Auto-switch back to select mode after creating a logic link
+                onToolChange?.('select');
+              }
+              // Regular connect doesn't auto-open dialog
             }
           }
         }
@@ -2539,6 +2739,38 @@ export default function KonvaCanvas({
                   提取洞察 (Extract Insights)
                 </MenuItem>
               )}
+            {/* Verify Relation (2 nodes) */}
+            {selectedNodeIds.size === 2 && contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId) && (
+              <MenuItem
+                onClick={async () => {
+                  const selected = visibleNodes.filter(n => selectedNodeIds.has(n.id));
+                  if (selected.length === 2) {
+                    const [source, target] = selected;
+                    const edge = edges.find(e =>
+                      (e.source === source.id && e.target === target.id) ||
+                      (e.source === target.id && e.target === source.id)
+                    );
+                    const relationType = edge?.relationType || 'related';
+
+                    try {
+                      // Using alert for MVP feedback
+                      const result = await canvasApi.verifyRelation(source.content || '', target.content || '', relationType);
+                      alert(`Verification Result:\n\nValid: ${result.valid}\nConfidence: ${result.confidence}\nReasoning: ${result.reasoning}`);
+                    } catch (err) {
+                      console.error('Verification failed:', err);
+                      const message = err instanceof Error ? err.message : String(err);
+                      alert(`Verification failed: ${message}`);
+                    }
+                  }
+                  setContextMenu(null);
+                }}
+                style={{ fontSize: 14 }}
+              >
+                <CheckIcon size={14} style={{ marginRight: 8 }} />
+                验证关系 (Verify)
+              </MenuItem>
+            )}
+
             {/* Phase 3: Create Group from Selection */}
             {selectedNodeIds.size >= 2 && contextMenu.nodeId && selectedNodeIds.has(contextMenu.nodeId) && (
               <MenuItem
@@ -2747,6 +2979,27 @@ export default function KonvaCanvas({
               style={{ fontSize: 13 }}
             />
           </Surface>
+        )}
+
+        {/* Logic Link Dialog */}
+        {linkTypeDialog && (
+          <LinkTypeDialog
+            position={linkTypeDialog.position}
+            onSelect={(type, label) => {
+              const updatedEdges = edges.map(e =>
+                e.id === linkTypeDialog.edge.id
+                  ? { ...e, relationType: type as CanvasEdge['relationType'], label: label || e.label }
+                  : e
+              );
+              onEdgesChange(updatedEdges);
+              setLinkTypeDialog(null);
+            }}
+            onCancel={() => {
+              // Delete the temporary edge if cancelled
+              onEdgesChange(edges.filter(e => e.id !== linkTypeDialog.edge.id));
+              setLinkTypeDialog(null);
+            }}
+          />
         )}
 
         <Stage
@@ -3196,9 +3449,13 @@ export default function KonvaCanvas({
         {/* Merge Prompt Overlay */}
         {/* Merge Prompt Overlay - Replaced with SynthesisModeMenu */}
         {/* Merge Prompt Overlay */}
+        {(() => { console.log('[Synthesis Debug] Render check - mergeTargetNodeId:', mergeTargetNodeId, 'draggedNodeId:', draggedNodeId); return null; })()}
         {mergeTargetNodeId && draggedNodeId && (() => {
+          console.log('[Synthesis Debug] Both IDs present, looking for nodes...');
           const targetNode = nodes.find(n => n.id === mergeTargetNodeId);
           const draggedNode = nodes.find(n => n.id === draggedNodeId);
+          console.log('[Synthesis Debug] targetNode found:', !!targetNode, 'draggedNode found:', !!draggedNode);
+          console.log('[Synthesis Debug] Available node IDs:', nodes.map(n => n.id));
 
           let menuPosition;
           if (targetNode && draggedNode) {
@@ -3215,8 +3472,13 @@ export default function KonvaCanvas({
             const screenY = minY * viewport.scale + viewport.y - 20; // 20px padding above
 
             menuPosition = { x: screenX, y: screenY };
+            console.log('[Synthesis Debug] Menu position calculated:', menuPosition);
+          } else {
+            console.log('[Synthesis Debug] ❌ Cannot render menu - nodes not found');
+            return null;
           }
 
+          console.log('[Synthesis Debug] ✅ Rendering SynthesisModeMenu');
           return (
             <SynthesisModeMenu
               isSynthesizing={isSynthesizing}

@@ -19,10 +19,12 @@ import {
   ExpandLessIcon,
   MousePointerIcon,
   HandIcon,
-  ScanIcon
+  ScanIcon,
+  LinkIcon,
+  AccountTreeIcon
 } from '@/components/ui/icons';
 
-export type ToolMode = 'select' | 'hand';
+export type ToolMode = 'select' | 'hand' | 'connect' | 'logic_connect';
 
 interface CanvasToolbarProps {
   activeTool: ToolMode;
@@ -51,6 +53,9 @@ export default function CanvasToolbar({
 }: CanvasToolbarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // Debug log
+  console.log('[CanvasToolbar] Rendering with activeTool:', activeTool, 'isCollapsed:', isCollapsed);
+
   return (
     <div
       style={{
@@ -70,8 +75,8 @@ export default function CanvasToolbar({
         <IconButton
           size="sm"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          sx={{
-            bgcolor: colors.background.paper,
+          style={{
+            backgroundColor: colors.background.paper,
             border: `1px solid ${colors.border.default}`,
             boxShadow: shadows.sm,
           }}
@@ -83,7 +88,7 @@ export default function CanvasToolbar({
       {!isCollapsed && (
         <Stack direction="column" gap={2} align="center">
 
-          {/* 2. Operation Mode Capsule */}
+          {/* 2. Operation Mode Capsule - Contains 4 tools */}
           <Surface elevation={1} radius="xl" bordered>
             <Stack direction="column" align="center">
               <Tooltip title="Select (V)" placement="right">
@@ -92,7 +97,7 @@ export default function CanvasToolbar({
                   variant={activeTool === 'select' ? 'default' : 'ghost'}
                   active={activeTool === 'select'}
                   onClick={() => onChange('select')}
-                  sx={{ borderRadius: 0 }}
+                  style={{ borderRadius: 0 }}
                 >
                   <MousePointerIcon size={18} />
                 </IconButton>
@@ -104,9 +109,33 @@ export default function CanvasToolbar({
                   variant={activeTool === 'hand' ? 'default' : 'ghost'}
                   active={activeTool === 'hand'}
                   onClick={() => onChange('hand')}
-                  sx={{ borderRadius: 0 }}
+                  style={{ borderRadius: 0 }}
                 >
                   <HandIcon size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Connect (L)" placement="right">
+                <IconButton
+                  size="md"
+                  variant={activeTool === 'connect' ? 'default' : 'ghost'}
+                  active={activeTool === 'connect'}
+                  onClick={() => onChange('connect')}
+                  style={{ borderRadius: 0 }}
+                >
+                  <LinkIcon size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Logic Connect (K)" placement="right">
+                <IconButton
+                  size="md"
+                  variant={activeTool === 'logic_connect' ? 'default' : 'ghost'}
+                  active={activeTool === 'logic_connect'}
+                  onClick={() => onChange('logic_connect')}
+                  style={{ borderRadius: 0 }}
+                >
+                  <AccountTreeIcon size={18} />
                 </IconButton>
               </Tooltip>
             </Stack>
@@ -116,13 +145,13 @@ export default function CanvasToolbar({
           <Surface elevation={1} radius="xl" bordered>
             <Stack direction="column" align="center">
               <Tooltip title="Insert Node" placement="right">
-                <IconButton size="md" variant="ghost" onClick={onInsert} sx={{ borderRadius: 0 }}>
+                <IconButton size="md" variant="ghost" onClick={onInsert} style={{ borderRadius: 0 }}>
                   <AddIcon size="md" />
                 </IconButton>
               </Tooltip>
 
               <Tooltip title="Zoom In" placement="right">
-                <IconButton size="md" variant="ghost" onClick={onZoomIn} sx={{ borderRadius: 0 }}>
+                <IconButton size="md" variant="ghost" onClick={onZoomIn} style={{ borderRadius: 0 }}>
                   <ZoomInIcon size={18} />
                 </IconButton>
               </Tooltip>
@@ -138,20 +167,20 @@ export default function CanvasToolbar({
                     userSelect: 'none',
                   }}
                 >
-                  <Text variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                  <Text variant="caption" style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
                     {Math.round(zoom * 100)}%
                   </Text>
                 </div>
               </Tooltip>
 
               <Tooltip title="Zoom Out" placement="right">
-                <IconButton size="md" variant="ghost" onClick={onZoomOut} sx={{ borderRadius: 0 }}>
+                <IconButton size="md" variant="ghost" onClick={onZoomOut} style={{ borderRadius: 0 }}>
                   <ZoomOutIcon size={18} />
                 </IconButton>
               </Tooltip>
 
               <Tooltip title="Fit to Screen" placement="right">
-                <IconButton size="md" variant="ghost" onClick={onFitView} sx={{ borderRadius: 0 }}>
+                <IconButton size="md" variant="ghost" onClick={onFitView} style={{ borderRadius: 0 }}>
                   <ScanIcon size={18} />
                 </IconButton>
               </Tooltip>
@@ -164,14 +193,11 @@ export default function CanvasToolbar({
               size="sm"
               onClick={onDelete}
               disabled={!hasSelection}
-              sx={{
-                bgcolor: hasSelection ? colors.error[50] : colors.background.paper,
+              style={{
+                backgroundColor: hasSelection ? colors.error[50] : colors.background.paper,
                 border: `1px solid ${hasSelection ? colors.error[300] : colors.border.default}`,
                 color: hasSelection ? colors.error[600] : colors.text.disabled,
                 boxShadow: shadows.sm,
-                '&:hover': {
-                  bgcolor: hasSelection ? colors.error[100] : colors.background.paper
-                }
               }}
             >
               <DeleteIcon size={18} />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   Text,
@@ -13,7 +13,7 @@ import KonvaCanvas from "@/components/studio/KonvaCanvas";
 import CanvasControls from "@/components/studio/CanvasControls";
 import ImportSourceDialog from "@/components/dialogs/ImportSourceDialog";
 import PDFPreviewModal from "@/components/pdf/PDFPreviewModal";
-import { documentsApi } from "@/lib/api";
+import { documentsApi, canvasApi } from "@/lib/api";
 
 export default function StudioPage() {
   const params = useParams();
@@ -45,6 +45,7 @@ function StudioPageContent() {
     setCanvasEdges,
     canvasViewport,
     setCanvasViewport,
+    viewStates,
     projectId,
     projectTitle,
     documents,
@@ -56,11 +57,29 @@ function StudioPageContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>('select');
+  const [interactionMode, setInteractionMode] = useState<'select' | 'pan' | 'connect' | 'logic_connect'>('select');
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
 
   // Import Dialog State
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
+  // Auto-save canvas changes (debounced)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (canvasNodes.length > 0 || canvasEdges.length > 0) {
+        canvasApi.save(projectId, {
+          nodes: canvasNodes,
+          edges: canvasEdges,
+          sections: [],
+          viewport: canvasViewport,
+          viewStates: viewStates,
+        }).then(() => {
+          console.log('[Canvas] Auto-saved successfully');
+        }).catch(err => console.error('[Canvas] Auto-save failed:', err));
+      }
+    }, 2000); // Debounce 2 seconds
+    return () => clearTimeout(timeout);
+  }, [canvasNodes, canvasEdges, canvasViewport, viewStates, projectId]);
 
   // Placeholder handlers for canvas controls
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
@@ -116,8 +135,11 @@ function StudioPageContent() {
               onViewportChange={setCanvasViewport}
               onNodeAdd={(node) => addNodeToCanvas(node as any)}
               onOpenImport={() => setIsImportDialogOpen(true)}
-              toolMode={interactionMode === 'pan' ? 'hand' : 'select'}
-              onToolChange={(tool) => setInteractionMode(tool === 'hand' ? 'pan' : 'select')}
+              toolMode={interactionMode === 'pan' ? 'hand' : interactionMode}
+              onToolChange={(tool) => {
+                if (tool === 'hand') setInteractionMode('pan');
+                else setInteractionMode(tool as 'select' | 'connect' | 'logic_connect');
+              }}
               onOpenSource={(id, page) => {
                 if (page) navigateToSource(id, page);
                 openDocumentPreview(id);

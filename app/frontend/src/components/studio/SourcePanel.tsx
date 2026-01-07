@@ -638,13 +638,13 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   if (!visible) {
     return (
-      <Box sx={{ width: 48, height: '100vh', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', bgcolor: 'background.paper' }}>
-        <Box sx={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+      <div style={{ width: 48, height: '100vh', borderRight: '1px solid', borderColor: colors.border.default, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: colors.background.paper }}>
+        <div style={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: colors.border.default, flexShrink: 0 }}>
           <Tooltip content="Expand (⌘\)" placement="right">
             <IconButton onClick={onToggle} size="sm"><MenuOpenIcon size={18} /></IconButton>
           </Tooltip>
-        </Box>
-        <Box sx={{ py: 2 }}>
+        </div>
+        <div style={{ paddingTop: 8, paddingBottom: 8 }}>
           <Tooltip content="Documents" placement="right">
             <div style={{ padding: 8, borderRadius: 8, backgroundColor: '#EFF6FF', cursor: 'pointer' }} onClick={onToggle}>
               <FolderOpenIcon size={16} style={{ color: colors.primary[500] }} />

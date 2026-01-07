@@ -71,6 +71,7 @@ async def get_canvas(
             CanvasNodeDTO(
                 id=n["id"],
                 type=n.get("type", "card"),
+                subType=n.get("subType"),
                 title=n.get("title", ""),
                 content=n.get("content", ""),
                 x=n.get("x", 0),
@@ -81,6 +82,7 @@ async def get_canvas(
                 tags=n.get("tags", []),
                 sourceId=n.get("sourceId"),
                 sourcePage=n.get("sourcePage"),
+                fileMetadata=n.get("fileMetadata"),
                 viewType=n.get("viewType", "free"),
                 sectionId=n.get("sectionId"),
                 promotedFrom=n.get("promotedFrom"),
