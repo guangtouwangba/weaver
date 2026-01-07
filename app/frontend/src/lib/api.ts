@@ -217,6 +217,16 @@ export interface CanvasNode {
     type: 'question' | 'alternative' | 'counterargument';
     content: string;
   }>;
+  
+  // === Unified Node Model: Generation Output Fields ===
+  // For nodes created from generation outputs (mindmap, summary, etc.)
+  outputId?: string;        // Backend output ID for persistence
+  outputData?: Record<string, unknown>;  // SummaryData | MindmapData | ArticleData | etc.
+  generatedFrom?: {
+    documentIds?: string[];
+    nodeIds?: string[];      // Source nodes for Magic Cursor generation
+    snapshotContext?: { x: number; y: number; width: number; height: number };
+  };
 }
 
 export interface CanvasEdge {

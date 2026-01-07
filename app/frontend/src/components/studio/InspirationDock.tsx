@@ -17,6 +17,8 @@ export default function InspirationDock() {
     selectedDocumentIds,
     isInspirationDockVisible,
     setInspirationDockVisible,
+    // Canvas nodes (unified node model - includes output nodes)
+    canvasNodes,
     // Concurrent generation tasks
     generationTasks,
     getActiveGenerationsOfType,
@@ -71,18 +73,26 @@ export default function InspirationDock() {
   );
 
   // Get recently completed tasks for showing success feedback
+  // With unified node model, check both generationTasks (for backward compat) and canvasNodes
   const recentlyCompleted = useMemo(() => {
     const completed: Record<GenerationType, boolean> = {
       summary: false, mindmap: false, podcast: false,
       quiz: false, timeline: false, compare: false, flashcards: false
     };
+    // Check generationTasks (legacy)
     generationTasks.forEach(task => {
       if (task.status === 'complete') {
         completed[task.type] = true;
       }
     });
+    // Check canvasNodes (unified node model - outputs are now CanvasNodes)
+    canvasNodes.forEach(node => {
+      if (node.type === 'mindmap' || node.type === 'summary') {
+        completed[node.type as GenerationType] = true;
+      }
+    });
     return completed;
-  }, [generationTasks]);
+  }, [generationTasks, canvasNodes]);
 
   // Get error states
   const hasError = useMemo(() => {

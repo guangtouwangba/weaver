@@ -6,6 +6,7 @@ import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState
 // === Generation Task Types for Concurrent Outputs ===
 export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
 
+// Legacy interface - kept for backward compatibility during transition
 export interface GenerationTask {
   id: string;
   type: GenerationType;
@@ -16,6 +17,18 @@ export interface GenerationTask {
   error?: string;
   taskId?: string; // Backend task ID
   outputId?: string; // Backend output ID
+  createdAt: Date;
+}
+
+// New unified model: PendingGeneration only tracks loading states
+// Completed outputs are converted to CanvasNodes with type: 'mindmap' | 'summary' etc.
+export interface PendingGeneration {
+  id: string;
+  type: GenerationType;
+  status: 'pending' | 'generating';  // Only loading states - no 'complete' or 'error'
+  position: { x: number; y: number }; // Canvas position where output will appear
+  taskId?: string; // Backend task ID
+  outputId?: string; // Backend output ID (for cleanup if cancelled)
   createdAt: Date;
 }
 
@@ -869,15 +882,14 @@ export function StudioProvider({
           }
         }
 
-        // Restore saved outputs (summary, mindmap) into generationTasks
+        // === Unified Node Model: Convert outputs to CanvasNodes ===
+        // Completed outputs (summary, mindmap, article, action_list) become CanvasNodes
+        // This enables Magic Cursor selection and unified interactions
         if (outputsRes && outputsRes.outputs.length > 0) {
           // Filter for complete outputs only
           const completeOutputs = outputsRes.outputs.filter(
             (o: OutputResponse) => o.status === 'complete'
           );
-
-          // Convert persisted outputs to GenerationTask format
-          const restoredTasks = new Map<string, GenerationTask>();
 
           // Grid layout for multiple outputs: position them in a grid pattern
           const CARD_WIDTH = 380;
@@ -886,37 +898,47 @@ export function StudioProvider({
           const START_X = 200;
           const START_Y = 200;
 
-          completeOutputs.forEach((output: OutputResponse, index: number) => {
-            // Skip outputs without data
-            if (!output.data) return;
+          // Convert outputs to CanvasNodes (unified node model)
+          const outputNodes: CanvasNode[] = completeOutputs
+            .filter((output: OutputResponse) => output.data)
+            .map((output: OutputResponse, index: number) => {
+              // Calculate grid position (2 columns)
+              const col = index % 2;
+              const row = Math.floor(index / 2);
+              const x = START_X + col * (CARD_WIDTH + GAP);
+              const y = START_Y + row * (CARD_HEIGHT + GAP);
 
-            // Map output_type to GenerationType
-            const type = output.output_type as GenerationType;
-            if (type !== 'summary' && type !== 'mindmap') return; // Only support these for now
+              // Map output_type to node type
+              const nodeType = output.output_type; // 'mindmap', 'summary', 'article', 'action_list'
 
-            // Calculate grid position (2 columns)
-            const col = index % 2;
-            const row = Math.floor(index / 2);
-            const x = START_X + col * (CARD_WIDTH + GAP);
-            const y = START_Y + row * (CARD_HEIGHT + GAP);
+              const node: CanvasNode = {
+                id: `output-${output.id}`,
+                type: nodeType,
+                title: output.title || `${nodeType} output`,
+                content: JSON.stringify(output.data),
+                x,
+                y,
+                width: CARD_WIDTH,
+                height: CARD_HEIGHT,
+                color: nodeType === 'mindmap' ? '#10B981' : nodeType === 'summary' ? '#8B5CF6' : '#667eea',
+                tags: [],
+                viewType: 'free',
+                outputId: output.id,
+                outputData: output.data as Record<string, unknown>,
+                createdAt: output.created_at,
+                updatedAt: output.updated_at,
+              };
 
-            const task: GenerationTask = {
-              id: output.id,
-              type,
-              status: 'complete',
-              position: { x, y },
-              result: output.data,
-              title: output.title,
-              outputId: output.id,
-              createdAt: new Date(output.created_at),
-            };
+              return node;
+            });
 
-            restoredTasks.set(output.id, task);
-          });
-
-          // Set the restored tasks
-          if (restoredTasks.size > 0) {
-            setGenerationTasks(restoredTasks);
+          // Merge output nodes with canvas nodes
+          if (outputNodes.length > 0) {
+            setCanvasNodes(prev => {
+              // Filter out any existing output nodes to avoid duplicates
+              const existingNonOutputNodes = prev.filter(n => !n.id.startsWith('output-'));
+              return [...existingNonOutputNodes, ...outputNodes];
+            });
           }
 
           // Also set legacy states for backward compatibility

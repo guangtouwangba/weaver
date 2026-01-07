@@ -81,6 +81,8 @@ import SynthesisModeMenu, { SynthesisMode } from './canvas/SynthesisModeMenu';
 import NoteEditor, { NoteData } from './NoteEditor';
 import ArticleEditor, { ArticleData } from './ArticleEditor';
 import ActionListEditor, { ActionListData } from './ActionListEditor';
+import { MindMapEditor } from './mindmap/MindMapEditor';
+import { MindmapData, SummaryData } from '@/lib/api';
 import useOutputWebSocket from '@/hooks/useOutputWebSocket';
 
 interface Viewport {
@@ -792,6 +794,319 @@ const SuperActionListCard = ({
   );
 };
 
+// --- Mindmap Konva Card (Unified Node Model) ---
+const MindmapKonvaCard = ({
+  node,
+  width,
+  height,
+  isSelected,
+  isHighlighted,
+}: {
+  node: CanvasNode;
+  width: number;
+  height: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+}) => {
+  // Parse mindmap data from outputData or content
+  let mindmapData: { nodes?: Array<{ id: string; label: string; depth?: number }>; edges?: Array<{ source: string; target: string }> } | null = null;
+  try {
+    mindmapData = (node.outputData as typeof mindmapData) || JSON.parse(node.content || '{}');
+  } catch {
+    mindmapData = null;
+  }
+
+  const borderColor = '#10B981'; // Green for mindmap
+  const bgColor = '#F0FDF4';
+  
+  const nodes = mindmapData?.nodes || [];
+  const rootNode = nodes.find(n => n.depth === 0) || nodes[0];
+  const firstLevelNodes = nodes.filter(n => n.depth === 1).slice(0, 4);
+  const totalNodeCount = nodes.length;
+
+  return (
+    <Group>
+      {/* Card Background */}
+      <Rect
+        width={width}
+        height={height}
+        fill={bgColor}
+        cornerRadius={12}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        strokeWidth={isSelected ? 2 : 1}
+        shadowColor="rgba(16, 185, 129, 0.15)"
+        shadowBlur={isSelected ? 16 : 8}
+        shadowOffsetY={4}
+      />
+      
+      {/* Top Accent Bar */}
+      <Rect
+        y={0}
+        width={width}
+        height={5}
+        fill={borderColor}
+        cornerRadius={[12, 12, 0, 0]}
+      />
+      
+      {/* Mindmap Icon */}
+      <Text
+        x={12}
+        y={14}
+        text="🗺️"
+        fontSize={16}
+      />
+      
+      {/* Type Badge */}
+      <Rect
+        x={width - 68}
+        y={12}
+        width={56}
+        height={20}
+        fill="#DCFCE7"
+        cornerRadius={10}
+      />
+      <Text
+        x={width - 62}
+        y={16}
+        text="Mindmap"
+        fontSize={10}
+        fontStyle="bold"
+        fill={borderColor}
+      />
+      
+      {/* Title */}
+      <Text
+        x={36}
+        y={14}
+        width={width - 115}
+        text={node.title || 'Generated Mindmap'}
+        fontSize={14}
+        fontStyle="bold"
+        fill="#1F2937"
+        wrap="word"
+        ellipsis
+      />
+      
+      {/* Divider */}
+      <Rect
+        x={12}
+        y={42}
+        width={width - 24}
+        height={1}
+        fill="#E5E7EB"
+      />
+      
+      {/* Root Node Preview */}
+      {rootNode && (
+        <Group y={52}>
+          <Rect
+            x={12}
+            width={width - 24}
+            height={24}
+            fill="#DCFCE7"
+            cornerRadius={6}
+          />
+          <Text
+            x={20}
+            y={6}
+            width={width - 40}
+            text={`🌳 ${rootNode.label}`}
+            fontSize={12}
+            fontStyle="bold"
+            fill="#166534"
+            ellipsis
+          />
+        </Group>
+      )}
+      
+      {/* First Level Nodes Preview */}
+      {firstLevelNodes.map((n, index) => (
+        <Group key={n.id} y={84 + index * 22}>
+          <Text
+            x={24}
+            text="├─"
+            fontSize={11}
+            fill="#9CA3AF"
+            fontFamily="monospace"
+          />
+          <Text
+            x={48}
+            width={width - 60}
+            text={n.label}
+            fontSize={11}
+            fill="#374151"
+            ellipsis
+          />
+        </Group>
+      ))}
+      
+      {/* More nodes indicator */}
+      {nodes.length > 5 && (
+        <Text
+          x={48}
+          y={84 + firstLevelNodes.length * 22}
+          text={`... ${nodes.length - 5} more nodes`}
+          fontSize={10}
+          fill="#9CA3AF"
+          fontStyle="italic"
+        />
+      )}
+      
+      {/* Footer */}
+      <Rect
+        x={12}
+        y={height - 28}
+        width={width - 24}
+        height={20}
+        fill="#F3F4F6"
+        cornerRadius={4}
+      />
+      <Text
+        x={20}
+        y={height - 24}
+        text={`🔗 ${totalNodeCount} nodes • Double-click to expand`}
+        fontSize={10}
+        fill="#6B7280"
+      />
+    </Group>
+  );
+};
+
+// --- Summary Konva Card (Unified Node Model) ---
+const SummaryKonvaCard = ({
+  node,
+  width,
+  height,
+  isSelected,
+  isHighlighted,
+}: {
+  node: CanvasNode;
+  width: number;
+  height: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+}) => {
+  // Parse summary data from outputData or content
+  let summaryData: { summary?: string; keyFindings?: Array<{ label: string; content: string }>; documentTitle?: string } | null = null;
+  try {
+    summaryData = (node.outputData as typeof summaryData) || JSON.parse(node.content || '{}');
+  } catch {
+    summaryData = null;
+  }
+
+  const borderColor = '#8B5CF6'; // Purple for summary
+  const bgColor = '#FAF5FF';
+  
+  const summary = summaryData?.summary || '';
+  const keyFindings = summaryData?.keyFindings || [];
+  const previewText = summary.substring(0, 180);
+
+  return (
+    <Group>
+      {/* Card Background */}
+      <Rect
+        width={width}
+        height={height}
+        fill={bgColor}
+        cornerRadius={12}
+        stroke={isHighlighted ? '#3B82F6' : (isSelected ? borderColor : '#E5E7EB')}
+        strokeWidth={isSelected ? 2 : 1}
+        shadowColor="rgba(139, 92, 246, 0.15)"
+        shadowBlur={isSelected ? 16 : 8}
+        shadowOffsetY={4}
+      />
+      
+      {/* Top Accent Bar */}
+      <Rect
+        y={0}
+        width={width}
+        height={5}
+        fill={borderColor}
+        cornerRadius={[12, 12, 0, 0]}
+      />
+      
+      {/* Summary Icon */}
+      <Text
+        x={12}
+        y={14}
+        text="📋"
+        fontSize={16}
+      />
+      
+      {/* Type Badge */}
+      <Rect
+        x={width - 68}
+        y={12}
+        width={56}
+        height={20}
+        fill="#EDE9FE"
+        cornerRadius={10}
+      />
+      <Text
+        x={width - 60}
+        y={16}
+        text="Summary"
+        fontSize={10}
+        fontStyle="bold"
+        fill={borderColor}
+      />
+      
+      {/* Title */}
+      <Text
+        x={36}
+        y={14}
+        width={width - 115}
+        text={node.title || summaryData?.documentTitle || 'Document Summary'}
+        fontSize={14}
+        fontStyle="bold"
+        fill="#1F2937"
+        wrap="word"
+        ellipsis
+      />
+      
+      {/* Divider */}
+      <Rect
+        x={12}
+        y={42}
+        width={width - 24}
+        height={1}
+        fill="#E5E7EB"
+      />
+      
+      {/* Summary Preview */}
+      <Text
+        x={12}
+        y={52}
+        width={width - 24}
+        height={height - 100}
+        text={previewText + (previewText.length >= 180 ? '...' : '')}
+        fontSize={12}
+        fill="#6B7280"
+        wrap="word"
+        ellipsis
+        lineHeight={1.4}
+      />
+      
+      {/* Footer */}
+      <Rect
+        x={12}
+        y={height - 28}
+        width={width - 24}
+        height={20}
+        fill="#F3F4F6"
+        cornerRadius={4}
+      />
+      <Text
+        x={20}
+        y={height - 24}
+        text={`💡 ${keyFindings.length} key finding${keyFindings.length !== 1 ? 's' : ''} • Double-click to view`}
+        fontSize={10}
+        fill="#6B7280"
+      />
+    </Group>
+  );
+};
+
 // Knowledge Node Component
 const KnowledgeNode = ({
   node,
@@ -863,6 +1178,11 @@ const KnowledgeNode = ({
   const isSuperArticle = node.type === 'super_article';
   const isSuperActionList = node.type === 'super_action_list';
   const isSuperCard = isSuperArticle || isSuperActionList;
+  
+  // Check for unified node model types (generation outputs as CanvasNodes)
+  const isMindmap = node.type === 'mindmap';
+  const isSummary = node.type === 'summary';
+  const isGenerationOutput = isSuperCard || isMindmap || isSummary;
 
   // Calculate opacity: reduce if this node is being used as synthesis input
   const nodeOpacity = isSynthesisSource ? 0.4 : 1;
@@ -891,7 +1211,7 @@ const KnowledgeNode = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {/* Use SuperArticleCard for Magic Cursor article outputs */}
+      {/* Use specialized cards for different node types */}
       {isSuperArticle ? (
         <SuperArticleCard
           node={node}
@@ -902,6 +1222,22 @@ const KnowledgeNode = ({
         />
       ) : isSuperActionList ? (
         <SuperActionListCard
+          node={node}
+          width={width}
+          height={height}
+          isSelected={isSelected}
+          isHighlighted={isHighlighted}
+        />
+      ) : isMindmap ? (
+        <MindmapKonvaCard
+          node={node}
+          width={width}
+          height={height}
+          isSelected={isSelected}
+          isHighlighted={isHighlighted}
+        />
+      ) : isSummary ? (
+        <SummaryKonvaCard
           node={node}
           width={width}
           height={height}
@@ -1382,6 +1718,7 @@ export default function KonvaCanvas({
     taskId: string;
     outputType: 'article' | 'action_list';
     snapshotContext: { x: number; y: number; width: number; height: number };
+    sourceNodeIds: string[];  // IDs of nodes used as generation input
   } | null>(null);
   const [isGeneratingMagic, setIsGeneratingMagic] = useState(false);
 
@@ -1432,9 +1769,9 @@ export default function KonvaCanvas({
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   
-  // Super Card Editing State
+  // Super Card Editing State (unified: includes mindmap, summary, article, action_list)
   const [editingSuperCardId, setEditingSuperCardId] = useState<string | null>(null);
-  const [editingSuperCardType, setEditingSuperCardType] = useState<'article' | 'action_list' | null>(null);
+  const [editingSuperCardType, setEditingSuperCardType] = useState<'article' | 'action_list' | 'mindmap' | 'summary' | null>(null);
   const onCreateNotePosition = useRef<{ x: number; y: number } | null>(null);
 
   // Handle opening editor for new note from Context Menu
@@ -2158,7 +2495,7 @@ export default function KonvaCanvas({
             const title = (outputData.title as string) || 
               (outputType === 'article' ? 'Generated Article' : 'Action Items');
             
-            // Create the new canvas node
+            // Create the new canvas node (unified node model)
             const newNode: Partial<CanvasNode> = {
               id: `supercard-${outputId}`,
               type: outputType === 'article' ? 'super_article' : 'super_action_list',
@@ -2171,6 +2508,13 @@ export default function KonvaCanvas({
               color: outputType === 'article' ? '#667eea' : '#f59e0b',
               viewType: 'free',
               tags: ['magic-cursor', outputType],
+              // Unified node model fields
+              outputId: outputId,
+              outputData: output.data as Record<string, unknown>,
+              generatedFrom: {
+                nodeIds: magicGenerationTask.sourceNodeIds,
+                snapshotContext,
+              },
             };
             
             // Add the node via callback
@@ -2657,13 +3001,46 @@ export default function KonvaCanvas({
     
     console.log('[KonvaCanvas] Intent action:', action, 'for nodes:', magicSelection.nodeIds);
     
-    // Gather node data for generation
+    // Helper to extract content from different node types
+    const extractNodeContent = (node: CanvasNode | undefined): string => {
+      if (!node) return '';
+      
+      // Handle mindmap nodes - extract node labels
+      if (node.type === 'mindmap') {
+        try {
+          const mindmapData = (node.outputData as { nodes?: Array<{ label: string; content?: string }> }) 
+            || JSON.parse(node.content || '{}');
+          if (mindmapData.nodes) {
+            return mindmapData.nodes.map(n => `${n.label}${n.content ? `: ${n.content}` : ''}`).join('\n');
+          }
+        } catch { /* ignore parse errors */ }
+      }
+      
+      // Handle summary nodes - extract summary and key findings
+      if (node.type === 'summary') {
+        try {
+          const summaryData = (node.outputData as { summary?: string; keyFindings?: Array<{ label: string; content: string }> }) 
+            || JSON.parse(node.content || '{}');
+          let content = summaryData.summary || '';
+          if (summaryData.keyFindings) {
+            content += '\n\nKey Findings:\n' + summaryData.keyFindings.map(f => `- ${f.label}: ${f.content}`).join('\n');
+          }
+          return content;
+        } catch { /* ignore parse errors */ }
+      }
+      
+      // Default: return regular content
+      return node.content || '';
+    };
+    
+    // Gather node data for generation (with type-specific content extraction)
     const nodeData = magicSelection.nodeIds.map(nodeId => {
       const node = nodes.find(n => n.id === nodeId);
       return {
         id: nodeId,
         title: node?.title || 'Untitled',
-        content: node?.content || '',
+        content: extractNodeContent(node),
+        type: node?.type || 'note',  // Include type for backend context
       };
     }).filter(nd => nd.content || nd.title);
     
@@ -2705,6 +3082,7 @@ export default function KonvaCanvas({
         taskId: response.task_id,
         outputType: outputType as 'article' | 'action_list',
         snapshotContext,
+        sourceNodeIds: magicSelection.nodeIds,
       });
       
     } catch (error) {
@@ -3765,6 +4143,14 @@ export default function KonvaCanvas({
                       // Open Action List Editor for super_action_list nodes
                       setEditingSuperCardId(node.id);
                       setEditingSuperCardType('action_list');
+                    } else if (node.type === 'mindmap') {
+                      // Open Mindmap Editor for mindmap nodes
+                      setEditingSuperCardId(node.id);
+                      setEditingSuperCardType('mindmap');
+                    } else if (node.type === 'summary') {
+                      // Open Summary Viewer for summary nodes
+                      setEditingSuperCardId(node.id);
+                      setEditingSuperCardType('summary');
                     } else {
                       setEditingNodeId(node.id);
                     }
@@ -4266,6 +4652,134 @@ export default function KonvaCanvas({
                 setEditingSuperCardType(null);
               }}
             />
+          );
+        })()}
+
+        {/* Mindmap Editor Modal */}
+        {editingSuperCardId && editingSuperCardType === 'mindmap' && (() => {
+          const node = nodes.find(n => n.id === editingSuperCardId);
+          if (!node) return null;
+          
+          let mindmapData: MindmapData;
+          try {
+            mindmapData = (node.outputData as MindmapData) || JSON.parse(node.content || '{}');
+          } catch {
+            mindmapData = { nodes: [], edges: [] };
+          }
+          
+          return (
+            <MindMapEditor
+              initialData={mindmapData}
+              title={node.title || 'Mindmap'}
+              onClose={() => {
+                setEditingSuperCardId(null);
+                setEditingSuperCardType(null);
+              }}
+              onSave={(data) => {
+                // Update the node with new data
+                if (onNodesChange) {
+                  const updatedNodes = nodes.map(n =>
+                    n.id === editingSuperCardId
+                      ? { ...n, outputData: data, content: JSON.stringify(data) }
+                      : n
+                  );
+                  onNodesChange(updatedNodes);
+                }
+                setEditingSuperCardId(null);
+                setEditingSuperCardType(null);
+              }}
+            />
+          );
+        })()}
+
+        {/* Summary Viewer Modal */}
+        {editingSuperCardId && editingSuperCardType === 'summary' && (() => {
+          const node = nodes.find(n => n.id === editingSuperCardId);
+          if (!node) return null;
+          
+          let summaryData: SummaryData;
+          try {
+            summaryData = (node.outputData as SummaryData) || JSON.parse(node.content || '{}');
+          } catch {
+            summaryData = { summary: '', keyFindings: [], documentTitle: '' };
+          }
+          
+          return (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                zIndex: 2500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onClick={() => {
+                setEditingSuperCardId(null);
+                setEditingSuperCardType(null);
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: 'white',
+                  borderRadius: 16,
+                  padding: 24,
+                  maxWidth: 600,
+                  maxHeight: '80vh',
+                  overflow: 'auto',
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 600, color: '#1F2937' }}>
+                    📋 {summaryData.documentTitle || node.title || 'Summary'}
+                  </h2>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingSuperCardId(null);
+                      setEditingSuperCardType(null);
+                    }}
+                  >
+                    <CloseIcon size={20} />
+                  </Button>
+                </div>
+                
+                <div style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 600, color: '#6B7280', marginBottom: 8 }}>Summary</h3>
+                  <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6 }}>{summaryData.summary}</p>
+                </div>
+                
+                {summaryData.keyFindings && summaryData.keyFindings.length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: '#6B7280', marginBottom: 12 }}>
+                      💡 Key Findings ({summaryData.keyFindings.length})
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {summaryData.keyFindings.map((finding, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            backgroundColor: '#FAF5FF',
+                            border: '1px solid #E9D5FF',
+                            borderRadius: 8,
+                            padding: 12,
+                          }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#7C3AED', marginBottom: 4 }}>
+                            {finding.label}
+                          </div>
+                          <div style={{ fontSize: 13, color: '#374151' }}>{finding.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           );
         })()}
 
