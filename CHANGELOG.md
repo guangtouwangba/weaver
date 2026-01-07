@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-01-07
+
+#### AI Chat Uses Wrong Context When URL Content Is Provided (@aqiu)
+
+**Problem:**
+When a user dragged a video (YouTube) into the chat and asked "这个视频讲了什么" (What does this video talk about), the AI responded with content from an unrelated PDF document instead of the video transcript.
+
+**Root Cause:**
+In `stream_rag_response()`, the long context generation path was triggered even when all retrieved documents were graded as irrelevant (`filtered_count == 0`). The condition only checked for `long_context_content` presence, not whether documents passed relevance grading.
+
+**Fix:**
+Added `filtered_count > 0` check to the long context generation condition. When all documents are graded as irrelevant, the system now correctly falls through to traditional generation, which properly uses `canvas_context` (containing URL/video content).
+
+**Code Change:**
+```python
+# Before (buggy):
+if current_rag_mode in ("long_context", "hybrid") and long_context_content:
+
+# After (fixed):
+if current_rag_mode in ("long_context", "hybrid") and long_context_content and filtered_count > 0:
+```
+
+---
+
 ### Added - 2026-01-07
 
 #### Real-time AI Thinking Status Feedback (@siqiuchen)

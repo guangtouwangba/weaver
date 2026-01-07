@@ -1783,7 +1783,10 @@ async def stream_rag_response(
     current_rag_mode = state.get("rag_mode", "traditional")
     long_context_content = state.get("long_context_content", "")
 
-    if current_rag_mode in ("long_context", "hybrid") and long_context_content:
+    # IMPORTANT: Only use long context generation if we have RELEVANT documents
+    # When all documents are graded as irrelevant (filtered_count == 0), we should
+    # fall through to traditional generation which properly handles canvas_context (URL content)
+    if current_rag_mode in ("long_context", "hybrid") and long_context_content and filtered_count > 0:
         # Use long context generation
         logger.info(
             f"[RAG Mode] Using long context generation mode (content_length={len(long_context_content)} chars)"
