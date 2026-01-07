@@ -21,6 +21,7 @@ import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
 import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
 import DocumentPreviewCard from '@/components/studio/DocumentPreviewCard';
+import YouTubePlayerModal from './YouTubePlayerModal';
 
 interface ResourceSidebarProps {
   width?: number;
@@ -38,6 +39,14 @@ interface PendingUrlExtraction {
   thumbnailUrl?: string;
   errorMessage?: string;
   content?: UrlContent;
+  metadata?: {
+    videoId?: string;
+    duration?: number;
+    channelName?: string;
+    channelAvatar?: string;
+    viewCount?: string;
+    publishedAt?: string;
+  };
 }
 
 // Helper function to format file size
@@ -90,7 +99,7 @@ const SkeletonBar = ({ width, height = 16, style = {} }: { width: string | numbe
 );
 
 export default function ResourceSidebar({ width = 300, collapsed = false, onToggle }: ResourceSidebarProps) {
-  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, openDocumentPreview } = useStudio();
+  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, openDocumentPreview, urlContents, addUrlContent, removeUrlContent } = useStudio();
 
   // Subscribe to document status updates
   useDocumentWebSocket(projectId, documents, setDocuments);
@@ -106,6 +115,17 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
 
   // URL extraction state
   const [pendingUrlExtractions, setPendingUrlExtractions] = useState<PendingUrlExtraction[]>([]);
+
+  // YouTube player modal state
+  const [youtubeModal, setYoutubeModal] = useState<{
+    open: boolean;
+    videoId: string;
+    title: string;
+    channelName?: string;
+    viewCount?: string;
+    publishedAt?: string;
+    sourceUrl?: string;
+  } | null>(null);
 
   // Drag handlers
   const handleDragEnter = (e: React.DragEvent) => {
@@ -206,7 +226,8 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
 
     try {
       // Start extraction - returns immediately with pending status
-      const pendingContent = await urlApi.extract(url);
+      // Pass projectId to persist the URL content with this project
+      const pendingContent = await urlApi.extract(url, { projectId });
 
       // Poll for completion in background
       const completedContent = await urlApi.waitForCompletion(pendingContent.id, {
@@ -226,20 +247,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         },
       });
 
-      // Update to completed
-      setPendingUrlExtractions(prev =>
-        prev.map(p =>
-          p.id === extractionId
-            ? {
-                ...p,
-                status: 'completed',
-                title: completedContent.title || undefined,
-                thumbnailUrl: completedContent.thumbnail_url || undefined,
-                content: completedContent,
-              }
-            : p
-        )
-      );
+      // Add to persistent URL contents in context (so it survives page refresh)
+      addUrlContent(completedContent);
+
+      // Remove from pending extractions (now it's in urlContents)
+      setPendingUrlExtractions(prev => prev.filter(p => p.id !== extractionId));
     } catch (error) {
       console.error('URL extraction failed:', error);
       // Update to failed
@@ -257,9 +269,19 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
     }
   };
 
-  // Remove URL extraction from list
-  const handleRemoveUrlExtraction = (id: string) => {
-    setPendingUrlExtractions(prev => prev.filter(p => p.id !== id));
+  // Remove URL extraction from list (pending or persisted)
+  const handleRemoveUrlExtraction = async (id: string, isPersisted: boolean = false) => {
+    if (isPersisted) {
+      // Delete from backend and remove from context
+      try {
+        await urlApi.delete(id);
+        removeUrlContent(id);
+      } catch (error) {
+        console.error('Failed to delete URL content:', error);
+      }
+    } else {
+      setPendingUrlExtractions(prev => prev.filter(p => p.id !== id));
+    }
   };
 
   if (collapsed) {
@@ -387,11 +409,46 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                 direction="row"
                 align="center"
                 gap={2}
+                draggable={extraction.status === 'completed'}
+                onDragStart={(e: React.DragEvent) => {
+                  if (extraction.status !== 'completed') return;
+                  const dragData = {
+                    type: 'url',
+                    platform: extraction.platform,
+                    contentType: extraction.platform === 'youtube' || extraction.platform === 'bilibili' || extraction.platform === 'douyin' ? 'video' : 'article',
+                    title: extraction.title,
+                    url: extraction.url,
+                    thumbnailUrl: extraction.thumbnailUrl,
+                    metadata: extraction.metadata,
+                    videoId: extraction.metadata?.videoId,
+                    duration: extraction.metadata?.duration,
+                    channelName: extraction.metadata?.channelName,
+                    viewCount: extraction.metadata?.viewCount,
+                    publishedAt: extraction.metadata?.publishedAt,
+                  };
+                  e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                onClick={() => {
+                  // Open YouTube player modal for completed YouTube extractions
+                  if (extraction.status === 'completed' && extraction.platform === 'youtube' && extraction.metadata?.videoId) {
+                    setYoutubeModal({
+                      open: true,
+                      videoId: extraction.metadata.videoId,
+                      title: extraction.title || 'YouTube Video',
+                      channelName: extraction.metadata.channelName,
+                      viewCount: extraction.metadata.viewCount,
+                      publishedAt: extraction.metadata.publishedAt,
+                      sourceUrl: extraction.url,
+                    });
+                  }
+                }}
                 style={{
                   padding: 16,
                   borderRadius: `${radii.lg}px`,
                   border: `1px solid ${extraction.status === 'failed' ? colors.error[200] : colors.neutral[200]}`,
                   backgroundColor: extraction.status === 'failed' ? colors.error[50] : colors.neutral[50],
+                  cursor: extraction.status === 'completed' ? (extraction.platform === 'youtube' ? 'pointer' : 'grab') : 'default',
                 }}
               >
                 {/* Platform Icon */}
@@ -458,6 +515,121 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
               </Stack>
             ))}
 
+            {/* Persisted URL Content Cards (loaded from backend) */}
+            {urlContents.map((urlContent) => {
+              const platform = urlContent.platform as Platform;
+              const metadata = urlContent.meta_data as {
+                video_id?: string;
+                duration?: number;
+                channel_name?: string;
+                view_count?: string;
+                published_at?: string;
+              } | undefined;
+
+              return (
+                <Stack
+                  key={urlContent.id}
+                  direction="row"
+                  align="center"
+                  gap={2}
+                  draggable
+                  onDragStart={(e: React.DragEvent) => {
+                    const dragData = {
+                      type: 'url',
+                      platform: urlContent.platform,
+                      contentType: urlContent.content_type,
+                      title: urlContent.title,
+                      url: urlContent.url,
+                      thumbnailUrl: urlContent.thumbnail_url,
+                      metadata: {
+                        videoId: metadata?.video_id,
+                        duration: metadata?.duration,
+                        channelName: metadata?.channel_name,
+                        viewCount: metadata?.view_count,
+                        publishedAt: metadata?.published_at,
+                      },
+                      videoId: metadata?.video_id,
+                      duration: metadata?.duration,
+                      channelName: metadata?.channel_name,
+                      viewCount: metadata?.view_count,
+                      publishedAt: metadata?.published_at,
+                    };
+                    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  onClick={() => {
+                    // Open YouTube player modal for YouTube content
+                    if (platform === 'youtube' && metadata?.video_id) {
+                      setYoutubeModal({
+                        open: true,
+                        videoId: metadata.video_id,
+                        title: urlContent.title || 'YouTube Video',
+                        channelName: metadata.channel_name,
+                        viewCount: metadata.view_count,
+                        publishedAt: metadata.published_at,
+                        sourceUrl: urlContent.url,
+                      });
+                    }
+                  }}
+                  style={{
+                    padding: 16,
+                    borderRadius: `${radii.lg}px`,
+                    border: `1px solid ${colors.neutral[200]}`,
+                    backgroundColor: colors.neutral[50],
+                    cursor: platform === 'youtube' ? 'pointer' : 'grab',
+                    position: 'relative',
+                  }}
+                >
+                  {/* Platform Icon / Thumbnail */}
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: radii.md,
+                      backgroundColor: urlContent.thumbnail_url ? 'transparent' : colors.neutral[200],
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {urlContent.thumbnail_url ? (
+                      <img
+                        src={urlContent.thumbnail_url}
+                        alt={urlContent.title || 'Thumbnail'}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <PlatformIcon platform={platform} size={24} />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text variant="bodySmall" style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {urlContent.title || urlContent.url}
+                    </Text>
+                    <Text variant="caption" color="secondary" style={{ display: 'block', marginTop: 4 }}>
+                      {urlContent.platform.charAt(0).toUpperCase() + urlContent.platform.slice(1)}
+                    </Text>
+                  </div>
+
+                  {/* Delete Button */}
+                  <IconButton
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveUrlExtraction(urlContent.id, true);
+                    }}
+                    style={{ opacity: 0.6 }}
+                  >
+                    <DeleteIcon size={16} />
+                  </IconButton>
+                </Stack>
+              );
+            })}
+
             {/* Document Cards */}
             {documents.map(doc => (
               <DocumentPreviewCard
@@ -491,6 +663,20 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         onFileSelect={handleFileUpload}
         onUrlImport={handleUrlImport}
       />
+
+      {/* YouTube Player Modal */}
+      {youtubeModal && (
+        <YouTubePlayerModal
+          open={youtubeModal.open}
+          onClose={() => setYoutubeModal(null)}
+          videoId={youtubeModal.videoId}
+          title={youtubeModal.title}
+          channelName={youtubeModal.channelName}
+          viewCount={youtubeModal.viewCount}
+          publishedAt={youtubeModal.publishedAt}
+          sourceUrl={youtubeModal.sourceUrl}
+        />
+      )}
 
       <style>{`
         @keyframes pulse {

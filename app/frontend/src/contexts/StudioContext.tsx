@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
+import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, urlApi, UrlContent, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
 
 // === Generation Task Types for Concurrent Outputs ===
 export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
@@ -68,6 +68,12 @@ interface StudioContextType {
   selectedDocumentIds: Set<string>;
   setSelectedDocumentIds: (ids: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   toggleDocumentSelection: (id: string, multiSelect?: boolean) => void;
+
+  // URL Contents (YouTube, web links, etc.)
+  urlContents: UrlContent[];
+  setUrlContents: (contents: UrlContent[] | ((prev: UrlContent[]) => UrlContent[])) => void;
+  addUrlContent: (content: UrlContent) => void;
+  removeUrlContent: (id: string) => void;
 
   // Canvas
   canvasNodes: CanvasNode[];
@@ -206,6 +212,23 @@ export function StudioProvider({
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
+  
+  // URL Contents (YouTube, web links, etc.)
+  const [urlContents, setUrlContents] = useState<UrlContent[]>([]);
+  
+  const addUrlContent = useCallback((content: UrlContent) => {
+    setUrlContents(prev => {
+      // Avoid duplicates
+      if (prev.some(c => c.id === content.id)) {
+        return prev.map(c => c.id === content.id ? content : c);
+      }
+      return [content, ...prev];
+    });
+  }, []);
+  
+  const removeUrlContent = useCallback((id: string) => {
+    setUrlContents(prev => prev.filter(c => c.id !== id));
+  }, []);
 
   const toggleDocumentSelection = useCallback((id: string, multiSelect: boolean = false) => {
     setSelectedDocumentIds(prev => {
@@ -876,12 +899,13 @@ export function StudioProvider({
     const loadData = async () => {
       setSessionsLoading(true);
       try {
-        const [docsRes, canvasRes, sessionsRes, outputsRes, projectRes] = await Promise.all([
+        const [docsRes, canvasRes, sessionsRes, outputsRes, projectRes, urlContentsRes] = await Promise.all([
           documentsApi.list(projectId),
           canvasApi.get(projectId).catch(() => null), // Handle 404 for new canvas
           chatApi.listSessions(projectId).catch(() => null),
           outputsApi.list(projectId).catch(() => null), // Fetch saved outputs
           projectsApi.get(projectId).catch(() => null),
+          urlApi.listByProject(projectId).catch(() => null), // Fetch saved URL contents
         ]);
 
         if (projectRes) {
@@ -890,6 +914,11 @@ export function StudioProvider({
 
         if (docsRes) {
           setDocuments(docsRes.items);
+        }
+
+        // Load persisted URL contents (YouTube videos, web links, etc.)
+        if (urlContentsRes) {
+          setUrlContents(urlContentsRes.items);
         }
 
         if (canvasRes) {
@@ -1072,6 +1101,11 @@ export function StudioProvider({
     selectedDocumentIds,
     setSelectedDocumentIds,
     toggleDocumentSelection,
+    // URL Contents
+    urlContents,
+    setUrlContents,
+    addUrlContent,
+    removeUrlContent,
     canvasNodes,
     setCanvasNodes,
     canvasEdges,

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db
 from research_agent.application.dto.url_content import (
+    URLContentListResponse,
     URLExtractRequest,
     URLExtractResponse,
     URLExtractStatusResponse,
@@ -94,6 +95,7 @@ async def extract_url(
         platform=platform,
         content_type=content_type,
         status="pending",
+        project_id=request.project_id,
         meta_data={
             "video_id": video_id,
         } if video_id else {},
@@ -175,4 +177,48 @@ async def get_url_content_status(
         title=url_content.title,
         thumbnail_url=url_content.thumbnail_url,
     )
+
+
+@router.get("/projects/{project_id}/contents", response_model=URLContentListResponse)
+async def list_project_url_contents(
+    project_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+    repo: SQLAlchemyUrlContentRepository = Depends(get_repo),
+) -> URLContentListResponse:
+    """
+    List all URL contents for a project.
+
+    Used by the frontend sidebar to display imported URLs after page refresh.
+
+    Args:
+        project_id: UUID of the project
+        skip: Number of records to skip for pagination
+        limit: Maximum number of records to return
+
+    Returns:
+        URLContentListResponse with list of URL contents
+    """
+    items = await repo.list_by_project(project_id, skip=skip, limit=limit)
+    
+    return URLContentListResponse(
+        items=[URLExtractResponse.model_validate(item) for item in items],
+        total=len(items),
+    )
+
+
+@router.delete("/extract/{url_content_id}", status_code=204)
+async def delete_url_content(
+    url_content_id: UUID,
+    repo: SQLAlchemyUrlContentRepository = Depends(get_repo),
+) -> None:
+    """
+    Delete a URL content record.
+
+    Args:
+        url_content_id: UUID of the URL content record to delete
+    """
+    deleted = await repo.delete(url_content_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="URL content not found")
 
