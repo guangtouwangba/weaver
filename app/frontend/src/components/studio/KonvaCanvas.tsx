@@ -4688,6 +4688,12 @@ export default function KonvaCanvas({
                 setEditingSuperCardId(null);
                 setEditingSuperCardType(null);
               }}
+              onOpenSourceRef={(sourceId, sourceType, location) => {
+                // Navigate to source document (e.g., open PDF preview)
+                // The location might contain page info for PDFs
+                const pageNumber = location ? parseInt(location, 10) : undefined;
+                onOpenSource?.(sourceId, isNaN(pageNumber as number) ? undefined : pageNumber);
+              }}
             />
           );
         })()}

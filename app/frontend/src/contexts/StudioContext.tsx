@@ -354,13 +354,57 @@ export function StudioProvider({
     });
   }, []);
 
-  // Complete a generation task with result
+  // Complete a generation task with result - converts to CanvasNode (unified model)
   const completeGeneration = useCallback((taskId: string, result: unknown, title?: string) => {
     setGenerationTasks(prev => {
       const task = prev.get(taskId);
       if (!task) return prev;
+      
+      // Get task details for node creation
+      const { type, position, outputId } = task;
+      
+      // Create a CanvasNode for the completed output (unified node model)
+      const nodeType = type; // 'mindmap', 'summary', etc.
+      const nodeId = outputId ? `output-${outputId}` : `output-${taskId}`;
+      
+      // Determine card dimensions and color based on type
+      const cardConfig = {
+        mindmap: { width: 380, height: 280, color: '#10B981' },
+        summary: { width: 380, height: 280, color: '#8B5CF6' },
+        article: { width: 320, height: 200, color: '#667eea' },
+        action_list: { width: 280, height: 180, color: '#f59e0b' },
+      }[type] || { width: 300, height: 200, color: '#6B7280' };
+      
+      const newNode: CanvasNode = {
+        id: nodeId,
+        type: nodeType,
+        title: title || `${type} output`,
+        content: JSON.stringify(result),
+        x: position.x,
+        y: position.y,
+        width: cardConfig.width,
+        height: cardConfig.height,
+        color: cardConfig.color,
+        tags: [],
+        viewType: 'free',
+        outputId: outputId,
+        outputData: result as Record<string, unknown>,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Add the node to canvas
+      setCanvasNodes(prevNodes => {
+        // Filter out any existing node with the same ID to avoid duplicates
+        const filtered = prevNodes.filter(n => n.id !== nodeId);
+        return [...filtered, newNode];
+      });
+      
+      console.log(`[StudioContext] Converted generation task ${taskId} to CanvasNode:`, newNode);
+      
+      // Remove the task from generationTasks since it's now a CanvasNode
       const next = new Map(prev);
-      next.set(taskId, { ...task, status: 'complete', result, title });
+      next.delete(taskId);
       return next;
     });
   }, []);

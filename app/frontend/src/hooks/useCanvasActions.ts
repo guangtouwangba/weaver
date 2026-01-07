@@ -655,6 +655,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
   /**
    * Delete a canvas node
+   * Handles both regular canvas nodes and output nodes (mindmap, summary, etc.)
    */
   const handleDeleteNode = useCallback(async (nodeId: string) => {
     if (!projectId) {
@@ -673,10 +674,21 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       setCanvasNodes(prev => prev.filter(n => n.id !== nodeId));
       setCanvasEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId));
 
-      // Call backend API
-      await canvasApi.deleteNode(projectId, nodeId);
-
-      console.log(`Node ${nodeId} deleted successfully`);
+      // Check if this is an output node (created from outputs API)
+      // Output nodes have IDs like "output-{uuid}" or have an outputId field
+      const isOutputNode = nodeId.startsWith('output-') || nodeToDelete.outputId;
+      
+      if (isOutputNode) {
+        // Extract the actual output ID
+        const outputId = nodeToDelete.outputId || nodeId.replace('output-', '');
+        // Delete from outputs API
+        await outputsApi.delete(projectId, outputId);
+        console.log(`Output ${outputId} deleted successfully`);
+      } else {
+        // Regular canvas node - delete from canvas API
+        await canvasApi.deleteNode(projectId, nodeId);
+        console.log(`Node ${nodeId} deleted successfully`);
+      }
     } catch (error) {
       console.error(`Failed to delete node ${nodeId}:`, error);
 
