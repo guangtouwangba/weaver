@@ -17,9 +17,9 @@
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Surface, Stack, Text, Spinner } from '@/components/ui';
-import { colors } from '@/components/ui/tokens';
+import { colors, shadows, radii } from '@/components/ui/tokens';
 import { useStudio, GenerationType, GenerationTask } from '@/contexts/StudioContext';
-import { AutoAwesomeIcon, AccountTreeIcon } from '@/components/ui/icons';
+import { AutoAwesomeIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
 
 interface GenerationOutputsOverlayProps {
   viewport: { x: number; y: number; scale: number };
@@ -211,7 +211,8 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
     generationTasks.forEach(task => {
       // Only show pending/generating tasks as loading cards
       // Completed tasks are now CanvasNodes rendered in KonvaCanvas
-      if ((task.status === 'pending' || task.status === 'generating') && !task.result) {
+      // Note: We don't check !task.result because streaming mindmap updates result during generation
+      if (task.status === 'pending' || task.status === 'generating') {
         tasks.push(task);
       }
     });

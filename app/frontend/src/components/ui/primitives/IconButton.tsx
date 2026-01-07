@@ -100,6 +100,15 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
             }
         ) : {};
 
+        // If custom style includes 'background' (shorthand), remove backgroundColor to avoid conflict
+        const hasBackgroundShorthand = style && 'background' in style;
+        const finalVariantStyles = hasBackgroundShorthand
+            ? { ...variantStyles, backgroundColor: undefined }
+            : variantStyles;
+        const finalHoverStyles = hasBackgroundShorthand
+            ? { ...hoverStyles, backgroundColor: undefined }
+            : hoverStyles;
+
         return (
             <button
                 ref={ref}
@@ -120,8 +129,8 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
                     fontSize: sizeStyle.iconSize,
                     outline: isFocused ? `2px solid ${colors.primary[500]}` : 'none',
                     padding: 0,
-                    ...variantStyles,
-                    ...hoverStyles,
+                    ...finalVariantStyles,
+                    ...finalHoverStyles,
                     ...style,
                 }}
                 {...props}

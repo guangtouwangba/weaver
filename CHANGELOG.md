@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2026-01-07
+
+#### Output Node Deletion Persistence (@siqiuchen)
+- Fixed issue where deleting mindmap, summary, and other output nodes on the canvas was not persisted
+- Output nodes (with IDs starting with `output-` or having `outputId`) are now correctly deleted via the outputs API instead of the canvas API
+- This ensures generated content deletion is properly saved to the backend
+
 ### Added - 2025-01-07
 
 #### Unified Canvas Node Model - Magic Cursor Selects All Content Types (@aqiu)
