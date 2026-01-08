@@ -22,6 +22,7 @@ import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
 import DocumentPreviewCard from '@/components/studio/DocumentPreviewCard';
 import YouTubePlayerModal from './YouTubePlayerModal';
+import WebPageReaderModal from '@/components/studio/WebPageReaderModal';
 
 interface ResourceSidebarProps {
   width?: number;
@@ -124,6 +125,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
     channelName?: string;
     viewCount?: string;
     publishedAt?: string;
+    sourceUrl?: string;
+  } | null>(null);
+
+  // Web Page Reader Modal state
+  const [webPageReader, setWebPageReader] = useState<{
+    open: boolean;
+    title: string;
+    content: string;
     sourceUrl?: string;
   } | null>(null);
 
@@ -444,6 +453,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                       publishedAt: extraction.metadata.publishedAt,
                       sourceUrl: extraction.url,
                     });
+                  } else if (extraction.status === 'completed' && extraction.platform === 'web' && extraction.content) {
+                     // For web pages, open the reader modal preview
+                     setWebPageReader({
+                       open: true,
+                       title: extraction.title || 'Web Page',
+                       content: extraction.content?.content || '',
+                       sourceUrl: extraction.url,
+                     });
                   }
                 }}
                 style={{
@@ -575,6 +592,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                         publishedAt: metadata.published_at,
                         sourceUrl: urlContent.url,
                       });
+                    } else if (platform === 'web') {
+                      // Open Web Reader modal for web content
+                      setWebPageReader({
+                        open: true,
+                        title: urlContent.title || 'Web Page',
+                        content: urlContent.content || '',
+                        sourceUrl: urlContent.url,
+                      });
                     }
                   }}
                   style={{
@@ -681,6 +706,18 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
           viewCount={youtubeModal.viewCount}
           publishedAt={youtubeModal.publishedAt}
           sourceUrl={youtubeModal.sourceUrl}
+        />
+      )}
+
+      {/* Web Page Reader Modal */}
+      {webPageReader && (
+        <WebPageReaderModal
+          open={webPageReader.open}
+          onClose={() => setWebPageReader(null)}
+          title={webPageReader.title}
+          content={webPageReader.content}
+          sourceUrl={webPageReader.sourceUrl}
+          domain={webPageReader.sourceUrl ? new URL(webPageReader.sourceUrl).hostname : undefined}
         />
       )}
 
