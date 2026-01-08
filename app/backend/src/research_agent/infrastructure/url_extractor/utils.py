@@ -1,7 +1,8 @@
 """Utility functions for URL extraction."""
 
+import ipaddress
 import re
-from typing import Optional, Tuple
+import socket
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 # Platform detection patterns
@@ -53,9 +54,9 @@ TRACKING_PARAMS = {
 }
 
 
-def validate_url(url: str) -> Tuple[bool, Optional[str]]:
+def validate_url(url: str) -> tuple[bool, str | None]:
     """
-    Validate a URL.
+    Validate a URL and perform SSRF checks.
 
     Args:
         url: The URL to validate.
@@ -79,10 +80,40 @@ def validate_url(url: str) -> Tuple[bool, Optional[str]]:
     if len(url) > 2048:
         return False, "URL is too long (max 2048 characters)"
 
+    # SSRF Protection: Check for private IPs
+    try:
+        hostname = parsed.hostname
+        if not hostname:
+            return False, "Invalid URL: missing hostname"
+
+        # Remove brackets from IPv6
+        if hostname.startswith("[") and hostname.endswith("]"):
+            hostname = hostname[1:-1]
+
+        # Resolve hostname to IP
+        try:
+            ip_address = socket.gethostbyname(hostname)
+        except socket.gaierror:
+            return False, f"Could not resolve hostname: {hostname}"
+
+        # Check if IP is private or loopback
+        ip = ipaddress.ip_address(ip_address)
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            return False, f"Access to private/local network resources is denied: {ip}"
+
+        # Additional check for 0.0.0.0
+        if str(ip) == "0.0.0.0":
+            return False, "Access to 0.0.0.0 is denied"
+
+    except ValueError:
+        return False, "Invalid IP address format"
+    except Exception as e:
+        return False, f"URL validation failed: {str(e)}"
+
     return True, None
 
 
-def detect_platform(url: str) -> Tuple[str, Optional[str]]:
+def detect_platform(url: str) -> tuple[str, str | None]:
     """
     Detect the platform from a URL.
 
@@ -142,9 +173,7 @@ def normalize_url(url: str) -> str:
     query_params = parse_qs(parsed.query, keep_blank_values=False)
 
     # Remove tracking parameters
-    filtered_params = {
-        k: v for k, v in query_params.items() if k.lower() not in TRACKING_PARAMS
-    }
+    filtered_params = {k: v for k, v in query_params.items() if k.lower() not in TRACKING_PARAMS}
 
     # Rebuild query string
     new_query = urlencode(filtered_params, doseq=True) if filtered_params else ""
@@ -158,7 +187,7 @@ def normalize_url(url: str) -> str:
     return normalized
 
 
-def extract_video_id(url: str, platform: str) -> Optional[str]:
+def extract_video_id(url: str, platform: str) -> str | None:
     """
     Extract video ID from a URL for a specific platform.
 
@@ -202,4 +231,3 @@ def truncate_content(content: str, max_length: int = 50000) -> str:
         truncated = truncated[:last_space]
 
     return truncated + "..."
-
