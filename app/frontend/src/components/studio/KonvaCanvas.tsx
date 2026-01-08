@@ -51,6 +51,7 @@ import {
   EditIcon, DeleteIcon,
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
 import InspirationDock from './InspirationDock';
@@ -2297,6 +2298,7 @@ export default function KonvaCanvas({
   onOpenImport,
   onSelectionChange,
 }: KonvaCanvasProps) {
+  const toast = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const lastWheelTimeRef = useRef(0); // For wheel event throttling
@@ -3616,7 +3618,7 @@ export default function KonvaCanvas({
     const MAX_NODES = 50;
     if (magicSelection.nodeIds.length > MAX_NODES) {
       console.warn(`[KonvaCanvas] Too many nodes selected (${magicSelection.nodeIds.length}). Max is ${MAX_NODES}.`);
-      // TODO: Show toast notification
+      toast.error('Too many nodes selected', `Max is ${MAX_NODES}. Selected: ${magicSelection.nodeIds.length}`);
       return;
     }
     
