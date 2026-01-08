@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, urlApi, UrlContent, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
 
 // === Generation Task Types for Concurrent Outputs ===
-export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
+export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards' | 'debate';
 
 // Legacy interface - kept for backward compatibility during transition
 export interface GenerationTask {
@@ -394,7 +394,7 @@ export function StudioProvider({
       const { type, position, outputId } = task;
       
       // Create a CanvasNode for the completed output (unified node model)
-      const nodeType = type; // 'mindmap', 'summary', etc.
+      const nodeType = type; // 'mindmap', 'summary', 'debate' etc.
       const nodeId = outputId ? `output-${outputId}` : `output-${taskId}`;
       
       // Determine card dimensions and color based on type
@@ -403,6 +403,7 @@ export function StudioProvider({
         summary: { width: 380, height: 280, color: '#8B5CF6' },
         article: { width: 320, height: 200, color: '#667eea' },
         action_list: { width: 280, height: 180, color: '#f59e0b' },
+        debate: { width: 380, height: 280, color: '#EF4444' }, // Red for Debate
       }[type] || { width: 300, height: 200, color: '#6B7280' };
       
       const newNode: CanvasNode = {
@@ -1000,7 +1001,7 @@ export function StudioProvider({
                 y,
                 width: CARD_WIDTH,
                 height: CARD_HEIGHT,
-                color: nodeType === 'mindmap' ? '#10B981' : nodeType === 'summary' ? '#8B5CF6' : '#667eea',
+                color: nodeType === 'mindmap' ? '#10B981' : nodeType === 'summary' ? '#8B5CF6' : nodeType === 'debate' ? '#EF4444' : '#667eea',
                 tags: [],
                 viewType: 'free',
                 outputId: output.id,
@@ -1218,4 +1219,3 @@ export function useStudio() {
   }
   return context;
 }
-

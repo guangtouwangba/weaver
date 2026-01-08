@@ -15,6 +15,7 @@ from research_agent.domain.agents.mindmap_agent import MindmapAgent
 from research_agent.domain.agents.summary_agent import SummaryAgent
 from research_agent.domain.agents.article_agent import ArticleAgent
 from research_agent.domain.agents.action_list_agent import ActionListAgent
+from research_agent.domain.agents.debate_agent import DebateAgent
 from research_agent.domain.entities.output import (
     ActionListData,
     ArticleData,
@@ -115,7 +116,7 @@ class OutputGenerationService:
         
         # Validate that we have some content source, except for types that use node_data
         # Custom, article, and action_list types can work with canvas node_data instead of documents
-        types_with_node_data = ("custom", "article", "action_list")
+        types_with_node_data = ("custom", "article", "action_list", "debate")
         has_node_data = options and (options.get("node_data") or options.get("mode"))
         is_type_with_node_data = output_type in types_with_node_data and has_node_data
         has_content_source = document_ids or url_content_ids
@@ -221,7 +222,7 @@ class OutputGenerationService:
                     output_type = task_info.output_type
                     
                     # Types that use node_data instead of documents
-                    types_with_node_data = ("custom", "article", "action_list")
+                    types_with_node_data = ("custom", "article", "action_list", "debate")
                     has_node_data = options and (options.get("node_data") or options.get("mode"))
                     is_type_with_node_data = output_type in types_with_node_data and has_node_data
                     
@@ -229,14 +230,18 @@ class OutputGenerationService:
                         # Use node_data from options instead of documents
                         node_data = options.get("node_data", [])
                         if not node_data:
-                            raise ValueError("node_data is required for custom output type without documents")
-                        
-                        # Convert node_data to document_content format for compatibility
-                        document_content = "\n\n---\n\n".join([
-                            f"# {nd.get('title', 'Node')}\n\n{nd.get('content', '')}"
-                            for nd in node_data
-                            if nd.get("content") or nd.get("title")
-                        ])
+                            # Try to be more resilient for debate which might pass single node info via options
+                            if output_type == "debate" and options.get("thesis"):
+                                document_content = options.get("thesis")
+                            else:
+                                raise ValueError("node_data is required for custom output type without documents")
+                        else:
+                            # Convert node_data to document_content format for compatibility
+                            document_content = "\n\n---\n\n".join([
+                                f"# {nd.get('title', 'Node')}\n\n{nd.get('content', '')}"
+                                for nd in node_data
+                                if nd.get("content") or nd.get("title")
+                            ])
                         
                         if not document_content:
                             raise ValueError("No valid node content available in node_data")
@@ -286,6 +291,18 @@ class OutputGenerationService:
                     elif output_type == "action_list":
                         # Action list generation (Magic Cursor)
                         await self._run_action_list_generation(
+                            task_id=task_id,
+                            project_id=project_id,
+                            output_id=output_id,
+                            document_content=document_content,
+                            title=title,
+                            options=options,
+                            llm_service=llm_service,
+                            session=session,
+                        )
+                    elif output_type == "debate":
+                        # Adversarial Debate Generation
+                        await self._run_debate_generation(
                             task_id=task_id,
                             project_id=project_id,
                             output_id=output_id,
@@ -431,6 +448,61 @@ class OutputGenerationService:
 
         logger.info(
             f"[OutputService] Mindmap task complete: {task_id}, " f"nodes={len(mindmap_data.nodes)}"
+        )
+
+    async def _run_debate_generation(
+        self,
+        task_id: str,
+        project_id: str,
+        output_id: UUID,
+        document_content: str,
+        title: Optional[str],
+        options: Dict[str, Any],
+        llm_service: OpenRouterLLMService,
+        session: AsyncSession,
+    ) -> None:
+        """Run adversarial debate generation."""
+        agent = DebateAgent(llm_service=llm_service)
+
+        # We reuse MindmapData structure since it's just nodes and edges
+        mindmap_data = MindmapData()
+
+        async for event in agent.generate(
+            document_content=document_content,
+            document_title=title or "Thesis",
+            **options,
+        ):
+            if task_id not in self._active_tasks:
+                return
+
+            # Stream event to clients
+            await output_notification_service.notify_event(
+                project_id=project_id,
+                task_id=task_id,
+                event=event,
+            )
+
+            # Collect data for storage
+            if event.type == OutputEventType.NODE_ADDED and event.node_data:
+                node = MindmapNode.from_dict(event.node_data)
+                mindmap_data.add_node(node)
+
+            if event.type == OutputEventType.EDGE_ADDED and event.edge_data:
+                edge = MindmapEdge.from_dict(event.edge_data)
+                mindmap_data.add_edge(edge)
+
+        # Save result
+        output_repo = SQLAlchemyOutputRepository(session)
+        output = await output_repo.find_by_id(output_id)
+        if output:
+            output.mark_complete(mindmap_data.to_dict())
+            await output_repo.update(output)
+
+        await output_notification_service.notify_generation_complete(
+            project_id=project_id,
+            task_id=task_id,
+            output_id=str(output_id),
+            message=f"Generated debate tree with {len(mindmap_data.nodes)} nodes",
         )
 
     async def _run_custom_synthesis_generation(

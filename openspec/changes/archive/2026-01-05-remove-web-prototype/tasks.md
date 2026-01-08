@@ -1,4 +1,0 @@
-- [x] Remove `web` directory <!-- id: 0 -->
-- [x] Update `openspec/project.md` to remove references to `web` <!-- id: 1 -->
-- [x] Check and update `Makefile` or scripts for `web` references <!-- id: 2 -->
-- [x] Verify `app/frontend` is correctly identified as the current frontend in docs <!-- id: 3 -->

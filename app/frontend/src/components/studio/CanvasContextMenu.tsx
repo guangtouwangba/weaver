@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { colors, radii, shadows, fontSize, fontWeight } from '@/components/ui/tokens';
-import { AddIcon, StickyNote2Icon, AccountTreeIcon, DescriptionIcon, UploadFileIcon, CreditCardIcon } from '@/components/ui/icons';
+import { AddIcon, StickyNote2Icon, AccountTreeIcon, DescriptionIcon, UploadFileIcon, CreditCardIcon, AutoAwesomeIcon } from '@/components/ui/icons';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { GenerationType } from '@/contexts/StudioContext';
 

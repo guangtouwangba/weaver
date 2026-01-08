@@ -6,6 +6,7 @@ from research_agent.domain.agents.summary_agent import SummaryAgent
 from research_agent.domain.agents.synthesis_agent import SynthesisAgent
 from research_agent.domain.agents.article_agent import ArticleAgent
 from research_agent.domain.agents.action_list_agent import ActionListAgent
+from research_agent.domain.agents.debate_agent import DebateAgent
 
 __all__ = [
     "BaseOutputAgent",
@@ -16,4 +17,5 @@ __all__ = [
     "SynthesisAgent",
     "ArticleAgent",
     "ActionListAgent",
+    "DebateAgent",
 ]
