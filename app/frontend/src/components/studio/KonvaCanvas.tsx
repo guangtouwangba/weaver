@@ -50,6 +50,7 @@ import {
   ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon, SearchIcon,
   EditIcon, DeleteIcon,
 } from '@/components/ui/icons';
+import { useToast } from '@/contexts/ToastContext';
 import { useStudio } from '@/contexts/StudioContext';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
@@ -2441,6 +2442,8 @@ export default function KonvaCanvas({
     handleImportSource
   } = useCanvasActions({ onOpenImport });
 
+  const toast = useToast();
+
   // Use props if provided, otherwise fall back to context values
   const nodes = propNodes ?? contextNodes ?? [];
   const edges = propEdges ?? contextEdges ?? [];
@@ -3154,7 +3157,7 @@ export default function KonvaCanvas({
     },
     onGenerationError: (error) => {
       console.error('[KonvaCanvas] Magic generation error:', error);
-      // TODO: Show toast notification
+      toast.error('Generation failed', 'Could not generate content. Please try again.');
       setMagicGenerationTask(null);
       setIsGeneratingMagic(false);
     }
@@ -3709,7 +3712,7 @@ export default function KonvaCanvas({
     } catch (error) {
       console.error('[KonvaCanvas] Generation failed:', error);
       setIsGeneratingMagic(false);
-      // TODO: Show error toast
+      toast.error('Generation failed', 'Could not generate content. Please try again.');
     }
     
     // Clear magic selection
