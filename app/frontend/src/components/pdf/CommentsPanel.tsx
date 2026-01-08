@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { commentsApi, CommentResponse } from '@/lib/api';
 import { Send, MessageCircle, Trash2, ChevronDown, ChevronRight, User } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CommentsPanelProps {
     documentId: string;
 }
 
 export default function CommentsPanel({ documentId }: CommentsPanelProps) {
+    const { user } = useAuth();
     const [comments, setComments] = useState<CommentResponse[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export default function CommentsPanel({ documentId }: CommentsPanelProps) {
         try {
             const created = await commentsApi.create(documentId, {
                 content: newComment.trim(),
-                author_name: 'You', // TODO: Get from auth
+                author_name: user?.name || 'Anonymous',
             });
             setComments(prev => [created, ...prev]);
             setTotalCount(prev => prev + 1);
@@ -69,7 +71,7 @@ export default function CommentsPanel({ documentId }: CommentsPanelProps) {
             const created = await commentsApi.create(documentId, {
                 content: replyText.trim(),
                 parent_id: parentId,
-                author_name: 'You',
+                author_name: user?.name || 'Anonymous',
             });
             setReplies(prev => ({
                 ...prev,

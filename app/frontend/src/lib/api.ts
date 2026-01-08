@@ -49,8 +49,8 @@ function getApiBaseUrl(): string {
   }
 
   // Check runtime window config (can be injected via script tag)
-  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
-    _cachedApiUrl = (window as any).__API_URL__;
+  if (typeof window !== 'undefined' && (window as unknown as { __API_URL__: string }).__API_URL__) {
+    _cachedApiUrl = (window as unknown as { __API_URL__: string }).__API_URL__;
     console.log('[API] Using window config URL:', _cachedApiUrl);
     return _cachedApiUrl;
   }
@@ -815,7 +815,7 @@ export interface ApiKeyValidationResponse {
 }
 
 // Default user ID (placeholder until auth is implemented)
-const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
+export const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 // Settings API
 export const settingsApi = {

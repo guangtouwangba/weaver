@@ -10,6 +10,7 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import theme from '@/theme/theme';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 interface ProvidersProps {
     children: React.ReactNode;
@@ -18,7 +19,9 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
     return (
         <ChakraProvider theme={theme}>
-            <ToastProvider>{children}</ToastProvider>
+            <AuthProvider>
+                <ToastProvider>{children}</ToastProvider>
+            </AuthProvider>
         </ChakraProvider>
     );
 }
