@@ -79,6 +79,7 @@ import ActionListEditor, { ActionListData } from './ActionListEditor';
 import { MindMapEditor } from './mindmap/MindMapEditor';
 import { MindmapData, SummaryData } from '@/lib/api';
 import useOutputWebSocket from '@/hooks/useOutputWebSocket';
+import WebPageReaderModal from '@/components/studio/WebPageReaderModal';
 
 interface Viewport {
   x: number;
@@ -665,6 +666,7 @@ const WebPageCard = ({
   const sourceUrl = meta?.sourceUrl || '';
   const title = node.title || 'Web Page';
   const description = node.content || '';
+  const thumbnailUrl = meta?.thumbnailUrl;
   
   // Extract domain from URL for display
   const getDomain = (url: string): string => {
@@ -692,9 +694,18 @@ const WebPageCard = ({
   // Card dimensions
   const padding = 16;
   const headerHeight = 48;
-  const contentHeight = 160;
-  const footerHeight = 60;
-  const cardHeight = headerHeight + contentHeight + footerHeight;
+
+  // Calculate heights
+  const thumbWidth = width - padding * 2;
+  // Use 16:9 for thumbnail if available
+  const thumbHeight = thumbnailUrl ? (thumbWidth * 9) / 16 : 0;
+
+  // Content area height adjustments
+  // If thumbnail exists, reduce text area slightly
+  const textContentHeight = thumbnailUrl ? 130 : 160;
+  const footerHeight = 50;
+
+  const cardHeight = headerHeight + (thumbnailUrl ? thumbHeight + 16 : 0) + textContentHeight + footerHeight;
   
   const primaryColor = '#0D9488'; // Teal for web
   const strokeColor = isHighlighted ? '#3B82F6' : (isSelected ? primaryColor : '#E5E7EB');
@@ -741,24 +752,52 @@ const WebPageCard = ({
           <Path data={MORE_ICON} fill="#9CA3AF" />
         </Group>
       </Group>
+
+      {/* === Thumbnail Area (Optional) === */}
+      {thumbnailUrl && (
+        <Group x={padding} y={headerHeight}>
+           {/* Placeholder Background (Globe) - Shows while loading or if error */}
+           <Group>
+             <Rect
+              width={thumbWidth}
+              height={thumbHeight}
+              fill="#F0FDFA"
+              cornerRadius={8}
+            />
+            <Group x={thumbWidth/2 - 20} y={thumbHeight/2 - 20} opacity={0.3}>
+              <Path data={GLOBE_ICON} fill={primaryColor} scaleX={2} scaleY={2} />
+            </Group>
+           </Group>
+
+           {/* Actual Thumbnail */}
+           <URLImage
+              src={thumbnailUrl}
+              width={thumbWidth}
+              height={thumbHeight}
+              cornerRadius={8}
+            />
+        </Group>
+      )}
       
       {/* === Content Area === */}
-      <Group x={padding} y={headerHeight}>
-        {/* Content Background with gradient effect */}
-        <Rect
-          x={-padding + 1}
-          y={0}
-          width={width - 2}
-          height={contentHeight}
-          fill="#F0FDFA"
-        />
+      <Group x={padding} y={headerHeight + (thumbnailUrl ? thumbHeight + 16 : 0)}>
+        {/* Content Background (Only if no thumbnail, to keep it clean) */}
+        {!thumbnailUrl && (
+          <Rect
+            x={-padding + 1}
+            y={0}
+            width={width - 2}
+            height={textContentHeight}
+            fill="#F0FDFA"
+          />
+        )}
         
         {/* Favicon and Domain */}
         <Group y={16}>
           {/* Favicon background circle */}
           <Rect
-            width={40}
-            height={40}
+            width={32}
+            height={32}
             fill="white"
             cornerRadius={8}
             stroke="#E5E7EB"
@@ -768,8 +807,8 @@ const WebPageCard = ({
           {faviconUrl && (
             <URLImage
               src={faviconUrl}
-              x={8}
-              y={8}
+              x={4}
+              y={4}
               width={24}
               height={24}
             />
@@ -777,29 +816,11 @@ const WebPageCard = ({
           
           {/* Domain name */}
           <Text
-            x={52}
-            y={4}
+            x={40}
+            y={8}
             text={domain}
-            fontSize={13}
+            fontSize={12}
             fontStyle="500"
-            fill={primaryColor}
-            fontFamily="Inter, system-ui, sans-serif"
-          />
-          
-          {/* "Imported" badge */}
-          <Rect
-            x={52}
-            y={22}
-            width={60}
-            height={18}
-            fill="#CCFBF1"
-            cornerRadius={4}
-          />
-          <Text
-            x={60}
-            y={26}
-            text="Imported"
-            fontSize={10}
             fill={primaryColor}
             fontFamily="Inter, system-ui, sans-serif"
           />
@@ -807,7 +828,7 @@ const WebPageCard = ({
         
         {/* Title */}
         <Text
-          y={72}
+          y={56}
           width={width - padding * 2}
           text={title.length > 60 ? title.substring(0, 60) + '...' : title}
           fontSize={15}
@@ -815,25 +836,30 @@ const WebPageCard = ({
           fill="#1F2937"
           fontFamily="Inter, system-ui, sans-serif"
           lineHeight={1.3}
+          wrap="word"
+          ellipsis={true}
+          height={42}
         />
         
         {/* Description snippet */}
         {description && (
           <Text
-            y={105}
+            y={102}
             width={width - padding * 2}
-            height={48}
+            height={textContentHeight - 102}
             text={description.length > 120 ? description.substring(0, 120) + '...' : description}
             fontSize={12}
             fill="#6B7280"
             fontFamily="Inter, system-ui, sans-serif"
             lineHeight={1.4}
+            wrap="word"
+            ellipsis={true}
           />
         )}
       </Group>
       
       {/* === Footer === */}
-      <Group x={padding} y={headerHeight + contentHeight}>
+      <Group x={padding} y={headerHeight + (thumbnailUrl ? thumbHeight + 16 : 0) + textContentHeight}>
         {/* Separator Line */}
         <Line
           points={[-padding + 1, 0, width - padding - 1, 0]}
@@ -842,14 +868,14 @@ const WebPageCard = ({
         />
         
         {/* Link Icon */}
-        <Group y={20} scaleX={0.65} scaleY={0.65}>
+        <Group y={16} scaleX={0.65} scaleY={0.65}>
           <Path data={LINK_ICON} stroke="#0D9488" strokeWidth={2} fill="transparent" />
         </Group>
         
         {/* URL Text */}
         <Text
           x={20}
-          y={22}
+          y={18}
           width={width - padding * 2 - 24}
           text={sourceUrl.length > 50 ? sourceUrl.substring(0, 50) + '...' : sourceUrl}
           fontSize={11}
@@ -2351,6 +2377,12 @@ export default function KonvaCanvas({
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   
+  // Web Page Reader State
+  const [webPageReader, setWebPageReader] = useState<{
+    open: boolean;
+    node: CanvasNode | null;
+  }>({ open: false, node: null });
+
   // Super Card Editing State (unified: includes mindmap, summary, article, action_list)
   const [editingSuperCardId, setEditingSuperCardId] = useState<string | null>(null);
   const [editingSuperCardType, setEditingSuperCardType] = useState<'article' | 'action_list' | 'mindmap' | 'summary' | null>(null);
@@ -4760,7 +4792,13 @@ export default function KonvaCanvas({
                   onDoubleClick={() => {
                     // Phase 1: Handle double-click for source nodes (drill-down)
                     if (node.subType === 'source' && node.sourceId) {
-                      onOpenSource?.(node.sourceId, node.sourcePage);
+                      // Check if it's a web source
+                      if (node.fileMetadata?.fileType === 'web') {
+                        setWebPageReader({ open: true, node });
+                      } else {
+                        // PDF or other doc
+                        onOpenSource?.(node.sourceId, node.sourcePage);
+                      }
                     } else if (node.type === 'super_article') {
                       // Open Article Editor for super_article nodes
                       setEditingSuperCardId(node.id);
@@ -5408,6 +5446,18 @@ export default function KonvaCanvas({
             </div>
           );
         })()}
+
+        {/* Web Page Reader Modal */}
+        {webPageReader.open && webPageReader.node && (
+          <WebPageReaderModal
+            open={webPageReader.open}
+            onClose={() => setWebPageReader({ open: false, node: null })}
+            title={webPageReader.node.title || 'Web Page'}
+            content={webPageReader.node.content || ''}
+            sourceUrl={webPageReader.node.fileMetadata?.sourceUrl}
+            domain={webPageReader.node.fileMetadata?.sourceUrl ? new URL(webPageReader.node.fileMetadata.sourceUrl).hostname : undefined}
+          />
+        )}
 
         {/* Loading Overlay for Synthesis */}
         {isSynthesizing && (
