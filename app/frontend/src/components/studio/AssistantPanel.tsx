@@ -723,15 +723,45 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   if (!visible) {
     return (
       <div style={{ position: 'absolute', left: 24, bottom: 24, zIndex: 100 }}>
-        <Tooltip title="AI Assistant" placement="right">
-          <IconButton
-            variant="default"
-            size="lg" // FAB equivalent
-            onClick={onToggle}
-            style={{ borderRadius: '50%', width: 56, height: 56 }}
-          >
-            <BotIcon size={24} />
-          </IconButton>
+        <Tooltip title={isLoading ? "AI is thinking..." : "AI Assistant"} placement="right">
+          <div style={{ position: 'relative', width: 56, height: 56 }}>
+            {/* Spinning ring when loading */}
+            {isLoading && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: -3,
+                  borderRadius: '50%',
+                  border: '3px solid transparent',
+                  borderTopColor: colors.primary[500],
+                  borderRightColor: colors.primary[300],
+                  animation: 'spin 1s linear infinite',
+                  pointerEvents: 'none', // Allow clicks to pass through to the button
+                }}
+              />
+            )}
+            <IconButton
+              variant="default"
+              size="lg" // FAB equivalent
+              onClick={onToggle}
+              style={{ 
+                borderRadius: '50%', 
+                width: 56, 
+                height: 56,
+                boxShadow: isLoading ? `0 0 20px ${colors.primary[400]}40` : undefined,
+                transition: 'box-shadow 0.3s ease',
+              }}
+            >
+              <BotIcon size={24} />
+            </IconButton>
+            {/* Keyframes for spin animation */}
+            <style>{`
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
         </Tooltip>
       </div>
     );

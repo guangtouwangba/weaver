@@ -80,6 +80,7 @@ import { MindMapEditor } from './mindmap/MindMapEditor';
 import { MindmapData, SummaryData } from '@/lib/api';
 import useOutputWebSocket from '@/hooks/useOutputWebSocket';
 import WebPageReaderModal from '@/components/studio/WebPageReaderModal';
+import YouTubePlayerModal from '@/components/studio/YouTubePlayerModal';
 
 interface Viewport {
   x: number;
@@ -2379,6 +2380,12 @@ export default function KonvaCanvas({
   
   // Web Page Reader State
   const [webPageReader, setWebPageReader] = useState<{
+    open: boolean;
+    node: CanvasNode | null;
+  }>({ open: false, node: null });
+
+  // YouTube Player State
+  const [youtubePlayer, setYoutubePlayer] = useState<{
     open: boolean;
     node: CanvasNode | null;
   }>({ open: false, node: null });
@@ -4790,10 +4797,16 @@ export default function KonvaCanvas({
                     onNodeClick?.(node);
                   }}
                   onDoubleClick={() => {
-                    // Phase 1: Handle double-click for source nodes (drill-down)
-                    if (node.subType === 'source' && node.sourceId) {
-                      // Check if it's a web source
-                      if (node.fileMetadata?.fileType === 'web') {
+                    const fileType = node.fileMetadata?.fileType;
+                    const isVideoType = ['youtube', 'video', 'bilibili', 'douyin'].includes(fileType || '');
+                    
+                    // Handle video types first (YouTube, Bilibili, etc.) - open player modal
+                    if (isVideoType) {
+                      setYoutubePlayer({ open: true, node });
+                    } else if (node.subType === 'source' && node.sourceId) {
+                      // Handle other source nodes (web, pdf, etc.)
+                      if (fileType === 'web') {
+                        // Open web page reader
                         setWebPageReader({ open: true, node });
                       } else {
                         // PDF or other doc
@@ -5456,6 +5469,20 @@ export default function KonvaCanvas({
             content={webPageReader.node.content || ''}
             sourceUrl={webPageReader.node.fileMetadata?.sourceUrl}
             domain={webPageReader.node.fileMetadata?.sourceUrl ? new URL(webPageReader.node.fileMetadata.sourceUrl).hostname : undefined}
+          />
+        )}
+
+        {/* YouTube Player Modal */}
+        {youtubePlayer.open && youtubePlayer.node && (
+          <YouTubePlayerModal
+            open={youtubePlayer.open}
+            onClose={() => setYoutubePlayer({ open: false, node: null })}
+            videoId={youtubePlayer.node.fileMetadata?.videoId || ''}
+            title={youtubePlayer.node.title || 'Video'}
+            channelName={youtubePlayer.node.fileMetadata?.channelName}
+            viewCount={youtubePlayer.node.fileMetadata?.viewCount}
+            publishedAt={youtubePlayer.node.fileMetadata?.publishedAt}
+            sourceUrl={youtubePlayer.node.fileMetadata?.sourceUrl}
           />
         )}
 
