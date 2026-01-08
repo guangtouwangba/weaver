@@ -7,6 +7,7 @@ import {
 } from "@/components/ui";
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { useStudio, StudioProvider } from "@/contexts/StudioContext";
+import { useToast } from "@/contexts/ToastContext";
 import ResourceSidebar from "@/components/studio/ResourceSidebar";
 import AssistantPanel from "@/components/studio/AssistantPanel";
 import KonvaCanvas from "@/components/studio/KonvaCanvas";
@@ -51,10 +52,12 @@ function StudioPageContent() {
     projectTitle,
     documents,
     setDocuments,
+    addUrlContent,
     addNodeToCanvas,
     openDocumentPreview,
     navigateToSource,
   } = useStudio();
+  const { toast } = useToast();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -107,6 +110,7 @@ function StudioPageContent() {
 
   // Handle URL Import from Dialog
   const handleUrlImport = async (url: string) => {
+    const toastId = toast.loading("Extracting content...", "Please wait while we process the URL");
     try {
       console.log('Importing URL:', url);
       // Start extraction
@@ -119,9 +123,22 @@ function StudioPageContent() {
         intervalMs: 1000,
       });
       console.log('URL extraction completed:', completedContent);
-      // TODO: Add to documents list or handle completed extraction
+
+      // Add to documents list (urlContents in StudioContext)
+      addUrlContent(completedContent);
+
+      toast.updateToast(toastId, {
+        type: 'success',
+        title: 'Import Successful',
+        message: `Successfully imported "${completedContent.title || 'URL content'}"`,
+      });
     } catch (error) {
       console.error('URL extraction failed:', error);
+      toast.updateToast(toastId, {
+        type: 'error',
+        title: 'Import Failed',
+        message: error instanceof Error ? error.message : 'Failed to extract content from URL',
+      });
     }
   };
 
