@@ -51,6 +51,7 @@ import {
   EditIcon, DeleteIcon,
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
 import InspirationDock from './InspirationDock';
@@ -2432,6 +2433,8 @@ export default function KonvaCanvas({
     setCanvasViewport: contextSetViewport,
   } = useStudio();
 
+  const toast = useToast();
+
   const {
     handleDeleteNode,
     handleSynthesizeNodes: synthesizeNodes,
@@ -3154,7 +3157,7 @@ export default function KonvaCanvas({
     },
     onGenerationError: (error) => {
       console.error('[KonvaCanvas] Magic generation error:', error);
-      // TODO: Show toast notification
+      toast.error('Magic generation failed', error.message || 'Unknown error');
       setMagicGenerationTask(null);
       setIsGeneratingMagic(false);
     }
@@ -3616,7 +3619,7 @@ export default function KonvaCanvas({
     const MAX_NODES = 50;
     if (magicSelection.nodeIds.length > MAX_NODES) {
       console.warn(`[KonvaCanvas] Too many nodes selected (${magicSelection.nodeIds.length}). Max is ${MAX_NODES}.`);
-      // TODO: Show toast notification
+      toast.error('Selection too large', `Maximum ${MAX_NODES} nodes allowed`);
       return;
     }
     
@@ -3709,7 +3712,7 @@ export default function KonvaCanvas({
     } catch (error) {
       console.error('[KonvaCanvas] Generation failed:', error);
       setIsGeneratingMagic(false);
-      // TODO: Show error toast
+      toast.error('Generation failed', error instanceof Error ? error.message : 'Unknown error');
     }
     
     // Clear magic selection
