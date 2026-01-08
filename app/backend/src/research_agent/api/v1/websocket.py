@@ -114,27 +114,21 @@ async def project_canvas_websocket(
     project_id: str,
 ) -> None:
     """
-    WebSocket endpoint for receiving Canvas/Thinking Path real-time updates.
+    WebSocket endpoint for receiving Canvas real-time updates.
 
     This endpoint allows clients to subscribe to canvas updates for a project,
-    enabling multi-device synchronization and real-time thinking path generation.
+    enabling multi-device synchronization.
 
     Messages sent to client:
     ```json
     {
-        "type": "node_added|node_updated|node_deleted|edge_added|thinking_path_analyzed|...",
+        "type": "node_added|node_updated|node_deleted|edge_added|canvas_batch_update",
         "timestamp": "2024-01-01T00:00:00.000Z",
         "node_id": "node-xxx",
         "node_data": {...},
-        "message_ids": ["msg-1", "msg-2"],
-        "analysis_status": "pending|analyzed|error"
+        "message_ids": ["msg-1", "msg-2"]
     }
     ```
-
-    Thinking Path Analysis Events:
-    - `thinking_path_analyzing`: Analysis started for a message
-    - `thinking_path_analyzed`: Analysis complete with nodes/edges
-    - `thinking_path_error`: Analysis failed
 
     Client can send:
     - "ping": Server responds with "pong" (keep-alive)

@@ -704,9 +704,6 @@ export type CanvasEventType =
   | 'section_added'
   | 'section_updated'
   | 'section_deleted'
-  | 'thinking_path_analyzing'
-  | 'thinking_path_analyzed'
-  | 'thinking_path_error'
   | 'canvas_batch_update';
 
 export interface CanvasWebSocketEvent {
@@ -774,32 +771,6 @@ export interface OutputWebSocketEvent {
   // Token streaming
   token?: string;
 }
-
-// Thinking Path API
-export const thinkingPathApi = {
-  analyze: (projectId: string, startIndex: number = 0, maxMessages: number = 20) =>
-    fetchApi<{
-      nodes_created: number;
-      edges_created: number;
-      duplicate_count: number;
-      error?: string;
-    }>(`/api/v1/projects/${projectId}/thinking-path/analyze`, {
-      method: 'POST',
-      body: JSON.stringify({ start_index: startIndex, max_messages: maxMessages }),
-    }),
-
-  triggerForMessage: (projectId: string, messageId: string) =>
-    fetchApi<{ status: string; message_id: string }>(
-      `/api/v1/projects/${projectId}/thinking-path/trigger/${messageId}`,
-      { method: 'POST' }
-    ),
-
-  clearCache: (projectId: string) =>
-    fetchApi<{ status: string; project_id: string }>(
-      `/api/v1/projects/${projectId}/thinking-path/cache`,
-      { method: 'DELETE' }
-    ),
-};
 
 // Settings Types
 export interface SettingOption {

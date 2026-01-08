@@ -1,11 +1,10 @@
-"""WebSocket notification service for Canvas/Thinking Path real-time updates."""
+"""WebSocket notification service for Canvas real-time updates."""
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
-from uuid import UUID
 
 from fastapi import WebSocket
 
@@ -28,11 +27,6 @@ class CanvasEventType(str, Enum):
     SECTION_ADDED = "section_added"
     SECTION_UPDATED = "section_updated"
     SECTION_DELETED = "section_deleted"
-
-    # Thinking path specific events
-    THINKING_PATH_ANALYZING = "thinking_path_analyzing"
-    THINKING_PATH_ANALYZED = "thinking_path_analyzed"
-    THINKING_PATH_ERROR = "thinking_path_error"
 
     # Batch update
     CANVAS_BATCH_UPDATE = "canvas_batch_update"
@@ -88,49 +82,12 @@ class CanvasEdgeUpdate:
         return result
 
 
-@dataclass
-class ThinkingPathUpdate:
-    """Thinking path analysis update payload."""
-
-    event_type: CanvasEventType
-    conversation_id: Optional[str] = None
-    message_id: Optional[str] = None
-    nodes: Optional[List[Dict[str, Any]]] = None
-    edges: Optional[List[Dict[str, Any]]] = None
-    section: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
-    duplicate_of: Optional[str] = None  # For duplicate question detection
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        result = {
-            "type": self.event_type.value,
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-        if self.conversation_id is not None:
-            result["conversation_id"] = self.conversation_id
-        if self.message_id is not None:
-            result["message_id"] = self.message_id
-        if self.nodes is not None:
-            result["nodes"] = self.nodes
-        if self.edges is not None:
-            result["edges"] = self.edges
-        if self.section is not None:
-            result["section"] = self.section
-        if self.error_message is not None:
-            result["error_message"] = self.error_message
-        if self.duplicate_of is not None:
-            result["duplicate_of"] = self.duplicate_of
-        return result
-
-
 class CanvasNotificationService:
     """
-    Service for managing WebSocket connections and sending Canvas/Thinking Path notifications.
+    Service for managing WebSocket connections and sending Canvas notifications.
 
     Supports:
     - Real-time node/edge updates
-    - Thinking path analysis status updates
     - Multi-client synchronization (multiple browser tabs/devices)
 
     Uses in-memory connection registry. For horizontal scaling, consider
@@ -325,87 +282,6 @@ class CanvasNotificationService:
 
         count = await self._broadcast(project_id, update.to_dict(), exclude_websocket)
         logger.info(f"[Canvas WebSocket] Notified {count} clients - edge_added: {edge_id}")
-        return count
-
-    async def notify_thinking_path_analyzing(
-        self,
-        project_id: str,
-        message_id: str,
-        conversation_id: Optional[str] = None,
-    ) -> int:
-        """
-        Notify clients that thinking path analysis has started.
-        """
-        update = ThinkingPathUpdate(
-            event_type=CanvasEventType.THINKING_PATH_ANALYZING,
-            message_id=message_id,
-            conversation_id=conversation_id,
-        )
-
-        count = await self._broadcast(project_id, update.to_dict())
-        logger.info(
-            f"[Canvas WebSocket] Notified {count} clients - thinking_path_analyzing: {message_id}"
-        )
-        return count
-
-    async def notify_thinking_path_analyzed(
-        self,
-        project_id: str,
-        message_id: str,
-        nodes: List[Dict[str, Any]],
-        edges: List[Dict[str, Any]],
-        section: Optional[Dict[str, Any]] = None,
-        conversation_id: Optional[str] = None,
-        duplicate_of: Optional[str] = None,
-    ) -> int:
-        """
-        Notify clients that thinking path analysis is complete.
-
-        Args:
-            project_id: Project ID
-            message_id: The chat message ID that triggered the analysis
-            nodes: New/updated nodes
-            edges: New edges
-            section: Section data (if a new section was created)
-            conversation_id: Conversation ID
-            duplicate_of: If this is a duplicate question, the original node ID
-        """
-        update = ThinkingPathUpdate(
-            event_type=CanvasEventType.THINKING_PATH_ANALYZED,
-            message_id=message_id,
-            nodes=nodes,
-            edges=edges,
-            section=section,
-            conversation_id=conversation_id,
-            duplicate_of=duplicate_of,
-        )
-
-        count = await self._broadcast(project_id, update.to_dict())
-        logger.info(
-            f"[Canvas WebSocket] Notified {count} clients - thinking_path_analyzed: "
-            f"{len(nodes)} nodes, {len(edges)} edges"
-        )
-        return count
-
-    async def notify_thinking_path_error(
-        self,
-        project_id: str,
-        message_id: str,
-        error_message: str,
-    ) -> int:
-        """
-        Notify clients that thinking path analysis failed.
-        """
-        update = ThinkingPathUpdate(
-            event_type=CanvasEventType.THINKING_PATH_ERROR,
-            message_id=message_id,
-            error_message=error_message,
-        )
-
-        count = await self._broadcast(project_id, update.to_dict())
-        logger.info(
-            f"[Canvas WebSocket] Notified {count} clients - thinking_path_error: {message_id}"
-        )
         return count
 
     async def notify_batch_update(

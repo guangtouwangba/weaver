@@ -9,7 +9,6 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.application.graphs.rag_graph import stream_rag_response
-from research_agent.application.services.thinking_path_service import ThinkingPathService
 from research_agent.config import get_settings
 from research_agent.domain.entities.chat import ChatMessage
 from research_agent.infrastructure.database.repositories.sqlalchemy_chat_repo import (
@@ -72,7 +71,6 @@ class StreamMessageInput:
     context_url_ids: Optional[List[str]] = (
         None  # IDs of URL content to include as context (video transcripts, articles)
     )
-    auto_thinking_path: bool = True  # Enable automatic thinking path generation
 
 
 @dataclass
@@ -417,16 +415,6 @@ class StreamMessageUseCase:
                     )
                     await repo.save(ai_message)
 
-                # === Auto Thinking Path Generation (Async, Non-blocking) ===
-                if input.auto_thinking_path and ai_message:
-                    asyncio.create_task(
-                        self._auto_thinking_path(
-                            project_id=input.project_id,
-                            ai_message=ai_message,
-                            recent_messages=messages,
-                        )
-                    )
-
                 # === Auto-Evaluation (Async, Non-blocking) ===
                 if self._should_evaluate() and full_response and retrieved_contexts:
                     # Trigger evaluation in background (don't await)
@@ -551,55 +539,6 @@ class StreamMessageUseCase:
         except Exception as e:
             logger.error(f"[Auto-Eval] Failed: {e}", exc_info=True)
             # Don't raise - evaluation failure shouldn't affect user experience
-
-    async def _auto_thinking_path(
-        self,
-        project_id: UUID,
-        ai_message: ChatMessage,
-        recent_messages: List[ChatMessage],
-    ):
-        """
-        Auto-generate thinking path nodes in background.
-
-        This runs asynchronously and doesn't block the user response.
-        Results are broadcast via WebSocket.
-        """
-        try:
-            logger.info(f"[Auto-ThinkingPath] Starting for message: {ai_message.id}")
-
-            # Create LLM service for thinking path extraction
-            from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
-
-            llm_service = OpenRouterLLMService(
-                api_key=self._api_key,
-                model=self._model,
-            )
-
-            # Create thinking path service with LLM for structured extraction
-            thinking_path_service = ThinkingPathService(
-                embedding_service=self._embedding_service,
-                llm_service=llm_service,
-            )
-
-            # Process the AI message (and implicitly the user question before it)
-            result = await thinking_path_service.process_new_message(
-                project_id=str(project_id),
-                message=ai_message,
-                existing_nodes=[],  # Simplified - in production get from canvas repo
-                existing_messages=recent_messages,
-            )
-
-            if result.nodes:
-                logger.info(
-                    f"[Auto-ThinkingPath] Generated {len(result.nodes)} nodes, "
-                    f"{len(result.edges)} edges"
-                )
-            else:
-                logger.info("[Auto-ThinkingPath] No nodes generated")
-
-        except Exception as e:
-            logger.error(f"[Auto-ThinkingPath] Failed: {e}", exc_info=True)
-            # Don't raise - thinking path failure shouldn't affect user experience
 
     async def _store_memory(
         self,

@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Cleanup - 2026-01-08
+
+#### Remove Unused Curriculum Feature
+
+**Overview:**
+Removed the curriculum feature that was implemented but never integrated into the product. This reduces codebase complexity and maintenance burden.
+
+**Deleted Files:**
+- `api/v1/curriculum.py` - API endpoints
+- `application/use_cases/curriculum/` - Use case implementations
+- `application/dto/curriculum.py` - Data transfer objects
+- `domain/entities/curriculum.py` - Domain entity
+- `domain/repositories/curriculum_repo.py` - Repository interface
+- `infrastructure/database/repositories/sqlalchemy_curriculum_repo.py` - SQLAlchemy implementation
+- `infrastructure/llm/prompts/curriculum_prompt.py` - LLM prompts
+- `CurriculumModel` removed from `models.py`
+
+**Migration:**
+- Added `20260108_000001_drop_curriculum_table.py` to drop the `curriculums` table from the database
+
+#### Remove Unused Thinking Path Feature
+
+**Overview:**
+Removed the Thinking Path feature that was implemented but never properly integrated into the UI. The feature had complete backend and frontend code, but the view switcher was never rendered in the studio page, so thinking path nodes were invisible to users.
+
+**Backend Deleted Files:**
+- `api/v1/thinking_path.py` - API endpoints
+- `application/services/thinking_path_service.py` - Service implementation
+- `application/prompts/thinking_path_extraction.py` - LLM prompts
+- `domain/entities/thinking_path.py` - Domain entities
+- `domain/repositories/thinking_path_repo.py` - Repository interface
+- `domain/services/thinking_path_metrics.py` - Metrics service
+- `domain/services/anchor_locator_service.py` - Unused anchor service
+- `domain/services/canvas_structure_service.py` - Unused canvas structure service
+- `application/use_cases/canvas/auto_structure.py` - Unused use case
+- `infrastructure/database/repositories/sqlalchemy_thinking_path_repo.py` - SQLAlchemy repository
+
+**Backend Modified Files:**
+- `application/services/__init__.py` - Cleared exports
+- `infrastructure/websocket/canvas_notification_service.py` - Removed thinking path events
+- `infrastructure/websocket/__init__.py` - Removed ThinkingPathUpdate export
+- `api/v1/websocket.py` - Updated documentation
+- `application/services/async_post_processor.py` - Removed ThinkingPathHandler
+- `application/use_cases/chat/stream_message.py` - Removed auto_thinking_path logic
+
+**Frontend Deleted Files:**
+- `components/studio/ThinkingPathGenerator.tsx` - Main component
+- `components/studio/CanvasSidebar.tsx` - View switcher (never rendered)
+- `components/studio/CanvasPanel.tsx` - Unused component
+- `components/studio/CanvasPanelKonva.tsx` - Unused component
+
+**Frontend Modified Files:**
+- `lib/api.ts` - Removed thinkingPathApi and thinking_path event types
+- `hooks/useCanvasWebSocket.ts` - Removed thinking path callbacks
+- `components/studio/AssistantPanel.tsx` - Removed handleViewInThinkingPath
+
+**Note:** Some thinking path related code remains in `StudioContext.tsx`, `layout.ts`, and `KonvaCanvas.tsx` as dead code. This can be cleaned up in a future refactoring pass.
+
+---
+
 ### Observability - 2026-01-08
 
 #### RAG Pipeline Tracing System

@@ -5,7 +5,6 @@ from research_agent.infrastructure.websocket.canvas_notification_service import 
     CanvasEventType,
     CanvasNodeUpdate,
     CanvasNotificationService,
-    ThinkingPathUpdate,
     canvas_notification_service,
 )
 from research_agent.infrastructure.websocket.notification_service import (
@@ -25,7 +24,6 @@ __all__ = [
     "CanvasEventType",
     "CanvasNodeUpdate",
     "CanvasEdgeUpdate",
-    "ThinkingPathUpdate",
     "OutputNotificationService",
     "output_notification_service",
 ]

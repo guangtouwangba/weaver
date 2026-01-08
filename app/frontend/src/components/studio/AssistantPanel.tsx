@@ -306,7 +306,6 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     setChatMessages,
     activeDocumentId,
     documents,
-    switchView,
     navigateToSource,
     setDragPreview,
     dragContentRef,
@@ -426,18 +425,6 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     return canvasNodes.find(node =>
       node.messageIds?.includes(messageId)
     );
-  };
-
-  // Handle click on "View in Thinking Path" button
-  const handleViewInThinkingPath = (messageId: string) => {
-    const linkedNode = findLinkedNode(messageId);
-    if (linkedNode) {
-      navigateToNode(linkedNode.id);
-      switchView('thinking');
-    } else {
-      // If no linked node, switch to thinking view anyway
-      switchView('thinking');
-    }
   };
 
   // Scroll to a specific message
