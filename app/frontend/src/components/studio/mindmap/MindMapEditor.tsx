@@ -440,6 +440,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState<'add' | 'edit'>('add');
   const [editingNode, setEditingNode] = useState<MindmapNode | null>(null);
+  const [pendingParentId, setPendingParentId] = useState<string | null>(null);
   
   // Drilldown state for source context panel
   const [drilldownNodeId, setDrilldownNodeId] = useState<string | null>(null);
@@ -689,13 +690,26 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     [data.nodes, drilldownNodeId]
   );
 
-  // Add node
+  // Add node (child)
   const handleAddNode = useCallback(() => {
     if (!selectedNodeId) return;
+    setPendingParentId(selectedNodeId);
     setEditingNode(null);
     setEditMode('add');
     setEditDialogOpen(true);
   }, [selectedNodeId]);
+
+  // Add sibling
+  const handleAddSibling = useCallback(() => {
+    if (!selectedNodeId) return;
+    const node = data.nodes.find(n => n.id === selectedNodeId);
+    if (node && node.parentId) {
+      setPendingParentId(node.parentId);
+      setEditingNode(null);
+      setEditMode('add');
+      setEditDialogOpen(true);
+    }
+  }, [selectedNodeId, data.nodes]);
 
   // Delete node
   const handleDeleteNode = useCallback(() => {
@@ -739,9 +753,9 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   // Save node from dialog
   const handleSaveNode = useCallback(
     (label: string, content: string) => {
-      if (editMode === 'add' && selectedNodeId) {
+      if (editMode === 'add' && pendingParentId) {
         // Create new node
-        const parentNode = data.nodes.find((n) => n.id === selectedNodeId);
+        const parentNode = data.nodes.find((n) => n.id === pendingParentId);
         if (!parentNode) return;
 
         const newId = `node-${Date.now()}`;
@@ -750,7 +764,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
           label,
           content,
           depth: parentNode.depth + 1,
-          parentId: selectedNodeId,
+          parentId: pendingParentId,
           x: parentNode.x + 250,
           y: parentNode.y,
           width: 200,
@@ -761,7 +775,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
 
         const newEdge: MindmapEdge = {
           id: `edge-${Date.now()}`,
-          source: selectedNodeId,
+          source: pendingParentId,
           target: newId,
         };
 
@@ -781,8 +795,9 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
       }
       setHasChanges(true);
       setEditDialogOpen(false);
+      setPendingParentId(null);
     },
-    [editMode, selectedNodeId, editingNode, data]
+    [editMode, pendingParentId, editingNode, data]
   );
 
   // Export
@@ -877,25 +892,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
       if (e.key === 'Enter') {
         e.preventDefault();
         if (selectedNodeIds.size === 1) {
-          const id = Array.from(selectedNodeIds)[0];
-          const node = data.nodes.find(n => n.id === id);
-          if (node && node.parentId) { // Can't add sibling to root
-            // We reuse handleAddNode logic but hacked:
-            // handleAddNode adds to *selectedNodeId*.
-            // For sibling, we want to add to *node.parentId*.
-            // So we would need to selects Parent -> Add -> Select new.
-            // But switching selection is jarring.
-            // Better: Invoke a new handleAddSibling? 
-            // For MVP, letting Enter do nothing or just focus edit?
-            // Users expect Enter to add sibling.
-            // I'll leave Enter empty or implement specific logic later.
-            // Let's implement basic Add Sibling logic here if simple.
-            // It requires opening dialog. Dialog uses `selectedNodeId` as parent.
-            // So I can't reuse `handleAddNode` easily without state dance.
-            // I'll skip Enter for now or just map it to Edit?
-            // XMind: Space is Edit.
-            handleNodeDoubleClick(id); // Enter to Edit is also common alternative configuration.
-          }
+          handleAddSibling();
         }
         return;
       }
@@ -915,6 +912,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     selectedNodeIds,
     handleDeleteNode,
     handleAddNode,
+    handleAddSibling,
     data.nodes,
     handleNodeDoubleClick
   ]);
@@ -1148,7 +1146,10 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
         mode={editMode}
         initialLabel={editingNode?.label}
         initialContent={editingNode?.content}
-        onClose={() => setEditDialogOpen(false)}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setPendingParentId(null);
+        }}
         onSave={handleSaveNode}
       />
     </div>
