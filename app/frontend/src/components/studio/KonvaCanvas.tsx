@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer, Group, Rect, Text, Line, Circle, Image, Path } from 'react-konva';
+import { Stage, Layer, Group, Rect, Text, Line, Circle, Image, Path, RegularPolygon } from 'react-konva';
 
 
 
@@ -15,7 +15,6 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
 
   useEffect(() => {
     if (!src) {
-      console.log('[DEBUG] URLImage no src');
       return;
     }
 
@@ -27,20 +26,16 @@ const URLImage = ({ src, x, y, width, height, opacity, cornerRadius }: any) => {
       fullSrc = `${baseUrl}${src}`;
     }
 
-    console.log('[DEBUG] URLImage loading:', fullSrc);
     const img = new window.Image();
+    img.crossOrigin = 'anonymous';
     img.src = fullSrc;
-    img.crossOrigin = 'Anonymous';
     img.onload = () => {
-      console.log('[DEBUG] URLImage loaded:', fullSrc, 'size:', img.width, 'x', img.height);
       if (img.width > 0 && img.height > 0) {
         setImage(img);
-      } else {
-        console.warn('[DEBUG] URLImage loaded with 0 dimensions:', fullSrc);
       }
     };
-    img.onerror = (e) => {
-      console.error('[DEBUG] URLImage error:', fullSrc, e);
+    img.onerror = () => {
+      // Silently fail - the component will simply not render an image
     };
   }, [src]);
 
@@ -147,6 +142,34 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
       bgColor: '#FAFAF9',      // Light stone
       icon: '📄',              // Document icon
       topBarColor: '#78716C',
+    },
+    source_youtube: {
+      borderColor: '#FF0000',  // YouTube Red
+      borderStyle: 'solid',
+      bgColor: '#FEE2E2',      // Light red
+      icon: '▶️',              // Play button
+      topBarColor: '#FF0000',
+    },
+    source_video: {
+      borderColor: '#8B5CF6',  // Purple - Generic video
+      borderStyle: 'solid',
+      bgColor: '#F5F3FF',      // Light purple
+      icon: '🎬',              // Video icon
+      topBarColor: '#8B5CF6',
+    },
+    source_bilibili: {
+      borderColor: '#00A1D6',  // Bilibili Blue
+      borderStyle: 'solid',
+      bgColor: '#E0F7FA',      // Light cyan
+      icon: '📺',              // TV icon
+      topBarColor: '#00A1D6',
+    },
+    source_douyin: {
+      borderColor: '#000000',  // Douyin Black
+      borderStyle: 'solid',
+      bgColor: '#F5F5F5',      // Light gray
+      icon: '🎵',              // Music note
+      topBarColor: '#000000',
     },
     // === Thinking Path Node Types (User Conversation Visualization) ===
     question: {
@@ -340,11 +363,557 @@ const getNodeStyle = (type: string, subType?: string, fileType?: string, isDraft
   return styles[type] || styles.knowledge;
 };
 
-// --- PDF Icon Paths ---
+// --- Icon Paths ---
 const PDF_ICON_BODY = "M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z";
 const PDF_ICON_FOLD = "M14 2V8H20";
+const PLAY_ICON = "M8 5v14l11-7z";
+const YOUTUBE_ICON = "M21.582 7.186a2.506 2.506 0 0 0-1.768-1.768C18.254 5 12 5 12 5s-6.254 0-7.814.418c-.86.23-1.538.908-1.768 1.768C2 8.746 2 12 2 12s0 3.254.418 4.814c.23.86.908 1.538 1.768 1.768C5.746 19 12 19 12 19s6.254 0 7.814-.418a2.506 2.506 0 0 0 1.768-1.768C22 15.254 22 12 22 12s0-3.254-.418-4.814zM10 15V9l5.196 3L10 15z";
+const EXTERNAL_LINK_ICON = "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3";
+const LINK_ICON = "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71";
+const MORE_ICON = "M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM19 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM5 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z";
+const GLOBE_ICON = "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z";
 
-// --- Source Preview Card (Canvas Implementation of the UI) ---
+// --- Helper: Format duration ---
+const formatDuration = (seconds?: number): string => {
+  if (!seconds) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// --- Helper: Get channel initials ---
+const getChannelInitials = (channelName?: string): string => {
+  if (!channelName) return '?';
+  const words = channelName.split(' ').filter(w => w.length > 0);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return channelName.substring(0, 2).toUpperCase();
+};
+
+// --- Video Platform Configuration ---
+const getVideoPlatformConfig = (fileType?: string) => {
+  const configs: Record<string, {
+    name: string;
+    icon: string;
+    primaryColor: string;
+    avatarColor: string;
+  }> = {
+    youtube: {
+      name: 'YouTube',
+      icon: YOUTUBE_ICON,
+      primaryColor: '#FF0000',
+      avatarColor: '#8B5CF6',
+    },
+    bilibili: {
+      name: 'Bilibili',
+      icon: YOUTUBE_ICON, // Using same icon, could be replaced with Bilibili icon
+      primaryColor: '#00A1D6',
+      avatarColor: '#00A1D6',
+    },
+    douyin: {
+      name: 'Douyin',
+      icon: YOUTUBE_ICON,
+      primaryColor: '#000000',
+      avatarColor: '#FE2C55',
+    },
+    video: {
+      name: 'Video',
+      icon: YOUTUBE_ICON,
+      primaryColor: '#8B5CF6',
+      avatarColor: '#8B5CF6',
+    },
+  };
+  return configs[fileType || 'youtube'] || configs.youtube;
+};
+
+// --- Video Card (YouTube/Bilibili/Douyin style) ---
+const VideoCard = ({
+  node,
+  width,
+  isSelected,
+  isHighlighted,
+}: {
+  node: CanvasNode;
+  width: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+}) => {
+  const meta = node.fileMetadata;
+  const fileType = meta?.fileType || 'youtube';
+  const platformConfig = getVideoPlatformConfig(fileType);
+  
+  const thumbUrl = meta?.thumbnailUrl;
+  const channelName = meta?.channelName || 'Unknown Channel';
+  const viewCount = meta?.viewCount || '';
+  const publishedAt = meta?.publishedAt || '';
+  const duration = formatDuration(meta?.duration);
+  const sourceUrl = meta?.sourceUrl || '';
+  
+  // Card dimensions - larger for better visibility
+  const padding = 16;
+  const headerHeight = 48;
+  const thumbWidth = width - padding * 2;
+  const thumbHeight = (thumbWidth * 9) / 16; // 16:9 aspect ratio
+  const infoHeight = 90;
+  const linkHeight = 44;
+  const cardHeight = headerHeight + thumbHeight + infoHeight + linkHeight + 20;
+  
+  const strokeColor = isHighlighted ? '#3B82F6' : (isSelected ? platformConfig.primaryColor : '#E5E7EB');
+  const strokeWidth = isSelected || isHighlighted ? 2 : 1;
+  
+  // Build meta string: "ChannelName • 24K views • 2 days ago"
+  const metaParts = [channelName];
+  if (viewCount) metaParts.push(viewCount);
+  if (publishedAt) metaParts.push(publishedAt);
+  const metaString = metaParts.join(' • ');
+
+  return (
+    <Group>
+      {/* Main Card */}
+      <Rect
+        width={width}
+        height={cardHeight}
+        fill="white"
+        cornerRadius={16}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        shadowColor="rgba(0, 0, 0, 0.08)"
+        shadowBlur={12}
+        shadowOffsetY={4}
+      />
+      
+      {/* === Header === */}
+      <Group x={padding} y={14}>
+        {/* Platform Logo */}
+        <Group scaleX={1} scaleY={1}>
+          <Path data={platformConfig.icon} fill={platformConfig.primaryColor} />
+        </Group>
+        <Text
+          x={32}
+          y={4}
+          text={platformConfig.name}
+          fontSize={15}
+          fontStyle="600"
+          fill="#1F2937"
+          fontFamily="Inter, system-ui, sans-serif"
+        />
+      </Group>
+      
+      {/* Header Right Icons */}
+      <Group x={width - 60} y={14}>
+        {/* External Link Icon */}
+        <Group scaleX={0.85} scaleY={0.85}>
+          <Path data={EXTERNAL_LINK_ICON} stroke="#9CA3AF" strokeWidth={2} fill="transparent" />
+        </Group>
+        {/* More Icon */}
+        <Group x={30} scaleX={0.85} scaleY={0.85}>
+          <Path data={MORE_ICON} fill="#9CA3AF" />
+        </Group>
+      </Group>
+      
+      {/* === Thumbnail Area === */}
+      <Group x={padding} y={headerHeight}>
+        {/* Thumbnail Background */}
+        <Rect
+          width={thumbWidth}
+          height={thumbHeight}
+          fill="#1F2937"
+          cornerRadius={12}
+        />
+        
+        {/* Thumbnail Image */}
+        {thumbUrl && (
+          <URLImage
+            src={thumbUrl}
+            width={thumbWidth}
+            height={thumbHeight}
+            cornerRadius={12}
+          />
+        )}
+        
+        {/* Play Button Overlay (centered) - larger size */}
+        <Group x={thumbWidth / 2 - 32} y={thumbHeight / 2 - 32}>
+          {/* Outer circle with platform color */}
+          <Circle
+            x={32}
+            y={32}
+            radius={32}
+            fill={platformConfig.primaryColor}
+            opacity={0.9}
+          />
+          {/* Inner play triangle */}
+          <RegularPolygon
+            x={36}
+            y={32}
+            sides={3}
+            radius={16}
+            rotation={90}
+            fill="white"
+          />
+        </Group>
+        
+        {/* Duration Badge (bottom-right) - larger */}
+        {duration && (
+          <Group x={thumbWidth - 56} y={thumbHeight - 32}>
+            <Rect
+              width={48}
+              height={24}
+              fill="rgba(0, 0, 0, 0.8)"
+              cornerRadius={4}
+            />
+            <Text
+              x={8}
+              y={5}
+              text={duration}
+              fontSize={13}
+              fontStyle="600"
+              fill="white"
+              fontFamily="Inter, system-ui, sans-serif"
+            />
+          </Group>
+        )}
+      </Group>
+      
+      {/* === Video Info Section === */}
+      <Group x={padding} y={headerHeight + thumbHeight + 16}>
+        {/* Channel Avatar - larger */}
+        <Circle
+          x={22}
+          y={22}
+          radius={22}
+          fill={platformConfig.avatarColor}
+        />
+        <Text
+          x={9}
+          y={13}
+          width={26}
+          text={getChannelInitials(channelName)}
+          fontSize={13}
+          fontStyle="bold"
+          fill="white"
+          align="center"
+          fontFamily="Inter, system-ui, sans-serif"
+        />
+        
+        {/* Title & Meta */}
+        <Group x={54}>
+          <Text
+            text={node.title}
+            width={thumbWidth - 64}
+            height={40}
+            fontSize={15}
+            fontStyle="600"
+            fill="#1F2937"
+            wrap="word"
+            ellipsis={true}
+            fontFamily="Inter, system-ui, sans-serif"
+          />
+          <Text
+            y={44}
+            text={metaString}
+            width={thumbWidth - 64}
+            fontSize={13}
+            fill="#6B7280"
+            ellipsis={true}
+            fontFamily="Inter, system-ui, sans-serif"
+          />
+        </Group>
+      </Group>
+      
+      {/* === URL Link Section === */}
+      <Group x={padding} y={headerHeight + thumbHeight + infoHeight + 8}>
+        {/* Separator Line */}
+        <Line
+          points={[-padding + 1, -8, width - padding - 1, -8]}
+          stroke="#F3F4F6"
+          strokeWidth={1}
+        />
+        
+        {/* Link Icon */}
+        <Group y={6} scaleX={0.7} scaleY={0.7}>
+          <Path data={LINK_ICON} stroke="#3B82F6" strokeWidth={2} fill="transparent" />
+        </Group>
+        
+        {/* URL Text */}
+        <Text
+          x={22}
+          y={8}
+          text={sourceUrl.length > 45 ? sourceUrl.substring(0, 45) + '...' : sourceUrl}
+          fontSize={12}
+          fill="#3B82F6"
+          fontFamily="Inter, system-ui, sans-serif"
+        />
+      </Group>
+    </Group>
+  );
+};
+
+// --- Web Page Card (for web/URL types) ---
+const WebPageCard = ({
+  node,
+  width,
+  isSelected,
+  isHighlighted,
+}: {
+  node: CanvasNode;
+  width: number;
+  isSelected: boolean;
+  isHighlighted?: boolean;
+}) => {
+  const meta = node.fileMetadata;
+  const sourceUrl = meta?.sourceUrl || '';
+  const title = node.title || 'Web Page';
+  const description = node.content || '';
+  
+  // Extract domain from URL for display
+  const getDomain = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.replace('www.', '');
+    } catch {
+      return url;
+    }
+  };
+  
+  // Get favicon URL (using Google's favicon service as it's CORS-friendly)
+  const getFaviconUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+    } catch {
+      return '';
+    }
+  };
+  
+  const domain = getDomain(sourceUrl);
+  const faviconUrl = getFaviconUrl(sourceUrl);
+  
+  // Card dimensions
+  const padding = 16;
+  const headerHeight = 48;
+  const contentHeight = 160;
+  const footerHeight = 60;
+  const cardHeight = headerHeight + contentHeight + footerHeight;
+  
+  const primaryColor = '#0D9488'; // Teal for web
+  const strokeColor = isHighlighted ? '#3B82F6' : (isSelected ? primaryColor : '#E5E7EB');
+  const strokeWidth = isSelected || isHighlighted ? 2 : 1;
+
+  return (
+    <Group>
+      {/* Main Card */}
+      <Rect
+        width={width}
+        height={cardHeight}
+        fill="white"
+        cornerRadius={16}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        shadowColor="rgba(0, 0, 0, 0.08)"
+        shadowBlur={12}
+        shadowOffsetY={4}
+      />
+      
+      {/* === Header === */}
+      <Group x={padding} y={14}>
+        {/* Globe Icon */}
+        <Group scaleX={0.9} scaleY={0.9}>
+          <Path data={GLOBE_ICON} fill={primaryColor} />
+        </Group>
+        <Text
+          x={28}
+          y={4}
+          text="Web Page"
+          fontSize={14}
+          fontStyle="600"
+          fill="#1F2937"
+          fontFamily="Inter, system-ui, sans-serif"
+        />
+      </Group>
+      
+      {/* Header Right Icons */}
+      <Group x={width - 60} y={14}>
+        <Group scaleX={0.85} scaleY={0.85}>
+          <Path data={EXTERNAL_LINK_ICON} stroke="#9CA3AF" strokeWidth={2} fill="transparent" />
+        </Group>
+        <Group x={30} scaleX={0.85} scaleY={0.85}>
+          <Path data={MORE_ICON} fill="#9CA3AF" />
+        </Group>
+      </Group>
+      
+      {/* === Content Area === */}
+      <Group x={padding} y={headerHeight}>
+        {/* Content Background with gradient effect */}
+        <Rect
+          x={-padding + 1}
+          y={0}
+          width={width - 2}
+          height={contentHeight}
+          fill="#F0FDFA"
+        />
+        
+        {/* Favicon and Domain */}
+        <Group y={16}>
+          {/* Favicon background circle */}
+          <Rect
+            width={40}
+            height={40}
+            fill="white"
+            cornerRadius={8}
+            stroke="#E5E7EB"
+            strokeWidth={1}
+          />
+          {/* Favicon image */}
+          {faviconUrl && (
+            <URLImage
+              src={faviconUrl}
+              x={8}
+              y={8}
+              width={24}
+              height={24}
+            />
+          )}
+          
+          {/* Domain name */}
+          <Text
+            x={52}
+            y={4}
+            text={domain}
+            fontSize={13}
+            fontStyle="500"
+            fill={primaryColor}
+            fontFamily="Inter, system-ui, sans-serif"
+          />
+          
+          {/* "Imported" badge */}
+          <Rect
+            x={52}
+            y={22}
+            width={60}
+            height={18}
+            fill="#CCFBF1"
+            cornerRadius={4}
+          />
+          <Text
+            x={60}
+            y={26}
+            text="Imported"
+            fontSize={10}
+            fill={primaryColor}
+            fontFamily="Inter, system-ui, sans-serif"
+          />
+        </Group>
+        
+        {/* Title */}
+        <Text
+          y={72}
+          width={width - padding * 2}
+          text={title.length > 60 ? title.substring(0, 60) + '...' : title}
+          fontSize={15}
+          fontStyle="600"
+          fill="#1F2937"
+          fontFamily="Inter, system-ui, sans-serif"
+          lineHeight={1.3}
+        />
+        
+        {/* Description snippet */}
+        {description && (
+          <Text
+            y={105}
+            width={width - padding * 2}
+            height={48}
+            text={description.length > 120 ? description.substring(0, 120) + '...' : description}
+            fontSize={12}
+            fill="#6B7280"
+            fontFamily="Inter, system-ui, sans-serif"
+            lineHeight={1.4}
+          />
+        )}
+      </Group>
+      
+      {/* === Footer === */}
+      <Group x={padding} y={headerHeight + contentHeight}>
+        {/* Separator Line */}
+        <Line
+          points={[-padding + 1, 0, width - padding - 1, 0]}
+          stroke="#E5E7EB"
+          strokeWidth={1}
+        />
+        
+        {/* Link Icon */}
+        <Group y={20} scaleX={0.65} scaleY={0.65}>
+          <Path data={LINK_ICON} stroke="#0D9488" strokeWidth={2} fill="transparent" />
+        </Group>
+        
+        {/* URL Text */}
+        <Text
+          x={20}
+          y={22}
+          width={width - padding * 2 - 24}
+          text={sourceUrl.length > 50 ? sourceUrl.substring(0, 50) + '...' : sourceUrl}
+          fontSize={11}
+          fill="#0D9488"
+          fontFamily="Inter, system-ui, sans-serif"
+          ellipsis={true}
+        />
+      </Group>
+    </Group>
+  );
+};
+
+// --- Source Type Configuration (for non-video types) ---
+const getSourceTypeConfig = (fileType?: string) => {
+  const configs: Record<string, {
+    label: string;
+    icon: string;
+    primaryColor: string;
+    bgColor: string;
+    iconBgColor: string;
+    bodyBgColor: string;
+    metaLabel: (meta: CanvasNode['fileMetadata']) => string;
+  }> = {
+    pdf: {
+      label: 'PDF Document',
+      icon: '📕',
+      primaryColor: '#DC2626',
+      bgColor: '#FEF2F2',
+      iconBgColor: '#FEF2F2',
+      bodyBgColor: '#FFF7ED',
+      metaLabel: (meta) => meta?.pageCount ? `${meta.pageCount} pages` : 'Unknown size',
+    },
+    markdown: {
+      label: 'Markdown',
+      icon: '📝',
+      primaryColor: '#3B82F6',
+      bgColor: '#EFF6FF',
+      iconBgColor: '#EFF6FF',
+      bodyBgColor: '#F8FAFC',
+      metaLabel: () => 'Markdown Document',
+    },
+    web: {
+      label: 'Web Page',
+      icon: '🌐',
+      primaryColor: '#0D9488',
+      bgColor: '#F0FDFA',
+      iconBgColor: '#F0FDFA',
+      bodyBgColor: '#F0FDFA',
+      metaLabel: () => 'Web Page',
+    },
+    text: {
+      label: 'Text File',
+      icon: '📄',
+      primaryColor: '#78716C',
+      bgColor: '#FAFAF9',
+      iconBgColor: '#FAFAF9',
+      bodyBgColor: '#FAFAF9',
+      metaLabel: () => 'Text File',
+    },
+  };
+  return configs[fileType || 'pdf'] || configs.pdf;
+};
+
+// --- Source Preview Card (Routes to appropriate card type) ---
 const SourcePreviewCard = ({
   node,
   width,
@@ -360,18 +929,48 @@ const SourcePreviewCard = ({
   isHighlighted?: boolean;
   isActiveThinking?: boolean;
 }) => {
+  const fileType = node.fileMetadata?.fileType || 'pdf';
+  const isVideoType = ['youtube', 'video', 'bilibili', 'douyin'].includes(fileType);
+  const isWebType = fileType === 'web';
+  
+  // Use new video card for video types (YouTube, Bilibili, Douyin, etc.)
+  if (isVideoType) {
+    return (
+      <VideoCard
+        node={node}
+        width={width}
+        isSelected={isSelected}
+        isHighlighted={isHighlighted}
+      />
+    );
+  }
+  
+  // Use web page card for web/URL types
+  if (isWebType) {
+    return (
+      <WebPageCard
+        node={node}
+        width={width}
+        isSelected={isSelected}
+        isHighlighted={isHighlighted}
+      />
+    );
+  }
+  
+  // Original PDF/Document card for non-video types
   const thumbUrl = node.fileMetadata?.thumbnailUrl;
-  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? '#0D9488' : '#E7E5E4'));
+  const config = getSourceTypeConfig(fileType);
+  
+  const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? config.primaryColor : '#E7E5E4'));
   const strokeWidth = isSelected || isHighlighted ? 2 : 1;
   const shadowBlur = isSelected ? 12 : 4;
   const shadowOpacity = isSelected ? 0.15 : 0.05;
 
-  // Enforce minimum height for proper layout of "Beautiful Card"
   const displayHeight = Math.max(height, 320);
 
   return (
     <Group>
-      {/* 1. Main Card Container */}
+      {/* Main Card Container */}
       <Rect
         width={width}
         height={displayHeight}
@@ -385,16 +984,20 @@ const SourcePreviewCard = ({
         shadowOffsetY={4}
       />
 
-      {/* 2. Header (Top 40px) */}
+      {/* Header */}
       <Group x={12} y={12}>
+        {fileType === 'pdf' ? (
         <Group scaleX={0.7} scaleY={0.7}>
-          <Path data={PDF_ICON_BODY} fill="#EF4444" />
-          <Path data={PDF_ICON_FOLD} fill="#B91C1C" fillOpacity={0.5} />
+            <Path data={PDF_ICON_BODY} fill={config.primaryColor} />
+            <Path data={PDF_ICON_FOLD} fill={config.primaryColor} fillOpacity={0.5} />
         </Group>
+        ) : (
+          <Text text={config.icon} fontSize={16} />
+        )}
         <Text
           x={24}
           y={2}
-          text="PDF Document"
+          text={config.label}
           fontSize={12}
           fontStyle="bold"
           fill="#78716C"
@@ -405,64 +1008,43 @@ const SourcePreviewCard = ({
       {/* Header Separator */}
       <Line points={[0, 40, width, 40]} stroke="#F5F5F4" strokeWidth={1} />
 
-      {/* 3. Body (Preview Area) */}
+      {/* Body */}
       <Rect
         x={1}
         y={40}
         width={width - 2}
         height={displayHeight - 90}
-        fill="#FFF7ED" // Orange-50 equivalent
+        fill={config.bodyBgColor}
         opacity={0.5}
       />
 
-      {/* Thumbnail Logic */}
+      {/* Thumbnail */}
       {thumbUrl ? (
         <Group x={(width - 120) / 2} y={55}>
-          {/* Shadow for Paper */}
-          <Rect
-            x={4}
-            y={4}
-            width={120}
-            height={150} // Aspect ratio approx
-            fill="black"
-            opacity={0.1}
-            cornerRadius={2}
-            blurRadius={4}
-          />
-          {/* White Paper Bg */}
-          <Rect
-            width={120}
-            height={150}
-            fill="white"
-            cornerRadius={2}
-          />
-          {/* Image */}
-          <URLImage
-            src={thumbUrl}
-            width={120}
-            height={150}
-            cornerRadius={2}
-          />
+          <Rect x={4} y={4} width={120} height={150} fill="black" opacity={0.1} cornerRadius={2} />
+          <Rect width={120} height={150} fill="white" cornerRadius={2} />
+          <URLImage src={thumbUrl} width={120} height={150} cornerRadius={2} />
         </Group>
       ) : (
-        /* Placeholder */
         <Group x={(width - 100) / 2} y={60}>
           <Rect width={100} height={130} fill="white" stroke="#E7E5E4" dash={[4, 4]} cornerRadius={4} />
           <Text x={10} y={60} text="No Preview" fontSize={12} fill="#A8A29E" />
         </Group>
       )}
 
-      {/* 4. Footer */}
+      {/* Footer */}
       <Line points={[0, displayHeight - 50, width, displayHeight - 50]} stroke="#F5F5F4" strokeWidth={1} />
 
       <Group x={12} y={displayHeight - 38}>
-        {/* Icon Box */}
-        <Rect width={28} height={28} fill="#FEF2F2" cornerRadius={6} />
+        <Rect width={28} height={28} fill={config.iconBgColor} cornerRadius={6} />
+        {fileType === 'pdf' ? (
         <Group x={6} y={6} scaleX={0.7} scaleY={0.7}>
-          <Path data={PDF_ICON_BODY} fill="#DC2626" />
+            <Path data={PDF_ICON_BODY} fill={config.primaryColor} />
         </Group>
+        ) : (
+          <Text x={6} y={4} text={config.icon} fontSize={14} />
+        )}
 
-        {/* Text Info */}
         <Group x={36} y={-2}>
           <Text
             text={node.title}
@@ -475,7 +1057,7 @@ const SourcePreviewCard = ({
           />
           <Text
             y={18}
-            text={node.fileMetadata?.pageCount ? `${node.fileMetadata.pageCount} pages` : 'Unknown size'}
+            text={config.metaLabel(node.fileMetadata)}
             fontSize={10}
             fill="#78716C"
           />
@@ -3512,6 +4094,50 @@ export default function KonvaCanvas({
                     fileType: data.fileType || 'pdf',
                     pageCount: data.pageCount,
                     thumbnailUrl: data.thumbnailUrl,
+                  },
+                  viewType: 'free' as const,
+                  subType: 'source' as const,
+                };
+                onNodeAdd(nodeData);
+                handled = true;
+              }
+              
+              // Handle URL drops from sidebar (YouTube, Bilibili, Douyin, Web)
+              if (data.type === 'url') {
+                // Map platform to fileType
+                const platformToFileType: Record<string, 'youtube' | 'video' | 'bilibili' | 'douyin' | 'web'> = {
+                  youtube: 'youtube',
+                  bilibili: 'bilibili',
+                  douyin: 'douyin',
+                  web: 'web',
+                };
+                const fileType = platformToFileType[data.platform] || 'web';
+                
+                // Video cards are wider than regular cards for better thumbnail display
+                const videoCardWidth = 320;
+                // Calculate proper height for video cards based on 16:9 thumbnail
+                const videoCardHeight = 48 + ((videoCardWidth - 32) * 9 / 16) + 90 + 44 + 20; // header + thumb + info + link + padding
+                
+                const nodeData = {
+                  type: 'knowledge',
+                  title: data.title || data.url,
+                  content: data.content || '',
+                  x: centeredX - (videoCardWidth - cardWidth) / 2, // Center the wider card
+                  y: centeredY,
+                  width: videoCardWidth,
+                  height: Math.ceil(videoCardHeight), // Dynamic height for video cards
+                  color: fileType === 'youtube' ? 'red' : 'blue',
+                  tags: [`#${data.platform || 'url'}`],
+                  sourceId: data.id,
+                  fileMetadata: {
+                    fileType: fileType,
+                    thumbnailUrl: data.thumbnailUrl,
+                    videoId: data.videoId || data.metadata?.videoId,
+                    duration: data.duration || data.metadata?.duration,
+                    channelName: data.channelName || data.metadata?.channelName,
+                    viewCount: data.viewCount || data.metadata?.viewCount,
+                    publishedAt: data.publishedAt || data.metadata?.publishedAt,
+                    sourceUrl: data.url,
                   },
                   viewType: 'free' as const,
                   subType: 'source' as const,

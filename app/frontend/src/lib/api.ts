@@ -199,11 +199,18 @@ export interface CanvasNode {
   // Phase 1: Source Node support (The Portal)
   subType?: 'source' | 'note' | 'insight';  // Distinguishes source files from regular notes
   fileMetadata?: {
-    fileType: 'pdf' | 'markdown' | 'web' | 'text';
+    fileType: 'pdf' | 'markdown' | 'web' | 'text' | 'youtube' | 'video' | 'bilibili' | 'douyin';
     pageCount?: number;
     author?: string;
     lastModified?: string;
-    thumbnailUrl?: string;  // PDF first page thumbnail
+    thumbnailUrl?: string;  // PDF first page thumbnail or video thumbnail
+    // Video-specific metadata
+    videoId?: string;
+    duration?: number;
+    channelName?: string;
+    viewCount?: string;
+    publishedAt?: string;
+    sourceUrl?: string;
   };
   // === Thinking Graph Fields (Dynamic Mind Map) ===
   thinkingStepIndex?: number;  // Step number in the thinking sequence
