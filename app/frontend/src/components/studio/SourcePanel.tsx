@@ -40,6 +40,7 @@ const PDFViewer = dynamic(
 
 // Import createDragHandler separately since it doesn't access document at module level
 import { createDragHandler } from '@/components/pdf/DragHandler';
+import WebPagePreviewPanel from '@/components/studio/WebPagePreviewPanel';
 
 interface SourcePanelProps {
   visible: boolean;
@@ -63,7 +64,7 @@ interface PendingUrlExtraction {
 }
 
 export default function SourcePanel({ visible, width, onToggle }: SourcePanelProps) {
-  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, sourceNavigation } = useStudio();
+  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, sourceNavigation, addNodeToCanvas } = useStudio();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
   const [numPages, setNumPages] = useState<number>(0);
@@ -375,6 +376,32 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   const goToNextPage = () => {
     setPageNumber(prev => Math.min(prev + 1, numPages));
+  };
+
+  // Add web page to canvas
+  const handleAddWebPageToCanvas = (doc: ProjectDocument) => {
+    if (!doc.source_url) return;
+
+    // Add node to canvas using useStudio hook
+    addNodeToCanvas({
+      type: 'knowledge', // Standard knowledge type for source nodes
+      title: doc.title || doc.filename || 'Web Page',
+      content: doc.summary || '', // Web nodes use summary as content preview
+      x: 100, // Default position (usually centered by canvas logic if available, or static)
+      y: 100,
+      width: 320, // Standard width for web cards
+      height: 480, // Standard height
+      color: '#F0FDFA', // Teal-50 (Web theme)
+      tags: ['#web'],
+      viewType: 'free',
+      subType: 'source',
+      sourceId: doc.id,
+      fileMetadata: {
+        fileType: 'web',
+        sourceUrl: doc.source_url,
+        thumbnailUrl: doc.thumbnail_url,
+      }
+    });
   };
 
   // Delete handlers
@@ -1030,9 +1057,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         </div>
       </div>
 
-      {/* PDF Viewer */}
-      {activeDocument && fileUrl && (
+      {/* Document Viewer (PDF or Web Preview) */}
+      {activeDocument && (
         <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderTop: '1px solid', borderColor: colors.border.default }}>
+
+          {/* Viewer Header */}
           <div
             onMouseDown={handleVerticalMouseDown}
             style={{
@@ -1050,39 +1079,44 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Chip
-                label="PDF"
+                label={activeDocument.file_type === 'web' ? 'WEB' : 'PDF'}
                 size="sm"
                 style={{
                   height: 20,
                   fontSize: 10,
                   fontWeight: 'bold',
-                  backgroundColor: '#FEE2E2',
-                  color: '#DC2626'
+                  backgroundColor: activeDocument.file_type === 'web' ? '#F0FDFA' : '#FEE2E2',
+                  color: activeDocument.file_type === 'web' ? '#0D9488' : '#DC2626'
                 }}
               />
               <Text variant="bodySmall" className="truncate" style={{ maxWidth: 150 }}>{activeDocument.filename}</Text>
             </div>
+
+            {/* Controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              {/* Pagination Controls */}
-              <IconButton
-                size="sm"
-                onClick={goToPrevPage}
-                disabled={pageNumber <= 1}
-                style={{ padding: 4 }}
-              >
-                <ChevronLeftIcon size={16} />
-              </IconButton>
-              <Text variant="caption" style={{ minWidth: 60, textAlign: 'center' }}>
-                {pageNumber} / {numPages}
-              </Text>
-              <IconButton
-                size="sm"
-                onClick={goToNextPage}
-                disabled={pageNumber >= numPages}
-                style={{ padding: 4 }}
-              >
-                <ChevronRightIcon size={16} />
-              </IconButton>
+              {activeDocument.file_type !== 'web' && (
+                <>
+                  <IconButton
+                    size="sm"
+                    onClick={goToPrevPage}
+                    disabled={pageNumber <= 1}
+                    style={{ padding: 4 }}
+                  >
+                    <ChevronLeftIcon size={16} />
+                  </IconButton>
+                  <Text variant="caption" style={{ minWidth: 60, textAlign: 'center' }}>
+                    {pageNumber} / {numPages}
+                  </Text>
+                  <IconButton
+                    size="sm"
+                    onClick={goToNextPage}
+                    disabled={pageNumber >= numPages}
+                    style={{ padding: 4 }}
+                  >
+                    <ChevronRightIcon size={16} />
+                  </IconButton>
+                </>
+              )}
 
               <IconButton size="sm" onClick={() => setIsReaderExpanded(!isReaderExpanded)} style={{ marginLeft: 8 }}>
                 {isReaderExpanded ? <FullscreenExitIcon size={14} /> : <FullscreenIcon size={14} />}
@@ -1090,15 +1124,26 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             </div>
           </div>
 
+          {/* Viewer Content */}
           <div style={{ flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <PDFViewer
-              documentId={activeDocument.id}
-              fileUrl={fileUrl}
-              pageNumber={pageNumber}
-              onPageChange={setPageNumber}
-              onDocumentLoad={onDocumentLoadSuccess}
-              highlightText={sourceNavigation?.searchText}
-            />
+            {activeDocument.file_type === 'web' ? (
+              <WebPagePreviewPanel
+                title={activeDocument.title || activeDocument.filename}
+                sourceUrl={activeDocument.source_url || ''}
+                content={activeDocument.summary} // Using summary as preview content for now
+                thumbnailUrl={activeDocument.thumbnail_url}
+                onAddToCanvas={() => handleAddWebPageToCanvas(activeDocument)}
+              />
+            ) : fileUrl ? (
+              <PDFViewer
+                documentId={activeDocument.id}
+                fileUrl={fileUrl}
+                pageNumber={pageNumber}
+                onPageChange={setPageNumber}
+                onDocumentLoad={onDocumentLoadSuccess}
+                highlightText={sourceNavigation?.searchText}
+              />
+            ) : null}
           </div>
         </div>
       )}
