@@ -23,6 +23,10 @@ class GenerateOutputRequest(BaseModel):
         default_factory=list,
         description="List of document IDs to generate output from",
     )
+    url_content_ids: List[UUID] = Field(
+        default_factory=list,
+        description="List of URL content IDs (YouTube, web pages, etc.) to generate output from",
+    )
     title: Optional[str] = Field(
         None,
         description="Optional title for the output",

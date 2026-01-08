@@ -16,6 +16,7 @@ from research_agent.domain.entities.config import (
     RetrievalStrategyType,
 )
 from research_agent.domain.entities.document import Document, DocumentStatus
+from research_agent.domain.entities.resource import Resource, ResourceType
 from research_agent.domain.entities.graph import (
     Entity,
     EntityType,
@@ -32,6 +33,9 @@ __all__ = [
     "Document",
     "DocumentStatus",
     "DocumentChunk",
+    # Resource (unified abstraction)
+    "Resource",
+    "ResourceType",
     # Canvas
     "Canvas",
     "CanvasNode",

@@ -678,7 +678,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
               />
             ))}
 
-            {documents.length === 0 && !isUploading && (
+            {documents.length === 0 && urlContents.length === 0 && pendingUrlExtractions.length === 0 && !isUploading && (
               <Text variant="bodySmall" color="secondary" style={{ textAlign: 'center', padding: '16px 0' }}>
                 No documents yet. Import one to get started.
               </Text>

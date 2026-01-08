@@ -184,6 +184,7 @@ class Settings(BaseSettings):
     # URL Extraction Configuration
     url_extraction_timeout: int = 60  # Timeout for URL extraction tasks (seconds)
     url_content_max_length: int = 50000  # Maximum content length (characters)
+    disable_ssrf_check: bool = False  # Disable SSRF protection (only for development/testing)
 
     @property
     def cors_origins_list(self) -> List[str]:

@@ -5,6 +5,8 @@ import re
 import socket
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+from research_agent.config import get_settings
+
 # Platform detection patterns
 PLATFORM_PATTERNS = {
     "youtube": [
@@ -79,6 +81,12 @@ def validate_url(url: str) -> tuple[bool, str | None]:
     # Basic length check
     if len(url) > 2048:
         return False, "URL is too long (max 2048 characters)"
+
+    # Check if SSRF protection is disabled (for development/testing)
+    settings = get_settings()
+    if settings.disable_ssrf_check:
+        print(f"[URL Validation] SSRF check disabled, allowing URL: {url}")
+        return True, None
 
     # SSRF Protection: Check for private IPs
     try:

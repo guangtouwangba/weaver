@@ -206,6 +206,7 @@ function MindMapCanvasNodeInner({
             style={{
               flex: 1,
               minWidth: 0,
+              overflow: 'hidden',
               cursor: 'grab',
               userSelect: 'none',
             }}
@@ -240,8 +241,18 @@ function MindMapCanvasNodeInner({
             </div>
 
             {/* Title */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Text variant="label" truncate style={{ fontSize: '0.85rem' }}>
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+              <Text
+                variant="label"
+                truncate
+                style={{
+                  fontSize: '0.85rem',
+                  display: 'block',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
                 {title}
               </Text>
             </div>

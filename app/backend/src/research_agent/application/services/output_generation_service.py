@@ -30,6 +30,7 @@ from research_agent.domain.entities.output import (
 from research_agent.infrastructure.database.repositories.sqlalchemy_document_repo import (
     SQLAlchemyDocumentRepository,
 )
+from research_agent.infrastructure.resource_resolver import ResourceResolver
 from research_agent.infrastructure.database.repositories.sqlalchemy_output_repo import (
     SQLAlchemyOutputRepository,
 )
@@ -93,6 +94,7 @@ class OutputGenerationService:
         title: Optional[str],
         options: Dict[str, Any],
         session: AsyncSession,
+        url_content_ids: Optional[List[UUID]] = None,
     ) -> Dict[str, Any]:
         """
         Start a new output generation task.
@@ -104,18 +106,22 @@ class OutputGenerationService:
             title: Optional title
             options: Generation options
             session: Database session
+            url_content_ids: Optional list of URL content IDs (YouTube, web, etc.)
 
         Returns:
             Dict with task_id and output_id
         """
-        # Validate document_ids is not empty, except for types that use node_data
+        url_content_ids = url_content_ids or []
+        
+        # Validate that we have some content source, except for types that use node_data
         # Custom, article, and action_list types can work with canvas node_data instead of documents
         types_with_node_data = ("custom", "article", "action_list")
         has_node_data = options and (options.get("node_data") or options.get("mode"))
         is_type_with_node_data = output_type in types_with_node_data and has_node_data
+        has_content_source = document_ids or url_content_ids
         
-        if not document_ids and not is_type_with_node_data:
-            raise ValueError("At least one document ID is required for output generation")
+        if not has_content_source and not is_type_with_node_data:
+            raise ValueError("At least one document ID or URL content ID is required for output generation")
 
         task_id = str(uuid4())
         output_id = uuid4()
@@ -123,7 +129,7 @@ class OutputGenerationService:
 
         logger.info(
             f"[OutputService] Starting generation: task={task_id}, "
-            f"project={project_id}, type={output_type}"
+            f"project={project_id}, type={output_type}, docs={len(document_ids)}, urls={len(url_content_ids)}"
         )
 
         # Create output record
@@ -154,6 +160,7 @@ class OutputGenerationService:
             self._run_generation(
                 task_info=task_info,
                 document_ids=document_ids,
+                url_content_ids=url_content_ids,
                 title=title,
                 options=options,
             )
@@ -179,12 +186,14 @@ class OutputGenerationService:
         document_ids: List[UUID],
         title: Optional[str],
         options: Dict[str, Any],
+        url_content_ids: Optional[List[UUID]] = None,
     ) -> None:
         """
         Run the generation task.
 
         This runs in a separate asyncio task.
         """
+        url_content_ids = url_content_ids or []
         project_id = task_info.project_id
         task_id = task_info.task_id
         output_id = task_info.output_id
@@ -232,8 +241,10 @@ class OutputGenerationService:
                         if not document_content:
                             raise ValueError("No valid node content available in node_data")
                     else:
-                        # Load document content normally
-                        document_content = await self._load_document_content(document_ids, session)
+                        # Load document content (from both documents and URL contents)
+                        document_content = await self._load_document_content(
+                            document_ids, session, url_content_ids
+                        )
 
                         if not document_content:
                             raise ValueError("No document content available")
@@ -750,26 +761,35 @@ class OutputGenerationService:
         self,
         document_ids: List[UUID],
         session: AsyncSession,
+        url_content_ids: Optional[List[UUID]] = None,
     ) -> str:
-        """Load and combine content from documents."""
-        document_repo = SQLAlchemyDocumentRepository(session)
-        contents: List[str] = []
-
-        for doc_id in document_ids:
-            document = await document_repo.find_by_id(doc_id)
-            if not document:
-                logger.warning(f"[OutputService] Document not found: {doc_id}")
-                continue
-
-            # Prefer full_content, fall back to summary
-            if document.full_content:
-                contents.append(f"# {document.original_filename}\n\n{document.full_content}")
-            elif document.summary:
-                contents.append(f"# {document.original_filename}\n\n{document.summary}")
-            else:
-                logger.warning(f"[OutputService] No content for document: {doc_id}")
-
-        return "\n\n---\n\n".join(contents)
+        """
+        Load and combine content from documents and URL contents.
+        
+        Uses ResourceResolver for unified content loading across all resource types.
+        """
+        # Combine all resource IDs
+        all_resource_ids = list(document_ids)
+        if url_content_ids:
+            all_resource_ids.extend(url_content_ids)
+        
+        if not all_resource_ids:
+            return ""
+        
+        # Use ResourceResolver for unified content loading
+        resolver = ResourceResolver(session)
+        combined_content = await resolver.get_combined_content(all_resource_ids)
+        
+        # Log what was loaded
+        resources = await resolver.resolve_many(all_resource_ids)
+        for resource in resources:
+            content_len = len(resource.content) if resource.content else 0
+            logger.info(
+                f"[OutputService] Loaded {resource.type.value} ({resource.platform}): "
+                f"{resource.title[:50]}... ({content_len} chars)"
+            )
+        
+        return combined_content
 
     async def list_outputs(
         self,

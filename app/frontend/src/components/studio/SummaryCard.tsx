@@ -67,8 +67,19 @@ export default function SummaryCard({
           </div>
 
           {/* Title Info */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Text variant="label" truncate style={{ lineHeight: 1.2, marginBottom: 4 }}>
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <Text
+              variant="label"
+              truncate
+              style={{
+                lineHeight: 1.2,
+                marginBottom: 4,
+                display: 'block',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
               {title}
             </Text>
             <Stack direction="row" align="center" gap={0} style={{ gap: 4 }}>

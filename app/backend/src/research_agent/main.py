@@ -101,6 +101,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info(f"    - Citation Format: {settings.citation_format}")
     logger.info("=" * 60)
 
+    # Log URL extraction settings
+    if settings.disable_ssrf_check:
+        logger.warning("⚠️  SSRF Check DISABLED - only use in development!")
+    else:
+        logger.info("🔒 SSRF Check enabled (production mode)")
+
     # Initialize database - will not raise on failure, app will start anyway
     try:
         await init_db()

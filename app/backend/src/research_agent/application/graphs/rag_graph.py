@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
+from research_agent.shared.utils.rag_trace import rag_log, rag_log_with_timing
 
 # Query rewrite cache (in-memory, simple LRU could be added later)
 _rewrite_cache: dict[str, dict[str, str]] = {}
@@ -508,6 +509,14 @@ NOT: "如何通过配置文件定义图谱模式的Node对象？" ✗"""
             logger.warning("Validation failed, using original")
             rewritten = question
 
+        # Log to trace
+        rag_log(
+            "TRANSFORM",
+            original=question[:50],
+            rewritten=rewritten[:50],
+            changed=question != rewritten,
+            history_turns=len(chat_history),
+        )
         logger.info(f"[Rewrite] '{question}' -> '{rewritten}'")
 
         result = {"rewritten_question": rewritten, "question": question}
@@ -731,6 +740,13 @@ async def classify_intent(
             f"[Intent] Classified as {intent_type.value} (confidence: {intent_confidence:.2f})"
         )
 
+        # Log to trace
+        rag_log(
+            "INTENT",
+            intent_type=intent_type.value,
+            confidence=round(intent_confidence, 2),
+        )
+
         # Get strategies for this intent
         retrieval_strategy, generation_strategy = INTENT_STRATEGIES[intent_type]
 
@@ -909,6 +925,10 @@ async def retrieve_long_context(
 
 async def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphState:
     """Retrieve documents from vector store using rewritten query and adaptive strategy."""
+    import time
+
+    start_time = time.time()
+
     # Use rewritten question if available, otherwise use original
     query = state.get("rewritten_question", state["question"])
 
@@ -934,7 +954,24 @@ async def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphStat
     # Async retriever call
     documents = await retriever._aget_relevant_documents(query)
 
-    logger.info(f"[Retrieve] Retrieved {len(documents)} documents")
+    # Calculate metrics
+    latency_ms = round((time.time() - start_time) * 1000, 2)
+    top_similarity = max(
+        [doc.metadata.get("similarity", 0.0) for doc in documents],
+        default=0.0,
+    )
+
+    # Log to trace
+    rag_log(
+        "RETRIEVE",
+        docs_count=len(documents),
+        top_similarity=round(top_similarity, 3),
+        search_type="hybrid" if retriever.use_hybrid_search else "vector",
+        top_k=retriever.k,
+        latency_ms=latency_ms,
+    )
+
+    logger.info(f"[Retrieve] Retrieved {len(documents)} documents in {latency_ms}ms")
     return {"documents": documents}
 
 
@@ -943,6 +980,9 @@ async def rerank(state: GraphState, llm: ChatOpenAI) -> GraphState:
     Rerank retrieved documents using LLM-based relevance scoring.
     Takes top-k documents and reranks them for better precision.
     """
+    import time
+
+    start_time = time.time()
     question = state.get("rewritten_question", state["question"])
     documents = state["documents"]
 
@@ -1003,12 +1043,26 @@ Output ONLY a single number between 0-10. No explanation."""
     sorted_docs = sorted(doc_scores, key=lambda x: x[0], reverse=True)
     reranked = [doc for score, doc in sorted_docs if score >= 5.0]  # Filter low scores
 
+    # Log to trace
+    latency_ms = round((time.time() - start_time) * 1000, 2)
+    rag_log(
+        "RERANK",
+        input_docs=len(documents),
+        output_docs=len(reranked),
+        top_score=round(sorted_docs[0][0], 1) if sorted_docs else 0,
+        latency_ms=latency_ms,
+    )
+
     logger.info(f"Reranking complete: {len(reranked)}/{len(documents)} docs passed (score >= 5)")
     return {"reranked_documents": reranked}
 
 
 def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Grade retrieved documents for relevance."""
+    import time
+
+    start_time = time.time()
+
     # Defensive check for required fields
     if "question" not in state and "rewritten_question" not in state:
         logger.error(f"[Grade] Missing 'question' in state. Available keys: {list(state.keys())}")
@@ -1074,6 +1128,16 @@ Reply with ONLY 'yes' or 'no'. Nothing else."""
             )
             # On error, include the document (fail-safe: better to include than exclude)
             filtered_docs.append(doc)
+
+    # Log to trace
+    latency_ms = round((time.time() - start_time) * 1000, 2)
+    rag_log(
+        "GRADE",
+        input_docs=len(documents),
+        passed_docs=len(filtered_docs),
+        filtered_count=len(documents) - len(filtered_docs),
+        latency_ms=latency_ms,
+    )
 
     logger.info(f"Grading complete. {len(filtered_docs)}/{len(documents)} documents passed")
     return {"filtered_documents": filtered_docs}
@@ -1341,6 +1405,10 @@ def generate_long_context(state: GraphState, llm: ChatOpenAI) -> GraphState:
 
 def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Generate answer from filtered documents with adaptive strategy."""
+    import time
+
+    start_time = time.time()
+
     # Check if we should use long context mode
     rag_mode = state.get("rag_mode", "traditional")
     if rag_mode in ("long_context", "hybrid") and state.get("long_context_content"):
@@ -1414,9 +1482,21 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
         generation = chain.invoke(
             {"question": question, "context": context}, config={"callbacks": get_callbacks()}
         )
-        logger.info(f"[Generate] Response generated: {len(generation)} chars")
+
+        # Log to trace
+        latency_ms = round((time.time() - start_time) * 1000, 2)
+        rag_log(
+            "GENERATE",
+            docs_used=len(documents),
+            context_chars=len(context),
+            answer_chars=len(generation),
+            latency_ms=latency_ms,
+        )
+
+        logger.info(f"[Generate] Response generated: {len(generation)} chars in {latency_ms}ms")
     except Exception as e:
         logger.error(f"[Generate] Failed to generate response: {e}")
+        rag_log("ERROR", stage="generate", error=str(e)[:100])
         generation = "I encountered an error while generating the response. Please try again."
 
     return {"generation": generation}

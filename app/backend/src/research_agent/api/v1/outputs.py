@@ -56,19 +56,20 @@ async def generate_output(
     """
     logger.info(
         f"[Outputs API] Generate request: project={project_id}, "
-        f"type={request.output_type}, docs={request.document_ids}"
+        f"type={request.output_type}, docs={request.document_ids}, urls={request.url_content_ids}"
     )
 
-    # Validate document_ids is not empty, except for types that use node_data
+    # Validate that we have some content source, except for types that use node_data
     # Custom, article, and action_list types can work with canvas node_data instead of documents
     types_with_node_data = ("custom", "article", "action_list")
     has_node_data = request.options and (request.options.get("node_data") or request.options.get("mode"))
     is_type_with_node_data = request.output_type in types_with_node_data and has_node_data
+    has_content_source = request.document_ids or request.url_content_ids
     
-    if not request.document_ids and not is_type_with_node_data:
+    if not has_content_source and not is_type_with_node_data:
         raise HTTPException(
             status_code=400,
-            detail="At least one document ID is required for output generation"
+            detail="At least one document ID or URL content ID is required for output generation"
         )
 
     try:
@@ -76,6 +77,7 @@ async def generate_output(
             project_id=project_id,
             output_type=request.output_type,
             document_ids=request.document_ids,
+            url_content_ids=request.url_content_ids,
             title=request.title,
             options=request.options or {},
             session=session,

@@ -1003,11 +1003,11 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                   )}
 
                   <div style={{ flex: 1 }}>
-                    {/* Show context references for user messages */}
-                    {msg.role === 'user' && msg.context_refs && (
+                    {/* Show context references for user messages - check both context_refs (from backend) and contextNodes (local) */}
+                    {msg.role === 'user' && (msg.context_refs || msg.contextNodes) && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-                        {/* Rich URL info */}
-                        {msg.context_refs.urls?.map((urlInfo) => {
+                        {/* Rich URL info from backend context_refs */}
+                        {msg.context_refs?.urls?.map((urlInfo) => {
                           const getPlatformIcon = (platform?: string) => {
                             switch (platform) {
                               case 'youtube': return <YoutubeIcon size={12} />;
@@ -1043,8 +1043,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                             />
                           );
                         })}
-                        {/* Fallback for plain url_ids */}
-                        {msg.context_refs.url_ids?.map((urlId) => (
+                        {/* Fallback for plain url_ids from backend */}
+                        {msg.context_refs?.url_ids?.map((urlId) => (
                           <Chip
                             key={urlId}
                             label="URL"
@@ -1059,11 +1059,29 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                             }}
                           />
                         ))}
-                        {msg.context_refs.nodes?.map((node) => (
+                        {/* Nodes from backend context_refs */}
+                        {msg.context_refs?.nodes?.map((node) => (
                           <Chip
                             key={node.id}
                             label={node.title}
                             size="sm"
+                            style={{
+                              height: 20,
+                              backgroundColor: colors.neutral[100],
+                              borderColor: colors.neutral[200],
+                              color: colors.neutral[700],
+                              fontSize: '11px',
+                              maxWidth: 120,
+                            }}
+                          />
+                        ))}
+                        {/* Local contextNodes (for newly sent messages before backend sync) */}
+                        {!msg.context_refs && msg.contextNodes?.map((node) => (
+                          <Chip
+                            key={node.id}
+                            label={node.title}
+                            size="sm"
+                            icon={<LinkIcon size={12} />}
                             style={{
                               height: 20,
                               backgroundColor: colors.neutral[100],
