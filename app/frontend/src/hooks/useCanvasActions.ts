@@ -24,6 +24,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
   const {
     addNodeToCanvas,
     documents,
+    urlContents,
     projectId,
     selectedDocumentIds,
     canvasNodes,
@@ -84,20 +85,24 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
   /**
    * Generate mindmap using WebSocket streaming for real-time node visualization
+   * Supports both documents and URL contents (YouTube, web pages, etc.)
    */
   const handleGenerateMindmapStreaming = useCallback(async (
     targetDocumentIds: string[],
     title: string,
-    docTitle: string
+    docTitle: string,
+    targetUrlContentIds?: string[]
   ) => {
     if (!projectId) return;
 
-    // Start generation via API
+    // Start generation via API (with both document IDs and URL content IDs)
     const { task_id, output_id } = await outputsApi.generate(
       projectId,
       'mindmap',
       targetDocumentIds,
-      title
+      title,
+      undefined, // options
+      targetUrlContentIds || []
     );
 
     console.log(`[Mindmap] Started streaming generation: task=${task_id}, output=${output_id}`);
@@ -321,8 +326,12 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
   const handleGenerateContent = useCallback(async (
     type: 'mindmap' | 'flashcards' | 'summary' | 'podcast' | 'quiz' | 'timeline' | 'compare'
   ) => {
-    if (!documents.length) {
-      console.warn('No documents to generate from');
+    // Check if we have any content sources (documents or URL contents)
+    const hasDocuments = documents.length > 0;
+    const hasUrlContents = urlContents && urlContents.length > 0;
+    
+    if (!hasDocuments && !hasUrlContents) {
+      console.warn('No documents or URL contents to generate from');
       return;
     }
 
@@ -340,35 +349,51 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     setShowMindmapOverlay(false);
 
     try {
-      const targetDocumentIds = selectedDocumentIds.size > 0
-        ? Array.from(selectedDocumentIds)
-        : documents.map(d => d.id).filter(id => id); // Filter out any undefined/null IDs
+      // Collect document IDs (if any documents exist)
+      const targetDocumentIds = hasDocuments
+        ? (selectedDocumentIds.size > 0
+            ? Array.from(selectedDocumentIds)
+            : documents.map(d => d.id).filter(id => id))
+        : [];
 
-      // Validate we have document IDs before proceeding
-      if (!targetDocumentIds || targetDocumentIds.length === 0) {
-        console.error('No valid document IDs available for generation');
-        setGenerationError('No documents available. Please upload documents first.');
+      // Collect URL content IDs (all completed URL contents - content is loaded by backend)
+      const targetUrlContentIds = hasUrlContents
+        ? urlContents.filter(u => u.status === 'completed').map(u => u.id)
+        : [];
+
+      // Validate we have some content source before proceeding
+      if (targetDocumentIds.length === 0 && targetUrlContentIds.length === 0) {
+        console.error('No valid content sources available for generation');
+        setGenerationError('No content available. Please upload documents or import URLs first.');
         setIsGenerating(false);
         return;
       }
 
-      const firstDocId = targetDocumentIds[0];
-      const firstDoc = documents.find(d => d.id === firstDocId);
-      const docTitle = firstDoc?.filename || 'Document';
+      // Determine title from first available source
+      let docTitle = 'Document';
+      if (targetDocumentIds.length > 0) {
+        const firstDoc = documents.find(d => d.id === targetDocumentIds[0]);
+        docTitle = firstDoc?.filename || 'Document';
+      } else if (targetUrlContentIds.length > 0) {
+        const firstUrl = urlContents.find(u => u.id === targetUrlContentIds[0]);
+        docTitle = firstUrl?.title || 'URL Content';
+      }
       const title = `Generated ${type}`;
 
-      console.log(`Starting ${type} generation...`);
+      console.log(`Starting ${type} generation, docs=${targetDocumentIds.length}, urls=${targetUrlContentIds.length}`);
 
       // Use streaming for mindmap, polling for others
       if (type === 'mindmap') {
-        await handleGenerateMindmapStreaming(targetDocumentIds, title, docTitle);
+        await handleGenerateMindmapStreaming(targetDocumentIds, title, docTitle, targetUrlContentIds);
       } else {
         // Start generation and poll for completion
         const { output_id } = await outputsApi.generate(
           projectId,
           type as 'summary' | 'flashcards',
           targetDocumentIds,
-          title
+          title,
+          undefined,
+          targetUrlContentIds
         );
 
         await handleFallbackPolling(output_id, type, docTitle);
@@ -383,6 +408,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     }
   }, [
     documents,
+    urlContents,
     selectedDocumentIds,
     projectId,
     setIsGenerating,
@@ -423,13 +449,18 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
    * Concurrent (non-blocking) version of content generation.
    * Starts generation in background and updates task state.
    * Does NOT block the UI or wait for completion.
+   * Supports both documents and URL contents (YouTube, web pages, etc.)
    */
   const handleGenerateContentConcurrent = useCallback((
     type: GenerationType,
     position: { x: number; y: number }
   ) => {
-    if (!documents.length) {
-      console.warn('No documents to generate from');
+    // Check if we have any content sources (documents or URL contents)
+    const hasDocuments = documents.length > 0;
+    const hasUrlContents = urlContents && urlContents.length > 0;
+    
+    if (!hasDocuments && !hasUrlContents) {
+      console.warn('No documents or URL contents to generate from');
       return;
     }
 
@@ -441,33 +472,49 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     // Start a new generation task (non-blocking)
     const taskId = startGeneration(type, position);
 
-    const targetDocumentIds = selectedDocumentIds.size > 0
-      ? Array.from(selectedDocumentIds)
-      : documents.map(d => d.id).filter(id => id); // Filter out any undefined/null IDs
+    // Collect document IDs (if any documents exist)
+    const targetDocumentIds = hasDocuments
+      ? (selectedDocumentIds.size > 0
+          ? Array.from(selectedDocumentIds)
+          : documents.map(d => d.id).filter(id => id))
+      : [];
 
-    // Validate we have document IDs before proceeding
-    if (!targetDocumentIds || targetDocumentIds.length === 0) {
-      console.error('[Concurrent] No valid document IDs available for generation');
-      failGeneration(taskId, 'No documents available. Please upload documents first.');
+    // Collect URL content IDs (all completed URL contents - content is loaded by backend)
+    const targetUrlContentIds = hasUrlContents
+      ? urlContents.filter(u => u.status === 'completed').map(u => u.id)
+      : [];
+
+    // Validate we have some content source before proceeding
+    if (targetDocumentIds.length === 0 && targetUrlContentIds.length === 0) {
+      console.error('[Concurrent] No valid content sources available for generation');
+      failGeneration(taskId, 'No content available. Please upload documents or import URLs first.');
       return taskId;
     }
 
-    const firstDocId = targetDocumentIds[0];
-    const firstDoc = documents.find(d => d.id === firstDocId);
-    const docTitle = firstDoc?.filename || 'Document';
+    // Determine title from first available source
+    let docTitle = 'Document';
+    if (targetDocumentIds.length > 0) {
+      const firstDoc = documents.find(d => d.id === targetDocumentIds[0]);
+      docTitle = firstDoc?.filename || 'Document';
+    } else if (targetUrlContentIds.length > 0) {
+      const firstUrl = urlContents.find(u => u.id === targetUrlContentIds[0]);
+      docTitle = firstUrl?.title || 'URL Content';
+    }
     const title = `Generated ${type}`;
 
-    console.log(`[Concurrent] Starting ${type} generation, task=${taskId}...`);
+    console.log(`[Concurrent] Starting ${type} generation, task=${taskId}, docs=${targetDocumentIds.length}, urls=${targetUrlContentIds.length}`);
 
     // Start the generation process asynchronously (fire and forget)
     (async () => {
       try {
-        // Start generation via API
+        // Start generation via API (with both document IDs and URL content IDs)
         const { task_id, output_id } = await outputsApi.generate(
           projectId,
           type as 'summary' | 'mindmap' | 'flashcards',
           targetDocumentIds,
-          title
+          title,
+          undefined, // options
+          targetUrlContentIds
         );
 
         // Update task with backend IDs
@@ -491,7 +538,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     })();
 
     return taskId;
-  }, [documents, selectedDocumentIds, projectId, startGeneration, updateGenerationTask, failGeneration]);
+  }, [documents, urlContents, selectedDocumentIds, projectId, startGeneration, updateGenerationTask, failGeneration]);
 
   /**
    * WebSocket streaming for mindmap generation (concurrent version)

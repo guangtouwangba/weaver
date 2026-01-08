@@ -7,6 +7,158 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Observability - 2026-01-08
+
+#### RAG Pipeline Tracing System
+
+**Author:** aqiu
+
+**Overview:**
+Implemented end-to-end tracing for the RAG pipeline to enable debugging, performance analysis, and optimization. Each request now generates a unique trace_id that propagates through all pipeline stages.
+
+**Key Changes:**
+
+1. **New RAGTrace Module** (`shared/utils/rag_trace.py`):
+   - `RAGTrace` class: Context manager for request-level tracing with unique trace_id
+   - `rag_log()` function: Log to current trace from anywhere in the pipeline
+   - `rag_log_with_timing()`: Automatic latency calculation
+   - Context variable for trace propagation across async calls
+
+2. **Pipeline Stage Logging**:
+   - `ENTRY`: Request start with query and config
+   - `HISTORY`: Chat history retrieval
+   - `CONTEXT`: Canvas/URL context resolution
+   - `TRANSFORM`: Query rewriting with change detection
+   - `INTENT`: Intent classification with confidence score
+   - `RETRIEVE`: Document retrieval with similarity scores
+   - `RERANK`: LLM-based reranking (optional)
+   - `GRADE`: Document relevance filtering
+   - `GENERATE`: Response generation with token count
+   - `COMPLETE`: Request summary with total latency
+
+3. **Integration Points**:
+   - `StreamMessageUseCase.execute()`: Wraps entire RAG flow in trace context
+   - `rag_graph.py` stages: All key functions log to trace
+
+4. **Grafana LogQL Queries** (added to `logging/GRAFANA_QUERIES.md`):
+   - Trace single requests by trace_id
+   - P95 latency analysis
+   - Stage-by-stage latency breakdown
+   - Intent distribution analysis
+   - Retrieval quality metrics
+   - Error tracking
+
+**Log Format:**
+```
+[RAG:abc12345] 🔍 RETRIEVE | docs_count=5 | top_similarity=0.85 | latency_ms=120 | JSON: {...}
+```
+
+**Benefits:**
+- Fast debugging: grep by trace_id to see complete request flow
+- Performance optimization: identify slow stages
+- Quality analysis: track retrieval similarity and intent confidence
+- Error correlation: link errors to specific requests
+
+---
+
+### Architecture - 2026-01-08
+
+#### Unified Resource Model (Phase 1)
+
+**Overview:**
+Introduced a `Resource` abstraction layer to unify content access across different source types (documents, URLs, videos, audio). This enables generation features (mindmap, summary, etc.) and chat context to work with any content type through a single interface.
+
+**Key Changes:**
+
+1. **New Domain Entity** (`domain/entities/resource.py`):
+   - `ResourceType` enum: Content categories (DOCUMENT, VIDEO, AUDIO, WEB_PAGE, IMAGE, NOTE)
+   - `Resource` dataclass: Unified interface with id, type, title, content, metadata, etc.
+   - Platform is stored in `metadata.platform` (e.g., "youtube", "local", "web")
+
+2. **New Infrastructure Service** (`infrastructure/resource_resolver.py`):
+   - `ResourceResolver`: Resolves UUIDs to unified `Resource` objects
+   - `resolve()`: Single resource lookup with optional type/platform hints
+   - `resolve_many()`: Batch resolution with optimized queries
+   - `get_content()`: Shortcut for content retrieval
+   - `get_combined_content()`: Format and combine multiple resources
+
+3. **Service Layer Integration**:
+   - `OutputGenerationService._load_document_content()`: Now uses `ResourceResolver` instead of direct model queries
+   - `StreamMessageUseCase`: URL context loading refactored to use `ResourceResolver`
+
+**Design Principles:**
+- **Content Category, Not Platform**: `ResourceType.VIDEO` covers YouTube, Bilibili, Douyin, and local files
+- **Backward Compatible**: Existing APIs continue to work
+- **Single Content Accessor**: One function to get content by any resource ID
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Resource Interface                       │
+│  id, type, title, content, metadata, created_at, updated_at │
+└─────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ adapts
+         ┌────────────────────┼────────────────────┐
+         │                    │                    │
+┌────────┴────────┐  ┌────────┴────────┐  ┌───────┴─────────┐
+│  DocumentModel  │  │ UrlContentModel │  │    (Future)     │
+│  (PDF, Word...) │  │ (YouTube, Web)  │  │                 │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+---
+
+### Fixed - 2026-01-08
+
+#### Mindmap/Summary Generation Doesn't Work with YouTube Videos (@aqiu)
+
+**Problem:**
+When a user imported a YouTube video and right-clicked to "Generate Mind Map" or "Generate Summary", no content was generated. The Inspiration Dock, mindmap generation, and summary generation only worked with PDF documents.
+
+**Root Cause:**
+1. **Frontend**: `handleGenerateContentConcurrent` only collected document IDs from `documents` list, completely ignoring `urlContents` (YouTube, web pages, etc.)
+2. **Backend API**: The `/outputs/generate` endpoint only accepted `document_ids` parameter, with no support for URL content IDs
+3. **Backend Service**: `_load_document_content` only queried `DocumentModel`, unable to load content from `UrlContentModel`
+
+**Fix:**
+1. **Backend DTO** (`output.py`): Added `url_content_ids` field to `GenerateOutputRequest`
+2. **Backend API** (`outputs.py`): Updated validation to accept either document IDs or URL content IDs
+3. **Backend Service** (`output_generation_service.py`):
+   - Updated `start_generation()` to accept `url_content_ids` parameter
+   - Updated `_run_generation()` to pass URL content IDs to content loader
+   - Updated `_load_document_content()` to also load content from `UrlContentModel` (YouTube transcripts, web page content, etc.)
+4. **Frontend API** (`api.ts`): Added `urlContentIds` parameter to `outputsApi.generate()`
+5. **Frontend Hooks** (`useCanvasActions.ts`):
+   - Added `urlContents` to destructured context
+   - Updated `handleGenerateContentConcurrent` to collect URL content IDs alongside document IDs
+   - Updated `handleGenerateContent` similarly
+   - Updated `handleGenerateMindmapStreaming` to accept URL content IDs
+
+**Code Changes:**
+```typescript
+// Before (frontend): Only used documents
+const targetDocumentIds = documents.map(d => d.id);
+await outputsApi.generate(projectId, type, targetDocumentIds, title);
+
+// After (frontend): Uses both documents and URL contents
+const targetDocumentIds = documents.map(d => d.id);
+const targetUrlContentIds = urlContents.filter(u => u.status === 'completed').map(u => u.id);
+await outputsApi.generate(projectId, type, targetDocumentIds, title, undefined, targetUrlContentIds);
+```
+
+```python
+# Before (backend): Only loaded documents
+async def _load_document_content(self, document_ids, session):
+    # Only queried DocumentModel
+
+# After (backend): Loads both documents and URL contents
+async def _load_document_content(self, document_ids, session, url_content_ids=None):
+    # Queries DocumentModel AND UrlContentModel
+```
+
+---
+
 ### Fixed - 2026-01-07
 
 #### AI Chat Uses Wrong Context When URL Content Is Provided (@aqiu)

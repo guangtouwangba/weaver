@@ -23,6 +23,8 @@ from research_agent.infrastructure.llm.langchain_openrouter import create_langch
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
 from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.shared.utils.logger import logger
+from research_agent.shared.utils.rag_trace import RAGTrace
+from research_agent.infrastructure.resource_resolver import ResourceResolver
 
 settings = get_settings()
 
@@ -111,9 +113,6 @@ class StreamMessageUseCase:
 
     async def execute(self, input: StreamMessageInput) -> AsyncIterator[StreamEvent]:
         """Execute the use case with streaming using LangGraph."""
-        logger.info(f"Processing query with LangGraph: {input.message[:50]}...")
-        logger.info(f"[RAG Mode] Current RAG mode: {input.rag_mode}")
-
         repo = SQLAlchemyChatRepository(self._session)
 
         # Get or create default session if not provided
@@ -121,6 +120,19 @@ class StreamMessageUseCase:
         if session_id is None:
             default_session = await repo.get_or_create_default_session(input.project_id)
             session_id = default_session.id
+
+        # Initialize RAG Trace for end-to-end observability
+        trace = RAGTrace(
+            query=input.message,
+            project_id=str(input.project_id),
+            session_id=str(session_id),
+            extra_context={
+                "rag_mode": input.rag_mode,
+                "model": self._model,
+                "top_k": input.top_k,
+                "hybrid_search": input.use_hybrid_search,
+            },
+        )
 
         # Build context references for the user message
         context_refs = None
@@ -179,282 +191,300 @@ class StreamMessageUseCase:
         response_sources: list = []
         retrieved_documents = []  # Store documents for evaluation
         retrieved_contexts = []  # Store context strings for evaluation
+        token_count = 0  # Track generated tokens
 
-        try:
-            # Get chat history for query rewriting and thinking path
-            chat_history = []
-            messages = await repo.get_history(
-                project_id=input.project_id,
-                session_id=session_id,
-                limit=10,
-            )
+        # Enter trace context for the main RAG pipeline
+        async with trace:
+            try:
+                # Get chat history for query rewriting and thinking path
+                chat_history = []
+                messages = await repo.get_history(
+                    project_id=input.project_id,
+                    session_id=session_id,
+                    limit=10,
+                )
+                trace.log("HISTORY", messages_count=len(messages))
 
-            # === Canvas Context Retrieval ===
-            canvas_context = ""
+                # === Canvas Context Retrieval ===
+                canvas_context = ""
+                canvas_node_count = 0
+                url_count = 0
 
-            # Priority 1: Use directly passed context_nodes (no DB lookup needed)
-            if input.context_nodes:
-                context_parts = []
-                for node in input.context_nodes:
-                    title = node.get("title", "Untitled")
-                    content = node.get("content", "")
-                    if content:
-                        context_parts.append(f"## Node: {title}\n{content}")
+                # Priority 1: Use directly passed context_nodes (no DB lookup needed)
+                if input.context_nodes:
+                    context_parts = []
+                    for node in input.context_nodes:
+                        title = node.get("title", "Untitled")
+                        content = node.get("content", "")
+                        if content:
+                            context_parts.append(f"## Node: {title}\n{content}")
 
-                if context_parts:
-                    canvas_context = "\n\n".join(context_parts)
-                    logger.info(
-                        f"[CanvasContext] Added {len(context_parts)} nodes from direct content ({len(canvas_context)} chars)"
-                    )
+                    if context_parts:
+                        canvas_context = "\n\n".join(context_parts)
+                        canvas_node_count = len(context_parts)
 
-            # Priority 2: Fallback to context_node_ids (DB lookup)
-            elif input.context_node_ids:
-                try:
-                    from research_agent.infrastructure.database.repositories.sqlalchemy_canvas_repo import (
-                        SQLAlchemyCanvasRepository,
-                    )
+                # Priority 2: Fallback to context_node_ids (DB lookup)
+                elif input.context_node_ids:
+                    try:
+                        from research_agent.infrastructure.database.repositories.sqlalchemy_canvas_repo import (
+                            SQLAlchemyCanvasRepository,
+                        )
 
-                    canvas_repo = SQLAlchemyCanvasRepository(self._session)
-                    canvas = await canvas_repo.find_by_project(input.project_id)
+                        canvas_repo = SQLAlchemyCanvasRepository(self._session)
+                        canvas = await canvas_repo.find_by_project(input.project_id)
 
-                    if canvas:
-                        context_parts = []
-                        for node_id in input.context_node_ids:
-                            node = canvas.find_node(node_id)
-                            if node:
-                                context_parts.append(f"## Node: {node.title}\n{node.content}")
+                        if canvas:
+                            context_parts = []
+                            for node_id in input.context_node_ids:
+                                node = canvas.find_node(node_id)
+                                if node:
+                                    context_parts.append(f"## Node: {node.title}\n{node.content}")
 
-                        if context_parts:
-                            canvas_context = "\n\n".join(context_parts)
-                            logger.info(
-                                f"[CanvasContext] Added {len(context_parts)} nodes from DB ({len(canvas_context)} chars)"
-                            )
-                except Exception as e:
-                    logger.error(
-                        f"[CanvasContext] Failed to retrieve canvas nodes: {e}", exc_info=True
-                    )
+                            if context_parts:
+                                canvas_context = "\n\n".join(context_parts)
+                                canvas_node_count = len(context_parts)
+                    except Exception as e:
+                        logger.error(
+                            f"[CanvasContext] Failed to retrieve canvas nodes: {e}", exc_info=True
+                        )
 
-            # === URL Content Context Retrieval ===
-            url_context = ""
-            if input.context_url_ids:
-                try:
-                    from research_agent.infrastructure.database.repositories.sqlalchemy_url_content_repo import (
-                        SQLAlchemyUrlContentRepository,
-                    )
+                # === URL Content Context Retrieval (via ResourceResolver) ===
+                url_context = ""
+                if input.context_url_ids:
+                    try:
+                        resolver = ResourceResolver(self._session)
+                        url_uuids = [UUID(uid) for uid in input.context_url_ids]
+                        resources = await resolver.resolve_many(url_uuids)
+                        
+                        url_context_parts = []
+                        max_content_length = 50000  # Truncate long transcripts/articles
 
-                    url_repo = SQLAlchemyUrlContentRepository(self._session)
-                    url_context_parts = []
-                    max_content_length = 50000  # Truncate long transcripts/articles
-
-                    for url_id in input.context_url_ids:
-                        try:
-                            url_content = await url_repo.get_by_id(UUID(url_id))
-                            if url_content and url_content.content:
-                                # Build platform label
-                                platform_label = url_content.platform.capitalize()
-                                if url_content.content_type == "video":
-                                    platform_label = f"{platform_label} Video"
-                                elif url_content.content_type == "article":
-                                    platform_label = f"{platform_label} Article"
-
+                        for resource in resources:
+                            if resource.has_content:
                                 # Truncate content if too long
-                                content = url_content.content
+                                content = resource.display_content
                                 if len(content) > max_content_length:
                                     content = content[:max_content_length] + "\n\n[Content truncated...]"
 
+                                # Build context with source info
+                                source_info = f"Source: {resource.source_url}\n\n" if resource.source_url else ""
                                 url_context_parts.append(
-                                    f"## {platform_label}: {url_content.title}\n"
-                                    f"Source: {url_content.url}\n\n{content}"
+                                    f"{resource.get_formatted_content().split(chr(10), 1)[0]}\n"
+                                    f"{source_info}{content}"
                                 )
-                        except Exception as e:
-                            logger.warning(f"[UrlContext] Failed to fetch URL content {url_id}: {e}")
 
-                    if url_context_parts:
-                        url_context = "\n\n---\n\n".join(url_context_parts)
-                        logger.info(
-                            f"[UrlContext] Added {len(url_context_parts)} URL contents ({len(url_context)} chars)"
-                        )
+                        if url_context_parts:
+                            url_context = "\n\n---\n\n".join(url_context_parts)
+                            url_count = len(url_context_parts)
 
-                except Exception as e:
-                    logger.error(f"[UrlContext] Failed to retrieve URL content: {e}", exc_info=True)
+                    except Exception as e:
+                        logger.error(f"[ResourceContext] Failed to retrieve URL content: {e}", exc_info=True)
 
-            # Combine canvas context and URL context
-            if url_context:
-                if canvas_context:
-                    canvas_context = canvas_context + "\n\n---\n\n" + url_context
-                else:
-                    canvas_context = url_context
+                # Combine canvas context and URL context
+                if url_context:
+                    if canvas_context:
+                        canvas_context = canvas_context + "\n\n---\n\n" + url_context
+                    else:
+                        canvas_context = url_context
 
-            if input.use_rewrite:
-                # Convert to (human, ai) tuples
-                chat_history = [
-                    (messages[i].content, messages[i + 1].content)
-                    for i in range(0, len(messages) - 1, 2)
-                    if i + 1 < len(messages)
-                    and messages[i].role == "user"
-                    and messages[i + 1].role == "ai"
-                ]
-                logger.info(f"Retrieved {len(chat_history)} chat history pairs")
-
-            # Create vector store and retriever with hybrid search option
-            vector_store = PgVectorStore(self._session)
-            retriever = create_pgvector_retriever(
-                vector_store=vector_store,
-                embedding_service=self._embedding_service,
-                project_id=input.project_id,
-                k=input.top_k,
-                use_hybrid_search=input.use_hybrid_search,
-            )
-
-            # Create LangChain LLM
-            llm = create_langchain_llm(
-                api_key=self._api_key,
-                model=self._model,
-                streaming=True,
-            )
-
-            # Stream response from enhanced LangGraph pipeline with intent classification
-            async for event in stream_rag_response(
-                question=input.message,
-                retriever=retriever,
-                llm=llm,
-                chat_history=chat_history,
-                use_rewrite=input.use_rewrite,
-                use_llm_rewrite=settings.use_llm_rewrite,  # NEW: Use LLM rewrite or rule-based expansion
-                use_intent_classification=input.use_intent_classification,
-                use_rerank=input.use_rerank,
-                use_grading=input.use_grading,
-                enable_intent_cache=settings.intent_cache_enabled,
-                rag_mode=input.rag_mode,
-                project_id=input.project_id,
-                session=self._session,
-                embedding_service=self._embedding_service,
-                canvas_context=canvas_context,
-            ):
-                if event["type"] == "sources":
-                    # Convert LangChain documents to SourceRef
-                    documents = event.get("documents", [])
-                    retrieved_documents = documents  # Store for evaluation
-
-                    sources = [
-                        SourceRef(
-                            document_id=UUID(doc.metadata["document_id"]),
-                            page_number=doc.metadata["page_number"],
-                            snippet=doc.page_content[:200] + "..."
-                            if len(doc.page_content) > 200
-                            else doc.page_content,
-                            similarity=doc.metadata.get("similarity", 0.0),
-                        )
-                        for doc in documents
-                    ]
-
-                    # Store contexts for evaluation
-                    retrieved_contexts = [doc.page_content for doc in documents]
-
-                    # Store for saving to DB
-                    response_sources = [
-                        {
-                            "document_id": str(s.document_id),
-                            "page_number": s.page_number,
-                            "snippet": s.snippet,
-                            "similarity": s.similarity,
-                        }
-                        for s in sources
-                    ]
-
-                    yield StreamEvent(type="sources", sources=sources)
-                elif event["type"] == "citations":
-                    # Handle citations from long context mode
-                    citations_data = event.get("citations", [])
-                    logger.info(f"[Stream] Received {len(citations_data)} citations")
-                    # Citations will be included in the final response
-                elif event["type"] == "status":
-                    # Forward thinking status events to frontend
-                    yield StreamEvent(
-                        type="status",
-                        step=event.get("step"),
-                        message=event.get("message"),
+                # Log context retrieval
+                if canvas_node_count > 0 or url_count > 0:
+                    trace.log(
+                        "CONTEXT",
+                        canvas_nodes=canvas_node_count,
+                        url_resources=url_count,
+                        context_chars=len(canvas_context),
                     )
-                elif event["type"] == "token":
-                    content = event.get("content", "")
-                    full_response += content
-                    yield StreamEvent(type="token", content=content)
-                elif event["type"] == "done":
-                    yield StreamEvent(type="done")
 
-            # Save AI Message
-            ai_message = None
-            if full_response:
-                ai_message = ChatMessage(
+                if input.use_rewrite:
+                    # Convert to (human, ai) tuples
+                    chat_history = [
+                        (messages[i].content, messages[i + 1].content)
+                        for i in range(0, len(messages) - 1, 2)
+                        if i + 1 < len(messages)
+                        and messages[i].role == "user"
+                        and messages[i + 1].role == "ai"
+                    ]
+
+                # Create vector store and retriever with hybrid search option
+                vector_store = PgVectorStore(self._session)
+                retriever = create_pgvector_retriever(
+                    vector_store=vector_store,
+                    embedding_service=self._embedding_service,
                     project_id=input.project_id,
-                    session_id=session_id,
-                    role="ai",
-                    content=full_response,
-                    sources=response_sources,
+                    k=input.top_k,
+                    use_hybrid_search=input.use_hybrid_search,
                 )
-                await repo.save(ai_message)
 
-            # === Auto Thinking Path Generation (Async, Non-blocking) ===
-            if input.auto_thinking_path and ai_message:
-                asyncio.create_task(
-                    self._auto_thinking_path(
+                # Create LangChain LLM
+                llm = create_langchain_llm(
+                    api_key=self._api_key,
+                    model=self._model,
+                    streaming=True,
+                )
+
+                # Stream response from enhanced LangGraph pipeline with intent classification
+                async for event in stream_rag_response(
+                    question=input.message,
+                    retriever=retriever,
+                    llm=llm,
+                    chat_history=chat_history,
+                    use_rewrite=input.use_rewrite,
+                    use_llm_rewrite=settings.use_llm_rewrite,  # NEW: Use LLM rewrite or rule-based expansion
+                    use_intent_classification=input.use_intent_classification,
+                    use_rerank=input.use_rerank,
+                    use_grading=input.use_grading,
+                    enable_intent_cache=settings.intent_cache_enabled,
+                    rag_mode=input.rag_mode,
+                    project_id=input.project_id,
+                    session=self._session,
+                    embedding_service=self._embedding_service,
+                    canvas_context=canvas_context,
+                ):
+                    if event["type"] == "sources":
+                        # Convert LangChain documents to SourceRef
+                        documents = event.get("documents", [])
+                        retrieved_documents = documents  # Store for evaluation
+
+                        # Calculate top similarity for logging
+                        top_similarity = max(
+                            [doc.metadata.get("similarity", 0.0) for doc in documents],
+                            default=0.0,
+                        )
+
+                        # Update trace metrics for final summary
+                        trace.metrics["docs_count"] = len(documents)
+                        trace.metrics["top_similarity"] = round(top_similarity, 3)
+
+                        sources = [
+                            SourceRef(
+                                document_id=UUID(doc.metadata["document_id"]),
+                                page_number=doc.metadata["page_number"],
+                                snippet=doc.page_content[:200] + "..."
+                                if len(doc.page_content) > 200
+                                else doc.page_content,
+                                similarity=doc.metadata.get("similarity", 0.0),
+                            )
+                            for doc in documents
+                        ]
+
+                        # Store contexts for evaluation
+                        retrieved_contexts = [doc.page_content for doc in documents]
+
+                        # Store for saving to DB
+                        response_sources = [
+                            {
+                                "document_id": str(s.document_id),
+                                "page_number": s.page_number,
+                                "snippet": s.snippet,
+                                "similarity": s.similarity,
+                            }
+                            for s in sources
+                        ]
+
+                        yield StreamEvent(type="sources", sources=sources)
+                    elif event["type"] == "citations":
+                        # Handle citations from long context mode
+                        citations_data = event.get("citations", [])
+                        trace.metrics["citations_count"] = len(citations_data)
+                    elif event["type"] == "status":
+                        # Forward thinking status events to frontend
+                        yield StreamEvent(
+                            type="status",
+                            step=event.get("step"),
+                            message=event.get("message"),
+                        )
+                    elif event["type"] == "token":
+                        content = event.get("content", "")
+                        full_response += content
+                        token_count += 1
+                        yield StreamEvent(type="token", content=content)
+                    elif event["type"] == "done":
+                        # Log final token count
+                        trace.metrics["token_count"] = token_count
+                        trace.metrics["answer_length"] = len(full_response)
+                        yield StreamEvent(type="done")
+
+                # Save AI Message
+                ai_message = None
+                if full_response:
+                    ai_message = ChatMessage(
                         project_id=input.project_id,
-                        ai_message=ai_message,
-                        recent_messages=messages,
+                        session_id=session_id,
+                        role="ai",
+                        content=full_response,
+                        sources=response_sources,
                     )
+                    await repo.save(ai_message)
+
+                # === Auto Thinking Path Generation (Async, Non-blocking) ===
+                if input.auto_thinking_path and ai_message:
+                    asyncio.create_task(
+                        self._auto_thinking_path(
+                            project_id=input.project_id,
+                            ai_message=ai_message,
+                            recent_messages=messages,
+                        )
+                    )
+
+                # === Auto-Evaluation (Async, Non-blocking) ===
+                if self._should_evaluate() and full_response and retrieved_contexts:
+                    # Trigger evaluation in background (don't await)
+                    asyncio.create_task(
+                        self._auto_evaluate(
+                            question=input.message,
+                            answer=full_response,
+                            contexts=retrieved_contexts,
+                            project_id=input.project_id,
+                            chunking_strategy="dynamic",  # Could be detected from config
+                            retrieval_mode="hybrid" if input.use_hybrid_search else "vector",
+                            llm=llm,
+                        )
+                    )
+
+                # === Memory Ingestion (Async, Non-blocking) ===
+                # Store the Q&A pair as a memory for future semantic retrieval
+                if full_response:
+                    asyncio.create_task(
+                        self._store_memory(
+                            project_id=input.project_id,
+                            question=input.message,
+                            answer=full_response,
+                        )
+                    )
+
+            except Exception as e:
+                import traceback
+
+                # Log error to trace
+                trace.log(
+                    "ERROR",
+                    error_type=type(e).__name__,
+                    error_message=str(e)[:200],
                 )
 
-            # === Auto-Evaluation (Async, Non-blocking) ===
-            if self._should_evaluate() and full_response and retrieved_contexts:
-                # Trigger evaluation in background (don't await)
-                asyncio.create_task(
-                    self._auto_evaluate(
-                        question=input.message,
-                        answer=full_response,
-                        contexts=retrieved_contexts,
-                        project_id=input.project_id,
-                        chunking_strategy="dynamic",  # Could be detected from config
-                        retrieval_mode="hybrid" if input.use_hybrid_search else "vector",
-                        llm=llm,
-                    )
+                error_details = {
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "query": input.message[:100],
+                    "project_id": str(input.project_id),
+                    "config": {
+                        "use_hybrid_search": input.use_hybrid_search,
+                        "use_rewrite": input.use_rewrite,
+                        "use_rerank": input.use_rerank,
+                        "use_grading": input.use_grading,
+                        "top_k": input.top_k,
+                    },
+                }
+                logger.error(
+                    f"Error in LangGraph RAG: {e}\n"
+                    f"Error Type: {type(e).__name__}\n"
+                    f"Query: {input.message[:100]}...\n"
+                    f"Config: {error_details['config']}\n"
+                    f"Traceback:\n{traceback.format_exc()}",
+                    exc_info=True,
                 )
-
-            # === Memory Ingestion (Async, Non-blocking) ===
-            # Store the Q&A pair as a memory for future semantic retrieval
-            if full_response:
-                asyncio.create_task(
-                    self._store_memory(
-                        project_id=input.project_id,
-                        question=input.message,
-                        answer=full_response,
-                    )
-                )
-
-        except Exception as e:
-            import traceback
-
-            error_details = {
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "query": input.message[:100],
-                "project_id": str(input.project_id),
-                "config": {
-                    "use_hybrid_search": input.use_hybrid_search,
-                    "use_rewrite": input.use_rewrite,
-                    "use_rerank": input.use_rerank,
-                    "use_grading": input.use_grading,
-                    "top_k": input.top_k,
-                },
-            }
-            logger.error(
-                f"Error in LangGraph RAG: {e}\n"
-                f"Error Type: {type(e).__name__}\n"
-                f"Query: {input.message[:100]}...\n"
-                f"Config: {error_details['config']}\n"
-                f"Traceback:\n{traceback.format_exc()}",
-                exc_info=True,
-            )
-            yield StreamEvent(type="error", content=f"{type(e).__name__}: {str(e)}")
+                yield StreamEvent(type="error", content=f"{type(e).__name__}: {str(e)}")
 
     def _should_evaluate(self) -> bool:
         """Determine if evaluation should be triggered (based on sampling rate)."""

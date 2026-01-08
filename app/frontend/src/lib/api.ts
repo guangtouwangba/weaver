@@ -1149,13 +1149,15 @@ export const outputsApi = {
     outputType: OutputType,
     documentIds: string[],
     title?: string,
-    options?: Record<string, unknown>
+    options?: Record<string, unknown>,
+    urlContentIds?: string[]
   ) =>
     fetchApi<GenerateOutputResponse>(`/api/v1/projects/${projectId}/outputs/generate`, {
       method: 'POST',
       body: JSON.stringify({
         output_type: outputType,
         document_ids: documentIds,
+        url_content_ids: urlContentIds || [],
         title,
         options,
       }),

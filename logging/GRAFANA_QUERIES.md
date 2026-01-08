@@ -198,6 +198,178 @@ sum by (status_code) (
 **Visualization:** Pie chart
 **Legend:** Status code
 
+## RAG Pipeline Tracing
+
+The RAG pipeline now includes structured tracing with trace_id for end-to-end observability.
+
+### 1. Trace a Single Request
+
+Find all logs for a specific trace:
+
+```logql
+{service="backend"} |= "RAG:abc12345"
+```
+
+### 2. View Complete Request Flow
+
+```logql
+{service="backend"} |= "RAG:" |= "JSON:" 
+| json 
+| line_format "{{.trace_id}} | {{.stage}} | {{.elapsed_ms}}ms"
+```
+
+### 3. P95 Total Latency
+
+```logql
+quantile_over_time(0.95,
+  {service="backend"} |= "COMPLETE" |= "JSON:" 
+  | json 
+  | stage = "COMPLETE"
+  | unwrap total_latency_ms [1h]
+)
+```
+
+### 4. Average Latency by Stage
+
+```logql
+avg by (stage) (
+  {service="backend"} |= "RAG:" |= "JSON:" 
+  | json 
+  | stage != "ENTRY" 
+  | stage != "COMPLETE"
+  | unwrap latency_ms [1h]
+)
+```
+
+### 5. Intent Classification Distribution
+
+```logql
+sum by (intent_type) (
+  count_over_time(
+    {service="backend"} |= "INTENT" |= "JSON:" 
+    | json [24h]
+  )
+)
+```
+
+### 6. Retrieval Quality - Similarity Distribution
+
+```logql
+{service="backend"} |= "RETRIEVE" |= "JSON:" 
+| json 
+| line_format "{{.trace_id}}: {{.docs_count}} docs, similarity={{.top_similarity}}"
+```
+
+### 7. Average Documents Retrieved
+
+```logql
+avg_over_time(
+  {service="backend"} |= "RETRIEVE" |= "JSON:" 
+  | json 
+  | unwrap docs_count [1h]
+)
+```
+
+### 8. Slow Requests (>5s)
+
+```logql
+{service="backend"} |= "COMPLETE" |= "JSON:" 
+| json 
+| total_latency_ms > 5000
+| line_format "{{.trace_id}}: {{.query}} - {{.total_latency_ms}}ms"
+```
+
+### 9. Error Tracking
+
+```logql
+{service="backend"} |= "RAG:" |= "ERROR" 
+| json 
+| line_format "{{.trace_id}}: {{.error_type}} - {{.error_message}}"
+```
+
+### 10. Stage Latency Breakdown (Time Series)
+
+Create separate panels for each stage:
+
+**Transform Stage:**
+```logql
+avg_over_time(
+  {service="backend"} |= "TRANSFORM" |= "JSON:" 
+  | json 
+  | unwrap latency_ms [5m]
+)
+```
+
+**Retrieve Stage:**
+```logql
+avg_over_time(
+  {service="backend"} |= "RETRIEVE" |= "JSON:" 
+  | json 
+  | unwrap latency_ms [5m]
+)
+```
+
+**Generate Stage:**
+```logql
+avg_over_time(
+  {service="backend"} |= "GENERATE" |= "JSON:" 
+  | json 
+  | unwrap latency_ms [5m]
+)
+```
+
+### 11. Hybrid vs Vector Search Comparison
+
+```logql
+avg by (search_type) (
+  {service="backend"} |= "RETRIEVE" |= "JSON:" 
+  | json 
+  | unwrap latency_ms [1h]
+)
+```
+
+### 12. Request Volume with Intent Type
+
+```logql
+sum by (intent) (
+  count_over_time(
+    {service="backend"} |= "COMPLETE" |= "JSON:" 
+    | json [1h]
+  )
+)
+```
+
+## Advanced Query Examples
+
+### Find Requests with Low Similarity Scores
+
+```logql
+{service="backend"} |= "RETRIEVE" |= "JSON:" 
+| json 
+| top_similarity < 0.5
+| line_format "Low similarity: {{.trace_id}} - {{.top_similarity}}"
+```
+
+### Requests Where Documents Were Filtered
+
+```logql
+{service="backend"} |= "GRADE" |= "JSON:" 
+| json 
+| filtered_count > 0
+| line_format "{{.trace_id}}: filtered {{.filtered_count}} docs"
+```
+
+### Complete Pipeline Analysis
+
+View the complete flow of a request type:
+
+```logql
+{service="backend"} |= "RAG:" |= "JSON:"
+| json
+| sort by timestamp
+| line_format "[{{.elapsed_ms}}ms] {{.stage}}: {{if .docs_count}}docs={{.docs_count}}{{end}}{{if .intent_type}}intent={{.intent_type}}{{end}}{{if .latency_ms}}latency={{.latency_ms}}ms{{end}}"
+```
+
 ## 高级查询
 
 ### 查找响应时间超过阈值的请求

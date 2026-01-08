@@ -27,6 +27,7 @@ import {
 import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
 import ProjectCard from '@/components/dashboard/ProjectCard';
+import ProjectListItem from '@/components/dashboard/ProjectListItem';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -37,6 +38,9 @@ export default function DashboardPage() {
 
   // Tab state (visual only for now)
   const [activeTab, setActiveTab] = useState('All Projects');
+
+  // View mode state: 'grid' or 'list'
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -208,8 +212,38 @@ export default function DashboardPage() {
                 </div>
 
                 <Stack direction="row" gap={16} align="center" style={{ color: '#6B7280' }}>
-                  <div style={{ cursor: 'pointer' }}><GridViewIcon size={20} /></div>
-                  <div style={{ cursor: 'pointer' }}><ViewListIcon size={20} /></div>
+                  <div 
+                    onClick={() => setViewMode('grid')}
+                    style={{ 
+                      cursor: 'pointer',
+                      padding: 6,
+                      borderRadius: 6,
+                      backgroundColor: viewMode === 'grid' ? '#F3F4F6' : 'transparent',
+                      color: viewMode === 'grid' ? '#7C3AED' : '#6B7280',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <GridViewIcon size={20} />
+                  </div>
+                  <div 
+                    onClick={() => setViewMode('list')}
+                    style={{ 
+                      cursor: 'pointer',
+                      padding: 6,
+                      borderRadius: 6,
+                      backgroundColor: viewMode === 'list' ? '#F3F4F6' : 'transparent',
+                      color: viewMode === 'list' ? '#7C3AED' : '#6B7280',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <ViewListIcon size={20} />
+                  </div>
                   <Text variant="bodySmall" style={{ cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
                     Last Modified
                     <ExpandMoreIcon size={16} />
@@ -248,10 +282,25 @@ export default function DashboardPage() {
                   );
                 }
 
+                if (viewMode === 'grid') {
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
+                      {filteredProjects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          project={project}
+                          onOpenMenu={handleOpenMenu}
+                        />
+                      ))}
+                    </div>
+                  );
+                }
+
+                // List view
                 return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {filteredProjects.map((project) => (
-                      <ProjectCard
+                      <ProjectListItem
                         key={project.id}
                         project={project}
                         onOpenMenu={handleOpenMenu}

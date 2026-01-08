@@ -160,8 +160,19 @@ function SummaryCanvasNodeInner({
             </div>
 
             {/* Title Info */}
-            <div style={{ flex: 1, minWidth: 0, marginLeft: 8 }}>
-              <Text variant="label" truncate style={{ lineHeight: 1.2, marginBottom: 2 }}>
+            <div style={{ flex: 1, minWidth: 0, marginLeft: 8, overflow: 'hidden' }}>
+              <Text
+                variant="label"
+                truncate
+                style={{
+                  lineHeight: 1.2,
+                  marginBottom: 2,
+                  display: 'block',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
                 {title}
               </Text>
               <Text variant="caption" color="secondary" style={{ fontSize: '0.65rem' }}>

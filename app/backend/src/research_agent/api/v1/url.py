@@ -79,9 +79,28 @@ async def extract_url(
                 except Exception as e:
                     logger.warning(f"[URL API] Failed to re-queue task (may already exist): {e}")
                 return URLExtractResponse.model_validate(existing)
-            # If failed, return the failed record (user can use force=true to retry)
+            # If failed, automatically retry the extraction
             else:
-                logger.info(f"[URL API] Returning cached failed extraction: id={existing.id}")
+                logger.info(f"[URL API] Retrying failed extraction: id={existing.id}")
+                # Reset status to pending
+                existing.status = "pending"
+                existing.error_message = None
+                await session.commit()
+                # Re-queue the task
+                try:
+                    task_service = TaskQueueService(session)
+                    task = await task_service.push(
+                        task_type=TaskType.PROCESS_URL,
+                        payload={
+                            "url_content_id": str(existing.id),
+                            "url": url,
+                        },
+                        priority=0,
+                    )
+                    await session.commit()
+                    logger.info(f"[URL API] Re-queued failed extraction task: task_id={task.id}")
+                except Exception as e:
+                    logger.warning(f"[URL API] Failed to re-queue task: {e}")
                 return URLExtractResponse.model_validate(existing)
 
     # Detect platform
