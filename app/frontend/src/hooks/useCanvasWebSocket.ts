@@ -4,9 +4,8 @@
  * Custom hook for Canvas WebSocket connection
  * 
  * Provides real-time updates for:
- * - Thinking path node generation
  * - Multi-client canvas synchronization
- * - Analysis status updates
+ * - Node/edge update notifications
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
@@ -18,16 +17,7 @@ export interface UseCanvasWebSocketOptions {
   onNodeAdded?: (nodeId: string, nodeData: Partial<CanvasNode>, messageIds?: string[]) => void;
   onNodeUpdated?: (nodeId: string, nodeData: Partial<CanvasNode>) => void;
   onNodeDeleted?: (nodeId: string) => void;
-  // Updated to support full edge data including relationType and label
   onEdgeAdded?: (edgeId: string, sourceId: string, targetId: string, edgeData?: Partial<CanvasEdge>) => void;
-  onThinkingPathAnalyzing?: (messageId: string) => void;
-  onThinkingPathAnalyzed?: (
-    messageId: string,
-    nodes: CanvasNode[],
-    edges: CanvasEdge[],
-    duplicateOf?: string
-  ) => void;
-  onThinkingPathError?: (messageId: string, error: string) => void;
   onBatchUpdate?: (nodes: CanvasNode[], edges: CanvasEdge[], sections?: CanvasSection[]) => void;
   onConnectionStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
 }
@@ -136,36 +126,12 @@ export function useCanvasWebSocket(
 
             case 'edge_added':
               if (data.edge_id && data.source_id && data.target_id) {
-                // Pass full edge data including relationType and label
                 callbacks.onEdgeAdded?.(
                   data.edge_id, 
                   data.source_id, 
                   data.target_id,
                   data.edge_data
                 );
-              }
-              break;
-
-            case 'thinking_path_analyzing':
-              if (data.message_id) {
-                callbacks.onThinkingPathAnalyzing?.(data.message_id);
-              }
-              break;
-
-            case 'thinking_path_analyzed':
-              if (data.message_id) {
-                callbacks.onThinkingPathAnalyzed?.(
-                  data.message_id,
-                  data.nodes || [],
-                  data.edges || [],
-                  data.duplicate_of
-                );
-              }
-              break;
-
-            case 'thinking_path_error':
-              if (data.message_id && data.error_message) {
-                callbacks.onThinkingPathError?.(data.message_id, data.error_message);
               }
               break;
 
@@ -226,7 +192,6 @@ export function useCanvasWebSocket(
   }, [cleanup]);
 
   // Connect on mount and when projectId changes
-  // Only reconnect when projectId or enabled changes, NOT when callbacks change
   useEffect(() => {
     if (enabled && projectId) {
       connect();
@@ -235,7 +200,7 @@ export function useCanvasWebSocket(
     return () => {
       cleanup();
     };
-  }, [projectId, enabled]); // Removed connect and cleanup from deps - they are stable
+  }, [projectId, enabled]);
 
   return {
     isConnected: connectionStatus === 'connected',

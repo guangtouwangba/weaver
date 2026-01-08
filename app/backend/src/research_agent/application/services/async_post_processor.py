@@ -5,7 +5,6 @@ Tasks are scheduled to run in the background without blocking the response.
 
 Supported tasks:
 - Memory storage with embedding generation
-- ThinkingPath automatic generation
 - WebSocket notifications
 - Analytics/logging
 """
@@ -26,7 +25,6 @@ class PostProcessTaskType(str, Enum):
     """Types of post-processing tasks."""
 
     MEMORY_STORAGE = "memory_storage"
-    THINKING_PATH = "thinking_path"
     WEBSOCKET_NOTIFY = "websocket_notify"
     ANALYTICS = "analytics"
     CUSTOM = "custom"
@@ -392,37 +390,6 @@ class MemoryStorageHandler(TaskHandler):
             return False
 
 
-class ThinkingPathHandler(TaskHandler):
-    """Handler for thinking path generation tasks."""
-
-    def __init__(self, thinking_path_service: Any):
-        """Initialize with thinking path service.
-
-        Args:
-            thinking_path_service: The thinking path service to use
-        """
-        self._thinking_path_service = thinking_path_service
-
-    @property
-    def task_type(self) -> PostProcessTaskType:
-        return PostProcessTaskType.THINKING_PATH
-
-    async def execute(self, payload: Dict[str, Any]) -> bool:
-        """Generate thinking path for a message."""
-        try:
-            await self._thinking_path_service.auto_generate_for_message(
-                project_id=payload["project_id"],
-                message_id=payload["message_id"],
-                question=payload["question"],
-                answer=payload["answer"],
-                documents=payload.get("documents", []),
-            )
-            return True
-        except Exception as e:
-            logger.error(f"[ThinkingPathHandler] Failed to generate thinking path: {e}")
-            return False
-
-
 class WebSocketNotifyHandler(TaskHandler):
     """Handler for WebSocket notification tasks."""
 
@@ -459,7 +426,6 @@ class WebSocketNotifyHandler(TaskHandler):
 
 def create_post_processor(
     memory_service: Any = None,
-    thinking_path_service: Any = None,
     notification_service: Any = None,
     max_concurrent: int = 10,
 ) -> AsyncPostProcessor:
@@ -467,7 +433,6 @@ def create_post_processor(
 
     Args:
         memory_service: Optional memory service
-        thinking_path_service: Optional thinking path service
         notification_service: Optional WebSocket notification service
         max_concurrent: Maximum concurrent tasks
 
@@ -478,9 +443,6 @@ def create_post_processor(
 
     if memory_service:
         processor.register_handler(MemoryStorageHandler(memory_service))
-
-    if thinking_path_service:
-        processor.register_handler(ThinkingPathHandler(thinking_path_service))
 
     if notification_service:
         processor.register_handler(WebSocketNotifyHandler(notification_service))
@@ -518,58 +480,3 @@ def create_memory_task(
         },
         priority=priority,
     )
-
-
-def create_thinking_path_task(
-    project_id: UUID,
-    message_id: UUID,
-    question: str,
-    answer: str,
-    documents: List[Any] = None,
-    priority: TaskPriority = TaskPriority.LOW,
-) -> PostProcessTask:
-    """Create a thinking path generation task.
-
-    Args:
-        project_id: Project ID
-        message_id: Message ID
-        question: User question
-        answer: AI response
-        documents: Retrieved documents
-        priority: Task priority
-
-    Returns:
-        PostProcessTask for thinking path generation
-    """
-    return PostProcessTask(
-        task_type=PostProcessTaskType.THINKING_PATH,
-        task_id=f"thinking_path_{message_id}",
-        payload={
-            "project_id": str(project_id),
-            "message_id": str(message_id),
-            "question": question,
-            "answer": answer,
-            "documents": documents or [],
-        },
-        priority=priority,
-        timeout_seconds=60.0,  # Thinking path can take longer
-    )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
