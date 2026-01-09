@@ -1,6 +1,14 @@
-"""LangGraph workflow for mindmap generation."""
+"""LangGraph workflow for mindmap generation using direct generation algorithm.
 
-import json
+Simple 2-step workflow:
+1. Direct Generation - Single LLM call generates entire mindmap from full text
+2. Refinement - Single LLM call cleans up duplicates and improves structure
+
+This replaces the old complex DocTree algorithm (chunking → parsing → clustering → aggregation)
+with a much simpler approach that leverages large context window LLMs.
+"""
+
+import re
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict
 from uuid import uuid4
 
@@ -15,10 +23,9 @@ from research_agent.shared.utils.logger import logger
 NODE_WIDTH = 200
 NODE_HEIGHT = 80
 
-# Performance limits - prevent exponential explosion
-MAX_TOTAL_NODES = 50  # Hard cap to prevent frontend freezing
-DEFAULT_MAX_DEPTH = 2
-DEFAULT_MAX_BRANCHES = 4
+# Configuration
+MAX_DIRECT_TOKENS = 500000  # Max tokens for direct generation (configurable)
+DEFAULT_MAX_DEPTH = 3
 
 # Type alias for event emission callback
 EventCallback = Callable[[OutputEvent], Awaitable[None]]
@@ -38,12 +45,10 @@ class MindmapState(TypedDict):
     document_id: Optional[str]  # Document ID for source references
     max_depth: int
     max_branches: int
-
-    # Processing state
-    current_depth: int
-    nodes_to_expand: List[str]  # Node IDs pending expansion at current level
+    language: str  # "zh", "en", or "auto"
 
     # Output accumulation
+    markdown_output: str  # Raw markdown from generation
     nodes: Dict[str, Dict[str, Any]]  # node_id -> node_data
     edges: List[Dict[str, Any]]  # edge data list
     root_id: Optional[str]
@@ -59,84 +64,185 @@ class MindmapState(TypedDict):
 
 
 # =============================================================================
-# Prompts
+# Prompts - Chinese
 # =============================================================================
 
-SYSTEM_PROMPT = """You are an expert at analyzing documents and creating structured mindmaps.
-Your task is to extract the key concepts and their hierarchical relationships from the given content.
+DIRECT_PROMPT_ZH = """请将以下文本转换为**结构化的知识笔记**。
 
-IMPORTANT: You must respond with ONLY valid JSON, no other text or explanation."""
-
-ROOT_PROMPT = """Analyze the following document and identify the main topic/theme that should be the root of a mindmap.
-
-Document Title: {title}
-
-Document Content:
+## 文本内容
 {content}
 
-Respond with a JSON object containing:
-{{
-  "label": "Main topic label (brief, 3-5 words max)",
-  "content": "A one-sentence summary of the main topic",
-  "source_quote": "The EXACT quote from the document that best represents this main topic (copy verbatim, max 200 chars)",
-  "source_location": "Page number or section if identifiable (e.g., 'Page 1', 'Introduction'), or null if not identifiable"
-}}
+## 核心原则
 
-Remember: Respond with ONLY the JSON object, nothing else."""
+❌ 不要：平铺直叙，照搬原文结构
+✅ 要做：提炼核心，按逻辑重组
 
-BRANCHES_PROMPT = """Based on the document content and the current mindmap structure, generate the next level of branches.
+## 输出结构
 
-Document Content:
+### 第1层：核心要点（5-10个）
+- 文本中最重要的核心观点/概念/主题
+- 每个要点用简洁的短语概括
+
+### 第2层：展开说明
+- 对每个核心要点的具体解释
+- 关键定义、方法、步骤
+
+### 第3层：支撑细节
+- 具体案例、数据、引用
+- 保留原文中的关键信息（人名、地名、数字、时间）
+
+## 来源引用规则
+- 输入文本可能包含来源标记如 `[PAGE:X]` 或 `[TIME:MM:SS]`
+- 当提取某个观点时，在末尾**必须保留**最相关的来源标记
+- 如果某个观点跨越多个来源，保留主要来源的标记
+- 示例: "投资的核心是理解未来现金流 [PAGE:15]" 或 "AI Agent 能自主规划任务 [TIME:05:30]"
+
+## 提取原则
+
+1. **保留具体信息**：人名、公司名、地名、数字、日期、引用
+2. **体现因果关系**：原因→结果，问题→解决方案
+3. **区分主次**：核心观点 vs 补充说明
+4. **删除噪音**：致谢、寒暄、重复内容
+
+## 格式要求
+- # 根标题（概括主题）
+- - 和 2空格缩进表示层级
+- 控制在 3-4 层
+- 节点名 ≤ 30 字符
+
+直接输出 Markdown，不要解释：
+"""
+
+REFINE_PROMPT_ZH = """优化以下 Markdown 大纲，使其更清晰、更有条理。
+
+原始大纲:
+```markdown
+{content}
+```
+
+## 优化规则
+
+### 1. 去重
+- 删除父子同名节点（保留子节点内容）
+- 删除同级重复节点
+- 合并高度相似的内容
+
+### 2. 结构优化
+- 控制在 3-4 层深度
+- 确保父子节点有逻辑关系
+- 相似内容归到同一分类
+
+### 3. 内容清理
+- 删除致谢、用户名、寒暄
+- 删除过于抽象的分类词（如"主题"、"内容"、"概述"）
+- 节点名 ≤ 30 字符
+
+### 4. 保留关键信息
+- 人名、地名、公司名
+- 数字、日期、具体数据
+- 因果关系、对比分析
+- **必须保留**来源标注: `[PAGE:X]` 或 `[TIME:MM:SS]`
+
+## 格式
+- # 根标题
+- - 和 2空格缩进
+- 不要解释，直接输出
+
+优化后:
+"""
+
+# =============================================================================
+# Prompts - English
+# =============================================================================
+
+DIRECT_PROMPT_EN = """Convert this text into **structured knowledge notes**.
+
+## Text Content
 {content}
 
-Current Node: {current_node_label}
-Current Node Content: {current_node_content}
-Depth Level: {depth} (0=root, higher=more specific)
+## Core Principle
 
-Generate {max_branches} key sub-topics or aspects that branch from "{current_node_label}".
-Each branch should be distinct and cover different aspects.
+❌ Don't: List everything, follow original structure
+✅ Do: Extract core ideas, reorganize logically
 
-IMPORTANT: For each branch, include the EXACT quote from the source document that supports this sub-topic.
+## Output Structure
 
-Respond with a JSON object containing:
-{{
-  "branches": [
-    {{
-      "label": "Branch label (brief, 3-5 words max)",
-      "content": "A brief explanation of this sub-topic",
-      "source_quote": "The EXACT quote from the document supporting this branch (copy verbatim, max 200 chars)",
-      "source_location": "Page number or section if identifiable (e.g., 'Page 3'), or null"
-    }}
-  ]
-}}
+### Layer 1: Core Points (5-10)
+- Most important concepts/themes/ideas
+- Concise phrase for each
 
-Remember: Respond with ONLY the JSON object, nothing else."""
+### Layer 2: Elaboration
+- Explanation of each core point
+- Key definitions, methods, steps
+
+### Layer 3: Supporting Details
+- Specific cases, data, quotes
+- Preserve key info (names, places, numbers, dates)
+
+## Source Reference Rules
+- Input text may contain source markers like `[PAGE:X]` or `[TIME:MM:SS]`
+- When extracting points, you **MUST preserve** the most relevant source marker at the end
+- If a point spans multiple sources, keep the primary source marker
+- Example: "Core of investing is understanding future cash flow [PAGE:15]" or "AI Agent plans tasks autonomously [TIME:05:30]"
+
+## Extraction Principles
+
+1. **Keep specifics**: Names, companies, places, numbers, dates, quotes
+2. **Show causality**: Cause → effect, problem → solution
+3. **Distinguish importance**: Core ideas vs supporting details
+4. **Remove noise**: Acknowledgements, greetings, repetition
+
+## Format
+- # for root heading (summarize theme)
+- - with 2-space indent for hierarchy
+- Keep to 3-4 levels
+- Node names ≤ 35 characters
+
+Output Markdown directly, no explanations:
+"""
+
+REFINE_PROMPT_EN = """Optimize this Markdown outline for clarity and organization.
+
+Original:
+```markdown
+{content}
+```
+
+## Optimization Rules
+
+### 1. Deduplication
+- Remove parent-child with same name (keep child content)
+- Remove duplicate siblings
+- Merge highly similar content
+
+### 2. Structure
+- Keep to 3-4 levels max
+- Ensure logical parent-child relationships
+- Group similar content together
+
+### 3. Cleanup
+- Remove acknowledgements, usernames, greetings
+- Remove abstract categories ("Topic", "Content", "Overview")
+- Node names ≤ 35 characters
+
+### 4. Preserve Key Info
+- Names, places, companies
+- Numbers, dates, specific data
+- Causality, comparisons
+- **Must preserve** source markers: `[PAGE:X]` or `[TIME:MM:SS]`
+
+## Format
+- # for root heading
+- - with 2-space indents
+- No explanations, direct output
+
+Optimized:
+"""
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
-
-def _parse_json_response(response: str) -> Optional[Dict[str, Any]]:
-    """Parse JSON from LLM response, handling markdown code blocks."""
-    content = response.strip()
-
-    # Remove markdown code blocks if present
-    if content.startswith("```"):
-        first_newline = content.find("\n")
-        if first_newline != -1:
-            content = content[first_newline + 1 :]
-        if content.endswith("```"):
-            content = content[:-3].strip()
-        elif "```" in content:
-            content = content[: content.rfind("```")].strip()
-
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError as e:
-        logger.warning(f"[MindmapGraph] JSON parse error: {e}, content: {content[:200]}")
-        return None
 
 
 def _get_color_for_level(level: int) -> str:
@@ -145,11 +251,181 @@ def _get_color_for_level(level: int) -> str:
     return colors[level % len(colors)]
 
 
-def _truncate_content(content: str, max_chars: int = 50000) -> str:
-    """Truncate content to fit within token limits."""
-    if len(content) <= max_chars:
-        return content
-    return content[:max_chars] + "\n\n[... content truncated ...]"
+def _extract_content(text: str) -> str:
+    """Extract content from LLM response, removing code blocks."""
+    text = text.strip()
+
+    # Remove markdown code blocks if present
+    if text.startswith("```markdown"):
+        text = text[11:]
+    elif text.startswith("```"):
+        text = text[3:]
+
+    if text.endswith("```"):
+        text = text[:-3]
+
+    text = text.strip()
+
+    # Ensure it starts with # or -
+    if not (text.startswith("#") or text.startswith("-")):
+        idx = text.find("#")
+        if idx != -1:
+            text = text[idx:]
+
+    return text
+
+
+def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
+    """Parse source markers from text and return (clean_text, source_refs).
+
+    Supports:
+    - [Page X] or [Page X-Y] for PDFs
+    - [MM:SS] or [HH:MM:SS] for videos
+    """
+    source_refs: List[SourceRef] = []
+
+    # Pattern for page markers: [Page 15] or [Page 15-17]
+    page_pattern = r"\[Page\s*(\d+)(?:\s*-\s*(\d+))?\]"
+    page_matches = re.findall(page_pattern, text, re.IGNORECASE)
+    for match in page_matches:
+        page_start = match[0]
+        page_end = match[1] if match[1] else page_start
+        source_refs.append(
+            SourceRef(
+                source_id="",  # Will be filled in later
+                source_type="document",
+                location=f"Page {page_start}"
+                if page_start == page_end
+                else f"Page {page_start}-{page_end}",
+                quote="",
+            )
+        )
+
+    # Pattern for time markers: [12:30] or [1:23:45]
+    time_pattern = r"\[(\d{1,2}:\d{2}(?::\d{2})?)\]"
+    time_matches = re.findall(time_pattern, text)
+    for timestamp in time_matches:
+        source_refs.append(
+            SourceRef(
+                source_id="",  # Will be filled in later
+                source_type="video",
+                location=timestamp,
+                quote="",
+            )
+        )
+
+    # Remove markers from text
+    clean_text = re.sub(page_pattern, "", text, flags=re.IGNORECASE)
+    clean_text = re.sub(time_pattern, "", clean_text)
+    clean_text = clean_text.strip()
+
+    return clean_text, source_refs
+
+
+def _parse_markdown_to_nodes(
+    markdown: str,
+    document_id: Optional[str] = None,
+) -> tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+    """Parse markdown outline to MindmapNode and MindmapEdge structures.
+
+    Returns:
+        Tuple of (nodes_dict, edges_list, root_id)
+    """
+    nodes: Dict[str, Dict[str, Any]] = {}
+    edges: List[Dict[str, Any]] = []
+    root_id: Optional[str] = None
+
+    lines = markdown.strip().split("\n")
+    if not lines:
+        return nodes, edges, root_id
+
+    # Stack to track parent nodes at each indent level
+    # Each entry: (node_id, indent_level)
+    parent_stack: List[tuple[str, int]] = []
+
+    for line in lines:
+        if not line.strip():
+            continue
+
+        # Check if it's a heading (root)
+        if line.startswith("#"):
+            # Extract heading text
+            heading_match = re.match(r"^#+\s*(.+)$", line)
+            if heading_match:
+                label = heading_match.group(1).strip()
+                clean_label, source_refs = _parse_source_marker(label)
+
+                # Fill in document_id for source refs
+                for ref in source_refs:
+                    ref.source_id = document_id or ""
+
+                node_id = f"node-{uuid4().hex[:8]}"
+                node = MindmapNode(
+                    id=node_id,
+                    label=clean_label[:50],  # Limit label length
+                    content=clean_label,
+                    depth=0,
+                    parent_id=None,
+                    x=0,
+                    y=0,
+                    width=NODE_WIDTH,
+                    height=NODE_HEIGHT,
+                    color="primary",
+                    status="complete",
+                    source_refs=source_refs,
+                )
+                nodes[node_id] = node.to_dict()
+                root_id = node_id
+                parent_stack = [(node_id, -1)]  # Root is at indent -1
+            continue
+
+        # Check if it's a bullet point
+        bullet_match = re.match(r"^(\s*)-\s*(.+)$", line)
+        if bullet_match:
+            indent = len(bullet_match.group(1))
+            label = bullet_match.group(2).strip()
+            clean_label, source_refs = _parse_source_marker(label)
+
+            # Fill in document_id for source refs
+            for ref in source_refs:
+                ref.source_id = document_id or ""
+
+            # Calculate depth based on indent (2 spaces per level)
+            depth = (indent // 2) + 1
+
+            # Find parent by popping stack until we find smaller indent
+            while parent_stack and parent_stack[-1][1] >= indent:
+                parent_stack.pop()
+
+            parent_id = parent_stack[-1][0] if parent_stack else root_id
+
+            node_id = f"node-{uuid4().hex[:8]}"
+            node = MindmapNode(
+                id=node_id,
+                label=clean_label[:50],  # Limit label length
+                content=clean_label,
+                depth=depth,
+                parent_id=parent_id,
+                x=0,
+                y=0,
+                width=NODE_WIDTH,
+                height=NODE_HEIGHT,
+                color=_get_color_for_level(depth),
+                status="complete",
+                source_refs=source_refs,
+            )
+            nodes[node_id] = node.to_dict()
+
+            # Create edge
+            if parent_id:
+                edge_id = f"edge-{parent_id}-{node_id}"
+                edge = MindmapEdge(id=edge_id, source=parent_id, target=node_id)
+                edges.append(edge.to_dict())
+
+            # Push to stack
+            parent_stack.append((node_id, indent))
+
+    return nodes, edges, root_id
 
 
 # =============================================================================
@@ -157,14 +433,17 @@ def _truncate_content(content: str, max_chars: int = 50000) -> str:
 # =============================================================================
 
 
-async def analyze_document(state: MindmapState) -> MindmapState:
-    """Analyze document and prepare for mindmap generation.
+async def direct_generate(state: MindmapState) -> MindmapState:
+    """Phase 1: Direct generation - single LLM call to generate entire mindmap.
 
-    This node validates input and emits the GENERATION_STARTED event.
+    Skips chunking/parsing/aggregation and directly generates mindmap
+    using the full document context.
     """
-    logger.info(f"[MindmapGraph] analyze_document: title={state['document_title']}")
+    logger.info(f"[MindmapGraph] direct_generate: title={state['document_title']}")
 
     emit = state.get("emit_event", _noop_emit)
+    llm = state["llm_service"]
+    language = state.get("language", "zh")
 
     # Emit started event
     await emit(
@@ -174,284 +453,122 @@ async def analyze_document(state: MindmapState) -> MindmapState:
         )
     )
 
-    # Emit initial progress
+    # Emit progress
     await emit(
         OutputEvent(
             type=OutputEventType.GENERATION_PROGRESS,
-            progress=0.1,
-            current_level=0,
-            total_levels=state["max_depth"] + 1,
-            message="Analyzing document...",
+            progress=0.2,
+            message="Phase 1: Generating mindmap structure...",
         )
     )
 
-    return {
-        **state,
-        "current_depth": 0,
-        "nodes_to_expand": [],
-        "nodes": {},
-        "edges": [],
-        "root_id": None,
-        "error": None,
-    }
+    content = state["document_content"]
 
+    # Debug: Check if content contains source markers
+    has_time_markers = "[TIME:" in content
+    has_page_markers = "[PAGE:" in content or "[Page" in content
+    logger.info(
+        f"[MindmapGraph] Content analysis: length={len(content)}, "
+        f"has_TIME_markers={has_time_markers}, has_PAGE_markers={has_page_markers}"
+    )
+    if has_time_markers:
+        # Log first occurrence of time marker
+        import re
 
-async def generate_root(state: MindmapState) -> MindmapState:
-    """Generate the root node of the mindmap."""
-    logger.info("[MindmapGraph] generate_root")
+        time_match = re.search(r"\[TIME:\d{1,2}:\d{2}(?::\d{2})?\]", content)
+        if time_match:
+            logger.info(f"[MindmapGraph] First TIME marker found: {time_match.group()}")
 
-    emit = state.get("emit_event", _noop_emit)
-    llm = state["llm_service"]
-
-    # Truncate content
-    content = _truncate_content(state["document_content"], 8000)
-
-    prompt = ROOT_PROMPT.format(title=state["document_title"], content=content)
+    # Choose prompt based on language
+    if language == "en":
+        prompt = DIRECT_PROMPT_EN.format(content=content)
+    else:
+        prompt = DIRECT_PROMPT_ZH.format(content=content)
 
     messages = [
-        ChatMessage(role="system", content=SYSTEM_PROMPT),
         ChatMessage(role="user", content=prompt),
     ]
 
     try:
         response = await llm.chat(messages)
-        data = _parse_json_response(response.content)
+        markdown = _extract_content(response.content)
 
-        if not data or "label" not in data:
-            return {**state, "error": "Failed to parse root node response"}
+        if not markdown:
+            return {**state, "error": "Failed to generate mindmap", "markdown_output": ""}
 
-        node_id = f"node-{uuid4().hex[:8]}"
-        
-        # Build source references from LLM response
-        source_refs: List[SourceRef] = []
-        document_id = state.get("document_id")
-        source_quote = data.get("source_quote", "")
-        source_location = data.get("source_location")
-        
-        if source_quote and document_id:
-            source_refs.append(SourceRef(
-                source_id=document_id,
-                source_type="document",
-                location=source_location,
-                quote=source_quote[:300],  # Limit quote length
-            ))
-        
-        node = MindmapNode(
-            id=node_id,
-            label=data["label"],
-            content=data.get("content", ""),
-            depth=0,
-            parent_id=None,
-            x=0,  # Frontend will apply layout
-            y=0,  # Frontend will apply layout
-            width=NODE_WIDTH,
-            height=NODE_HEIGHT,
-            color="primary",
-            status="complete",
-            source_refs=source_refs,
-        )
-
-        # Emit node added event
-        await emit(
-            OutputEvent(
-                type=OutputEventType.NODE_ADDED,
-                node_id=node_id,
-                node_data=node.to_dict(),
-            )
-        )
+        logger.info(f"[MindmapGraph] Generated {len(markdown.split(chr(10)))} lines")
 
         return {
             **state,
-            "root_id": node_id,
-            "nodes": {node_id: node.to_dict()},
-            "nodes_to_expand": [node_id],
-            "current_depth": 1,
+            "markdown_output": markdown,
+            "error": None,
         }
 
     except Exception as e:
-        logger.error(f"[MindmapGraph] generate_root failed: {e}")
-        return {**state, "error": f"Failed to generate root: {str(e)}"}
+        logger.error(f"[MindmapGraph] direct_generate failed: {e}")
+        return {**state, "error": f"Generation failed: {str(e)}", "markdown_output": ""}
 
 
-async def expand_level(state: MindmapState) -> MindmapState:
-    """Expand all nodes at the current level by generating their children."""
-    current_depth = state["current_depth"]
-    max_depth = state["max_depth"]
-    nodes_to_expand = state["nodes_to_expand"]
-
-    logger.info(
-        f"[MindmapGraph] expand_level: depth={current_depth}, nodes_to_expand={len(nodes_to_expand)}"
-    )
+async def refine_output(state: MindmapState) -> MindmapState:
+    """Phase 2: Refinement - clean up duplicates and improve structure."""
+    logger.info("[MindmapGraph] refine_output")
 
     emit = state.get("emit_event", _noop_emit)
     llm = state["llm_service"]
+    language = state.get("language", "zh")
+    markdown = state.get("markdown_output", "")
 
-    # Check if we're approaching the node limit
-    current_node_count = len(state["nodes"])
-    if current_node_count >= MAX_TOTAL_NODES:
-        logger.warning(
-            f"[MindmapGraph] Node limit reached ({current_node_count}/{MAX_TOTAL_NODES}), stopping expansion"
-        )
-        return {
-            **state,
-            "nodes_to_expand": [],  # Clear to trigger completion
-        }
+    if not markdown:
+        return {**state, "error": "No content to refine"}
 
     # Emit progress
-    progress = 0.1 + (0.8 * current_depth / max_depth)
     await emit(
         OutputEvent(
             type=OutputEventType.GENERATION_PROGRESS,
-            progress=progress,
-            current_level=current_depth,
-            total_levels=max_depth + 1,
-            message=f"Generating level {current_depth} branches...",
+            progress=0.5,
+            message="Phase 2: Refining and deduplicating...",
         )
     )
 
-    # Truncate content
-    content = _truncate_content(state["document_content"], 6000)
+    # Choose prompt based on language
+    if language == "en":
+        prompt = REFINE_PROMPT_EN.format(content=markdown)
+    else:
+        prompt = REFINE_PROMPT_ZH.format(content=markdown)
 
-    # Collect new nodes and edges
-    nodes = dict(state["nodes"])
-    edges = list(state["edges"])
-    next_level_nodes: List[str] = []
+    messages = [
+        ChatMessage(role="user", content=prompt),
+    ]
 
-    # Calculate how many more nodes we can add
-    remaining_capacity = MAX_TOTAL_NODES - current_node_count
+    try:
+        response = await llm.chat(messages)
+        refined = _extract_content(response.content)
 
-    for parent_id in nodes_to_expand:
-        parent_data = nodes.get(parent_id)
-        if not parent_data:
-            continue
+        if not refined:
+            logger.warning("[MindmapGraph] Refinement returned empty, using original")
+            refined = markdown
 
-        prompt = BRANCHES_PROMPT.format(
-            content=content,
-            current_node_label=parent_data.get("label", ""),
-            current_node_content=parent_data.get("content", ""),
-            depth=current_depth,
-            max_branches=state["max_branches"],
-        )
+        original_lines = len(markdown.split("\n"))
+        refined_lines = len(refined.split("\n"))
+        logger.info(f"[MindmapGraph] Refined: {original_lines} -> {refined_lines} lines")
 
-        messages = [
-            ChatMessage(role="system", content=SYSTEM_PROMPT),
-            ChatMessage(role="user", content=prompt),
-        ]
+        return {
+            **state,
+            "markdown_output": refined,
+        }
 
-        try:
-            response = await llm.chat(messages)
-            data = _parse_json_response(response.content)
-
-            if not data or "branches" not in data:
-                logger.warning(f"[MindmapGraph] Invalid branches response for {parent_id}")
-                continue
-
-            # Limit branches to remaining capacity
-            max_branches_to_add = min(state["max_branches"], remaining_capacity)
-            branches = data["branches"][:max_branches_to_add]
-
-            if not branches:
-                logger.info(f"[MindmapGraph] No capacity for more branches, skipping {parent_id}")
-                continue
-
-            for i, branch in enumerate(branches):
-                # Double-check capacity (in case of concurrent modifications)
-                if len(nodes) >= MAX_TOTAL_NODES:
-                    logger.warning(f"[MindmapGraph] Node limit reached during expansion")
-                    break
-
-                node_id = f"node-{uuid4().hex[:8]}"
-
-                # Emit node generating event
-                await emit(
-                    OutputEvent(
-                        type=OutputEventType.NODE_GENERATING,
-                        node_id=node_id,
-                        node_data={"label": branch.get("label", "")},
-                    )
-                )
-
-                # Build source references from LLM response
-                source_refs: List[SourceRef] = []
-                document_id = state.get("document_id")
-                source_quote = branch.get("source_quote", "")
-                source_location = branch.get("source_location")
-                
-                if source_quote and document_id:
-                    source_refs.append(SourceRef(
-                        source_id=document_id,
-                        source_type="document",
-                        location=source_location,
-                        quote=source_quote[:300],  # Limit quote length
-                    ))
-
-                node = MindmapNode(
-                    id=node_id,
-                    label=branch.get("label", f"Branch {i + 1}"),
-                    content=branch.get("content", ""),
-                    depth=current_depth,
-                    parent_id=parent_id,
-                    x=0,  # Frontend will apply layout
-                    y=0,  # Frontend will apply layout
-                    width=NODE_WIDTH,
-                    height=NODE_HEIGHT,
-                    color=_get_color_for_level(current_depth),
-                    status="complete",
-                    source_refs=source_refs,
-                )
-
-                nodes[node_id] = node.to_dict()
-                next_level_nodes.append(node_id)
-
-                # Emit node added event
-                await emit(
-                    OutputEvent(
-                        type=OutputEventType.NODE_ADDED,
-                        node_id=node_id,
-                        node_data=node.to_dict(),
-                    )
-                )
-
-                # Create edge
-                edge_id = f"edge-{parent_id}-{node_id}"
-                edge = MindmapEdge(id=edge_id, source=parent_id, target=node_id)
-                edges.append(edge.to_dict())
-
-                # Emit edge added event
-                await emit(
-                    OutputEvent(
-                        type=OutputEventType.EDGE_ADDED,
-                        edge_id=edge_id,
-                        edge_data=edge.to_dict(),
-                    )
-                )
-
-        except Exception as e:
-            logger.error(f"[MindmapGraph] expand_level failed for {parent_id}: {e}")
-            # Continue with other nodes
-
-    # Emit level complete
-    await emit(
-        OutputEvent(
-            type=OutputEventType.LEVEL_COMPLETE,
-            current_level=current_depth,
-            total_levels=max_depth + 1,
-        )
-    )
-
-    return {
-        **state,
-        "nodes": nodes,
-        "edges": edges,
-        "nodes_to_expand": next_level_nodes,
-        "current_depth": current_depth + 1,
-    }
+    except Exception as e:
+        logger.warning(f"[MindmapGraph] Refinement failed: {e}, using original")
+        return state
 
 
 async def complete_generation(state: MindmapState) -> MindmapState:
-    """Finalize the mindmap generation."""
+    """Finalize the mindmap generation and emit markdown for frontend parsing."""
+    markdown = state.get("markdown_output", "")
+    document_id = state.get("document_id")
+
     logger.info(
-        f"[MindmapGraph] complete_generation: nodes={len(state['nodes'])}, edges={len(state['edges'])}"
+        f"[MindmapGraph] complete_generation: markdown_lines={len(markdown.split(chr(10)))}"
     )
 
     emit = state.get("emit_event", _noop_emit)
@@ -465,11 +582,13 @@ async def complete_generation(state: MindmapState) -> MindmapState:
         )
     )
 
-    # Emit completion
+    # Emit completion with markdown content for frontend parsing
     await emit(
         OutputEvent(
             type=OutputEventType.GENERATION_COMPLETE,
-            message=f"Generated mindmap with {len(state['nodes'])} nodes",
+            message="Mindmap generation complete",
+            markdown_content=markdown,
+            document_id=document_id,
         )
     )
 
@@ -481,19 +600,11 @@ async def complete_generation(state: MindmapState) -> MindmapState:
 # =============================================================================
 
 
-def should_continue_expanding(state: MindmapState) -> str:
-    """Decide whether to continue expanding or finish."""
+def should_continue(state: MindmapState) -> str:
+    """Decide whether to continue or handle error."""
     if state.get("error"):
         return "error"
-
-    current_depth = state["current_depth"]
-    max_depth = state["max_depth"]
-    nodes_to_expand = state["nodes_to_expand"]
-
-    if current_depth <= max_depth and nodes_to_expand:
-        return "expand"
-    else:
-        return "complete"
+    return "continue"
 
 
 # =============================================================================
@@ -502,31 +613,30 @@ def should_continue_expanding(state: MindmapState) -> str:
 
 
 def create_mindmap_graph() -> StateGraph:
-    """Create and compile the mindmap generation graph."""
+    """Create and compile the mindmap generation graph.
+
+    Simple 2-step workflow (frontend parses markdown):
+    START → generate → refine → complete → END
+    """
     workflow = StateGraph(MindmapState)
 
     # Add nodes
-    workflow.add_node("analyze", analyze_document)
-    workflow.add_node("generate_root", generate_root)
-    workflow.add_node("expand_level", expand_level)
+    workflow.add_node("generate", direct_generate)
+    workflow.add_node("refine", refine_output)
     workflow.add_node("complete", complete_generation)
 
     # Wire edges
-    workflow.add_edge(START, "analyze")
-    workflow.add_edge("analyze", "generate_root")
-    workflow.add_edge("generate_root", "expand_level")
-
-    # Conditional edge for level expansion
+    workflow.add_edge(START, "generate")
     workflow.add_conditional_edges(
-        "expand_level",
-        should_continue_expanding,
-        {
-            "expand": "expand_level",
-            "complete": "complete",
-            "error": "complete",  # Still run complete to emit error event
-        },
+        "generate",
+        should_continue,
+        {"continue": "refine", "error": "complete"},
     )
-
+    workflow.add_conditional_edges(
+        "refine",
+        should_continue,
+        {"continue": "complete", "error": "complete"},
+    )
     workflow.add_edge("complete", END)
 
     return workflow.compile()
@@ -534,4 +644,3 @@ def create_mindmap_graph() -> StateGraph:
 
 # Compiled graph singleton
 mindmap_graph = create_mindmap_graph()
-
