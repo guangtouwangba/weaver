@@ -35,6 +35,9 @@ Weaver is a powerful research agent that helps you organize, analyze, and synthe
 - **Poppler** (for PDF processing)
   - macOS: `brew install poppler`
   - Ubuntu: `sudo apt-get install poppler-utils`
+- **FFmpeg** (for audio transcription)
+  - macOS: `brew install ffmpeg`
+  - Ubuntu: `sudo apt-get install ffmpeg`
 
 ### Installation
 
