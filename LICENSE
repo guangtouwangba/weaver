@@ -1,21 +1,31 @@
-MIT License
+# Weaver Dual Licensing
 
-Copyright (c) 2024 Weaver Contributors
+Weaver is available under a dual licensing model:
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## Open Source License (AGPL-3.0)
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+For open source use, Weaver is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+This means:
+- ✅ You can use, modify, and distribute the software
+- ✅ You can use it for commercial purposes
+- ⚠️ **You must open-source your entire application** if you use Weaver
+- ⚠️ **Network use counts** - if users interact with Weaver over a network, you must provide source code
+
+See [LICENSE-AGPL](LICENSE-AGPL) for the full license text.
+
+## Commercial License
+
+If you want to use Weaver in a proprietary/closed-source application without the AGPL requirements, you need a commercial license.
+
+**Contact for commercial licensing:**
+- Email: 819110812@qq.com
+
+Commercial licenses allow:
+- ✅ Use in closed-source products
+- ✅ No obligation to share your source code
+- ✅ Priority support options
+
+---
+
+© 2024-2025 Weaver Contributors

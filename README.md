@@ -6,7 +6,7 @@
 ![Weaver](https://img.shields.io/badge/Status-Alpha-orange)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js-black)
-![License](https://img.shields.io/badge/License-MIT-green)
+![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
 Weaver is a powerful research agent that helps you organize, analyze, and synthesize information using an infinite canvas interface and advanced RAG (Retrieval-Augmented Generation) capabilities.
 
@@ -90,4 +90,9 @@ Contributions are welcome! Please read our [AGENTS.md](AGENTS.md) for coding con
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is dual-licensed:
+
+- **Open Source**: [AGPL-3.0](LICENSE-AGPL) - Use freely, but you must open-source your application
+- **Commercial**: Contact for closed-source use - Email: 819110812@qq.com
+
+See [LICENSE](LICENSE) for details.
