@@ -69,10 +69,14 @@ class MindmapAgent(BaseOutputAgent):
     Agent for generating mindmaps from document content using LangGraph.
 
     Generation Strategy (via LangGraph workflow):
-    1. Analyze document (prepare state)
-    2. Generate root node
-    3. Expand branches level by level until max_depth
-    4. Stream events in real-time
+    1. Direct Generation - Single LLM call generates entire mindmap from full text
+    2. Refinement - Single LLM call cleans up duplicates and improves structure
+    3. Parse and stream - Convert markdown to nodes/edges and emit events
+
+    This uses the new 2-phase direct generation algorithm that:
+    - Leverages large context windows (up to 500K tokens)
+    - Reduces LLM calls from N+log(N) to just 2
+    - Produces better results by avoiding information loss from chunking
 
     The agent maintains backward compatibility with explain_node() and expand_node()
     for post-generation editing operations.
@@ -81,22 +85,25 @@ class MindmapAgent(BaseOutputAgent):
     def __init__(
         self,
         llm_service: LLMService,
-        max_depth: int = 2,
+        max_depth: int = 3,
         max_branches_per_node: int = 4,
         max_tokens_per_request: int = 4000,
+        language: str = "zh",
     ):
         """
         Initialize the mindmap agent.
 
         Args:
             llm_service: LLM service for text generation
-            max_depth: Maximum depth of the mindmap (0 = root only)
-            max_branches_per_node: Maximum branches per node
+            max_depth: Maximum depth of the mindmap (default 3, used for hint in prompts)
+            max_branches_per_node: Maximum branches per node (unused in new algorithm)
             max_tokens_per_request: Maximum tokens per LLM request
+            language: Prompt language ("zh", "en", or "auto")
         """
         super().__init__(llm_service, max_tokens_per_request)
         self._max_depth = max_depth
         self._max_branches = max_branches_per_node
+        self._language = language
 
     @property
     def output_type(self) -> str:
@@ -110,27 +117,34 @@ class MindmapAgent(BaseOutputAgent):
         document_id: str | None = None,
         max_depth: int | None = None,
         max_branches: int | None = None,
+        language: str | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
         Generate a mindmap from document content using LangGraph workflow.
 
+        Uses the 2-phase direct generation algorithm:
+        1. Direct Generation - Single LLM call generates entire mindmap
+        2. Refinement - Single LLM call cleans up duplicates
+
         Args:
             document_content: Full document text or summary
             document_title: Optional document title
             document_id: Optional document ID for source references
-            max_depth: Override default max depth
-            max_branches: Override default max branches per node
+            max_depth: Override default max depth (used as hint in prompts)
+            max_branches: Override default max branches (unused in new algorithm)
+            language: Override prompt language ("zh", "en", or "auto")
 
         Yields:
             OutputEvent instances as generation progresses
         """
         depth = max_depth if max_depth is not None else self._max_depth
         branches = max_branches if max_branches is not None else self._max_branches
+        lang = language if language is not None else self._language
         title = document_title or "Document"
 
         logger.info(
-            f"[MindmapAgent] Starting LangGraph generation: depth={depth}, branches={branches}"
+            f"[MindmapAgent] Starting direct generation: depth={depth}, language={lang}"
         )
 
         # Create an async queue for events
@@ -140,15 +154,15 @@ class MindmapAgent(BaseOutputAgent):
             """Callback to emit events to the queue."""
             await event_queue.put(event)
 
-        # Initialize state for the graph
+        # Initialize state for the graph (new 2-phase algorithm)
         initial_state: MindmapState = {
             "document_content": document_content,
             "document_title": title,
             "document_id": document_id,
             "max_depth": depth,
             "max_branches": branches,
-            "current_depth": 0,
-            "nodes_to_expand": [],
+            "language": lang,
+            "markdown_output": "",
             "nodes": {},
             "edges": [],
             "root_id": None,

@@ -5368,6 +5368,53 @@ export default function KonvaCanvas({
                 setEditingSuperCardId(null);
                 setEditingSuperCardType(null);
               }}
+              onOpenSourceRef={(sourceId, sourceType, location, quote) => {
+                // Handle source reference navigation from mindmap
+                if (sourceType === 'video') {
+                  // Find the source node to get video metadata
+                  const sourceNode = nodes.find(n => n.sourceId === sourceId || n.id === sourceId);
+                  if (sourceNode) {
+                    // Parse timestamp from location (e.g., "12:30" or "1:23:45")
+                    let startTime = 0;
+                    if (location) {
+                      const parts = location.split(':').map(Number);
+                      if (parts.length === 2) {
+                        startTime = parts[0] * 60 + parts[1];
+                      } else if (parts.length === 3) {
+                        startTime = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                      }
+                    }
+                    // Open video player with the source node (will navigate to timestamp)
+                    setYoutubePlayer({ 
+                      open: true, 
+                      node: { 
+                        ...sourceNode, 
+                        fileMetadata: { 
+                          ...sourceNode.fileMetadata, 
+                          startTime 
+                        } 
+                      } 
+                    });
+                  }
+                } else if (sourceType === 'web') {
+                  // Find web source node and open reader
+                  const sourceNode = nodes.find(n => n.sourceId === sourceId || n.id === sourceId);
+                  if (sourceNode) {
+                    setWebPageReader({ open: true, node: sourceNode });
+                  }
+                } else {
+                  // PDF or document - use onOpenSource callback
+                  // Extract page number from location (e.g., "Page 15" or "Page 15-17")
+                  let pageNumber: number | undefined;
+                  if (location) {
+                    const pageMatch = location.match(/Page\s*(\d+)/i);
+                    if (pageMatch) {
+                      pageNumber = parseInt(pageMatch[1], 10);
+                    }
+                  }
+                  onOpenSource?.(sourceId, pageNumber);
+                }
+              }}
             />
           );
         })()}
@@ -5486,6 +5533,7 @@ export default function KonvaCanvas({
             viewCount={youtubePlayer.node.fileMetadata?.viewCount}
             publishedAt={youtubePlayer.node.fileMetadata?.publishedAt}
             sourceUrl={youtubePlayer.node.fileMetadata?.sourceUrl}
+            startTime={youtubePlayer.node.fileMetadata?.startTime}
           />
         )}
 

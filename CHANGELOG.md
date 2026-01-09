@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance - 2026-01-09
+
+#### Mindmap Generation: Batch Mode (No Streaming)
+
+**Author:** aqiu
+
+**Overview:**
+Removed real-time node streaming for mindmap generation, switching to batch mode where backend returns raw Markdown and frontend parses it. This simplifies the architecture and reduces complexity since the new 2-phase algorithm only makes 2 LLM calls, making streaming unnecessary.
+
+**Architecture Changes:**
+- **Old flow**: Backend streams NODE_ADDED/EDGE_ADDED events → Frontend renders incrementally
+- **New flow**: Backend emits Markdown in GENERATION_COMPLETE → Frontend parses & renders in batch
+
+**Key Features:**
+- Phase progress events retained ("Generating...", "Refining...", "Complete")
+- Frontend Markdown parser with source reference extraction
+- Simpler backend (no streaming complexity)
+- Markdown is human-readable for debugging
+
+**Files Added:**
+- `frontend/src/lib/mindmap-parser.ts` - TypeScript parser for Markdown-to-MindmapData conversion
+
+**Files Modified:**
+- `backend/src/.../base_agent.py` - Added `markdown_content` and `document_id` fields to OutputEvent
+- `backend/src/.../mindmap_graph.py` - Removed `parse_to_nodes` node, emit markdown in COMPLETE event
+- `backend/src/.../output_generation_service.py` - Parse markdown for DB storage
+- `frontend/src/lib/api.ts` - Added `markdownContent` and `documentId` to OutputWebSocketEvent
+- `frontend/src/hooks/useOutputWebSocket.ts` - Parse markdown on COMPLETE, added `onMindmapComplete` callback
+- `frontend/src/hooks/useCanvasActions.ts` - Handle markdown content in generation_complete
+
+---
+
+### Algorithm - 2026-01-09
+
+#### Mindmap Generation: Direct Generation Algorithm
+
+**Author:** aqiu
+
+**Overview:**
+Replaced the complex multi-phase mindmap generation algorithm with a simplified 2-phase direct generation approach. This leverages modern LLMs' large context windows (up to 500K tokens) to generate better mindmaps with significantly fewer API calls.
+
+**Algorithm Changes:**
+- **Old approach**: Chunking → Semantic Parsing → Clustering → Tree Aggregation → Mermaid Generation (N+log(N) LLM calls)
+- **New approach**: Direct Generation → Refinement (2 LLM calls total)
+
+**Key Features:**
+- Full document context processing (no chunking loss)
+- 98% reduction in LLM API calls
+- Multi-language prompts (Chinese/English)
+- Source reference preservation with `[Page X]` and `[MM:SS]` markers
+- Click-to-navigate support for PDF pages and video timestamps
+
+**Files Added:**
+- `domain/services/source_annotator.py` - PDF/video content annotation service
+- `tests/unit/test_mindmap_graph.py` - 19 unit tests for markdown parsing
+- `tests/unit/test_source_annotator.py` - 13 unit tests for source annotation
+
+**Files Modified:**
+- `application/graphs/mindmap_graph.py` - Complete rewrite with new algorithm
+- `domain/agents/mindmap_agent.py` - Updated to use new state and language parameter
+- `application/services/output_generation_service.py` - Added page-annotated content loading
+
+**Output Format:**
+- Changed from Mermaid syntax to Markdown outline (easier to parse, more reliable)
+- Batch mode: Backend returns markdown, frontend parses and renders
+
+---
+
 ### Cleanup - 2026-01-08
 
 #### Remove Unused Curriculum Feature

@@ -60,6 +60,10 @@ class OutputEvent:
     # Generic message
     message: Optional[str] = None
 
+    # Mindmap batch generation fields
+    markdown_content: Optional[str] = None  # Raw markdown for mindmap
+    document_id: Optional[str] = None  # For source reference linking
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization."""
         result: Dict[str, Any] = {
@@ -87,6 +91,10 @@ class OutputEvent:
             result["errorMessage"] = self.error_message
         if self.message is not None:
             result["message"] = self.message
+        if self.markdown_content is not None:
+            result["markdownContent"] = self.markdown_content
+        if self.document_id is not None:
+            result["documentId"] = self.document_id
 
         return result
 

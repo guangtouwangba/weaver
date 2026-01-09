@@ -11,65 +11,66 @@ dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     "python-multipart>=0.0.12",  # File uploads
-    
+
     # Database
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30.0",
     "alembic>=1.14.0",
     "pgvector>=0.3.5",
-    "supabase>=2.0.0",  # Official Supabase Python SDK
-    "pillow>=10.0.0",   # Image processing (needed for thumbnails)
-    
+    "supabase>=2.0.0",             # Official Supabase Python SDK
+    "pillow>=10.0.0",              # Image processing (needed for thumbnails)
+
     # LLM & Embedding (OpenRouter via OpenAI SDK)
     "openai>=1.55.0",
-    
+
     # LangChain & LangGraph
     "langchain>=0.3.0",
     "langgraph>=0.2.0",
     "langchain-openai>=0.2.0",
     "langchain-community>=0.3.0",
     "langchain-text-splitters>=0.3.0",
-    
+
     # Document Processing (lightweight - no PyTorch, no system deps)
-    "unstructured>=0.16.0",  # For DOCX/PPTX parsing (no [pdf] extra to avoid cv2/libGL)
-    "pymupdf>=1.24.0",  # PDF parser (lightweight, ~30MB, no system deps)
-    
+    "unstructured>=0.16.0", # For DOCX/PPTX parsing (no [pdf] extra to avoid cv2/libGL)
+    "pymupdf>=1.24.0",      # PDF parser (lightweight, ~30MB, no system deps)
+
     # Utilities
-    "httpx[socks]>=0.28.0",  # 包含 SOCKS 代理支持
+    "httpx[socks]>=0.28.0", # 包含 SOCKS 代理支持
     "python-dotenv>=1.0.1",
-    "rapidfuzz>=3.10.0",  # Fuzzy string matching for citation localization
-    
+    "rapidfuzz>=3.10.0",    # Fuzzy string matching for citation localization
+
     # Security
-    "cryptography>=42.0.0",  # Fernet encryption for API keys
-    
+    "cryptography>=42.0.0", # Fernet encryption for API keys
+
     # Logging
     "python-logging-loki>=0.3.1",
-    
+
     # Evaluation
     "ragas>=0.2.0",
     "datasets>=2.14.0",
-    
+
     # Observability
     "langfuse>=3.0.0",
-    
+
     # Task Queue
-    "arq>=0.26.0",  # Redis-based async task queue
-    
+    "arq>=0.26.0", # Redis-based async task queue
+
     # URL Content Extraction
-    "trafilatura>=2.0.0",  # Web page article extraction
-    "youtube-transcript-api>=0.6.0",  # YouTube transcript extraction
-    "bilibili-api-python>=16.0.0",  # Bilibili video metadata
+    "trafilatura>=2.0.0",            # Web page article extraction
+    "youtube-transcript-api>=0.6.0", # YouTube transcript extraction
+    "bilibili-api-python>=16.0.0",   # Bilibili video metadata
+    "yt-dlp>=2024.12.0",             # YouTube audio download for Gemini transcription
 ]
 
 [project.optional-dependencies]
 # Heavy OCR dependencies (includes PyTorch ~2-5GB) - only install if needed
 ocr = [
-    "docling>=2.0.0",   # Multi-format parser with OCR (PDF/Word/PPT) - requires PyTorch
+    "docling>=2.0.0", # Multi-format parser with OCR (PDF/Word/PPT) - requires PyTorch
 ]
 # Gemini Vision OCR (lightweight alternative to docling)
 gemini = [
-    "google-generativeai>=0.8.0",  # Gemini API for Vision OCR
-    "pdf2image>=1.17.0",           # PDF to image conversion for Gemini
+    "google-generativeai>=0.8.0", # Gemini API for Vision OCR
+    "pdf2image>=1.17.0",          # PDF to image conversion for Gemini
 ]
 dev = [
     "pytest>=8.3.0",
@@ -102,4 +103,3 @@ testpaths = ["tests"]
 python_version = "3.13"
 strict = true
 ignore_missing_imports = true
-

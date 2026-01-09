@@ -14,6 +14,8 @@ interface YouTubePlayerModalProps {
   viewCount?: string;
   publishedAt?: string;
   sourceUrl?: string;
+  /** Start time in seconds for timestamp navigation */
+  startTime?: number;
 }
 
 export default function YouTubePlayerModal({
@@ -25,6 +27,7 @@ export default function YouTubePlayerModal({
   viewCount,
   publishedAt,
   sourceUrl,
+  startTime,
 }: YouTubePlayerModalProps) {
   // Handle Escape key to close
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -47,8 +50,11 @@ export default function YouTubePlayerModal({
 
   if (!open) return null;
 
-  const youtubeUrl = sourceUrl || `https://www.youtube.com/watch?v=${videoId}`;
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+  // Build YouTube URLs with optional start time
+  const timeParam = startTime && startTime > 0 ? `&t=${Math.floor(startTime)}` : '';
+  const startParam = startTime && startTime > 0 ? `&start=${Math.floor(startTime)}` : '';
+  const youtubeUrl = sourceUrl || `https://www.youtube.com/watch?v=${videoId}${timeParam}`;
+  const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0${startParam}`;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

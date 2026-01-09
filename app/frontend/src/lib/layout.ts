@@ -724,7 +724,5 @@ export function getDropPositionInParking(
   const startY = section.y + PARKING_SECTION_CONFIG.headerHeight + PARKING_SECTION_CONFIG.padding;
   const scaledHeight = 120;
 
-  const y = startY + existingParkedNodes.length * (scaledHeight + PARKING_SECTION_CONFIG.nodeSpacing);
-
-  return { x: startX, y };
+  const y = startY + existingParkedNodes.length * (scaledHeight + PARKING_SECTION_CONFIG.nodeSpacing);  return { x: startX, y };
 }

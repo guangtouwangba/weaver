@@ -191,6 +191,15 @@ class OutputNotificationService:
             **event.to_dict(),
         }
 
+        # Log markdown content if present (for debugging)
+        if event.type.value == "generation_complete" and event.markdown_content:
+            logger.info(
+                f"[Output WebSocket] Sending generation_complete with markdownContent "
+                f"({len(event.markdown_content)} chars) and documentId={event.document_id}"
+            )
+            # Log the actual message keys to verify markdownContent is included
+            logger.info(f"[Output WebSocket] Message keys: {list(message.keys())}")
+
         # Broadcast to task-specific subscribers first
         task_count = await self._broadcast_to_task(task_id, message)
 

@@ -211,6 +211,7 @@ export interface CanvasNode {
     viewCount?: string;
     publishedAt?: string;
     sourceUrl?: string;
+    startTime?: number;  // Start time in seconds for timestamp navigation
   };
   // === Thinking Graph Fields (Dynamic Mind Map) ===
   thinkingStepIndex?: number;  // Step number in the thinking sequence
@@ -760,11 +761,14 @@ export interface OutputWebSocketEvent {
   message?: string;
   progress?: number;
   errorMessage?: string;
-  // Mindmap node/edge events
+  // Mindmap node/edge events (legacy streaming mode)
   nodeId?: string;
   nodeData?: Partial<MindmapNode>;
   edgeId?: string;
   edgeData?: Partial<MindmapEdge>;
+  // Mindmap batch generation (new mode)
+  markdownContent?: string;  // Raw markdown for frontend parsing
+  documentId?: string;       // Document ID for source references
   // Level progress
   currentLevel?: number;
   totalLevels?: number;

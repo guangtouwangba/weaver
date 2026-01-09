@@ -12,6 +12,7 @@ import {
   getWebSocketUrl
 } from '@/lib/api';
 import { applyLayout } from '@/components/studio/mindmap/layoutAlgorithms';
+import { parseMindmapFromMarkdown } from '@/lib/mindmap-parser';
 
 // Helper for polling (still used for non-streaming types)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -187,14 +188,29 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
               case 'generation_complete':
                 console.log('[Mindmap] Generation complete:', data.message);
+                console.log('[Mindmap] Raw event data:', JSON.stringify(data).substring(0, 500));
+
+                // Check for markdown content (new batch mode)
+                let finalData = streamingData;
+                if (data.markdownContent) {
+                  console.log('[Mindmap] Parsing markdown content, length:', data.markdownContent.length);
+                  const parsedData = parseMindmapFromMarkdown(
+                    data.markdownContent,
+                    data.documentId
+                  );
+                  console.log('[Mindmap] Parsed result:', parsedData.nodes.length, 'nodes,', parsedData.edges.length, 'edges');
+                  finalData = parsedData;
+                } else {
+                  console.log('[Mindmap] No markdownContent in event, using streamingData with', streamingData.nodes.length, 'nodes');
+                }
 
                 // Apply layout to final data before setting result
-                if (streamingData.nodes.length > 0) {
-                  const layoutResult = applyLayout(streamingData, 'balanced', 1200, 800);
+                if (finalData.nodes.length > 0) {
+                  const layoutResult = applyLayout(finalData, 'balanced', 1200, 800);
                   setMindmapResult({
                     data: {
                       nodes: layoutResult.nodes,
-                      edges: [...streamingData.edges]
+                      edges: [...finalData.edges]
                     },
                     title: docTitle
                   });
@@ -607,14 +623,26 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
 
               case 'generation_complete':
                 console.log('[Mindmap WS Concurrent] Complete');
+                console.log('[Mindmap WS Concurrent] markdownContent present:', !!data.markdownContent);
+
+                // Check for markdown content (new batch mode)
+                let finalData = streamingData;
+                if (data.markdownContent) {
+                  console.log('[Mindmap WS Concurrent] Parsing markdown, length:', data.markdownContent.length);
+                  const parsedData = parseMindmapFromMarkdown(
+                    data.markdownContent,
+                    data.documentId
+                  );
+                  console.log('[Mindmap WS Concurrent] Parsed:', parsedData.nodes.length, 'nodes');
+                  finalData = parsedData;
+                }
 
                 // Apply layout to final data before completing
-                let finalData = streamingData;
-                if (streamingData.nodes.length > 0) {
-                  const layoutResult = applyLayout(streamingData, 'balanced', 1200, 800);
+                if (finalData.nodes.length > 0) {
+                  const layoutResult = applyLayout(finalData, 'balanced', 1200, 800);
                   finalData = {
                     nodes: layoutResult.nodes,
-                    edges: [...streamingData.edges]
+                    edges: [...finalData.edges]
                   };
                 }
 

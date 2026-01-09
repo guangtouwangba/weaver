@@ -9,12 +9,12 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.config import get_settings
+from research_agent.domain.agents.action_list_agent import ActionListAgent
+from research_agent.domain.agents.article_agent import ArticleAgent
 from research_agent.domain.agents.base_agent import OutputEvent, OutputEventType
 from research_agent.domain.agents.flashcard_agent import FlashcardAgent
 from research_agent.domain.agents.mindmap_agent import MindmapAgent
 from research_agent.domain.agents.summary_agent import SummaryAgent
-from research_agent.domain.agents.article_agent import ArticleAgent
-from research_agent.domain.agents.action_list_agent import ActionListAgent
 from research_agent.domain.entities.output import (
     ActionListData,
     ArticleData,
@@ -30,11 +30,11 @@ from research_agent.domain.entities.output import (
 from research_agent.infrastructure.database.repositories.sqlalchemy_document_repo import (
     SQLAlchemyDocumentRepository,
 )
-from research_agent.infrastructure.resource_resolver import ResourceResolver
 from research_agent.infrastructure.database.repositories.sqlalchemy_output_repo import (
     SQLAlchemyOutputRepository,
 )
 from research_agent.infrastructure.llm.openrouter import OpenRouterLLMService
+from research_agent.infrastructure.resource_resolver import ResourceResolver
 from research_agent.infrastructure.websocket.output_notification_service import (
     output_notification_service,
 )
@@ -112,16 +112,18 @@ class OutputGenerationService:
             Dict with task_id and output_id
         """
         url_content_ids = url_content_ids or []
-        
+
         # Validate that we have some content source, except for types that use node_data
         # Custom, article, and action_list types can work with canvas node_data instead of documents
         types_with_node_data = ("custom", "article", "action_list")
         has_node_data = options and (options.get("node_data") or options.get("mode"))
         is_type_with_node_data = output_type in types_with_node_data and has_node_data
         has_content_source = document_ids or url_content_ids
-        
+
         if not has_content_source and not is_type_with_node_data:
-            raise ValueError("At least one document ID or URL content ID is required for output generation")
+            raise ValueError(
+                "At least one document ID or URL content ID is required for output generation"
+            )
 
         task_id = str(uuid4())
         output_id = uuid4()
@@ -219,25 +221,29 @@ class OutputGenerationService:
                 async with get_async_session() as session:
                     # Branch based on output type
                     output_type = task_info.output_type
-                    
+
                     # Types that use node_data instead of documents
                     types_with_node_data = ("custom", "article", "action_list")
                     has_node_data = options and (options.get("node_data") or options.get("mode"))
                     is_type_with_node_data = output_type in types_with_node_data and has_node_data
-                    
+
                     if is_type_with_node_data:
                         # Use node_data from options instead of documents
                         node_data = options.get("node_data", [])
                         if not node_data:
-                            raise ValueError("node_data is required for custom output type without documents")
-                        
+                            raise ValueError(
+                                "node_data is required for custom output type without documents"
+                            )
+
                         # Convert node_data to document_content format for compatibility
-                        document_content = "\n\n---\n\n".join([
-                            f"# {nd.get('title', 'Node')}\n\n{nd.get('content', '')}"
-                            for nd in node_data
-                            if nd.get("content") or nd.get("title")
-                        ])
-                        
+                        document_content = "\n\n---\n\n".join(
+                            [
+                                f"# {nd.get('title', 'Node')}\n\n{nd.get('content', '')}"
+                                for nd in node_data
+                                if nd.get("content") or nd.get("title")
+                            ]
+                        )
+
                         if not document_content:
                             raise ValueError("No valid node content available in node_data")
                     else:
@@ -246,33 +252,40 @@ class OutputGenerationService:
                             document_ids, session, url_content_ids
                         )
 
+                        # Debug: Check loaded content
+                        logger.info(
+                            f"[OutputService] Loaded document_content: length={len(document_content) if document_content else 0}, "
+                            f"has_TIME_markers={'[TIME:' in (document_content or '')}, "
+                            f"has_PAGE_markers={'[PAGE:' in (document_content or '')}"
+                        )
+
                         if not document_content:
                             raise ValueError("No document content available")
 
                     if output_type == "summary":
-                        # Summary generation
+                        # Summary generation with Langfuse trace
                         await self._run_summary_generation(
                             task_id=task_id,
                             project_id=project_id,
                             output_id=output_id,
                             document_content=document_content,
                             title=title,
-                            llm_service=llm_service,
+                            llm_service=llm_service.with_trace("summary-generation"),
                             session=session,
                         )
                     elif output_type == "flashcards":
-                        # Flashcard generation
+                        # Flashcard generation with Langfuse trace
                         await self._run_flashcard_generation(
                             task_id=task_id,
                             project_id=project_id,
                             output_id=output_id,
                             document_content=document_content,
                             title=title,
-                            llm_service=llm_service,
+                            llm_service=llm_service.with_trace("flashcard-generation"),
                             session=session,
                         )
                     elif output_type == "article":
-                        # Article generation (Magic Cursor)
+                        # Article generation (Magic Cursor) with Langfuse trace
                         await self._run_article_generation(
                             task_id=task_id,
                             project_id=project_id,
@@ -280,11 +293,11 @@ class OutputGenerationService:
                             document_content=document_content,
                             title=title,
                             options=options,
-                            llm_service=llm_service,
+                            llm_service=llm_service.with_trace("article-generation"),
                             session=session,
                         )
                     elif output_type == "action_list":
-                        # Action list generation (Magic Cursor)
+                        # Action list generation (Magic Cursor) with Langfuse trace
                         await self._run_action_list_generation(
                             task_id=task_id,
                             project_id=project_id,
@@ -292,11 +305,11 @@ class OutputGenerationService:
                             document_content=document_content,
                             title=title,
                             options=options,
-                            llm_service=llm_service,
+                            llm_service=llm_service.with_trace("action-list-generation"),
                             session=session,
                         )
                     elif output_type == "custom" and options.get("mode"):
-                        # Custom type with mode = synthesis
+                        # Custom type with mode = synthesis with Langfuse trace
                         await self._run_custom_synthesis_generation(
                             task_id=task_id,
                             project_id=project_id,
@@ -304,11 +317,11 @@ class OutputGenerationService:
                             document_content=document_content,
                             title=title,
                             options=options,
-                            llm_service=llm_service,
+                            llm_service=llm_service.with_trace("synthesis-generation"),
                             session=session,
                         )
                     else:
-                        # Mindmap generation (default)
+                        # Mindmap generation (default) with Langfuse trace
                         await self._run_mindmap_generation(
                             task_id=task_id,
                             project_id=project_id,
@@ -317,7 +330,7 @@ class OutputGenerationService:
                             document_ids=document_ids,
                             title=title,
                             options=options,
-                            llm_service=llm_service,
+                            llm_service=llm_service.with_trace("mindmap-generation"),
                             session=session,
                         )
 
@@ -371,48 +384,74 @@ class OutputGenerationService:
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
     ) -> None:
-        """Run mindmap generation."""
-        # Create agent
-        # Default to conservative settings to prevent frontend freezing
-        # max_depth=2, max_branches=4 → max ~21 nodes (1 + 4 + 16)
+        """Run mindmap generation using 2-phase direct generation algorithm.
+
+        Uses the new simplified algorithm:
+        1. Direct Generation - Single LLM call generates entire mindmap
+        2. Refinement - Single LLM call cleans up duplicates
+
+        Backend returns markdown; frontend parses to nodes/edges.
+        """
+        from research_agent.application.graphs.mindmap_graph import _parse_markdown_to_nodes
+
+        # Prepare page-annotated content for source references
+        annotated_content = await self._load_page_annotated_content(
+            document_ids, session, document_content
+        )
+
+        # Create agent with new algorithm settings
         agent = MindmapAgent(
             llm_service=llm_service,
-            max_depth=options.get("max_depth", 2),
-            max_branches_per_node=options.get("max_branches", 4),
+            max_depth=options.get("max_depth", 3),  # Default to 3 for new algorithm
+            max_branches_per_node=options.get("max_branches", 4),  # Unused in new algorithm
+            language=options.get("language", "zh"),  # Default to Chinese
         )
 
         # Run generation and stream events
         mindmap_data = MindmapData()
-        
+        markdown_content: Optional[str] = None
+        document_id_from_event: Optional[str] = None
+
         # Get the first document ID for source references
         primary_document_id = str(document_ids[0]) if document_ids else None
 
         async for event in agent.generate(
-            document_content=document_content,
+            document_content=annotated_content,
             document_title=title or "Document",
             document_id=primary_document_id,
-            **options,
+            language=options.get("language", "zh"),
+            **{k: v for k, v in options.items() if k not in ("language",)},
         ):
             # Check if task was cancelled
             if task_id not in self._active_tasks:
                 logger.info(f"[OutputService] Task cancelled: {task_id}")
                 return
 
-            # Stream event to clients
+            # Stream event to clients (frontend will parse markdown)
             await output_notification_service.notify_event(
                 project_id=project_id,
                 task_id=task_id,
                 event=event,
             )
 
-            # Collect data for storage
-            if event.type == OutputEventType.NODE_ADDED and event.node_data:
-                node = MindmapNode.from_dict(event.node_data)
-                mindmap_data.add_node(node)
+            # Capture markdown from GENERATION_COMPLETE for DB storage
+            if event.type == OutputEventType.GENERATION_COMPLETE:
+                markdown_content = event.markdown_content
+                document_id_from_event = event.document_id
 
-            if event.type == OutputEventType.EDGE_ADDED and event.edge_data:
-                edge = MindmapEdge.from_dict(event.edge_data)
+        # Parse markdown to nodes/edges for database storage
+        if markdown_content:
+            nodes, edges, root_id = _parse_markdown_to_nodes(
+                markdown_content, document_id_from_event or primary_document_id
+            )
+            for node_data in nodes.values():
+                node = MindmapNode.from_dict(node_data)
+                mindmap_data.add_node(node)
+            for edge_data in edges:
+                edge = MindmapEdge.from_dict(edge_data)
                 mindmap_data.add_edge(edge)
+            if root_id:
+                mindmap_data.root_id = root_id
 
         # Save final result
         output_repo = SQLAlchemyOutputRepository(session)
@@ -421,16 +460,13 @@ class OutputGenerationService:
             output.mark_complete(mindmap_data.to_dict())
             await output_repo.update(output)
 
-        # Notify completion
-        await output_notification_service.notify_generation_complete(
-            project_id=project_id,
-            task_id=task_id,
-            output_id=str(output_id),
-            message=f"Generated mindmap with {len(mindmap_data.nodes)} nodes",
-        )
+        # Note: Don't call notify_generation_complete here!
+        # The GENERATION_COMPLETE event with markdownContent was already sent
+        # via notify_event in the loop above. Sending another one without
+        # markdownContent would cause the frontend to lose the parsed data.
 
         logger.info(
-            f"[OutputService] Mindmap task complete: {task_id}, " f"nodes={len(mindmap_data.nodes)}"
+            f"[OutputService] Mindmap task complete: {task_id}, nodes={len(mindmap_data.nodes)}"
         )
 
     async def _run_custom_synthesis_generation(
@@ -449,11 +485,13 @@ class OutputGenerationService:
 
         mode = options.get("mode", "connect")
         node_data = options.get("node_data", [])
-        
+
         # Extract content from node_data (document_content is already formatted from node_data)
         # Split by "---" separator to get individual node contents
-        node_contents = [content.strip() for content in document_content.split("\n\n---\n\n") if content.strip()]
-        
+        node_contents = [
+            content.strip() for content in document_content.split("\n\n---\n\n") if content.strip()
+        ]
+
         if len(node_contents) < 2:
             raise ValueError("At least 2 nodes required for synthesis")
 
@@ -639,7 +677,7 @@ class OutputGenerationService:
         """Run article generation (Magic Cursor: Draft Article)."""
         node_data = options.get("node_data", [])
         snapshot_context = options.get("snapshot_context")
-        
+
         # Create agent
         agent = ArticleAgent(llm_service=llm_service)
 
@@ -705,7 +743,7 @@ class OutputGenerationService:
         """Run action list generation (Magic Cursor: Action List)."""
         node_data = options.get("node_data", [])
         snapshot_context = options.get("snapshot_context")
-        
+
         # Create agent
         agent = ActionListAgent(llm_service=llm_service)
 
@@ -765,31 +803,198 @@ class OutputGenerationService:
     ) -> str:
         """
         Load and combine content from documents and URL contents.
-        
+
         Uses ResourceResolver for unified content loading across all resource types.
         """
         # Combine all resource IDs
         all_resource_ids = list(document_ids)
         if url_content_ids:
             all_resource_ids.extend(url_content_ids)
-        
+
         if not all_resource_ids:
             return ""
-        
+
         # Use ResourceResolver for unified content loading
         resolver = ResourceResolver(session)
-        combined_content = await resolver.get_combined_content(all_resource_ids)
-        
-        # Log what was loaded
         resources = await resolver.resolve_many(all_resource_ids)
+
+        # Check for videos without content and transcribe if needed
+        from research_agent.config import get_settings
+
+        settings = get_settings()
+
+        content_parts = []
         for resource in resources:
             content_len = len(resource.content) if resource.content else 0
             logger.info(
                 f"[OutputService] Loaded {resource.type.value} ({resource.platform}): "
                 f"{resource.title[:50]}... ({content_len} chars)"
             )
-        
-        return combined_content
+
+            # Check if this is a YouTube video without content
+            if (
+                resource.type.value == "video"
+                and resource.platform == "youtube"
+                and not resource.content
+            ):
+                # Get video_id from metadata
+                video_id = resource.metadata.get("video_id")
+                has_transcript = resource.metadata.get("has_transcript", False)
+
+                if video_id and not has_transcript:
+                    logger.info(
+                        f"[OutputService] Video {video_id} has no transcript, "
+                        "attempting Gemini audio transcription..."
+                    )
+
+                    try:
+                        from research_agent.infrastructure.llm.gemini_audio import (
+                            transcribe_youtube_video,
+                        )
+
+                        result = await transcribe_youtube_video(
+                            video_id=video_id,
+                            api_key=settings.openrouter_api_key,
+                            max_duration_minutes=30,
+                        )
+
+                        if result.success and result.transcript:
+                            logger.info(
+                                f"[OutputService] Gemini transcription successful: "
+                                f"{len(result.transcript)} chars"
+                            )
+                            # Use transcribed content
+                            formatted = (
+                                f"## Video (youtube): {resource.title}\n\n{result.transcript}"
+                            )
+                            content_parts.append(formatted)
+
+                            # Update URL content in database with transcript
+                            await self._update_url_content_transcript(
+                                session, resource.id, result.transcript
+                            )
+                            continue
+                        else:
+                            logger.warning(
+                                f"[OutputService] Gemini transcription failed: " f"{result.error}"
+                            )
+                    except Exception as e:
+                        logger.error(
+                            f"[OutputService] Audio transcription error: {e}", exc_info=True
+                        )
+
+            # Use existing content
+            formatted = resource.get_formatted_content()
+            if formatted:
+                content_parts.append(formatted)
+
+        return "\n\n---\n\n".join(content_parts)
+
+    async def _load_page_annotated_content(
+        self,
+        document_ids: List[UUID],
+        session: AsyncSession,
+        fallback_content: str,
+    ) -> str:
+        """
+        Load document content with page annotations for source references.
+
+        Attempts to load document chunks (which have page_number) and annotate
+        the content with [PAGE:X] markers. Falls back to raw content if chunks
+        are not available.
+
+        Args:
+            document_ids: List of document UUIDs
+            session: Database session
+            fallback_content: Content to use if page annotation fails
+
+        Returns:
+            Page-annotated content string
+        """
+        if not document_ids:
+            return fallback_content
+
+        try:
+            from sqlalchemy import select
+
+            from research_agent.infrastructure.database.models import DocumentChunkModel
+
+            annotated_parts = []
+
+            for doc_id in document_ids:
+                # Query chunks for this document, ordered by page_number and chunk_index
+                stmt = (
+                    select(DocumentChunkModel)
+                    .where(DocumentChunkModel.document_id == doc_id)
+                    .order_by(DocumentChunkModel.page_number, DocumentChunkModel.chunk_index)
+                )
+                result = await session.execute(stmt)
+                chunks = result.scalars().all()
+
+                if not chunks:
+                    # No chunks, use fallback
+                    logger.debug(f"[OutputService] No chunks found for document {doc_id}")
+                    continue
+
+                # Group chunks by page number
+                pages: Dict[int, List[str]] = {}
+                for chunk in chunks:
+                    page_num = chunk.page_number or 1
+                    if page_num not in pages:
+                        pages[page_num] = []
+                    pages[page_num].append(chunk.content)
+
+                # Build annotated content
+                for page_num in sorted(pages.keys()):
+                    page_content = "\n".join(pages[page_num])
+                    annotated_parts.append(f"[PAGE:{page_num}]\n{page_content}")
+
+            if annotated_parts:
+                annotated_content = "\n\n".join(annotated_parts)
+                logger.info(
+                    f"[OutputService] Created page-annotated content: "
+                    f"{len(annotated_parts)} pages, {len(annotated_content)} chars"
+                )
+                return annotated_content
+
+            # No annotated content, use fallback
+            return fallback_content
+
+        except Exception as e:
+            logger.warning(f"[OutputService] Failed to load page-annotated content: {e}")
+            return fallback_content
+
+    async def _update_url_content_transcript(
+        self,
+        session: AsyncSession,
+        url_content_id: UUID,
+        transcript: str,
+    ) -> None:
+        """Update URL content record with Gemini-transcribed content.
+
+        This caches the transcription result so it doesn't need to be
+        re-transcribed on future requests.
+        """
+        try:
+            from research_agent.infrastructure.database.models import UrlContentModel
+
+            url_content = await session.get(UrlContentModel, url_content_id)
+            if url_content:
+                url_content.content = transcript
+
+                # Update metadata to indicate transcription source
+                meta_data = url_content.meta_data or {}
+                meta_data["has_transcript"] = True
+                meta_data["transcript_source"] = "gemini_audio"
+                url_content.meta_data = meta_data
+
+                await session.commit()
+                logger.info(
+                    f"[OutputService] Saved Gemini transcript for {url_content_id}: "
+                    f"{len(transcript)} chars"
+                )
+        except Exception as e:
+            logger.warning(f"[OutputService] Failed to save transcript: {e}")
 
     async def list_outputs(
         self,

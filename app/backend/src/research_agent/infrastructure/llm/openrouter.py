@@ -5,6 +5,8 @@ from typing import AsyncIterator, List, Optional
 from openai import AsyncOpenAI
 
 from research_agent.infrastructure.llm.base import ChatMessage, ChatResponse, LLMService
+from research_agent.config import get_settings
+from research_agent.shared.utils.logger import logger
 
 # OpenRouter recommended models by tier
 OPENROUTER_MODELS = {
@@ -15,6 +17,31 @@ OPENROUTER_MODELS = {
     "quality": "anthropic/claude-3.5-sonnet",
     "best": "openai/gpt-4o",
 }
+
+
+def _get_langfuse_client():
+    """Get Langfuse client for direct tracing (lazy initialization)."""
+    settings = get_settings()
+    if not settings.langfuse_enabled:
+        return None
+    
+    if not settings.langfuse_public_key or not settings.langfuse_secret_key:
+        return None
+    
+    try:
+        import os
+        os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
+        os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
+        os.environ["LANGFUSE_HOST"] = settings.langfuse_host
+        
+        from langfuse import Langfuse
+        return Langfuse()
+    except ImportError:
+        logger.debug("[Langfuse] Not installed, skipping trace")
+        return None
+    except Exception as e:
+        logger.warning(f"[Langfuse] Failed to initialize: {e}")
+        return None
 
 
 class OpenRouterLLMService(LLMService):
@@ -28,11 +55,13 @@ class OpenRouterLLMService(LLMService):
         model: str = "openai/gpt-4o-mini",
         site_url: Optional[str] = None,
         site_name: Optional[str] = None,
+        trace_name: Optional[str] = None,  # For Langfuse tracing
     ):
         self._api_key = api_key
         self._model = model
         self._site_url = site_url
         self._site_name = site_name
+        self._trace_name = trace_name  # e.g., "mindmap", "summary"
 
         # Use OpenAI SDK with OpenRouter base URL
         self._client = AsyncOpenAI(
@@ -51,20 +80,70 @@ class OpenRouterLLMService(LLMService):
         return headers
 
     async def chat(self, messages: List[ChatMessage]) -> ChatResponse:
-        """Send chat messages and get response."""
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=[{"role": m.role, "content": m.content} for m in messages],
-        )
+        """Send chat messages and get response with optional Langfuse tracing."""
+        langfuse = _get_langfuse_client()
+        trace = None
+        generation = None
+        
+        # Create Langfuse trace if enabled
+        if langfuse and self._trace_name:
+            try:
+                trace = langfuse.trace(
+                    name=self._trace_name,
+                    metadata={"model": self._model},
+                )
+                # Log input messages
+                input_data = [{"role": m.role, "content": m.content[:500] + "..." if len(m.content) > 500 else m.content} for m in messages]
+                generation = trace.generation(
+                    name=f"{self._trace_name}-llm-call",
+                    model=self._model,
+                    input=input_data,
+                )
+            except Exception as e:
+                logger.warning(f"[Langfuse] Failed to create trace: {e}")
+        
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[{"role": m.role, "content": m.content} for m in messages],
+            )
 
-        return ChatResponse(
-            content=response.choices[0].message.content or "",
-            model=response.model,
-            usage={
-                "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                "completion_tokens": response.usage.completion_tokens if response.usage else 0,
-            },
-        )
+            result = ChatResponse(
+                content=response.choices[0].message.content or "",
+                model=response.model,
+                usage={
+                    "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+                    "completion_tokens": response.usage.completion_tokens if response.usage else 0,
+                },
+            )
+            
+            # Log output to Langfuse
+            if generation:
+                try:
+                    output_preview = result.content[:1000] + "..." if len(result.content) > 1000 else result.content
+                    generation.end(
+                        output=output_preview,
+                        usage={
+                            "input": result.usage.get("prompt_tokens", 0),
+                            "output": result.usage.get("completion_tokens", 0),
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"[Langfuse] Failed to log generation: {e}")
+            
+            return result
+            
+        except Exception as e:
+            # Log error to Langfuse
+            if generation:
+                try:
+                    generation.end(
+                        status_message=str(e),
+                        level="ERROR",
+                    )
+                except Exception:
+                    pass
+            raise
 
     async def chat_stream(self, messages: List[ChatMessage]) -> AsyncIterator[str]:
         """Send chat messages and get streaming response."""
@@ -85,6 +164,17 @@ class OpenRouterLLMService(LLMService):
             model=model,
             site_url=self._site_url,
             site_name=self._site_name,
+            trace_name=self._trace_name,
+        )
+    
+    def with_trace(self, trace_name: str) -> "OpenRouterLLMService":
+        """Create new instance with Langfuse trace name."""
+        return OpenRouterLLMService(
+            api_key=self._api_key,
+            model=self._model,
+            site_url=self._site_url,
+            site_name=self._site_name,
+            trace_name=trace_name,
         )
 
 
