@@ -121,15 +121,21 @@ class YouTubeExtractor(URLExtractor):
                     languages=preferred_languages,
                 )
                 # Convert FetchedTranscript to list of dicts
-                transcript_list = [{"text": s.text, "start": s.start, "duration": s.duration} for s in transcript]
+                transcript_list = [
+                    {"text": s.text, "start": s.start, "duration": s.duration} for s in transcript
+                ]
                 text = self._format_transcript(transcript_list)
                 if text:
-                    logger.info(f"[YouTubeExtractor] Got transcript with preferred languages for {video_id}")
+                    logger.info(
+                        f"[YouTubeExtractor] Got transcript with preferred languages for {video_id}"
+                    )
                     return text, True
             except Exception as e:
                 error_str = str(e)
                 if "NoTranscriptFound" in error_str or "No transcripts were found" in error_str:
-                    logger.debug(f"[YouTubeExtractor] No transcript in preferred languages for {video_id}")
+                    logger.debug(
+                        f"[YouTubeExtractor] No transcript in preferred languages for {video_id}"
+                    )
                 else:
                     logger.warning(f"[YouTubeExtractor] Error fetching transcript: {e}")
 
@@ -143,9 +149,14 @@ class YouTubeExtractor(URLExtractor):
                 # Try manually created transcripts first
                 for transcript_info in transcript_list_obj:
                     if not transcript_info.is_generated:
-                        logger.info(f"[YouTubeExtractor] Found manual transcript in {transcript_info.language_code}")
+                        logger.info(
+                            f"[YouTubeExtractor] Found manual transcript in {transcript_info.language_code}"
+                        )
                         fetched = await asyncio.to_thread(transcript_info.fetch)
-                        transcript_list = [{"text": s.text, "start": s.start, "duration": s.duration} for s in fetched]
+                        transcript_list = [
+                            {"text": s.text, "start": s.start, "duration": s.duration}
+                            for s in fetched
+                        ]
                         text = self._format_transcript(transcript_list)
                         if text:
                             return text, True
@@ -153,9 +164,14 @@ class YouTubeExtractor(URLExtractor):
                 # Fall back to auto-generated transcripts
                 for transcript_info in transcript_list_obj:
                     if transcript_info.is_generated:
-                        logger.info(f"[YouTubeExtractor] Found auto-generated transcript in {transcript_info.language_code}")
+                        logger.info(
+                            f"[YouTubeExtractor] Found auto-generated transcript in {transcript_info.language_code}"
+                        )
                         fetched = await asyncio.to_thread(transcript_info.fetch)
-                        transcript_list = [{"text": s.text, "start": s.start, "duration": s.duration} for s in fetched]
+                        transcript_list = [
+                            {"text": s.text, "start": s.start, "duration": s.duration}
+                            for s in fetched
+                        ]
                         text = self._format_transcript(transcript_list)
                         if text:
                             return text, True
@@ -182,13 +198,27 @@ class YouTubeExtractor(URLExtractor):
         return None, False
 
     def _format_transcript(self, transcript_list: List[dict]) -> str:
-        """Format transcript segments into readable paragraphs."""
+        """Format transcript segments into readable paragraphs with time markers.
+
+        Adds [TIME:MM:SS] markers at the start of each paragraph to enable
+        source linking in mindmap nodes.
+        """
         if not transcript_list:
             return ""
+
+        def format_time(seconds: float) -> str:
+            """Format seconds as MM:SS or HH:MM:SS."""
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            secs = int(seconds % 60)
+            if hours > 0:
+                return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+            return f"{minutes:02d}:{secs:02d}"
 
         # Group by natural paragraph breaks (longer pauses)
         paragraphs = []
         current_paragraph = []
+        paragraph_start_time = 0
         last_end = 0
 
         for segment in transcript_list:
@@ -200,15 +230,24 @@ class YouTubeExtractor(URLExtractor):
 
             # New paragraph if pause > 2 seconds
             if current_paragraph and (start - last_end) > 2:
-                paragraphs.append(" ".join(current_paragraph))
+                # Add time marker at start of paragraph
+                time_marker = f"[TIME:{format_time(paragraph_start_time)}]"
+                paragraph_text = " ".join(current_paragraph)
+                paragraphs.append(f"{time_marker}\n{paragraph_text}")
                 current_paragraph = []
+                paragraph_start_time = start
+
+            if not current_paragraph:
+                paragraph_start_time = start
 
             current_paragraph.append(text)
             last_end = start + segment.get("duration", 0)
 
         # Add remaining paragraph
         if current_paragraph:
-            paragraphs.append(" ".join(current_paragraph))
+            time_marker = f"[TIME:{format_time(paragraph_start_time)}]"
+            paragraph_text = " ".join(current_paragraph)
+            paragraphs.append(f"{time_marker}\n{paragraph_text}")
 
         return "\n\n".join(paragraphs)
 
@@ -238,4 +277,3 @@ class YouTubeExtractor(URLExtractor):
             logger.warning(f"[YouTubeExtractor] Failed to get oEmbed metadata: {e}")
 
         return {}
-

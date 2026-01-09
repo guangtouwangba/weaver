@@ -3,12 +3,13 @@
 /**
  * Custom hook for Output Generation WebSocket connection
  *
- * Provides real-time updates for output generation (mindmaps, summaries, etc.),
- * streaming node/edge additions as they are generated.
+ * Provides real-time updates for output generation (mindmaps, summaries, etc.).
+ * For mindmaps, backend returns raw markdown which is parsed by the frontend.
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { getWebSocketUrl, OutputWebSocketEvent, MindmapNode, MindmapEdge } from '@/lib/api';
+import { getWebSocketUrl, OutputWebSocketEvent, MindmapNode, MindmapEdge, MindmapData } from '@/lib/api';
+import { parseMindmapFromMarkdown } from '@/lib/mindmap-parser';
 
 export interface UseOutputWebSocketOptions {
   projectId: string;
@@ -19,6 +20,8 @@ export interface UseOutputWebSocketOptions {
   onProgress?: (progress: number, message?: string) => void;
   onGenerationStarted?: (outputType: string) => void;
   onGenerationComplete?: (outputId?: string, message?: string, nodeData?: Record<string, unknown>) => void;
+  /** Called when mindmap generation completes with markdown content (new batch mode) */
+  onMindmapComplete?: (mindmapData: MindmapData, documentId?: string) => void;
   onGenerationError?: (error: string) => void;
   onLevelComplete?: (currentLevel: number, totalLevels: number) => void;
   onConnectionStatusChange?: (
@@ -140,7 +143,18 @@ export function useOutputWebSocket(
               break;
 
             case 'generation_complete':
-              // Pass outputId and nodeData (for article/action_list results)
+              // Check for markdown content (mindmap batch generation)
+              if (data.markdownContent) {
+                console.log('[Output WS] Received mindmap markdown content, length:', data.markdownContent.length);
+                console.log('[Output WS] Document ID:', data.documentId);
+                const mindmapData = parseMindmapFromMarkdown(
+                  data.markdownContent,
+                  data.documentId
+                );
+                console.log('[Output WS] Parsed mindmap:', mindmapData.nodes.length, 'nodes,', mindmapData.edges.length, 'edges');
+                callbacks.onMindmapComplete?.(mindmapData, data.documentId);
+              }
+              // Also call general complete handler (for article/action_list results)
               callbacks.onGenerationComplete?.(
                 data.outputId,
                 data.message,

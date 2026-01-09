@@ -43,11 +43,11 @@ function parseSourceMarkers(
 ): { cleanText: string; sourceRefs: SourceRef[] } {
   const sourceRefs: SourceRef[] = [];
 
-  // Pattern for page markers: [Page 15] or [Page 15-17]
-  const pagePattern = /\[Page\s*(\d+)(?:\s*-\s*(\d+))?\]/gi;
+  // Pattern for page markers: [Page 15] or [Page 15-17] or [PAGE:15]
+  const pagePattern = /\[(?:Page\s*|PAGE:)(\d+)(?:\s*-\s*(\d+))?\]/gi;
 
-  // Pattern for time markers: [12:30] or [1:23:45]
-  const timePattern = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
+  // Pattern for time markers: [TIME:12:30] or [TIME:1:23:45] (also legacy [12:30])
+  const timePattern = /\[(?:TIME:)?(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
 
   // Remove markers from text first to get clean text
   let cleanText = text.replace(pagePattern, '').replace(timePattern, '').trim();
@@ -57,7 +57,7 @@ function parseSourceMarkers(
 
   // Reset patterns for matching
   let match;
-  const pagePatternForMatch = /\[Page\s*(\d+)(?:\s*-\s*(\d+))?\]/gi;
+  const pagePatternForMatch = /\[(?:Page\s*|PAGE:)(\d+)(?:\s*-\s*(\d+))?\]/gi;
   while ((match = pagePatternForMatch.exec(text)) !== null) {
     const pageStart = match[1];
     const pageEnd = match[2] || pageStart;
@@ -69,7 +69,7 @@ function parseSourceMarkers(
     });
   }
 
-  const timePatternForMatch = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
+  const timePatternForMatch = /\[(?:TIME:)?(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
   while ((match = timePatternForMatch.exec(text)) !== null) {
     sourceRefs.push({
       sourceId: documentId || '',
@@ -110,8 +110,13 @@ export function parseMarkdownToMindmap(
   const edges: MindmapEdge[] = [];
   let rootId: string | null = null;
 
+  console.log('[MindmapParser] ========== PARSING MINDMAP MARKDOWN ==========');
+  console.log('[MindmapParser] Document ID:', documentId || 'none');
   console.log('[MindmapParser] Input markdown length:', markdown?.length || 0);
-  console.log('[MindmapParser] First 200 chars:', markdown?.substring(0, 200));
+  console.log('[MindmapParser] Full markdown content:');
+  console.log('------- MARKDOWN START -------');
+  console.log(markdown);
+  console.log('------- MARKDOWN END -------');
 
   if (!markdown || !markdown.trim()) {
     console.log('[MindmapParser] Empty markdown, returning empty result');
