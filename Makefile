@@ -42,26 +42,26 @@ venv:
 		echo "✅ Virtual environment already exists"; \
 	fi
 
-# Install system dependencies (poppler for pdf2image, required by Gemini OCR)
+# Install system dependencies (poppler for pdf2image, ffmpeg for audio transcription)
 install-system-deps:
 	@echo "📦 Installing system dependencies..."
 	@if command -v brew >/dev/null 2>&1; then \
 		echo "🍺 Detected Homebrew (macOS)"; \
-		brew install poppler || echo "⚠️  poppler may already be installed"; \
+		brew install poppler ffmpeg || echo "⚠️  poppler/ffmpeg may already be installed"; \
 	elif command -v apt-get >/dev/null 2>&1; then \
 		echo "🐧 Detected apt-get (Debian/Ubuntu)"; \
-		sudo apt-get update && sudo apt-get install -y poppler-utils; \
+		sudo apt-get update && sudo apt-get install -y poppler-utils ffmpeg; \
 	elif command -v dnf >/dev/null 2>&1; then \
 		echo "🎩 Detected dnf (Fedora/RHEL)"; \
-		sudo dnf install -y poppler-utils; \
+		sudo dnf install -y poppler-utils ffmpeg; \
 	elif command -v pacman >/dev/null 2>&1; then \
 		echo "🏴 Detected pacman (Arch)"; \
-		sudo pacman -S --noconfirm poppler; \
+		sudo pacman -S --noconfirm poppler ffmpeg; \
 	else \
-		echo "⚠️  Could not detect package manager. Please install poppler-utils manually."; \
-		echo "   - macOS: brew install poppler"; \
-		echo "   - Debian/Ubuntu: apt-get install poppler-utils"; \
-		echo "   - Fedora/RHEL: dnf install poppler-utils"; \
+		echo "⚠️  Could not detect package manager. Please install poppler-utils and ffmpeg manually."; \
+		echo "   - macOS: brew install poppler ffmpeg"; \
+		echo "   - Debian/Ubuntu: apt-get install poppler-utils ffmpeg"; \
+		echo "   - Fedora/RHEL: dnf install poppler-utils ffmpeg"; \
 	fi
 	@echo "✅ System dependencies installed!"
 
