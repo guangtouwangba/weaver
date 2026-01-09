@@ -18,6 +18,7 @@ class ChatMessageDTO:
     content: str
     session_id: Optional[UUID]
     sources: Optional[List[Dict[str, Any]]]
+    context_refs: Optional[List[Dict[str, Any]]]
     created_at: str
 
 
@@ -59,6 +60,7 @@ class GetHistoryUseCase:
                     content=m.content,
                     session_id=m.session_id,
                     sources=m.sources,
+                    context_refs=getattr(m, "context_refs", None),
                     created_at=m.created_at.isoformat(),
                 )
                 for m in messages
