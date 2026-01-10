@@ -3,7 +3,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from research_agent.config import get_settings
 from research_agent.domain.agents.action_list_agent import ActionListAgent
 from research_agent.domain.agents.article_agent import ArticleAgent
-from research_agent.domain.agents.base_agent import OutputEvent, OutputEventType
+from research_agent.domain.agents.base_agent import OutputEventType
 from research_agent.domain.agents.flashcard_agent import FlashcardAgent
 from research_agent.domain.agents.mindmap_agent import MindmapAgent
 from research_agent.domain.agents.summary_agent import SummaryAgent
@@ -26,9 +26,6 @@ from research_agent.domain.entities.output import (
     OutputStatus,
     OutputType,
     SummaryData,
-)
-from research_agent.infrastructure.database.repositories.sqlalchemy_document_repo import (
-    SQLAlchemyDocumentRepository,
 )
 from research_agent.infrastructure.database.repositories.sqlalchemy_output_repo import (
     SQLAlchemyOutputRepository,
@@ -51,7 +48,7 @@ class TaskInfo:
     output_type: str
     status: str = "running"
     created_at: datetime = field(default_factory=datetime.utcnow)
-    asyncio_task: Optional[asyncio.Task] = None
+    asyncio_task: asyncio.Task | None = None
 
 
 class OutputGenerationService:
@@ -74,9 +71,9 @@ class OutputGenerationService:
         """
         self._max_concurrent = max_concurrent_per_project
         # Map: task_id -> TaskInfo
-        self._active_tasks: Dict[str, TaskInfo] = {}
+        self._active_tasks: dict[str, TaskInfo] = {}
         # Map: project_id -> Semaphore
-        self._project_semaphores: Dict[str, asyncio.Semaphore] = {}
+        self._project_semaphores: dict[str, asyncio.Semaphore] = {}
         # Lock for task management
         self._lock = asyncio.Lock()
 
@@ -90,12 +87,12 @@ class OutputGenerationService:
         self,
         project_id: UUID,
         output_type: str,
-        document_ids: List[UUID],
-        title: Optional[str],
-        options: Dict[str, Any],
+        document_ids: list[UUID],
+        title: str | None,
+        options: dict[str, Any],
         session: AsyncSession,
-        url_content_ids: Optional[List[UUID]] = None,
-    ) -> Dict[str, Any]:
+        url_content_ids: list[UUID | None] = None,
+    ) -> dict[str, Any]:
         """
         Start a new output generation task.
 
@@ -185,10 +182,10 @@ class OutputGenerationService:
     async def _run_generation(
         self,
         task_info: TaskInfo,
-        document_ids: List[UUID],
-        title: Optional[str],
-        options: Dict[str, Any],
-        url_content_ids: Optional[List[UUID]] = None,
+        document_ids: list[UUID],
+        title: str | None,
+        options: dict[str, Any],
+        url_content_ids: list[UUID | None] = None,
     ) -> None:
         """
         Run the generation task.
@@ -378,9 +375,9 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
-        document_ids: List[UUID],
-        title: Optional[str],
-        options: Dict[str, Any],
+        document_ids: list[UUID],
+        title: str | None,
+        options: dict[str, Any],
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
     ) -> None:
@@ -393,6 +390,7 @@ class OutputGenerationService:
         Backend returns markdown; frontend parses to nodes/edges.
         """
         from research_agent.application.graphs.mindmap_graph import _parse_markdown_to_nodes
+        from research_agent.domain.skills.srp import SRP_SKILL
 
         # Prepare page-annotated content for source references
         annotated_content = await self._load_page_annotated_content(
@@ -403,14 +401,14 @@ class OutputGenerationService:
         agent = MindmapAgent(
             llm_service=llm_service,
             max_depth=options.get("max_depth", 3),  # Default to 3 for new algorithm
-            max_branches_per_node=options.get("max_branches", 4),  # Unused in new algorithm
             language=options.get("language", "zh"),  # Default to Chinese
+            skills=options.get("skills", [SRP_SKILL]),
         )
 
         # Run generation and stream events
         mindmap_data = MindmapData()
-        markdown_content: Optional[str] = None
-        document_id_from_event: Optional[str] = None
+        markdown_content: str | None = None
+        document_id_from_event: str | None = None
 
         # Get the first document ID for source references
         primary_document_id = str(document_ids[0]) if document_ids else None
@@ -475,8 +473,8 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
-        title: Optional[str],
-        options: Dict[str, Any],
+        title: str | None,
+        options: dict[str, Any],
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
     ) -> None:
@@ -549,7 +547,7 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
-        title: Optional[str],
+        title: str | None,
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
     ) -> None:
@@ -558,7 +556,7 @@ class OutputGenerationService:
         agent = SummaryAgent(llm_service=llm_service)
 
         # Run generation and stream events
-        summary_data: Optional[SummaryData] = None
+        summary_data: SummaryData | None = None
 
         async for event in agent.generate(
             document_content=document_content,
@@ -609,7 +607,7 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
-        title: Optional[str],
+        title: str | None,
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
     ) -> None:
@@ -618,7 +616,7 @@ class OutputGenerationService:
         agent = FlashcardAgent(llm_service=llm_service)
 
         # Run generation and stream events
-        flashcard_data: Optional[FlashcardData] = None
+        flashcard_data: FlashcardData | None = None
 
         async for event in agent.generate(
             document_content=document_content,
@@ -669,8 +667,8 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
-        title: Optional[str],
-        options: Dict[str, Any],
+        title: str | None,
+        options: dict[str, Any],
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
     ) -> None:
@@ -679,10 +677,13 @@ class OutputGenerationService:
         snapshot_context = options.get("snapshot_context")
 
         # Create agent
-        agent = ArticleAgent(llm_service=llm_service)
+        agent = ArticleAgent(
+            llm_service=llm_service,
+            skills=options.get("skills", []),
+        )
 
         # Run generation and stream events
-        article_data: Optional[ArticleData] = None
+        article_data: ArticleData | None = None
 
         async for event in agent.generate(
             document_content=document_content,
@@ -735,8 +736,8 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
-        title: Optional[str],
-        options: Dict[str, Any],
+        title: str | None,
+        options: dict[str, Any],
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
     ) -> None:
@@ -745,10 +746,13 @@ class OutputGenerationService:
         snapshot_context = options.get("snapshot_context")
 
         # Create agent
-        agent = ActionListAgent(llm_service=llm_service)
+        agent = ActionListAgent(
+            llm_service=llm_service,
+            skills=options.get("skills", []),
+        )
 
         # Run generation and stream events
-        action_list_data: Optional[ActionListData] = None
+        action_list_data: ActionListData | None = None
 
         async for event in agent.generate(
             document_content=document_content,
@@ -797,9 +801,9 @@ class OutputGenerationService:
 
     async def _load_document_content(
         self,
-        document_ids: List[UUID],
+        document_ids: list[UUID],
         session: AsyncSession,
-        url_content_ids: Optional[List[UUID]] = None,
+        url_content_ids: list[UUID | None] = None,
     ) -> str:
         """
         Load and combine content from documents and URL contents.
@@ -892,7 +896,7 @@ class OutputGenerationService:
 
     async def _load_page_annotated_content(
         self,
-        document_ids: List[UUID],
+        document_ids: list[UUID],
         session: AsyncSession,
         fallback_content: str,
     ) -> str:
@@ -937,7 +941,7 @@ class OutputGenerationService:
                     continue
 
                 # Group chunks by page number
-                pages: Dict[int, List[str]] = {}
+                pages: dict[int, list[str]] = {}
                 for chunk in chunks:
                     page_num = chunk.page_number or 1
                     if page_num not in pages:
@@ -999,11 +1003,11 @@ class OutputGenerationService:
     async def list_outputs(
         self,
         project_id: UUID,
-        output_type: Optional[str],
+        output_type: str | None,
         limit: int,
         offset: int,
         session: AsyncSession,
-    ) -> Tuple[List[Output], int]:
+    ) -> tuple[list[Output], int]:
         """List outputs for a project."""
         output_repo = SQLAlchemyOutputRepository(session)
         return await output_repo.find_by_project(
@@ -1018,7 +1022,7 @@ class OutputGenerationService:
         project_id: UUID,
         output_id: UUID,
         session: AsyncSession,
-    ) -> Optional[Output]:
+    ) -> Output | None:
         """Get a specific output."""
         output_repo = SQLAlchemyOutputRepository(session)
         output = await output_repo.find_by_id(output_id)
@@ -1049,10 +1053,10 @@ class OutputGenerationService:
         self,
         project_id: UUID,
         output_id: UUID,
-        title: Optional[str],
-        data: Optional[Dict[str, Any]],
+        title: str | None,
+        data: dict[str, Any | None],
         session: AsyncSession,
-    ) -> Optional[Output]:
+    ) -> Output | None:
         """
         Update an existing output's title and/or data.
 
@@ -1074,7 +1078,7 @@ class OutputGenerationService:
             return None
 
         # Build update dict
-        update_data: Dict[str, Any] = {}
+        update_data: dict[str, Any] = {}
         if title is not None:
             update_data["title"] = title
         if data is not None:
@@ -1086,149 +1090,13 @@ class OutputGenerationService:
         updated = await output_repo.update(output_id, update_data)
         return updated
 
-    async def start_explain_node(
-        self,
-        project_id: UUID,
-        output_id: UUID,
-        node_id: str,
-        node_data: Dict[str, Any],
-        session: AsyncSession,
-    ) -> str:
-        """
-        Start explaining a node.
-
-        Returns task_id for tracking via WebSocket.
-        """
-        task_id = str(uuid4())
-        project_id_str = str(project_id)
-
-        # Verify output exists
-        output_repo = SQLAlchemyOutputRepository(session)
-        output = await output_repo.find_by_id(output_id)
-        if not output or output.project_id != project_id:
-            raise ValueError("Output not found")
-
-        # Get document content for context
-        document_content = await self._load_document_content(output.document_ids, session)
-
-        # Create task info
-        task_info = TaskInfo(
-            task_id=task_id,
-            project_id=project_id_str,
-            output_id=output_id,
-            output_type="explain",
-        )
-
-        async with self._lock:
-            self._active_tasks[task_id] = task_info
-
-        # Start async task
-        asyncio_task = asyncio.create_task(
-            self._run_explain(
-                task_info=task_info,
-                node_id=node_id,
-                node_data=node_data,
-                document_content=document_content,
-            )
-        )
-        task_info.asyncio_task = asyncio_task
-
-        return task_id
-
-    async def _run_explain(
-        self,
-        task_info: TaskInfo,
-        node_id: str,
-        node_data: Dict[str, Any],
-        document_content: str,
-    ) -> None:
-        """Run the explain node task."""
-        project_id = task_info.project_id
-        task_id = task_info.task_id
-
-        try:
-            settings = get_settings()
-            llm_service = OpenRouterLLMService(
-                api_key=settings.openrouter_api_key,
-                model=settings.llm_model,
-                site_name="Research Agent RAG",
-            )
-
-            agent = MindmapAgent(llm_service=llm_service)
-
-            async for event in agent.explain_node(
-                node_id=node_id,
-                node_data=node_data,
-                document_content=document_content,
-            ):
-                if task_id not in self._active_tasks:
-                    return
-
-                await output_notification_service.notify_event(
-                    project_id=project_id,
-                    task_id=task_id,
-                    event=event,
-                )
-
-        except Exception as e:
-            logger.error(f"[OutputService] Explain failed: {e}", exc_info=True)
-            await output_notification_service.notify_generation_error(
-                project_id=project_id,
-                task_id=task_id,
-                error_message=str(e),
-            )
-
-        finally:
-            async with self._lock:
-                self._active_tasks.pop(task_id, None)
-            output_notification_service.cleanup_task(task_id)
-
-    async def explain_node_stream(
-        self,
-        project_id: UUID,
-        output_id: UUID,
-        node_id: str,
-        node_data: Dict[str, Any],
-        session: AsyncSession,
-    ) -> AsyncIterator[str]:
-        """
-        Stream explanation tokens directly (for SSE).
-
-        Alternative to WebSocket for simpler clients.
-        """
-        # Verify output exists
-        output_repo = SQLAlchemyOutputRepository(session)
-        output = await output_repo.find_by_id(output_id)
-        if not output or output.project_id != project_id:
-            raise ValueError("Output not found")
-
-        # Get document content for context
-        document_content = await self._load_document_content(output.document_ids, session)
-
-        settings = get_settings()
-        llm_service = OpenRouterLLMService(
-            api_key=settings.openrouter_api_key,
-            model=settings.llm_model,
-            site_name="Research Agent RAG",
-        )
-
-        agent = MindmapAgent(llm_service=llm_service)
-
-        async for event in agent.explain_node(
-            node_id=node_id,
-            node_data=node_data,
-            document_content=document_content,
-        ):
-            if event.type == OutputEventType.TOKEN and event.token:
-                yield event.token
-
     async def start_expand_node(
         self,
         project_id: UUID,
         output_id: UUID,
         node_id: str,
-        node_data: Dict[str, Any],
-        existing_children: List[Dict[str, Any]],
+        node_data: dict[str, Any],
+        existing_children: list[dict[str, Any]],
         session: AsyncSession,
     ) -> str:
         """
@@ -1279,8 +1147,8 @@ class OutputGenerationService:
         task_info: TaskInfo,
         output: Output,
         node_id: str,
-        node_data: Dict[str, Any],
-        existing_children: List[Dict[str, Any]],
+        node_data: dict[str, Any],
+        existing_children: list[dict[str, Any]],
         document_content: str,
     ) -> None:
         """Run the expand node task."""
@@ -1391,10 +1259,10 @@ class OutputGenerationService:
         self,
         project_id: UUID,
         output_id: UUID,
-        node_ids: List[str],
+        node_ids: list[str],
         session: AsyncSession,
         mode: str = "connect",
-        node_data: Optional[List[Dict[str, Any]]] = None,
+        node_data: list[dict[str, Any | None]] = None,
     ) -> str:
         """
         Start synthesizing multiple nodes into a consolidated insight.
@@ -1467,8 +1335,8 @@ class OutputGenerationService:
     def _extract_node_contents(
         self,
         output: Output,
-        node_ids: List[str],
-    ) -> List[str]:
+        node_ids: list[str],
+    ) -> list[str]:
         """Extract content from nodes in the output data."""
         contents = []
         data = output.data or {}
@@ -1492,8 +1360,8 @@ class OutputGenerationService:
         self,
         task_info: TaskInfo,
         output: Output,
-        node_ids: List[str],
-        node_contents: List[str],
+        node_ids: list[str],
+        node_contents: list[str],
         mode: str,
     ) -> None:
         """Run the synthesis task."""

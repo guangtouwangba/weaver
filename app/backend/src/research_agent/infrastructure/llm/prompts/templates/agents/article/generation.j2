@@ -1,0 +1,37 @@
+Analyze the following content from canvas nodes and create a structured article.
+
+Source Nodes:
+{{ node_content }}
+
+Create a well-organized article that:
+1. Synthesizes the information from all provided nodes
+2. Has a clear logical structure with sections
+3. Maintains coherent flow between sections
+4. Attributes ideas to source nodes where relevant
+
+Respond with a JSON object in this exact format:
+{
+  "title": "A descriptive title for the article",
+  "sections": [
+    {
+      "heading": "Section heading",
+      "content": "Section content in markdown format. Can include paragraphs, lists, etc."
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceId": "node_id from input",
+      "sourceType": "node",
+      "quote": "Brief quote or reference from this source"
+    }
+  ]
+}
+
+Guidelines:
+- Create 2-5 sections based on the content complexity
+- Each section should have a clear heading and substantial content
+- Use markdown formatting within section content (bold, lists, etc.)
+- Include source references for key ideas
+- Write in a professional, clear tone
+
+Remember: Respond with ONLY the JSON object, nothing else.

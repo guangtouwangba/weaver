@@ -1,17 +1,14 @@
 """API endpoints for output generation (mindmap, summary, etc.)."""
 
-import json
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.deps import get_db
 from research_agent.application.dto.output import (
     ExpandNodeRequest,
-    ExplainNodeRequest,
     GenerateOutputRequest,
     GenerateOutputResponse,
     NodeActionResponse,
@@ -62,14 +59,16 @@ async def generate_output(
     # Validate that we have some content source, except for types that use node_data
     # Custom, article, and action_list types can work with canvas node_data instead of documents
     types_with_node_data = ("custom", "article", "action_list")
-    has_node_data = request.options and (request.options.get("node_data") or request.options.get("mode"))
+    has_node_data = request.options and (
+        request.options.get("node_data") or request.options.get("mode")
+    )
     is_type_with_node_data = request.output_type in types_with_node_data and has_node_data
     has_content_source = request.document_ids or request.url_content_ids
-    
+
     if not has_content_source and not is_type_with_node_data:
         raise HTTPException(
             status_code=400,
-            detail="At least one document ID or URL content ID is required for output generation"
+            detail="At least one document ID or URL content ID is required for output generation",
         )
 
     try:
@@ -103,7 +102,7 @@ async def generate_output(
 )
 async def list_outputs(
     project_id: UUID,
-    output_type: Optional[str] = None,
+    output_type: str | None = None,
     limit: int = 20,
     offset: int = 0,
     session: AsyncSession = Depends(get_db),
@@ -244,87 +243,6 @@ async def update_output(
 
 
 @router.post(
-    "/projects/{project_id}/outputs/{output_id}/nodes/{node_id}/explain",
-    response_model=NodeActionResponse,
-)
-async def explain_node(
-    project_id: UUID,
-    output_id: UUID,
-    node_id: str,
-    request: ExplainNodeRequest,
-    session: AsyncSession = Depends(get_db),
-) -> NodeActionResponse:
-    """
-    Start explaining a node.
-
-    Returns a task_id. The explanation will be streamed via WebSocket
-    as TOKEN events.
-    """
-    logger.info(f"[Outputs API] Explain node: output={output_id}, node={node_id}")
-
-    try:
-        task_id = await output_generation_service.start_explain_node(
-            project_id=project_id,
-            output_id=output_id,
-            node_id=node_id,
-            node_data=request.node_data,
-            session=session,
-        )
-
-        return NodeActionResponse(task_id=task_id, action="explain")
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"[Outputs API] Explain failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to start explanation")
-
-
-@router.post(
-    "/projects/{project_id}/outputs/{output_id}/nodes/{node_id}/explain/stream",
-)
-async def explain_node_stream(
-    project_id: UUID,
-    output_id: UUID,
-    node_id: str,
-    request: ExplainNodeRequest,
-    session: AsyncSession = Depends(get_db),
-) -> StreamingResponse:
-    """
-    Stream explanation for a node using Server-Sent Events.
-
-    Alternative to WebSocket for simpler integration.
-    """
-    logger.info(f"[Outputs API] Explain stream: output={output_id}, node={node_id}")
-
-    async def event_generator():
-        try:
-            async for token in output_generation_service.explain_node_stream(
-                project_id=project_id,
-                output_id=output_id,
-                node_id=node_id,
-                node_data=request.node_data,
-                session=session,
-            ):
-                yield f"data: {json.dumps({'token': token})}\n\n"
-
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-        except Exception as e:
-            logger.error(f"[Outputs API] Explain stream error: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
-    )
-
-
-@router.post(
     "/projects/{project_id}/outputs/{output_id}/nodes/{node_id}/expand",
     response_model=NodeActionResponse,
 )
@@ -381,7 +299,6 @@ async def synthesize_nodes(
     Returns a task_id. The synthesized node will be streamed via WebSocket
     as a NODE_ADDED event.
     """
-    from research_agent.application.dto.output import SynthesizeNodesRequest as SynthReq
 
     logger.info(f"[Outputs API] Synthesize nodes: output={output_id}, nodes={request.node_ids}")
 

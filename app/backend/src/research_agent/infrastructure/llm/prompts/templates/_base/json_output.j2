@@ -1,0 +1,15 @@
+{# _base/json_output.j2 - Shared JSON output format instructions #}
+{# Include this in prompts that require JSON responses #}
+
+IMPORTANT: You must respond with ONLY valid JSON, no other text or explanation.
+
+{% if json_example is defined and json_example %}
+{% raw %}
+Respond with a JSON object in this exact format:
+{% endraw %}
+{{ json_example }}
+{% endif %}
+
+{% if escape_json is defined and escape_json %}
+Note: Use proper JSON escaping for special characters in strings.
+{% endif %}

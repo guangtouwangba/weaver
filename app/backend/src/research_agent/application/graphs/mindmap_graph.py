@@ -17,6 +17,7 @@ from langgraph.graph import END, START, StateGraph
 from research_agent.domain.agents.base_agent import OutputEvent, OutputEventType
 from research_agent.domain.entities.output import MindmapEdge, MindmapNode, SourceRef
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
+from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger
 
 # Layout constants (positions handled by frontend)
@@ -44,8 +45,8 @@ class MindmapState(TypedDict):
     document_title: str
     document_id: Optional[str]  # Document ID for source references
     max_depth: int
-    max_branches: int
     language: str  # "zh", "en", or "auto"
+    skills: List[Any]  # Available skills for the agent
 
     # Output accumulation
     markdown_output: str  # Raw markdown from generation
@@ -67,177 +68,9 @@ class MindmapState(TypedDict):
 # Prompts - Chinese
 # =============================================================================
 
-DIRECT_PROMPT_ZH = """请将以下文本转换为**结构化的知识笔记**。
-
-## 文本内容
-{content}
-
-## 核心原则
-
-❌ 不要：平铺直叙，照搬原文结构
-✅ 要做：提炼核心，按逻辑重组
-
-## 输出结构
-
-### 第1层：核心要点（5-10个）
-- 文本中最重要的核心观点/概念/主题
-- 每个要点用简洁的短语概括
-
-### 第2层：展开说明
-- 对每个核心要点的具体解释
-- 关键定义、方法、步骤
-
-### 第3层：支撑细节
-- 具体案例、数据、引用
-- 保留原文中的关键信息（人名、地名、数字、时间）
-
-## 来源引用规则
-- 输入文本可能包含来源标记如 `[PAGE:X]` 或 `[TIME:MM:SS]`
-- 当提取某个观点时，在末尾**必须保留**最相关的来源标记
-- 如果某个观点跨越多个来源，保留主要来源的标记
-- 示例: "投资的核心是理解未来现金流 [PAGE:15]" 或 "AI Agent 能自主规划任务 [TIME:05:30]"
-
-## 提取原则
-
-1. **保留具体信息**：人名、公司名、地名、数字、日期、引用
-2. **体现因果关系**：原因→结果，问题→解决方案
-3. **区分主次**：核心观点 vs 补充说明
-4. **删除噪音**：致谢、寒暄、重复内容
-
-## 格式要求
-- # 根标题（概括主题）
-- - 和 2空格缩进表示层级
-- 控制在 3-4 层
-- 节点名 ≤ 30 字符
-
-直接输出 Markdown，不要解释：
-"""
-
-REFINE_PROMPT_ZH = """优化以下 Markdown 大纲，使其更清晰、更有条理。
-
-原始大纲:
-```markdown
-{content}
-```
-
-## 优化规则
-
-### 1. 去重
-- 删除父子同名节点（保留子节点内容）
-- 删除同级重复节点
-- 合并高度相似的内容
-
-### 2. 结构优化
-- 控制在 3-4 层深度
-- 确保父子节点有逻辑关系
-- 相似内容归到同一分类
-
-### 3. 内容清理
-- 删除致谢、用户名、寒暄
-- 删除过于抽象的分类词（如"主题"、"内容"、"概述"）
-- 节点名 ≤ 30 字符
-
-### 4. 保留关键信息
-- 人名、地名、公司名
-- 数字、日期、具体数据
-- 因果关系、对比分析
-- **必须保留**来源标注: `[PAGE:X]` 或 `[TIME:MM:SS]`
-
-## 格式
-- # 根标题
-- - 和 2空格缩进
-- 不要解释，直接输出
-
-优化后:
-"""
-
-# =============================================================================
-# Prompts - English
-# =============================================================================
-
-DIRECT_PROMPT_EN = """Convert this text into **structured knowledge notes**.
-
-## Text Content
-{content}
-
-## Core Principle
-
-❌ Don't: List everything, follow original structure
-✅ Do: Extract core ideas, reorganize logically
-
-## Output Structure
-
-### Layer 1: Core Points (5-10)
-- Most important concepts/themes/ideas
-- Concise phrase for each
-
-### Layer 2: Elaboration
-- Explanation of each core point
-- Key definitions, methods, steps
-
-### Layer 3: Supporting Details
-- Specific cases, data, quotes
-- Preserve key info (names, places, numbers, dates)
-
-## Source Reference Rules
-- Input text may contain source markers like `[PAGE:X]` or `[TIME:MM:SS]`
-- When extracting points, you **MUST preserve** the most relevant source marker at the end
-- If a point spans multiple sources, keep the primary source marker
-- Example: "Core of investing is understanding future cash flow [PAGE:15]" or "AI Agent plans tasks autonomously [TIME:05:30]"
-
-## Extraction Principles
-
-1. **Keep specifics**: Names, companies, places, numbers, dates, quotes
-2. **Show causality**: Cause → effect, problem → solution
-3. **Distinguish importance**: Core ideas vs supporting details
-4. **Remove noise**: Acknowledgements, greetings, repetition
-
-## Format
-- # for root heading (summarize theme)
-- - with 2-space indent for hierarchy
-- Keep to 3-4 levels
-- Node names ≤ 35 characters
-
-Output Markdown directly, no explanations:
-"""
-
-REFINE_PROMPT_EN = """Optimize this Markdown outline for clarity and organization.
-
-Original:
-```markdown
-{content}
-```
-
-## Optimization Rules
-
-### 1. Deduplication
-- Remove parent-child with same name (keep child content)
-- Remove duplicate siblings
-- Merge highly similar content
-
-### 2. Structure
-- Keep to 3-4 levels max
-- Ensure logical parent-child relationships
-- Group similar content together
-
-### 3. Cleanup
-- Remove acknowledgements, usernames, greetings
-- Remove abstract categories ("Topic", "Content", "Overview")
-- Node names ≤ 35 characters
-
-### 4. Preserve Key Info
-- Names, places, companies
-- Numbers, dates, specific data
-- Causality, comparisons
-- **Must preserve** source markers: `[PAGE:X]` or `[TIME:MM:SS]`
-
-## Format
-- # for root heading
-- - with 2-space indents
-- No explanations, direct output
-
-Optimized:
-"""
+# Template paths
+DIRECT_GENERATION_TEMPLATE = "agents/mindmap/direct_generation.j2"
+REFINE_TEMPLATE = "agents/mindmap/refine.j2"
 
 
 # =============================================================================
@@ -336,6 +169,7 @@ def _parse_markdown_to_nodes(
     root_id: Optional[str] = None
 
     lines = markdown.strip().split("\n")
+    logger.info(f"[_parse_markdown_to_nodes] Parsing {len(lines)} lines of markdown")
     if not lines:
         return nodes, edges, root_id
 
@@ -424,7 +258,9 @@ def _parse_markdown_to_nodes(
 
             # Push to stack
             parent_stack.append((node_id, indent))
+            logger.debug(f"[_parse_markdown_to_nodes] Created node {node_id} at depth {depth}")
 
+    logger.info(f"[_parse_markdown_to_nodes] Parsed {len(nodes)} nodes and {len(edges)} edges")
     return nodes, edges, root_id
 
 
@@ -444,6 +280,8 @@ async def direct_generate(state: MindmapState) -> MindmapState:
     emit = state.get("emit_event", _noop_emit)
     llm = state["llm_service"]
     language = state.get("language", "zh")
+    skills = state.get("skills", [])
+    prompt_loader = PromptLoader.get_instance()
 
     # Emit started event
     await emit(
@@ -480,10 +318,13 @@ async def direct_generate(state: MindmapState) -> MindmapState:
             logger.info(f"[MindmapGraph] First TIME marker found: {time_match.group()}")
 
     # Choose prompt based on language
-    if language == "en":
-        prompt = DIRECT_PROMPT_EN.format(content=content)
-    else:
-        prompt = DIRECT_PROMPT_ZH.format(content=content)
+    # Render prompt using Jinja2
+    prompt = prompt_loader.render(
+        DIRECT_GENERATION_TEMPLATE,
+        content=content,
+        language=language,
+        skills=skills,
+    )
 
     messages = [
         ChatMessage(role="user", content=prompt),
@@ -516,7 +357,9 @@ async def refine_output(state: MindmapState) -> MindmapState:
     emit = state.get("emit_event", _noop_emit)
     llm = state["llm_service"]
     language = state.get("language", "zh")
+    skills = state.get("skills", [])
     markdown = state.get("markdown_output", "")
+    prompt_loader = PromptLoader.get_instance()
 
     if not markdown:
         return {**state, "error": "No content to refine"}
@@ -531,10 +374,13 @@ async def refine_output(state: MindmapState) -> MindmapState:
     )
 
     # Choose prompt based on language
-    if language == "en":
-        prompt = REFINE_PROMPT_EN.format(content=markdown)
-    else:
-        prompt = REFINE_PROMPT_ZH.format(content=markdown)
+    # Render prompt using Jinja2
+    prompt = prompt_loader.render(
+        REFINE_TEMPLATE,
+        content=markdown,
+        language=language,
+        skills=skills,
+    )
 
     messages = [
         ChatMessage(role="user", content=prompt),
@@ -551,6 +397,9 @@ async def refine_output(state: MindmapState) -> MindmapState:
         original_lines = len(markdown.split("\n"))
         refined_lines = len(refined.split("\n"))
         logger.info(f"[MindmapGraph] Refined: {original_lines} -> {refined_lines} lines")
+
+        # Log the refined markdown for debugging
+        logger.info(f"[MindmapGraph] Refined Markdown Output:\n{refined}")
 
         return {
             **state,
@@ -570,6 +419,9 @@ async def complete_generation(state: MindmapState) -> MindmapState:
     logger.info(
         f"[MindmapGraph] complete_generation: markdown_lines={len(markdown.split(chr(10)))}"
     )
+
+    # Log the full markdown content for debugging
+    logger.info(f"[MindmapGraph] Final Markdown Output:\n{markdown}")
 
     emit = state.get("emit_event", _noop_emit)
 

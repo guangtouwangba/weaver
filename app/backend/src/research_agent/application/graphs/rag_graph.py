@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
+from research_agent.infrastructure.llm.prompts import render_prompt
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import rag_log, rag_log_with_timing
@@ -290,29 +291,29 @@ def get_cache_key(question: str, chat_history: list[tuple[str, str]]) -> str:
 
 
 def expand_query_with_history(
-    question: str, 
+    question: str,
     chat_history: list[tuple[str, str]],
     max_context_words: int = 30,
 ) -> str:
     """
     Rule-based query expansion using chat history context.
-    
+
     This is a lightweight alternative to LLM-based rewriting that:
     1. Extracts topic keywords from recent conversation
     2. Appends them as context to the original query
     3. Returns an expanded query suitable for retrieval
-    
+
     Args:
         question: Original user question
         chat_history: List of (human, ai) message tuples
         max_context_words: Max words to add from history
-        
+
     Returns:
         Expanded query string for retrieval
     """
     if not chat_history or not needs_rewriting(question, chat_history):
         return question
-    
+
     # Extract key terms from last 2 conversation turns
     context_terms = []
     for human_msg, ai_msg in chat_history[-2:]:
@@ -320,20 +321,80 @@ def expand_query_with_history(
         words = human_msg.split()
         # Filter out common stop words and short words
         stop_words = {
-            "what", "how", "why", "when", "where", "who", "which", "is", "are", 
-            "the", "a", "an", "to", "of", "in", "for", "and", "or", "it", "that",
-            "this", "these", "those", "them", "they", "its", "his", "her", "their",
-            "can", "could", "would", "should", "will", "do", "does", "did", "have",
-            "has", "had", "be", "been", "being", "was", "were", "about", "with",
-            "的", "是", "在", "有", "了", "和", "与", "这", "那", "什么", "怎么",
-            "如何", "为什么", "哪个", "哪些", "可以", "能", "会", "要", "我", "你",
+            "what",
+            "how",
+            "why",
+            "when",
+            "where",
+            "who",
+            "which",
+            "is",
+            "are",
+            "the",
+            "a",
+            "an",
+            "to",
+            "of",
+            "in",
+            "for",
+            "and",
+            "or",
+            "it",
+            "that",
+            "this",
+            "these",
+            "those",
+            "them",
+            "they",
+            "its",
+            "his",
+            "her",
+            "their",
+            "can",
+            "could",
+            "would",
+            "should",
+            "will",
+            "do",
+            "does",
+            "did",
+            "have",
+            "has",
+            "had",
+            "be",
+            "been",
+            "being",
+            "was",
+            "were",
+            "about",
+            "with",
+            "的",
+            "是",
+            "在",
+            "有",
+            "了",
+            "和",
+            "与",
+            "这",
+            "那",
+            "什么",
+            "怎么",
+            "如何",
+            "为什么",
+            "哪个",
+            "哪些",
+            "可以",
+            "能",
+            "会",
+            "要",
+            "我",
+            "你",
         }
         keywords = [
-            w.strip("?？!！,.，。") for w in words 
-            if len(w) > 2 and w.lower() not in stop_words
+            w.strip("?？!！,.，。") for w in words if len(w) > 2 and w.lower() not in stop_words
         ]
         context_terms.extend(keywords[:5])  # Limit per turn
-    
+
     # Remove duplicates while preserving order
     seen = set()
     unique_terms = []
@@ -341,17 +402,17 @@ def expand_query_with_history(
         if term.lower() not in seen:
             seen.add(term.lower())
             unique_terms.append(term)
-    
+
     # Limit total context length
     context_words = unique_terms[:max_context_words]
-    
+
     if not context_words:
         return question
-    
+
     # Build expanded query with context
     context_str = " ".join(context_words)
     expanded = f"{question} [Context: {context_str}]"
-    
+
     logger.info(f"[Rule-based Expansion] '{question}' -> '{expanded}'")
     return expanded
 
@@ -362,22 +423,22 @@ def build_history_context_for_prompt(
 ) -> str:
     """
     Build a concise history context string for inclusion in generation prompt.
-    
+
     This allows the LLM to understand pronoun references without needing
     a separate rewrite step.
-    
+
     Args:
         chat_history: List of (human, ai) message tuples
         max_turns: Maximum number of conversation turns to include
-        
+
     Returns:
         Formatted history context string
     """
     if not chat_history:
         return ""
-    
+
     recent = chat_history[-max_turns:]
-    
+
     lines = []
     for i, (human_msg, ai_msg) in enumerate(recent, 1):
         # Truncate long messages
@@ -385,7 +446,7 @@ def build_history_context_for_prompt(
         ai_truncated = ai_msg[:300] + "..." if len(ai_msg) > 300 else ai_msg
         lines.append(f"Q{i}: {human_truncated}")
         lines.append(f"A{i}: {ai_truncated}")
-    
+
     return "\n".join(lines)
 
 
@@ -1458,16 +1519,7 @@ def generate(state: GraphState, llm: ChatOpenAI) -> GraphState:
         logger.info(f"[Generate] Using intent-specific prompt for {state.get('intent_type')}")
     else:
         # Default prompt with memory awareness
-        system_prompt = """You are an assistant for question-answering tasks.
-        Use the following pieces of retrieved context to answer the question.
-        The context may include:
-        - Conversation Summary: A summary of earlier parts of the conversation
-        - Relevant Past Discussions: Similar questions and answers from previous sessions
-        - Retrieved Documents: Information from the knowledge base
-        
-        Use all available context to provide the most helpful answer.
-        If you don't know the answer, just say that you don't know.
-        Use three sentences maximum and keep the answer concise."""
+        system_prompt = render_prompt("rag/system.j2", memory_aware=True)
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -1672,12 +1724,16 @@ async def stream_rag_response(
     if chat_history:
         history_context_for_prompt = build_history_context_for_prompt(chat_history, max_turns=3)
         state["history_context"] = history_context_for_prompt
-    
+
     if use_rewrite and chat_history:
         if use_llm_rewrite:
             # LLM-based rewrite (more accurate but adds latency)
             if needs_rewriting(question, chat_history):
-                yield {"type": "status", "step": "rewriting", "message": "Refining your question..."}
+                yield {
+                    "type": "status",
+                    "step": "rewriting",
+                    "message": "Refining your question...",
+                }
             logger.info("[Stream] LLM-based query rewriting...")
             rewrite_result = await transform_query(
                 state,
@@ -1843,7 +1899,9 @@ async def stream_rag_response(
 
     filtered_count = len(documents)
     canvas_context = state.get("canvas_context", "")
-    logger.info(f"[Stream] {filtered_count} documents for generation, canvas_context={len(canvas_context)} chars")
+    logger.info(
+        f"[Stream] {filtered_count} documents for generation, canvas_context={len(canvas_context)} chars"
+    )
 
     # Allow generation if we have canvas_context (URL content, canvas nodes) even without documents
     if filtered_count == 0 and not canvas_context:
@@ -1854,7 +1912,7 @@ async def stream_rag_response(
         }
         yield {"type": "done"}
         return
-    
+
     if filtered_count == 0 and canvas_context:
         logger.info("[Stream] No relevant documents, but proceeding with canvas/URL context")
 
@@ -1866,7 +1924,11 @@ async def stream_rag_response(
     # IMPORTANT: Only use long context generation if we have RELEVANT documents
     # When all documents are graded as irrelevant (filtered_count == 0), we should
     # fall through to traditional generation which properly handles canvas_context (URL content)
-    if current_rag_mode in ("long_context", "hybrid") and long_context_content and filtered_count > 0:
+    if (
+        current_rag_mode in ("long_context", "hybrid")
+        and long_context_content
+        and filtered_count > 0
+    ):
         # Use long context generation
         logger.info(
             f"[RAG Mode] Using long context generation mode (content_length={len(long_context_content)} chars)"
@@ -2036,7 +2098,9 @@ async def stream_rag_response(
     # Build memory context (session summary + relevant past discussions)
     memory_context = format_memory_for_context(state)
     canvas_context = state.get("canvas_context", "")
-    history_context = state.get("history_context", "")  # NEW: Conversation history for pronoun resolution
+    history_context = state.get(
+        "history_context", ""
+    )  # NEW: Conversation history for pronoun resolution
 
     # Combine document context with memory context, canvas context, and history
     context_parts = []
@@ -2046,7 +2110,9 @@ async def stream_rag_response(
         context_parts.append(
             f"## Recent Conversation (for context, use to resolve pronouns like 'it', 'that', 'this')\n{history_context}"
         )
-        logger.info(f"[Generate] Including history context for pronoun resolution: {len(history_context)} chars")
+        logger.info(
+            f"[Generate] Including history context for pronoun resolution: {len(history_context)} chars"
+        )
 
     if canvas_context:
         context_parts.append(

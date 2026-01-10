@@ -6,59 +6,20 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
 from research_agent.domain.entities.output import ArticleData, ArticleSection, SourceRef
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
+from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger
 
-
-ARTICLE_SYSTEM_PROMPT = """You are an expert writer who synthesizes information from multiple sources into cohesive, well-structured articles.
-Your task is to analyze content from canvas nodes and produce a clear, readable article.
-
-IMPORTANT: You must respond with ONLY valid JSON, no other text or explanation."""
-
-ARTICLE_GENERATION_PROMPT = """Analyze the following content from canvas nodes and create a structured article.
-
-Source Nodes:
-{node_content}
-
-Create a well-organized article that:
-1. Synthesizes the information from all provided nodes
-2. Has a clear logical structure with sections
-3. Maintains coherent flow between sections
-4. Attributes ideas to source nodes where relevant
-
-Respond with a JSON object in this exact format:
-{{
-  "title": "A descriptive title for the article",
-  "sections": [
-    {{
-      "heading": "Section heading",
-      "content": "Section content in markdown format. Can include paragraphs, lists, etc."
-    }}
-  ],
-  "sourceRefs": [
-    {{
-      "sourceId": "node_id from input",
-      "sourceType": "node",
-      "quote": "Brief quote or reference from this source"
-    }}
-  ]
-}}
-
-Guidelines:
-- Create 2-5 sections based on the content complexity
-- Each section should have a clear heading and substantial content
-- Use markdown formatting within section content (bold, lists, etc.)
-- Include source references for key ideas
-- Write in a professional, clear tone
-
-Remember: Respond with ONLY the JSON object, nothing else."""
+# Template paths
+ARTICLE_SYSTEM_TEMPLATE = "agents/article/system.j2"
+ARTICLE_GENERATION_TEMPLATE = "agents/article/generation.j2"
 
 
 class ArticleAgent(BaseOutputAgent):
     """
     Agent for generating structured articles from canvas node content.
-    
+
     Used by Magic Cursor "Draft Article" action.
-    
+
     Generation Strategy:
     1. Collect content from all selected canvas nodes
     2. Analyze themes and structure
@@ -70,8 +31,11 @@ class ArticleAgent(BaseOutputAgent):
         self,
         llm_service: LLMService,
         max_tokens_per_request: int = 4000,
+        skills: List[Any] = None,
     ):
         super().__init__(llm_service, max_tokens_per_request)
+        self._skills = skills or []
+        self._prompt_loader = PromptLoader.get_instance()
 
     @property
     def output_type(self) -> str:
@@ -81,6 +45,7 @@ class ArticleAgent(BaseOutputAgent):
         self,
         document_content: str,
         document_title: Optional[str] = None,
+        skills: List[Any] = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -89,7 +54,7 @@ class ArticleAgent(BaseOutputAgent):
         Args:
             document_content: Combined content from canvas nodes
             document_title: Optional title for the article
-            **kwargs: 
+            **kwargs:
                 - node_data: List of {id, title, content} for source attribution
                 - snapshot_context: Selection box coordinates for refresh
 
@@ -98,7 +63,8 @@ class ArticleAgent(BaseOutputAgent):
         """
         node_data: List[Dict[str, Any]] = kwargs.get("node_data", [])
         snapshot_context: Optional[Dict[str, Any]] = kwargs.get("snapshot_context")
-        
+        current_skills = skills if skills is not None else self._skills
+
         title = document_title or "Generated Article"
         logger.info(f"[ArticleAgent] Starting article generation from {len(node_data)} nodes")
 
@@ -107,17 +73,26 @@ class ArticleAgent(BaseOutputAgent):
         try:
             # Format node content for the prompt
             node_content_str = self._format_node_content(node_data, document_content)
-            
+
             # Truncate if necessary
             content = self._truncate_content(node_content_str)
 
             yield self._emit_progress(0.2, message="Analyzing content structure...")
 
-            # Build prompt
-            user_prompt = ARTICLE_GENERATION_PROMPT.format(node_content=content)
+            # Build prompt using Jinja2 templates
+            user_prompt = self._prompt_loader.render(
+                ARTICLE_GENERATION_TEMPLATE,
+                node_content=content,
+                skills=current_skills,
+            )
+
+            system_prompt = self._prompt_loader.render(
+                ARTICLE_SYSTEM_TEMPLATE,
+                skills=current_skills,
+            )
 
             messages = [
-                ChatMessage(role="system", content=ARTICLE_SYSTEM_PROMPT),
+                ChatMessage(role="system", content=system_prompt),
                 ChatMessage(role="user", content=user_prompt),
             ]
 
@@ -150,27 +125,23 @@ class ArticleAgent(BaseOutputAgent):
             logger.error(f"[ArticleAgent] Generation failed: {e}", exc_info=True)
             yield self._emit_error(f"Article generation failed: {str(e)}")
 
-    def _format_node_content(
-        self, 
-        node_data: List[Dict[str, Any]], 
-        fallback_content: str
-    ) -> str:
+    def _format_node_content(self, node_data: List[Dict[str, Any]], fallback_content: str) -> str:
         """Format node data for the prompt."""
         if not node_data:
             return fallback_content
-            
+
         parts = []
         for node in node_data:
             node_id = node.get("id", "unknown")
             node_title = node.get("title", "Untitled")
             node_content = node.get("content", "")
-            
+
             parts.append(f"--- Node: {node_id} ---")
             parts.append(f"Title: {node_title}")
             if node_content:
                 parts.append(f"Content:\n{node_content}")
             parts.append("")
-            
+
         return "\n".join(parts)
 
     def _parse_article_response(
@@ -251,4 +222,3 @@ class ArticleAgent(BaseOutputAgent):
         except Exception as e:
             logger.error(f"[ArticleAgent] Parse error: {e}", exc_info=True)
             return None
-

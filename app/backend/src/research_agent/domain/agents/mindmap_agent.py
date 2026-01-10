@@ -10,58 +10,17 @@ from research_agent.application.graphs.mindmap_graph import MindmapState, mindma
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
 from research_agent.domain.entities.output import MindmapEdge, MindmapNode
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
+from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger
 
 # Layout constants for mindmap nodes
 NODE_WIDTH = 200
 NODE_HEIGHT = 80
 
-# Prompts for node editing operations (explain/expand)
-MINDMAP_SYSTEM_PROMPT = """You are an expert at analyzing documents and creating structured mindmaps.
-Your task is to extract the key concepts and their hierarchical relationships from the given content.
+# Template paths
+MINDMAP_SYSTEM_TEMPLATE = "agents/mindmap/system.j2"
 
-IMPORTANT: You must respond with ONLY valid JSON, no other text or explanation.
-"""
-
-EXPLAIN_NODE_PROMPT = """Explain the following concept in the context of the document.
-
-Document Content:
-{content}
-
-Node to Explain: {node_label}
-Node Description: {node_content}
-
-Provide a clear, detailed explanation of this concept. Include:
-1. What it means in the context of the document
-2. Why it's important
-3. How it relates to the overall topic
-
-Keep your explanation concise but informative (2-3 paragraphs)."""
-
-EXPAND_NODE_PROMPT = """Generate additional sub-topics for the following node.
-
-Document Content:
-{content}
-
-Node to Expand: {node_label}
-Node Description: {node_content}
-
-Existing Children (avoid duplicating these):
-{existing_children}
-
-Generate {max_branches} new, distinct sub-topics that haven't been covered yet.
-
-Respond with a JSON object containing:
-{{
-  "branches": [
-    {{
-      "label": "Branch label (brief, 3-5 words max)",
-      "content": "A brief explanation of this sub-topic"
-    }}
-  ]
-}}
-
-Remember: Respond with ONLY the JSON object, nothing else."""
+EXPAND_NODE_TEMPLATE = "agents/mindmap/expand.j2"
 
 
 class MindmapAgent(BaseOutputAgent):
@@ -78,7 +37,7 @@ class MindmapAgent(BaseOutputAgent):
     - Reduces LLM calls from N+log(N) to just 2
     - Produces better results by avoiding information loss from chunking
 
-    The agent maintains backward compatibility with explain_node() and expand_node()
+    The agent maintains backward compatibility with expand_node()
     for post-generation editing operations.
     """
 
@@ -86,9 +45,9 @@ class MindmapAgent(BaseOutputAgent):
         self,
         llm_service: LLMService,
         max_depth: int = 3,
-        max_branches_per_node: int = 4,
         max_tokens_per_request: int = 4000,
         language: str = "zh",
+        skills: list[Any] = None,
     ):
         """
         Initialize the mindmap agent.
@@ -96,14 +55,15 @@ class MindmapAgent(BaseOutputAgent):
         Args:
             llm_service: LLM service for text generation
             max_depth: Maximum depth of the mindmap (default 3, used for hint in prompts)
-            max_branches_per_node: Maximum branches per node (unused in new algorithm)
             max_tokens_per_request: Maximum tokens per LLM request
             language: Prompt language ("zh", "en", or "auto")
+            skills: Optional list of skills/tools to provide to the agent
         """
         super().__init__(llm_service, max_tokens_per_request)
         self._max_depth = max_depth
-        self._max_branches = max_branches_per_node
         self._language = language
+        self._skills = skills or []
+        self._prompt_loader = PromptLoader.get_instance()
 
     @property
     def output_type(self) -> str:
@@ -116,8 +76,8 @@ class MindmapAgent(BaseOutputAgent):
         document_title: str | None = None,
         document_id: str | None = None,
         max_depth: int | None = None,
-        max_branches: int | None = None,
         language: str | None = None,
+        skills: list[Any] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -132,20 +92,17 @@ class MindmapAgent(BaseOutputAgent):
             document_title: Optional document title
             document_id: Optional document ID for source references
             max_depth: Override default max depth (used as hint in prompts)
-            max_branches: Override default max branches (unused in new algorithm)
             language: Override prompt language ("zh", "en", or "auto")
 
         Yields:
             OutputEvent instances as generation progresses
         """
         depth = max_depth if max_depth is not None else self._max_depth
-        branches = max_branches if max_branches is not None else self._max_branches
         lang = language if language is not None else self._language
+        current_skills = skills if skills is not None else self._skills
         title = document_title or "Document"
 
-        logger.info(
-            f"[MindmapAgent] Starting direct generation: depth={depth}, language={lang}"
-        )
+        logger.info(f"[MindmapAgent] Starting direct generation: depth={depth}, language={lang}")
 
         # Create an async queue for events
         event_queue: asyncio.Queue[OutputEvent | None] = asyncio.Queue()
@@ -160,8 +117,8 @@ class MindmapAgent(BaseOutputAgent):
             "document_title": title,
             "document_id": document_id,
             "max_depth": depth,
-            "max_branches": branches,
             "language": lang,
+            "skills": current_skills,
             "markdown_output": "",
             "nodes": {},
             "edges": [],
@@ -210,49 +167,6 @@ class MindmapAgent(BaseOutputAgent):
     # Node Editing Operations (unchanged - procedural)
     # =========================================================================
 
-    async def explain_node(
-        self,
-        node_id: str,
-        node_data: dict[str, Any],
-        document_content: str,
-    ) -> AsyncIterator[OutputEvent]:
-        """
-        Stream explanation for a node.
-
-        Args:
-            node_id: ID of the node to explain
-            node_data: Node data including label and content
-            document_content: Document content for context
-
-        Yields:
-            TOKEN events for each generated token
-        """
-        logger.info(f"[MindmapAgent] Explaining node: {node_id}")
-
-        content = self._truncate_content(document_content, max_chars=10000)
-        prompt = EXPLAIN_NODE_PROMPT.format(
-            content=content,
-            node_label=node_data.get("label", ""),
-            node_content=node_data.get("content", ""),
-        )
-
-        messages = [
-            ChatMessage(
-                role="system", content="You are a helpful assistant that explains concepts clearly."
-            ),
-            ChatMessage(role="user", content=prompt),
-        ]
-
-        try:
-            async for token in self._llm.chat_stream(messages):
-                yield self._emit_token(token)
-
-            yield self._emit_complete("Explanation complete")
-
-        except Exception as e:
-            logger.error(f"[MindmapAgent] Explain failed: {e}")
-            yield self._emit_error(f"Explanation failed: {str(e)}")
-
     async def expand_node(
         self,
         node_id: str,
@@ -277,16 +191,23 @@ class MindmapAgent(BaseOutputAgent):
         content = self._truncate_content(document_content, max_chars=8000)
         existing_labels = [c.get("label", "") for c in existing_children]
 
-        prompt = EXPAND_NODE_PROMPT.format(
+        prompt = self._prompt_loader.render(
+            EXPAND_NODE_TEMPLATE,
             content=content,
             node_label=node_data.get("label", ""),
             node_content=node_data.get("content", ""),
             existing_children=", ".join(existing_labels) if existing_labels else "None",
             max_branches=3,  # Generate fewer branches for expansion
+            skills=self._skills,
+        )
+
+        system_prompt = self._prompt_loader.render(
+            MINDMAP_SYSTEM_TEMPLATE,
+            skills=self._skills,
         )
 
         messages = [
-            ChatMessage(role="system", content=MINDMAP_SYSTEM_PROMPT),
+            ChatMessage(role="system", content=system_prompt),
             ChatMessage(role="user", content=prompt),
         ]
 

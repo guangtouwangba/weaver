@@ -4,8 +4,8 @@ from typing import AsyncIterator, List, Optional
 
 from openai import AsyncOpenAI
 
-from research_agent.infrastructure.llm.base import ChatMessage, ChatResponse, LLMService
 from research_agent.config import get_settings
+from research_agent.infrastructure.llm.base import ChatMessage, ChatResponse, LLMService
 from research_agent.shared.utils.logger import logger
 
 # OpenRouter recommended models by tier
@@ -24,17 +24,19 @@ def _get_langfuse_client():
     settings = get_settings()
     if not settings.langfuse_enabled:
         return None
-    
+
     if not settings.langfuse_public_key or not settings.langfuse_secret_key:
         return None
-    
+
     try:
         import os
+
         os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
         os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
         os.environ["LANGFUSE_HOST"] = settings.langfuse_host
-        
-        from langfuse import Langfuse
+
+        from langfuse.client import Langfuse
+
         return Langfuse()
     except ImportError:
         logger.debug("[Langfuse] Not installed, skipping trace")
@@ -84,7 +86,7 @@ class OpenRouterLLMService(LLMService):
         langfuse = _get_langfuse_client()
         trace = None
         generation = None
-        
+
         # Create Langfuse trace if enabled
         if langfuse and self._trace_name:
             try:
@@ -93,7 +95,13 @@ class OpenRouterLLMService(LLMService):
                     metadata={"model": self._model},
                 )
                 # Log input messages
-                input_data = [{"role": m.role, "content": m.content[:500] + "..." if len(m.content) > 500 else m.content} for m in messages]
+                input_data = [
+                    {
+                        "role": m.role,
+                        "content": m.content[:500] + "..." if len(m.content) > 500 else m.content,
+                    }
+                    for m in messages
+                ]
                 generation = trace.generation(
                     name=f"{self._trace_name}-llm-call",
                     model=self._model,
@@ -101,7 +109,7 @@ class OpenRouterLLMService(LLMService):
                 )
             except Exception as e:
                 logger.warning(f"[Langfuse] Failed to create trace: {e}")
-        
+
         try:
             response = await self._client.chat.completions.create(
                 model=self._model,
@@ -116,11 +124,15 @@ class OpenRouterLLMService(LLMService):
                     "completion_tokens": response.usage.completion_tokens if response.usage else 0,
                 },
             )
-            
+
             # Log output to Langfuse
             if generation:
                 try:
-                    output_preview = result.content[:1000] + "..." if len(result.content) > 1000 else result.content
+                    output_preview = (
+                        result.content[:1000] + "..."
+                        if len(result.content) > 1000
+                        else result.content
+                    )
                     generation.end(
                         output=output_preview,
                         usage={
@@ -130,9 +142,9 @@ class OpenRouterLLMService(LLMService):
                     )
                 except Exception as e:
                     logger.warning(f"[Langfuse] Failed to log generation: {e}")
-            
+
             return result
-            
+
         except Exception as e:
             # Log error to Langfuse
             if generation:
@@ -166,7 +178,7 @@ class OpenRouterLLMService(LLMService):
             site_name=self._site_name,
             trace_name=self._trace_name,
         )
-    
+
     def with_trace(self, trace_name: str) -> "OpenRouterLLMService":
         """Create new instance with Langfuse trace name."""
         return OpenRouterLLMService(
@@ -189,4 +201,3 @@ def create_llm_service(
         model=model,
         site_name="Research Agent RAG",
     )
-

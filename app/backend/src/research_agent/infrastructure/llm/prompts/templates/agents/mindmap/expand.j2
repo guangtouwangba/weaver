@@ -1,0 +1,24 @@
+Generate additional sub-topics for the following node.
+
+Document Content:
+{{ content }}
+
+Node to Expand: {{ node_label }}
+Node Description: {{ node_content }}
+
+Existing Children (avoid duplicating these):
+{{ existing_children }}
+
+Generate {{ max_branches }} new, distinct sub-topics that haven't been covered yet.
+
+Respond with a JSON object containing:
+{
+  "branches": [
+    {
+      "label": "Branch label (brief, 3-5 words max)",
+      "content": "A brief explanation of this sub-topic"
+    }
+  ]
+}
+
+Remember: Respond with ONLY the JSON object, nothing else.

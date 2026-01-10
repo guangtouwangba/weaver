@@ -1,56 +1,17 @@
 """Summary generation agent."""
 
 import json
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, AsyncIterator, Optional
 
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
 from research_agent.domain.entities.output import KeyFinding, SummaryData
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
+from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger
 
-
-# Prompts for summary generation
-SUMMARY_SYSTEM_PROMPT = """You are an expert document analyst specializing in creating executive summaries.
-Your task is to analyze documents and produce clear, actionable summaries with key findings.
-
-IMPORTANT: You must respond with ONLY valid JSON, no other text or explanation.
-"""
-
-SUMMARY_GENERATION_PROMPT = """Analyze the following document and create an executive summary.
-
-Document Title: {title}
-
-Document Content:
-{content}
-
-Create a comprehensive yet concise executive summary that:
-1. Captures the main theme and purpose of the document
-2. Highlights the most important information
-3. Identifies key findings with specific, actionable insights
-
-Respond with a JSON object in this exact format:
-{{
-  "summary": "A comprehensive 2-3 paragraph executive summary of the document. Focus on the main themes, key arguments, and important conclusions. Write in clear, professional language.",
-  "keyFindings": [
-    {{
-      "label": "Short category label (2-4 words, e.g., 'AI Adoption', 'Market Trends')",
-      "content": "Specific finding or insight with relevant details or metrics"
-    }},
-    {{
-      "label": "Another category label",
-      "content": "Another specific finding"
-    }}
-  ]
-}}
-
-Guidelines:
-- The summary should be 2-3 paragraphs, approximately 150-250 words
-- Include 3-5 key findings
-- Each key finding should have a brief label and a detailed content description
-- Focus on actionable insights and concrete data when available
-- Maintain a professional, analytical tone
-
-Remember: Respond with ONLY the JSON object, nothing else."""
+# Template paths for summary generation
+SUMMARY_SYSTEM_TEMPLATE = "agents/summary/system.j2"
+SUMMARY_GENERATION_TEMPLATE = "agents/summary/generation.j2"
 
 
 class SummaryAgent(BaseOutputAgent):
@@ -70,6 +31,7 @@ class SummaryAgent(BaseOutputAgent):
         self,
         llm_service: LLMService,
         max_tokens_per_request: int = 4000,
+        prompt_loader: PromptLoader | None = None,
     ):
         """
         Initialize the summary agent.
@@ -77,8 +39,9 @@ class SummaryAgent(BaseOutputAgent):
         Args:
             llm_service: LLM service for text generation
             max_tokens_per_request: Maximum tokens per LLM request
+            prompt_loader: Optional PromptLoader for Jinja2 templates
         """
-        super().__init__(llm_service, max_tokens_per_request)
+        super().__init__(llm_service, max_tokens_per_request, prompt_loader)
 
     @property
     def output_type(self) -> str:
@@ -115,14 +78,16 @@ class SummaryAgent(BaseOutputAgent):
             # Emit progress: preparing
             yield self._emit_progress(0.1, message="Analyzing document content...")
 
-            # Build prompt
-            user_prompt = SUMMARY_GENERATION_PROMPT.format(
+            # Build prompt using templates
+            system_prompt = self._prompt_loader.render(SUMMARY_SYSTEM_TEMPLATE)
+            user_prompt = self._prompt_loader.render(
+                SUMMARY_GENERATION_TEMPLATE,
                 title=title,
                 content=content,
             )
 
             messages = [
-                ChatMessage(role="system", content=SUMMARY_SYSTEM_PROMPT),
+                ChatMessage(role="system", content=system_prompt),
                 ChatMessage(role="user", content=user_prompt),
             ]
 
@@ -233,11 +198,3 @@ class SummaryAgent(BaseOutputAgent):
         except Exception as e:
             logger.error(f"[SummaryAgent] Parse error: {e}", exc_info=True)
             return None
-
-
-
-
-
-
-
-

@@ -1,0 +1,79 @@
+{% if language == "en" %}
+Optimize this Markdown outline for clarity and organization.
+
+Original:
+```markdown
+{{ content }}
+```
+
+{% include "_base/skills.j2" %}
+
+## Optimization Rules
+
+### 1. Deduplication
+- Remove parent-child with same name (keep child content)
+- Remove duplicate siblings
+- Merge highly similar content
+
+### 2. Structure
+- Keep to 3-4 levels max
+- Ensure logical parent-child relationships
+- Group similar content together
+
+### 3. Cleanup
+- Remove acknowledgements, usernames, greetings
+- Remove abstract categories ("Topic", "Content", "Overview")
+- Node names ≤ 35 characters
+
+### 4. Preserve Key Info
+- Names, places, companies
+- Numbers, dates, specific data
+- Causality, comparisons
+- **Must preserve** source markers: `[PAGE:X]` or `[TIME:MM:SS]`
+
+## Format
+- # for root heading
+- - with 2-space indents
+- No explanations, direct output
+
+Optimized:
+{% else %}
+优化以下 Markdown 大纲，使其更清晰、更有条理。
+
+原始大纲:
+```markdown
+{{ content }}
+```
+
+{% include "_base/skills.j2" %}
+
+## 优化规则
+
+### 1. 去重
+- 删除父子同名节点（保留子节点内容）
+- 删除同级重复节点
+- 合并高度相似的内容
+
+### 2. 结构优化
+- 控制在 3-4 层深度
+- 确保父子节点有逻辑关系
+- 相似内容归到同一分类
+
+### 3. 内容清理
+- 删除致谢、用户名、寒暄
+- 删除过于抽象的分类词（如"主题"、"内容"、"概述"）
+- 节点名 ≤ 30 字符
+
+### 4. 保留关键信息
+- 人名、地名、公司名
+- 数字、日期、具体数据
+- 因果关系、对比分析
+- **必须保留**来源标注: `[PAGE:X]` 或 `[TIME:MM:SS]`
+
+## 格式
+- # 根标题
+- - 和 2空格缩进
+- 不要解释，直接输出
+
+优化后:
+{% endif %}

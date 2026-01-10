@@ -14,12 +14,15 @@ from uuid import uuid4
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
 from research_agent.domain.agents.synthesis_prompts import (
     DRAFTING_PROMPTS,
-    REASONING_PROMPT,
     REFINEMENT_PROMPT,
     REVIEW_PROMPT,
 )
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
+from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger
+
+# Template paths for synthesis
+SYNTHESIS_REASONING_TEMPLATE = "synthesis/reasoning.j2"
 
 
 class SynthesisAgent(BaseOutputAgent):
@@ -34,6 +37,7 @@ class SynthesisAgent(BaseOutputAgent):
         self,
         llm_service: LLMService,
         max_tokens_per_request: int = 4000,
+        prompt_loader: PromptLoader | None = None,
     ):
         """
         Initialize the synthesis agent.
@@ -41,8 +45,9 @@ class SynthesisAgent(BaseOutputAgent):
         Args:
             llm_service: LLM service for text generation
             max_tokens_per_request: Maximum tokens per request
+            prompt_loader: Optional PromptLoader for Jinja2 templates
         """
-        super().__init__(llm_service, max_tokens_per_request)
+        super().__init__(llm_service, max_tokens_per_request, prompt_loader)
 
     @property
     def output_type(self) -> str:
@@ -175,7 +180,10 @@ class SynthesisAgent(BaseOutputAgent):
         Returns:
             Reasoning trace as plain text
         """
-        prompt = REASONING_PROMPT.format(inputs=formatted_inputs)
+        prompt = self._prompt_loader.render(
+            SYNTHESIS_REASONING_TEMPLATE,
+            inputs=formatted_inputs,
+        )
         prompt = self._truncate_content(prompt)
         return await self._generate_text(prompt)
 

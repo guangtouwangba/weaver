@@ -1,0 +1,9 @@
+{% if skills %}
+## Skills & Protocols
+You have access to the following skills and protocols. Follow their instructions strictly.
+
+{% for skill in skills %}
+### {{ skill.name }}
+{{ skill.instruction }}
+{% endfor %}
+{% endif %}

@@ -1,0 +1,11 @@
+{# _base/guidelines.j2 - Shared response guidelines #}
+{# Include this in prompts that need standard formatting/language guidelines #}
+
+Guidelines:
+- **Provide comprehensive and detailed answers.** Do not be too brief.
+- **Expand on key details.** When available, include examples, explanations, and reasoning.
+- Structure your answer clearly using paragraphs and bullet points where appropriate.
+- Answer in the same language as the user's question.
+{% if require_citations is defined and require_citations %}
+- Always cite source page numbers when possible using [Page X] format.
+{% endif %}

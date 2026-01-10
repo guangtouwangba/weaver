@@ -1,0 +1,48 @@
+Analyze the following content from canvas nodes and extract action items.
+
+Source Nodes:
+{{ node_content }}
+
+Extract all actionable tasks, to-dos, and action items. Look for:
+- Explicit tasks mentioned (e.g., "need to", "should", "must", "TODO")
+- Implied actions from discussions or plans
+- Follow-up items and next steps
+- Decisions that require action
+
+Respond with a JSON object in this exact format:
+{
+  "title": "Action Items",
+  "items": [
+    {
+      "id": "unique_id_1",
+      "text": "Clear, actionable task description",
+      "done": false,
+      "priority": "high"
+    },
+    {
+      "id": "unique_id_2", 
+      "text": "Another action item",
+      "done": false,
+      "priority": "medium"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "sourceId": "node_id from input",
+      "sourceType": "node",
+      "quote": "The text that indicated this action"
+    }
+  ]
+}
+
+Priority levels: "high", "medium", "low"
+
+Guidelines:
+- Extract 0-20 action items (only what's genuinely actionable)
+- Each item should be a clear, specific action
+- Start each item with an action verb when possible
+- Assign priority based on urgency/importance cues in the text
+- If no action items are found, return an empty items array
+- Include source references to show where each action came from
+
+Remember: Respond with ONLY the JSON object, nothing else.

@@ -5,9 +5,7 @@
     "ms-python.vscode-pylance",
     "charliermarsh.ruff",
     "mikestead.dotenv",
-    "tamasfe.even-better-toml"
+    "tamasfe.even-better-toml",
+    "henrikdev.ag-quota"
   ]
 }
-
-
-

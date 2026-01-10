@@ -1,7 +1,7 @@
 """DTOs for output generation API."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -19,42 +19,33 @@ class GenerateOutputRequest(BaseModel):
         description="Type of output to generate (mindmap, summary, article, action_list, etc.)",
         pattern="^(mindmap|summary|flashcards|podcast|quiz|timeline|compare|custom|article|action_list)$",
     )
-    document_ids: List[UUID] = Field(
+    document_ids: list[UUID] = Field(
         default_factory=list,
         description="List of document IDs to generate output from",
     )
-    url_content_ids: List[UUID] = Field(
+    url_content_ids: list[UUID] = Field(
         default_factory=list,
         description="List of URL content IDs (YouTube, web pages, etc.) to generate output from",
     )
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         description="Optional title for the output",
         max_length=255,
     )
-    options: Optional[Dict[str, Any]] = Field(
+    options: dict[str, Any | None] = Field(
         None,
         description="Output-type specific options (e.g., max_depth for mindmap)",
-    )
-
-
-class ExplainNodeRequest(BaseModel):
-    """Request to explain a node."""
-
-    node_data: Dict[str, Any] = Field(
-        ...,
-        description="Node data including label and content",
     )
 
 
 class ExpandNodeRequest(BaseModel):
     """Request to expand a node with children."""
 
-    node_data: Dict[str, Any] = Field(
+    node_data: dict[str, Any] = Field(
         ...,
         description="Node data including label, content, and position",
     )
-    existing_children: List[Dict[str, Any]] = Field(
+    existing_children: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Existing child nodes to avoid duplicates",
     )
@@ -63,12 +54,12 @@ class ExpandNodeRequest(BaseModel):
 class UpdateOutputRequest(BaseModel):
     """Request to update an existing output's data or title."""
 
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         description="New title for the output",
         max_length=255,
     )
-    data: Optional[Dict[str, Any]] = Field(
+    data: dict[str, Any | None] = Field(
         None,
         description="Updated output data (e.g., mindmap nodes/edges)",
     )
@@ -77,7 +68,7 @@ class UpdateOutputRequest(BaseModel):
 class SynthesizeNodesRequest(BaseModel):
     """Request to synthesize multiple nodes into a consolidated insight."""
 
-    node_ids: List[str] = Field(
+    node_ids: list[str] = Field(
         ...,
         description="List of node IDs to synthesize",
         min_length=2,
@@ -88,7 +79,7 @@ class SynthesizeNodesRequest(BaseModel):
         pattern="^(connect|inspire|debate)$",
     )
     # Optional: Direct node content for canvas synthesis (bypasses output data lookup)
-    node_data: Optional[List[Dict[str, Any]]] = Field(
+    node_data: list[dict[str, Any | None]] = Field(
         default=None,
         description=(
             "Optional list of node content dicts with 'id', 'title', 'content'. "
@@ -109,11 +100,11 @@ class OutputResponse(BaseModel):
     id: UUID
     project_id: UUID
     output_type: str
-    document_ids: List[UUID]
+    document_ids: list[UUID]
     status: str
-    title: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    title: str | None = None
+    data: dict[str, Any | None] = None
+    error_message: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -123,7 +114,7 @@ class OutputResponse(BaseModel):
 class OutputListResponse(BaseModel):
     """Response for listing outputs."""
 
-    outputs: List[OutputResponse]
+    outputs: list[OutputResponse]
     total: int
 
 

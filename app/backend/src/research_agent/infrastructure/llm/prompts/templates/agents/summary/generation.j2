@@ -1,0 +1,44 @@
+{# agents/summary/generation.j2 - Summary generation prompt #}
+{# 
+Variables:
+  - title: Document title
+  - content: Document content to summarize
+#}
+
+Analyze the following document and create an executive summary.
+
+Document Title: {{ title }}
+
+Document Content:
+{{ content }}
+
+Create a comprehensive yet concise executive summary that:
+1. Captures the main theme and purpose of the document
+2. Highlights the most important information
+3. Identifies key findings with specific, actionable insights
+
+{% raw %}
+Respond with a JSON object in this exact format:
+{
+  "summary": "A comprehensive 2-3 paragraph executive summary of the document. Focus on the main themes, key arguments, and important conclusions. Write in clear, professional language.",
+  "keyFindings": [
+    {
+      "label": "Short category label (2-4 words, e.g., 'AI Adoption', 'Market Trends')",
+      "content": "Specific finding or insight with relevant details or metrics"
+    },
+    {
+      "label": "Another category label",
+      "content": "Another specific finding"
+    }
+  ]
+}
+{% endraw %}
+
+Guidelines:
+- The summary should be 2-3 paragraphs, approximately 150-250 words
+- Include 3-5 key findings
+- Each key finding should have a brief label and a detailed content description
+- Focus on actionable insights and concrete data when available
+- Maintain a professional, analytical tone
+
+Remember: Respond with ONLY the JSON object, nothing else.

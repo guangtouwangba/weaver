@@ -1,0 +1,46 @@
+Convert this text into **structured knowledge notes**.
+
+## Text Content
+{{ content }}
+
+{% include "_base/skills.j2" %}
+
+## Core Principle
+
+❌ Don't: List everything, follow original structure
+✅ Do: Extract core ideas, reorganize logically
+
+## Output Structure
+
+### Layer 1: Core Points (5-10)
+- Most important concepts/themes/ideas
+- Concise phrase for each
+
+### Layer 2: Elaboration
+- Explanation of each core point
+- Key definitions, methods, steps
+
+### Layer 3: Supporting Details
+- Specific cases, data, quotes
+- Preserve key info (names, places, numbers, dates)
+
+## Source Reference Rules
+- Input text may contain source markers like `[PAGE:X]` or `[TIME:MM:SS]`
+- When extracting points, you **MUST preserve** the most relevant source marker at the end
+- If a point spans multiple sources, keep the primary source marker
+- Example: "Core of investing is understanding future cash flow [PAGE:15]" or "AI Agent plans tasks autonomously [TIME:05:30]"
+
+## Extraction Principles
+
+1. **Keep specifics**: Names, companies, places, numbers, dates, quotes
+2. **Show causality**: Cause → effect, problem → solution
+3. **Distinguish importance**: Core ideas vs supporting details
+4. **Remove noise**: Acknowledgements, greetings, repetition
+
+## Format
+- # for root heading (summarize theme)
+- - with 2-space indent for hierarchy
+- Keep to 3-4 levels
+- Node names ≤ 35 characters
+
+Output Markdown directly, no explanations:

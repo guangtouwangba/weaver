@@ -8,6 +8,7 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import UUID
 
 from research_agent.infrastructure.llm.base import LLMService
+from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger
 
 
@@ -108,7 +109,6 @@ class BaseOutputAgent(ABC):
 
     Subclasses should implement:
     - generate(): Main generation logic
-    - explain_node(): Explain a specific node (optional)
     - expand_node(): Expand a node with children (optional)
     """
 
@@ -116,6 +116,7 @@ class BaseOutputAgent(ABC):
         self,
         llm_service: LLMService,
         max_tokens_per_request: int = 4000,
+        prompt_loader: PromptLoader | None = None,
     ):
         """
         Initialize the agent.
@@ -123,9 +124,11 @@ class BaseOutputAgent(ABC):
         Args:
             llm_service: LLM service for text generation
             max_tokens_per_request: Maximum tokens to send per LLM request
+            prompt_loader: Optional PromptLoader for Jinja2 templates
         """
         self._llm = llm_service
         self._max_tokens = max_tokens_per_request
+        self._prompt_loader = prompt_loader or PromptLoader.get_instance()
 
     @property
     @abstractmethod
@@ -152,34 +155,6 @@ class BaseOutputAgent(ABC):
             OutputEvent instances as generation progresses
         """
         pass
-
-    async def explain_node(
-        self,
-        node_id: str,
-        node_data: Dict[str, Any],
-        document_content: str,
-    ) -> AsyncIterator[OutputEvent]:
-        """
-        Explain a node's content.
-
-        Default implementation streams explanation tokens.
-        Subclasses can override for custom behavior.
-
-        Args:
-            node_id: ID of the node to explain
-            node_data: Node data including label and content
-            document_content: Document content for context
-
-        Yields:
-            OutputEvent with TOKEN type for each generated token
-        """
-        logger.info(f"[{self.output_type}Agent] Explaining node: {node_id}")
-
-        # Default implementation - can be overridden
-        yield OutputEvent(
-            type=OutputEventType.GENERATION_ERROR,
-            error_message="explain_node not implemented for this agent",
-        )
 
     async def expand_node(
         self,
@@ -323,11 +298,3 @@ class BaseOutputAgent(ABC):
     def _emit_token(self, token: str) -> OutputEvent:
         """Create a token event for streaming text."""
         return OutputEvent(type=OutputEventType.TOKEN, token=token)
-
-
-
-
-
-
-
-

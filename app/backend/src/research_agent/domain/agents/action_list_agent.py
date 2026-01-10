@@ -5,72 +5,22 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import uuid4
 
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
-from research_agent.domain.entities.output import ActionListData, ActionItem, SourceRef
+from research_agent.domain.entities.output import ActionItem, ActionListData, SourceRef
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
+from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger
 
-
-ACTION_LIST_SYSTEM_PROMPT = """You are an expert at identifying actionable tasks and to-do items from text content.
-Your task is to extract clear, specific action items from canvas nodes.
-
-IMPORTANT: You must respond with ONLY valid JSON, no other text or explanation."""
-
-ACTION_LIST_GENERATION_PROMPT = """Analyze the following content from canvas nodes and extract action items.
-
-Source Nodes:
-{node_content}
-
-Extract all actionable tasks, to-dos, and action items. Look for:
-- Explicit tasks mentioned (e.g., "need to", "should", "must", "TODO")
-- Implied actions from discussions or plans
-- Follow-up items and next steps
-- Decisions that require action
-
-Respond with a JSON object in this exact format:
-{{
-  "title": "Action Items",
-  "items": [
-    {{
-      "id": "unique_id_1",
-      "text": "Clear, actionable task description",
-      "done": false,
-      "priority": "high"
-    }},
-    {{
-      "id": "unique_id_2", 
-      "text": "Another action item",
-      "done": false,
-      "priority": "medium"
-    }}
-  ],
-  "sourceRefs": [
-    {{
-      "sourceId": "node_id from input",
-      "sourceType": "node",
-      "quote": "The text that indicated this action"
-    }}
-  ]
-}}
-
-Priority levels: "high", "medium", "low"
-
-Guidelines:
-- Extract 0-20 action items (only what's genuinely actionable)
-- Each item should be a clear, specific action
-- Start each item with an action verb when possible
-- Assign priority based on urgency/importance cues in the text
-- If no action items are found, return an empty items array
-- Include source references to show where each action came from
-
-Remember: Respond with ONLY the JSON object, nothing else."""
+# Template paths
+ACTION_LIST_SYSTEM_TEMPLATE = "agents/action_list/system.j2"
+ACTION_LIST_GENERATION_TEMPLATE = "agents/action_list/generation.j2"
 
 
 class ActionListAgent(BaseOutputAgent):
     """
     Agent for extracting action items from canvas node content.
-    
+
     Used by Magic Cursor "Action List" action.
-    
+
     Generation Strategy:
     1. Collect content from all selected canvas nodes
     2. Identify action items and tasks
@@ -82,8 +32,11 @@ class ActionListAgent(BaseOutputAgent):
         self,
         llm_service: LLMService,
         max_tokens_per_request: int = 4000,
+        skills: List[Any] = None,
     ):
         super().__init__(llm_service, max_tokens_per_request)
+        self._skills = skills or []
+        self._prompt_loader = PromptLoader.get_instance()
 
     @property
     def output_type(self) -> str:
@@ -93,6 +46,7 @@ class ActionListAgent(BaseOutputAgent):
         self,
         document_content: str,
         document_title: Optional[str] = None,
+        skills: List[Any] = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -101,7 +55,7 @@ class ActionListAgent(BaseOutputAgent):
         Args:
             document_content: Combined content from canvas nodes
             document_title: Optional title for the action list
-            **kwargs: 
+            **kwargs:
                 - node_data: List of {id, title, content} for source attribution
                 - snapshot_context: Selection box coordinates for refresh
 
@@ -110,25 +64,37 @@ class ActionListAgent(BaseOutputAgent):
         """
         node_data: List[Dict[str, Any]] = kwargs.get("node_data", [])
         snapshot_context: Optional[Dict[str, Any]] = kwargs.get("snapshot_context")
-        
-        logger.info(f"[ActionListAgent] Starting action list extraction from {len(node_data)} nodes")
+        current_skills = skills if skills is not None else self._skills
+
+        logger.info(
+            f"[ActionListAgent] Starting action list extraction from {len(node_data)} nodes"
+        )
 
         yield self._emit_started("Extracting action items...")
 
         try:
             # Format node content for the prompt
             node_content_str = self._format_node_content(node_data, document_content)
-            
+
             # Truncate if necessary
             content = self._truncate_content(node_content_str)
 
             yield self._emit_progress(0.2, message="Analyzing content for tasks...")
 
-            # Build prompt
-            user_prompt = ACTION_LIST_GENERATION_PROMPT.format(node_content=content)
+            # Build prompt using Jinja2 templates
+            user_prompt = self._prompt_loader.render(
+                ACTION_LIST_GENERATION_TEMPLATE,
+                node_content=content,
+                skills=current_skills,
+            )
+
+            system_prompt = self._prompt_loader.render(
+                ACTION_LIST_SYSTEM_TEMPLATE,
+                skills=current_skills,
+            )
 
             messages = [
-                ChatMessage(role="system", content=ACTION_LIST_SYSTEM_PROMPT),
+                ChatMessage(role="system", content=system_prompt),
                 ChatMessage(role="user", content=user_prompt),
             ]
 
@@ -146,9 +112,7 @@ class ActionListAgent(BaseOutputAgent):
             if action_list_data is None:
                 raise ValueError("Failed to parse action list response from LLM")
 
-            logger.info(
-                f"[ActionListAgent] Extracted {len(action_list_data.items)} action items"
-            )
+            logger.info(f"[ActionListAgent] Extracted {len(action_list_data.items)} action items")
 
             # Emit complete with action list data
             yield OutputEvent(
@@ -161,27 +125,23 @@ class ActionListAgent(BaseOutputAgent):
             logger.error(f"[ActionListAgent] Extraction failed: {e}", exc_info=True)
             yield self._emit_error(f"Action list extraction failed: {str(e)}")
 
-    def _format_node_content(
-        self, 
-        node_data: List[Dict[str, Any]], 
-        fallback_content: str
-    ) -> str:
+    def _format_node_content(self, node_data: List[Dict[str, Any]], fallback_content: str) -> str:
         """Format node data for the prompt."""
         if not node_data:
             return fallback_content
-            
+
         parts = []
         for node in node_data:
             node_id = node.get("id", "unknown")
             node_title = node.get("title", "Untitled")
             node_content = node.get("content", "")
-            
+
             parts.append(f"--- Node: {node_id} ---")
             parts.append(f"Title: {node_title}")
             if node_content:
                 parts.append(f"Content:\n{node_content}")
             parts.append("")
-            
+
         return "\n".join(parts)
 
     def _parse_action_list_response(
@@ -256,4 +216,3 @@ class ActionListAgent(BaseOutputAgent):
         except Exception as e:
             logger.error(f"[ActionListAgent] Parse error: {e}", exc_info=True)
             return None
-
