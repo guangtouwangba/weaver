@@ -1,131 +1,124 @@
 # 🕸️ Weaver
 
 > **Weave knowledge into insights.**
-> An AI-powered research workspace with an infinite canvas.
-> *Inspired by [NotebookLM](https://notebooklm.google.com/)*
+> Your open-source alternative to NotebookLM — with an infinite canvas.
 
-![Weaver](https://img.shields.io/badge/Status-Alpha-orange)
-![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
-![Next.js](https://img.shields.io/badge/Frontend-Next.js%2015-black)
-![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
+[![GitHub stars](https://img.shields.io/github/stars/guangtouwangba/weaver?style=social)](https://github.com/guangtouwangba/weaver/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/guangtouwangba/weaver?style=social)](https://github.com/guangtouwangba/weaver/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/guangtouwangba/weaver)](https://github.com/guangtouwangba/weaver/issues)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE-AGPL)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 
-Weaver is a powerful, open-source research workspace inspired by Google's NotebookLM. It helps you organize, analyze, and synthesize information using an infinite canvas interface and advanced RAG (Retrieval-Augmented Generation) capabilities.
+---
+
+## 🆚 Why Weaver over NotebookLM?
+
+| Feature | NotebookLM | Weaver |
+|---------|------------|--------|
+| **Open Source** | ❌ Closed | ✅ AGPL-3.0 |
+| **Self-Hosted** | ❌ Google Cloud only | ✅ Deploy anywhere |
+| **Visual Canvas** | ❌ List-based | ✅ Infinite canvas workspace |
+| **Model Choice** | ❌ Gemini only | ✅ Any LLM (Claude, GPT-4, Gemini, etc.) |
+| **Video Sources** | ✅ YouTube | ✅ YouTube + Bilibili + Douyin |
+| **Data Privacy** | ⚠️ Google servers | ✅ Your data, your servers |
+| **Customization** | ❌ No API | ✅ Full API access |
+| **Cost** | 💰 Usage limits | ✅ Pay only for LLM API |
+
+---
 
 ## ✨ Features
 
 ### 📚 Multi-Source Content Import
-- **PDF Documents** - Upload and parse PDFs with OCR support
-- **Web Pages** - Extract and process any URL content
-- **YouTube Videos** - Auto-transcribe with timestamp markers (via YouTube API or Gemini Audio)
-- **Bilibili Videos** - Chinese video platform support
-- **Douyin Videos** - TikTok China content extraction
+- **PDF Documents** — Upload and parse PDFs with OCR support
+- **Web Pages** — Extract and process any URL content
+- **YouTube Videos** — Auto-transcribe with timestamp markers
+- **Bilibili & Douyin** — Chinese video platform support
 
 ### 🎨 Infinite Canvas Workspace
-- **Visual Organization** - Drag-and-drop nodes on an infinite canvas
-- **Rich Node Types** - Notes, documents, web pages, videos, and generated content
-- **Connection Lines** - Link related content with relationship labels
-- **Real-time Sync** - WebSocket-based live collaboration
+- **Visual Organization** — Drag-and-drop nodes on an infinite canvas
+- **Rich Node Types** — Notes, documents, web pages, videos, generated content
+- **Connection Lines** — Link related content with relationship labels
+- **Real-time Sync** — WebSocket-based live collaboration
 
 ### 🤖 AI-Powered Generation
-- **Mindmaps** - Generate structured mindmaps from your content with source references
-- **Summaries** - AI-generated summaries with citation links
-- **Flashcards** - Auto-generate study cards from documents
-- **Articles** - Synthesize long-form content from multiple sources
-- **Action Lists** - Extract actionable items from content
+- **Mindmaps** — Generate structured mindmaps with source references
+- **Summaries** — AI-generated summaries with citation links
+- **Flashcards** — Auto-generate study cards from documents
+- **Articles** — Synthesize long-form content from multiple sources
 
 ### 💬 RAG Chat Assistant
-- **Long Context RAG** - Chat with your documents using context-aware retrieval
-- **Citation Grounding** - Every answer includes source references
-- **Multi-Document Q&A** - Ask questions across all your imported content
-- **Streaming Responses** - Real-time AI response streaming
+- **Long Context RAG** — Chat with your documents using context-aware retrieval
+- **Citation Grounding** — Every answer includes source references
+- **Multi-Document Q&A** — Ask questions across all your imported content
 
-### 📄 Document Features
-- **PDF Viewer** - Built-in PDF reader with annotations
-- **Highlighting** - Select and highlight text in documents
-- **Page-Level References** - Jump to exact source locations `[PAGE:X]`
-- **Video Timestamps** - Click to jump to video positions `[TIME:MM:SS]`
+---
+
+## 🚀 Quick Start
+
+```bash
+# Clone & setup
+git clone https://github.com/guangtouwangba/weaver.git
+cd weaver && make setup
+
+# Configure (add your OPENROUTER_API_KEY)
+cp env.example .env && nano .env
+
+# Run
+make run-backend   # Terminal 1: API on :8000
+make run-frontend  # Terminal 2: UI on :3000
+```
+
+**30 seconds to your first insight!** 🎉
+
+---
 
 ## 🛠️ Tech Stack
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | Next.js 15, React 19, TypeScript, Konva.js (Canvas) |
+| **Frontend** | Next.js 15, React 19, TypeScript, Konva.js |
 | **Backend** | Python 3.11+, FastAPI, SQLAlchemy, LangGraph |
 | **Database** | PostgreSQL, pgvector (Vector Search) |
 | **AI/LLM** | OpenRouter API (Claude, GPT-4, Gemini, etc.) |
-| **Infrastructure** | Docker, WebSocket, Background Workers |
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- **Python 3.11+**
-- **Node.js 18+** & **npm**
-- **PostgreSQL** with pgvector extension
-- **Poppler** (for PDF processing)
-  - macOS: `brew install poppler`
-  - Ubuntu: `sudo apt-get install poppler-utils`
-- **FFmpeg** (for audio transcription)
-  - macOS: `brew install ffmpeg`
-  - Ubuntu: `sudo apt-get install ffmpeg`
-
-### Quick Start
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/guangtouwangba/research-agent-rag.git
-cd research-agent-rag
-
-# 2. Setup environment (creates venv, installs deps)
-make setup
-
-# 3. Configure API keys
-cp env.example .env
-# Edit .env and add your OPENROUTER_API_KEY
-
-# 4. Run database migrations
-make migrate
-
-# 5. Start the application
-make run-backend   # Terminal 1: Backend on :8000
-make run-frontend  # Terminal 2: Frontend on :3000
-```
-
-Access the app at `http://localhost:3000` and API docs at `http://localhost:8000/docs`.
-
-## 📖 Usage
-
-1. **Create a Project** - Start by creating a new research project
-2. **Import Sources** - Upload PDFs, paste URLs, or add YouTube videos
-3. **Organize on Canvas** - Arrange your sources on the infinite canvas
-4. **Generate Insights** - Create mindmaps, summaries, or flashcards
-5. **Chat with Content** - Ask questions and get cited answers
-
-## 🧪 Development
-
-```bash
-make test          # Run tests
-make lint          # Run linters
-make migrate       # Database migrations
-make clean         # Clean build artifacts
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read:
-- [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community guidelines
-- [AGENTS.md](AGENTS.md) - Instructions for AI assistants
-
-## 📄 License
-
-This project is dual-licensed:
-
-- **Open Source**: [AGPL-3.0](LICENSE-AGPL) - Use freely, but you must open-source your application
-- **Commercial**: Contact for closed-source use - Email: 819110812@qq.com
-
-See [LICENSE](LICENSE) for details.
 
 ---
 
-Built with ❤️ by [Weaver Contributors](https://github.com/guangtouwangba/research-agent-rag)
+## � Prerequisites
+
+- Python 3.11+ / Node.js 18+
+- PostgreSQL with pgvector
+- `brew install poppler ffmpeg` (macOS)
+
+---
+
+## 📈 Star History
+
+<a href="https://star-history.com/#guangtouwangba/weaver&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=guangtouwangba/weaver&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=guangtouwangba/weaver&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=guangtouwangba/weaver&type=Date" />
+ </picture>
+</a>
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## 📄 License
+
+**Dual Licensed:**
+- **Open Source**: [AGPL-3.0](LICENSE-AGPL) — Use freely, must open-source your app
+- **Commercial**: Contact 819110812@qq.com for closed-source licensing
+
+---
+
+<p align="center">
+  <b>Built with ❤️ by the Weaver community</b><br>
+  <i>Inspired by <a href="https://notebooklm.google.com/">Google NotebookLM</a></i>
+</p>
