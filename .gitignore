@@ -54,4 +54,4 @@ out/
 
 # Logs
 *.log
-logs/
+logs/*.bfg-report*
