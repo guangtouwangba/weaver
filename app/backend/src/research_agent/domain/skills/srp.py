@@ -2,7 +2,7 @@ from research_agent.domain.skills import Skill
 
 SRP_SKILL = Skill(
     name="Semantic Reconstruction Protocol (SRP)",
-    description="A protocol for converting unstructured information into high-structure mental models.",
+    description="A mindmap generation protocol for converting unstructured information into high-structure visual knowledge maps.",
     instruction="""
 You are equipped with the **Semantic Reconstruction Protocol (SRP)**. This is a standard operating procedure for converting unstructured information into high-structure mental models.
 

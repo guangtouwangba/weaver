@@ -6,37 +6,19 @@ Original:
 {{ content }}
 ```
 
-{% include "_base/skills.j2" %}
-
 ## Optimization Rules
 
-### 1. Deduplication
-- Remove parent-child with same name (keep child content)
-- Remove duplicate siblings
-- Merge highly similar content
-
-### 2. Structure
-- Keep to 3-4 levels max
-- Ensure logical parent-child relationships
-- Group similar content together
-
-### 3. Cleanup
-- Remove acknowledgements, usernames, greetings
-- Remove abstract categories ("Topic", "Content", "Overview")
-- Node names ≤ 35 characters
-
-### 4. Preserve Key Info
-- Names, places, companies
-- Numbers, dates, specific data
-- Causality, comparisons
-- **Must preserve** source markers: `[PAGE:X]` or `[TIME:MM:SS]`
+1. **Deduplication**: Remove parent-child with same name, remove duplicate siblings, merge similar content
+2. **Structure**: Keep to 3-4 levels max, ensure logical parent-child relationships
+3. **Cleanup**: Remove greetings/acknowledgements, abstract categories; node names ≤ 35 chars
+4. **Preserve**: Names, places, numbers, dates, causality; **MUST keep** source markers `[PAGE:X]` or `[TIME:MM:SS]`
 
 ## Format
 - # for root heading
 - - with 2-space indents
-- No explanations, direct output
 
-Optimized:
+**IMPORTANT: Output ONLY the optimized Markdown. Start directly with # heading. No explanations.**
+
 {% else %}
 优化以下 Markdown 大纲，使其更清晰、更有条理。
 
@@ -45,35 +27,17 @@ Optimized:
 {{ content }}
 ```
 
-{% include "_base/skills.j2" %}
-
 ## 优化规则
 
-### 1. 去重
-- 删除父子同名节点（保留子节点内容）
-- 删除同级重复节点
-- 合并高度相似的内容
-
-### 2. 结构优化
-- 控制在 3-4 层深度
-- 确保父子节点有逻辑关系
-- 相似内容归到同一分类
-
-### 3. 内容清理
-- 删除致谢、用户名、寒暄
-- 删除过于抽象的分类词（如"主题"、"内容"、"概述"）
-- 节点名 ≤ 30 字符
-
-### 4. 保留关键信息
-- 人名、地名、公司名
-- 数字、日期、具体数据
-- 因果关系、对比分析
-- **必须保留**来源标注: `[PAGE:X]` 或 `[TIME:MM:SS]`
+1. **去重**: 删除父子同名节点、删除同级重复、合并相似内容
+2. **结构**: 控制在 3-4 层深度，确保父子逻辑关系
+3. **清理**: 删除致谢寒暄、抽象分类词；节点名 ≤ 30 字符
+4. **保留**: 人名地名公司名、数字日期、因果关系；**必须保留** `[PAGE:X]` 或 `[TIME:MM:SS]` 标注
 
 ## 格式
 - # 根标题
 - - 和 2空格缩进
-- 不要解释，直接输出
 
-优化后:
+**重要：只输出优化后的 Markdown。直接以 # 标题开始。不要解释。**
+
 {% endif %}

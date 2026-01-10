@@ -35,7 +35,7 @@ def _get_langfuse_client():
         os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
         os.environ["LANGFUSE_HOST"] = settings.langfuse_host
 
-        from langfuse.client import Langfuse
+        from langfuse import Langfuse
 
         return Langfuse()
     except ImportError:
@@ -84,17 +84,12 @@ class OpenRouterLLMService(LLMService):
     async def chat(self, messages: List[ChatMessage]) -> ChatResponse:
         """Send chat messages and get response with optional Langfuse tracing."""
         langfuse = _get_langfuse_client()
-        trace = None
         generation = None
 
-        # Create Langfuse trace if enabled
+        # Create Langfuse generation if enabled (new API v3)
         if langfuse and self._trace_name:
             try:
-                trace = langfuse.trace(
-                    name=self._trace_name,
-                    metadata={"model": self._model},
-                )
-                # Log input messages
+                # Prepare input data for logging
                 input_data = [
                     {
                         "role": m.role,
@@ -102,13 +97,16 @@ class OpenRouterLLMService(LLMService):
                     }
                     for m in messages
                 ]
-                generation = trace.generation(
+                # Use new Langfuse API: start_observation with as_type='generation'
+                generation = langfuse.start_observation(
+                    as_type="generation",
                     name=f"{self._trace_name}-llm-call",
                     model=self._model,
                     input=input_data,
+                    metadata={"trace_name": self._trace_name},
                 )
             except Exception as e:
-                logger.warning(f"[Langfuse] Failed to create trace: {e}")
+                logger.warning(f"[Langfuse] Failed to create generation: {e}")
 
         try:
             response = await self._client.chat.completions.create(
@@ -125,7 +123,7 @@ class OpenRouterLLMService(LLMService):
                 },
             )
 
-            # Log output to Langfuse
+            # Log output to Langfuse (new API: update then end)
             if generation:
                 try:
                     output_preview = (
@@ -133,13 +131,14 @@ class OpenRouterLLMService(LLMService):
                         if len(result.content) > 1000
                         else result.content
                     )
-                    generation.end(
+                    generation.update(
                         output=output_preview,
-                        usage={
+                        usage_details={
                             "input": result.usage.get("prompt_tokens", 0),
                             "output": result.usage.get("completion_tokens", 0),
                         },
                     )
+                    generation.end()
                 except Exception as e:
                     logger.warning(f"[Langfuse] Failed to log generation: {e}")
 
@@ -149,10 +148,11 @@ class OpenRouterLLMService(LLMService):
             # Log error to Langfuse
             if generation:
                 try:
-                    generation.end(
+                    generation.update(
                         status_message=str(e),
                         level="ERROR",
                     )
+                    generation.end()
                 except Exception:
                     pass
             raise
