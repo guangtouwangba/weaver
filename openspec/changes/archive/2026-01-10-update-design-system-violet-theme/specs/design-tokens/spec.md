@@ -1,6 +1,6 @@
 # Design Tokens Specification
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Primary Color Palette
 The design system SHALL use Violet as the primary brand color instead of Sage Green.

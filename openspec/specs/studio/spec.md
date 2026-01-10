@@ -789,13 +789,47 @@ The system SHALL provide citations for every answer generated from project docum
 - **AND** the frontend SHALL display these citations interactively (e.g., clickable to open source)
 
 ### Requirement: Drag to Chat Context
-The system SHALL allow users to drag content from the canvas or source list into the chat to use as context for the next query.
+The system SHALL allow users to drag content from the canvas, source list, or URL content list into the chat to use as context for the next query.
 
 #### Scenario: Visual Integration of Context
 - **WHEN** the user drops a resource into the chat input
 - **THEN** the resource SHALL be displayed as a chip *within* or *visually attached* to the input container
 - **AND** the chat interface SHALL NOT shift position abruptly
 - **AND** the input container SHALL resolve to a cohesive unit containing both context and text input
+
+#### Scenario: Drop URL content into chat
+- **WHEN** the user drags a URL content item (YouTube, Bilibili, Douyin, or web page) from the Resource Sidebar
+- **AND** drops it onto the chat input area
+- **THEN** the URL content SHALL be added to the chat context
+- **AND** a context chip SHALL appear with the platform icon and title
+- **AND** duplicate drops of the same URL SHALL be ignored
+
+#### Scenario: URL context chip display
+- **WHEN** a URL content item is added to chat context
+- **THEN** the context chip SHALL display:
+  - Platform icon (YouTube: red play, Bilibili: blue TV, Douyin: black note, Web: gray globe)
+  - Truncated title (max 30 characters with ellipsis)
+  - Remove button (X)
+- **AND** hovering over the chip SHALL show the full title as tooltip
+
+#### Scenario: Pending URL extraction state
+- **WHEN** a URL content item with status "pending" or "processing" is dropped
+- **THEN** the context chip SHALL display a loading spinner
+- **AND** the chip title SHALL show "Extracting..."
+- **AND** the system SHALL poll for extraction completion
+- **WHEN** extraction completes
+- **THEN** the chip SHALL update to show the extracted title
+
+#### Scenario: Failed URL extraction state
+- **WHEN** a URL content item with status "failed" is dropped
+- **THEN** the context chip SHALL display an error indicator
+- **AND** hovering SHALL show the error message
+- **AND** the user MAY still send the query (AI will acknowledge missing context)
+
+#### Scenario: Remove URL from context
+- **WHEN** the user clicks the remove button on a URL context chip
+- **THEN** the URL content SHALL be removed from the chat context
+- **AND** the chip SHALL disappear immediately
 
 ### Requirement: Drag Response to Canvas
 The system SHALL allow users to drag AI responses from the chat onto the canvas to create new nodes.
@@ -1507,4 +1541,212 @@ The Resource Sidebar URL items SHALL include platform-specific metadata in drag 
   - `title`: video title
   - `thumbnailUrl`: video thumbnail
   - `metadata`: object containing `duration`, `channelName`, `viewCount`, `publishedAt`, `videoId`
+
+### Requirement: URL Content RAG Integration
+The system SHALL include URL content (transcripts, article text) in the RAG retrieval context when provided as chat context.
+
+#### Scenario: YouTube transcript as context
+- **WHEN** the user sends a query with a YouTube video in context
+- **THEN** the system SHALL include the video transcript in the RAG retrieval
+- **AND** the AI response SHALL be informed by the video content
+- **AND** citations SHALL reference the YouTube video with platform icon
+
+#### Scenario: Web article as context
+- **WHEN** the user sends a query with a web page in context
+- **THEN** the system SHALL include the article text in the RAG retrieval
+- **AND** the AI response SHALL be informed by the article content
+- **AND** citations SHALL reference the web page with site name
+
+#### Scenario: Mixed document and URL context
+- **WHEN** the user provides both documents and URL content as context
+- **THEN** the system SHALL include both in the RAG retrieval
+- **AND** the AI SHALL consider all provided sources
+- **AND** citations SHALL indicate the source type (document vs URL)
+
+#### Scenario: URL content without transcript
+- **WHEN** a video URL has no available transcript (e.g., Douyin, some Bilibili)
+- **AND** only video description is available
+- **THEN** the system SHALL use the description as context
+- **AND** the AI response SHALL indicate limited context availability if relevant
+
+### Requirement: URL Citation Interaction
+The system SHALL display clickable citations for URL sources in AI responses.
+
+#### Scenario: Click URL citation
+- **WHEN** the user clicks on a URL citation chip in an AI response
+- **THEN** the original URL SHALL open in a new browser tab
+- **AND** the citation chip SHALL display the platform icon
+
+#### Scenario: URL citation chip appearance
+- **WHEN** a citation references a URL source
+- **THEN** the citation chip SHALL display:
+  - Platform icon (YouTube, Bilibili, Douyin, or Globe)
+  - Source title or domain name
+  - Visual distinction from document citations
+
+### Requirement: Web Page Preview Card Display
+The Canvas SHALL display web page nodes as rich preview cards with consistent styling and metadata.
+
+#### Scenario: Web page card appearance
+- **WHEN** a canvas node has `type: 'knowledge'` and `fileMetadata.platform: 'web'`
+- **THEN** it SHALL render as a Web Page Preview Card displaying:
+  - A header with Globe icon and "Web Page" label using design system `colors.primary`
+  - External link icon in header for quick access
+  - Favicon image (loaded via Google Favicons API) with fallback to globe icon
+  - Domain name prominently displayed (e.g., "github.com")
+  - "Imported" badge using `colors.primary[100]` background and `colors.primary[700]` text
+  - Page title (bold, truncated with ellipsis if needed)
+  - Description/excerpt text (up to ~100 characters)
+  - Source URL at the bottom with link icon
+- **AND** the card SHALL have consistent dimensions with other source preview cards (approximately 240px width)
+- **AND** all colors SHALL be sourced from `@/components/ui/tokens`
+
+#### Scenario: Web page card with thumbnail
+- **WHEN** the web page has an `og:image` or extracted thumbnail
+- **THEN** the card SHALL display the thumbnail image in the content area
+- **AND** the favicon and domain SHALL overlay the thumbnail
+- **AND** text content SHALL appear below the thumbnail
+
+#### Scenario: Web page card without thumbnail
+- **WHEN** the thumbnail URL is missing or fails to load
+- **THEN** the card SHALL display a light background using `colors.primary[50]`
+- **AND** the favicon, domain, and text SHALL be prominently displayed
+
+#### Scenario: Web page card with missing metadata
+- **WHEN** optional metadata (description, favicon) is missing
+- **THEN** those elements SHALL be gracefully hidden
+- **AND** the card layout SHALL adjust to avoid empty space
+- **AND** at minimum, the title or URL SHALL always be displayed
+
+### Requirement: Web Page Node Creation from Drop
+The Canvas SHALL create web page knowledge nodes when web URLs are dropped from the Resource Sidebar.
+
+#### Scenario: Drop web URL item on canvas
+- **WHEN** a user drags a URL item with `platform: 'web'` from the Resource Sidebar
+- **AND** drops it onto the canvas
+- **THEN** a new knowledge node SHALL be created with:
+  - `type: 'knowledge'`
+  - `subType: 'source'`
+  - `title`: page title
+  - `content`: article description/excerpt
+  - `fileMetadata.platform: 'web'`
+  - `fileMetadata.fileType: 'web'`
+  - `fileMetadata.thumbnailUrl`: og:image URL (if available)
+  - `fileMetadata.sourceUrl`: original page URL
+  - `fileMetadata.siteName`: extracted site name or domain
+- **AND** the node position SHALL be calculated from drop coordinates
+
+### Requirement: Web Page Card Interaction
+The Web Page Preview Card SHALL support standard canvas interactions and article-specific actions.
+
+#### Scenario: Double-click opens reader modal
+- **WHEN** a user double-clicks a Web Page Preview Card
+- **THEN** the Web Page Reader Modal SHALL open
+- **AND** display the full extracted article content
+
+#### Scenario: Click external link opens source
+- **WHEN** a user clicks the external link icon on a Web Page Preview Card
+- **THEN** the original URL SHALL open in a new browser tab
+
+#### Scenario: Standard canvas interactions
+- **WHEN** a user interacts with a Web Page Preview Card
+- **THEN** standard canvas node behaviors SHALL apply:
+  - Single-click selects the node
+  - Drag repositions the node
+  - Shift-click adds to selection
+  - Delete key removes the node
+
+### Requirement: Web Page Card Connection Handles
+The Web Page Preview Card SHALL support connection handles for linking with other canvas nodes.
+
+#### Scenario: Connection handles display
+- **WHEN** a user hovers over or selects a Web Page Preview Card
+- **THEN** connection handles SHALL appear on all four sides:
+  - Top center
+  - Bottom center
+  - Left center
+  - Right center
+- **AND** handles SHALL have the same visual style as other canvas node handles
+
+#### Scenario: Create connection from web page card
+- **WHEN** a user drags from a connection handle on a Web Page Preview Card
+- **THEN** a temporary connection line SHALL follow the cursor
+- **WHEN** the user releases over another node's connection handle
+- **THEN** an edge SHALL be created between the two nodes
+- **AND** the edge SHALL be persisted to the canvas state
+
+### Requirement: Web Page Reader Modal
+The system SHALL provide a modal dialog for reading extracted web article content without leaving the workspace.
+
+#### Scenario: Reader modal appearance
+- **WHEN** the Web Page Reader Modal opens
+- **THEN** it SHALL display:
+  - A centered modal overlay with dark backdrop
+  - Article title as header
+  - Site favicon and name below title
+  - Scrollable article content with comfortable reading typography
+  - Close button (X) in the top-right corner
+  - "Open in Browser" button to visit original URL
+- **AND** the modal SHALL be responsive to viewport size
+
+#### Scenario: Reader modal typography
+- **WHEN** the Web Page Reader Modal displays article content
+- **THEN** the content SHALL use:
+  - Comfortable reading font size (16-18px)
+  - Appropriate line height (1.6-1.8)
+  - Maximum content width for readability (~680px)
+  - Proper paragraph spacing
+
+#### Scenario: Close reader modal
+- **WHEN** a user clicks the close button, backdrop, or presses Escape
+- **THEN** the modal SHALL close
+- **AND** focus SHALL return to the canvas
+
+### Requirement: Sidebar Web Page Preview
+The Resource Sidebar SHALL allow users to preview web page content by clicking on URL items.
+
+#### Scenario: Click web page item opens preview
+- **WHEN** a user clicks a web URL item (platform: 'web') in the Resource Sidebar
+- **THEN** the Source Panel (right panel) SHALL switch to web page preview mode
+- **AND** display the page title as header
+- **AND** show the thumbnail/hero image if available
+- **AND** display article content in scrollable area
+
+#### Scenario: Web page preview panel layout
+- **WHEN** the web page preview mode is active in Source Panel
+- **THEN** the panel SHALL display:
+  - Header with page title, site favicon, and close button
+  - Hero image/thumbnail (if available) with aspect ratio preserved
+  - Site name and domain
+  - Published date (if available)
+  - Article content in readable format
+  - "Open Original" button to visit source URL
+  - "Add to Canvas" button to create a node from current page
+
+#### Scenario: Add web page to canvas from preview
+- **WHEN** a user clicks "Add to Canvas" button in web page preview
+- **THEN** a new Web Page Preview Card SHALL be created on the canvas
+- **AND** the card SHALL appear at the center of the current viewport
+- **AND** the card SHALL be automatically selected
+
+#### Scenario: Empty content handling
+- **WHEN** a web page has no extractable article content
+- **THEN** the preview panel SHALL display:
+  - The page title and URL
+  - A message indicating "No article content extracted"
+  - The thumbnail if available
+  - "Open Original" button to view in browser
+
+### Requirement: Web Page Drag Data from Sidebar
+The Resource Sidebar URL items SHALL include platform-specific metadata in drag data for web page URLs.
+
+#### Scenario: Drag web page URL item
+- **WHEN** a user initiates drag on a web URL item (platform: 'web') in the Resource Sidebar
+- **THEN** the drag data SHALL include:
+  - `type: 'url'`
+  - `platform: 'web'`
+  - `contentType: 'article'`
+  - `title`: page title
+  - `thumbnailUrl`: og:image or extracted thumbnail
+  - `metadata`: object containing `siteName`, `sourceUrl`, `description`
 
