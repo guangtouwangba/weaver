@@ -822,70 +822,18 @@ class OutputGenerationService:
         resolver = ResourceResolver(session)
         resources = await resolver.resolve_many(all_resource_ids)
 
-        # Check for videos without content and transcribe if needed
-        from research_agent.config import get_settings
-
-        settings = get_settings()
-
         content_parts = []
         for resource in resources:
             content_len = len(resource.content) if resource.content else 0
+            transcript_source = resource.metadata.get("transcript_source", "unknown")
             logger.info(
                 f"[OutputService] Loaded {resource.type.value} ({resource.platform}): "
-                f"{resource.title[:50]}... ({content_len} chars)"
+                f"{resource.title[:50]}... ({content_len} chars, source={transcript_source})"
             )
 
-            # Check if this is a YouTube video without content
-            if (
-                resource.type.value == "video"
-                and resource.platform == "youtube"
-                and not resource.content
-            ):
-                # Get video_id from metadata
-                video_id = resource.metadata.get("video_id")
-                has_transcript = resource.metadata.get("has_transcript", False)
-
-                if video_id and not has_transcript:
-                    logger.info(
-                        f"[OutputService] Video {video_id} has no transcript, "
-                        "attempting Gemini audio transcription..."
-                    )
-
-                    try:
-                        from research_agent.infrastructure.llm.gemini_audio import (
-                            transcribe_youtube_video,
-                        )
-
-                        result = await transcribe_youtube_video(
-                            video_id=video_id,
-                            api_key=settings.openrouter_api_key,
-                            max_duration_minutes=30,
-                        )
-
-                        if result.success and result.transcript:
-                            logger.info(
-                                f"[OutputService] Gemini transcription successful: "
-                                f"{len(result.transcript)} chars"
-                            )
-                            # Use transcribed content
-                            formatted = (
-                                f"## Video (youtube): {resource.title}\n\n{result.transcript}"
-                            )
-                            content_parts.append(formatted)
-
-                            # Update URL content in database with transcript
-                            await self._update_url_content_transcript(
-                                session, resource.id, result.transcript
-                            )
-                            continue
-                        else:
-                            logger.warning(
-                                f"[OutputService] Gemini transcription failed: " f"{result.error}"
-                            )
-                    except Exception as e:
-                        logger.error(
-                            f"[OutputService] Audio transcription error: {e}", exc_info=True
-                        )
+            # Note: Video transcription is now handled at upload time in YouTubeExtractor
+            # Videos without transcripts will have empty content, which is expected for
+            # videos that are too long or failed transcription
 
             # Use existing content
             formatted = resource.get_formatted_content()
@@ -967,38 +915,6 @@ class OutputGenerationService:
         except Exception as e:
             logger.warning(f"[OutputService] Failed to load page-annotated content: {e}")
             return fallback_content
-
-    async def _update_url_content_transcript(
-        self,
-        session: AsyncSession,
-        url_content_id: UUID,
-        transcript: str,
-    ) -> None:
-        """Update URL content record with Gemini-transcribed content.
-
-        This caches the transcription result so it doesn't need to be
-        re-transcribed on future requests.
-        """
-        try:
-            from research_agent.infrastructure.database.models import UrlContentModel
-
-            url_content = await session.get(UrlContentModel, url_content_id)
-            if url_content:
-                url_content.content = transcript
-
-                # Update metadata to indicate transcription source
-                meta_data = url_content.meta_data or {}
-                meta_data["has_transcript"] = True
-                meta_data["transcript_source"] = "gemini_audio"
-                url_content.meta_data = meta_data
-
-                await session.commit()
-                logger.info(
-                    f"[OutputService] Saved Gemini transcript for {url_content_id}: "
-                    f"{len(transcript)} chars"
-                )
-        except Exception as e:
-            logger.warning(f"[OutputService] Failed to save transcript: {e}")
 
     async def list_outputs(
         self,

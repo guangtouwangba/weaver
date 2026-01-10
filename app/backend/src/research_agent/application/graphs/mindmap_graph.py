@@ -111,14 +111,17 @@ def _extract_content(text: str) -> str:
 def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
     """Parse source markers from text and return (clean_text, source_refs).
 
-    Supports:
-    - [Page X] or [Page X-Y] for PDFs
-    - [MM:SS] or [HH:MM:SS] for videos
+    Supports multiple formats for compatibility:
+    - [PAGE:X] or [PAGE:X-Y] (source annotator format)
+    - [Page X] or [Page X-Y] (LLM may output this format)
+    - [TIME:MM:SS] or [TIME:HH:MM:SS] (source annotator format)
+    - [MM:SS] or [HH:MM:SS] (LLM may output this format)
     """
     source_refs: List[SourceRef] = []
 
-    # Pattern for page markers: [Page 15] or [Page 15-17]
-    page_pattern = r"\[Page\s*(\d+)(?:\s*-\s*(\d+))?\]"
+    # Pattern for page markers: [PAGE:15], [PAGE:15-17], [Page 15], [Page 15-17]
+    # Supports both [PAGE:X] and [Page X] formats
+    page_pattern = r"\[(?:PAGE:|Page\s*)(\d+)(?:\s*-\s*(\d+))?\]"
     page_matches = re.findall(page_pattern, text, re.IGNORECASE)
     for match in page_matches:
         page_start = match[0]
@@ -134,8 +137,9 @@ def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
             )
         )
 
-    # Pattern for time markers: [12:30] or [1:23:45]
-    time_pattern = r"\[(\d{1,2}:\d{2}(?::\d{2})?)\]"
+    # Pattern for time markers: [TIME:12:30], [TIME:1:23:45], [12:30], [1:23:45]
+    # Supports both [TIME:MM:SS] and [MM:SS] formats
+    time_pattern = r"\[(?:TIME:)?(\d{1,2}:\d{2}(?::\d{2})?)\]"
     time_matches = re.findall(time_pattern, text)
     for timestamp in time_matches:
         source_refs.append(
@@ -147,7 +151,7 @@ def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
             )
         )
 
-    # Remove markers from text
+    # Remove markers from text (both formats)
     clean_text = re.sub(page_pattern, "", text, flags=re.IGNORECASE)
     clean_text = re.sub(time_pattern, "", clean_text)
     clean_text = clean_text.strip()

@@ -1,4 +1,7 @@
-"""YouTube video content extractor using youtube-transcript-api."""
+"""YouTube video content extractor using youtube-transcript-api.
+
+Falls back to Gemini audio transcription when no transcript is available.
+"""
 
 import re
 from typing import List, Optional
@@ -12,7 +15,15 @@ from research_agent.shared.utils.logger import logger
 
 
 class YouTubeExtractor(URLExtractor):
-    """Extractor for YouTube videos."""
+    """Extractor for YouTube videos.
+    
+    Uses a two-stage transcript extraction:
+    1. Try youtube-transcript-api for existing subtitles
+    2. Fall back to Gemini audio transcription if no subtitles available
+    
+    This ensures transcripts are extracted at upload time, avoiding
+    repeated downloads during content generation.
+    """
 
     @property
     def platform(self) -> str:
@@ -34,7 +45,13 @@ class YouTubeExtractor(URLExtractor):
         return None
 
     async def extract(self, url: str) -> ExtractionResult:
-        """Extract transcript and metadata from YouTube video."""
+        """Extract transcript and metadata from YouTube video.
+        
+        Extraction strategy:
+        1. Get video metadata via oEmbed API
+        2. Try to get transcript from YouTube's built-in subtitles
+        3. If no subtitles available, fall back to Gemini audio transcription
+        """
         video_id = self._extract_video_id(url)
         if not video_id:
             return ExtractionResult.failure(
@@ -48,8 +65,25 @@ class YouTubeExtractor(URLExtractor):
             # Get video metadata first
             metadata = await self._get_video_metadata(video_id)
 
-            # Get transcript
+            # Step 1: Try to get transcript from YouTube's subtitles
             transcript_text, has_transcript = await self._get_transcript(video_id)
+            transcript_source = "youtube_subtitles" if has_transcript else None
+
+            # Step 2: Fall back to Gemini audio transcription if no subtitles
+            if not has_transcript or not transcript_text:
+                logger.info(
+                    f"[YouTubeExtractor] No YouTube subtitles for {video_id}, "
+                    "attempting Gemini audio transcription..."
+                )
+                gemini_transcript = await self._transcribe_with_gemini(video_id)
+                if gemini_transcript:
+                    transcript_text = gemini_transcript
+                    has_transcript = True
+                    transcript_source = "gemini_audio"
+                    logger.info(
+                        f"[YouTubeExtractor] Gemini transcription successful: "
+                        f"{len(gemini_transcript)} chars"
+                    )
 
             # Build thumbnail URL
             thumbnail_url = f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg"
@@ -70,6 +104,7 @@ class YouTubeExtractor(URLExtractor):
                     "channel_name": metadata.get("channel_name"),
                     "duration": metadata.get("duration"),
                     "has_transcript": has_transcript,
+                    "transcript_source": transcript_source,
                     "view_count": metadata.get("view_count"),
                 },
             )
@@ -77,7 +112,7 @@ class YouTubeExtractor(URLExtractor):
             logger.info(
                 f"[YouTubeExtractor] Extracted: title='{result.title}', "
                 f"transcript_length={len(transcript_text) if transcript_text else 0}, "
-                f"has_transcript={has_transcript}"
+                f"has_transcript={has_transcript}, source={transcript_source}"
             )
 
             return result
@@ -277,3 +312,54 @@ class YouTubeExtractor(URLExtractor):
             logger.warning(f"[YouTubeExtractor] Failed to get oEmbed metadata: {e}")
 
         return {}
+
+    async def _transcribe_with_gemini(self, video_id: str) -> Optional[str]:
+        """
+        Transcribe video audio using Gemini when no YouTube subtitles are available.
+        
+        This is called during URL extraction (upload time) to ensure transcripts
+        are available immediately, avoiding repeated downloads during content generation.
+        
+        Args:
+            video_id: YouTube video ID
+            
+        Returns:
+            Transcript text with [TIME:MM:SS] markers, or None if transcription fails
+        """
+        try:
+            from research_agent.config import get_settings
+            from research_agent.infrastructure.llm.gemini_audio import transcribe_youtube_video
+
+            settings = get_settings()
+            
+            # Check if OpenRouter API key is available
+            if not settings.openrouter_api_key:
+                logger.warning(
+                    "[YouTubeExtractor] OpenRouter API key not configured, "
+                    "skipping Gemini audio transcription"
+                )
+                return None
+
+            result = await transcribe_youtube_video(
+                video_id=video_id,
+                api_key=settings.openrouter_api_key,
+                max_duration_minutes=30,
+            )
+
+            if result.success and result.transcript:
+                return result.transcript
+            else:
+                logger.warning(
+                    f"[YouTubeExtractor] Gemini transcription failed: {result.error}"
+                )
+                return None
+
+        except ImportError as e:
+            logger.warning(f"[YouTubeExtractor] Gemini audio module not available: {e}")
+            return None
+        except Exception as e:
+            logger.error(
+                f"[YouTubeExtractor] Error during Gemini transcription: {e}",
+                exc_info=True
+            )
+            return None

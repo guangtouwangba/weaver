@@ -32,7 +32,7 @@ class GenerateOutputRequest(BaseModel):
         description="Optional title for the output",
         max_length=255,
     )
-    options: dict[str, Any | None] = Field(
+    options: dict[str, Any] | None = Field(
         None,
         description="Output-type specific options (e.g., max_depth for mindmap)",
     )
@@ -59,7 +59,7 @@ class UpdateOutputRequest(BaseModel):
         description="New title for the output",
         max_length=255,
     )
-    data: dict[str, Any | None] = Field(
+    data: dict[str, Any] | None = Field(
         None,
         description="Updated output data (e.g., mindmap nodes/edges)",
     )
@@ -79,7 +79,7 @@ class SynthesizeNodesRequest(BaseModel):
         pattern="^(connect|inspire|debate)$",
     )
     # Optional: Direct node content for canvas synthesis (bypasses output data lookup)
-    node_data: list[dict[str, Any | None]] = Field(
+    node_data: list[dict[str, Any]] | None = Field(
         default=None,
         description=(
             "Optional list of node content dicts with 'id', 'title', 'content'. "
@@ -103,7 +103,7 @@ class OutputResponse(BaseModel):
     document_ids: list[UUID]
     status: str
     title: str | None = None
-    data: dict[str, Any | None] = None
+    data: dict[str, Any] | None = None
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime

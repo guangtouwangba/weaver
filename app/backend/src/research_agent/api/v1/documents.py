@@ -191,7 +191,7 @@ async def get_presigned_upload_url(
         # We need session to access DB
         async with AsyncSession(get_db.engine) as db_session:
             project_repo = SQLAlchemyProjectRepository(db_session)
-            project = await project_repo.get(project_id)
+            project = await project_repo.find_by_id(project_id)
             if not project:
                 raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
             if project.user_id and project.user_id != user_id:
@@ -384,7 +384,7 @@ async def list_documents(
     # Verify project ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(project_id)
+        project = await project_repo.find_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
 
@@ -449,7 +449,7 @@ async def upload_document(
     # Verify project ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(project_id)
+        project = await project_repo.find_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
 
@@ -527,7 +527,7 @@ async def get_document(
     # Verify ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(document.project_id)
+        project = await project_repo.find_by_id(document.project_id)
 
         if project:
             user_id = user.user_id if user else None
@@ -575,7 +575,7 @@ async def get_document_file(
     # Verify ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(document.project_id)
+        project = await project_repo.find_by_id(document.project_id)
 
         if project:
             user_id = user.user_id if user else None
@@ -642,7 +642,7 @@ async def get_document_thumbnail(
     # Verify ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(document.project_id)
+        project = await project_repo.find_by_id(document.project_id)
 
         if project:
             user_id = user.user_id if user else None
@@ -689,7 +689,7 @@ async def get_document_chunks(
     # Verify ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(document.project_id)
+        project = await project_repo.find_by_id(document.project_id)
         if project:
             user_id = user.user_id if user else None
             if project.user_id and project.user_id != user_id:
@@ -748,7 +748,7 @@ async def delete_document(
     # Verify ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(document.project_id)
+        project = await project_repo.find_by_id(document.project_id)
         if project:
             user_id = user.user_id if user else None
             if project.user_id and project.user_id != user_id:
@@ -830,7 +830,7 @@ async def list_highlights(
     # Verify ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(document.project_id)
+        project = await project_repo.find_by_id(document.project_id)
         if project:
             user_id = user.user_id if user else None
             if project.user_id and project.user_id != user_id:
@@ -876,7 +876,7 @@ async def create_highlight(
     # Verify ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
-        project = await project_repo.get(document.project_id)
+        project = await project_repo.find_by_id(document.project_id)
         if project:
             user_id = user.user_id if user else None
             if project.user_id and project.user_id != user_id:
