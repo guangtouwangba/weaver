@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Box, Container, Heading, Text, VStack, Card, CardBody, Divider, Button } from '@chakra-ui/react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getSupabase, isAuthConfigured } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { isAuthenticated, isAnonymous, isLoading, enableGuestMode } = useAuth();
@@ -141,5 +141,17 @@ export default function LoginPage() {
                 </Box>
             </VStack>
         </Container>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <Container maxW="container.sm" py={20}>
+                <Text textAlign="center">Loading...</Text>
+            </Container>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }
