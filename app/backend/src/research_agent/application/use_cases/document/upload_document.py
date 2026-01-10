@@ -27,6 +27,7 @@ class UploadDocumentInput:
     filename: str
     file_content: BinaryIO
     file_size: int
+    user_id: str
     storage_path: Optional[str] = field(
         default=None
     )  # Supabase Storage path if using cloud storage
@@ -79,11 +80,13 @@ class UploadDocumentUseCase:
             # File already uploaded to Supabase Storage
             document.file_path = input.storage_path
             # Save file content locally for PDF processing (temp)
-            temp_path = f"projects/{input.project_id}/{document.id}.pdf"
+            # Use temp path for processing, doesn't need to match storage structure
+            temp_path = f"temp/{input.project_id}/{document.id}.pdf"
             full_path = await self._storage.save(temp_path, input.file_content)
         else:
             # Traditional local storage
-            file_path = f"projects/{input.project_id}/{document.id}.pdf"
+            # Use user-scoped path: {user_id}/projects/{project_id}/{document.id}.pdf
+            file_path = f"{input.user_id}/projects/{input.project_id}/{document.id}.pdf"
             full_path = await self._storage.save(file_path, input.file_content)
             document.file_path = full_path
 

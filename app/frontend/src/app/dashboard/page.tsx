@@ -24,6 +24,8 @@ import {
   CheckIcon,
   ExpandMoreIcon,
 } from '@/components/ui/icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { AnonymousLimitPrompt } from '@/components/AnonymousLimitPrompt';
 import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
 import ProjectCard from '@/components/dashboard/ProjectCard';
@@ -56,7 +58,19 @@ export default function DashboardPage() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
+  // Auth context
+  const { canCreateProject, updateAnonProjectCount, isAnonymous } = useAuth();
+  const [limitPromptOpen, setLimitPromptOpen] = useState(false);
+
   const menuOpen = Boolean(menuAnchorEl);
+
+  const handleCreateClick = () => {
+    if (canCreateProject) {
+      setCreateDialogOpen(true);
+    } else {
+      setLimitPromptOpen(true);
+    }
+  };
 
   // Load projects on mount
   useEffect(() => {
@@ -83,6 +97,9 @@ export default function DashboardPage() {
   const handleProjectCreated = (project: Project) => {
     // Add new project to top
     setProjects((prev) => [project, ...prev]);
+    if (isAnonymous) {
+      updateAnonProjectCount(projects.length + 1);
+    }
     router.push(`/studio/${project.id}`);
   };
 
@@ -164,7 +181,7 @@ export default function DashboardPage() {
             </Button>
             <Button
               variant="primary"
-              onClick={() => setCreateDialogOpen(true)}
+              onClick={handleCreateClick}
             >
               <AddIcon size={20} style={{ marginRight: 8 }} />
               Create New Project
@@ -212,9 +229,9 @@ export default function DashboardPage() {
                 </div>
 
                 <Stack direction="row" gap={16} align="center" style={{ color: '#6B7280' }}>
-                  <div 
+                  <div
                     onClick={() => setViewMode('grid')}
-                    style={{ 
+                    style={{
                       cursor: 'pointer',
                       padding: 6,
                       borderRadius: 6,
@@ -228,9 +245,9 @@ export default function DashboardPage() {
                   >
                     <GridViewIcon size={20} />
                   </div>
-                  <div 
+                  <div
                     onClick={() => setViewMode('list')}
-                    style={{ 
+                    style={{
                       cursor: 'pointer',
                       padding: 6,
                       borderRadius: 6,
@@ -318,6 +335,12 @@ export default function DashboardPage() {
           open={createDialogOpen}
           onClose={() => setCreateDialogOpen(false)}
           onProjectCreated={handleProjectCreated}
+        />
+
+        <AnonymousLimitPrompt
+          isOpen={limitPromptOpen}
+          onClose={() => setLimitPromptOpen(false)}
+          limitType="projects"
         />
 
         {/* Card menu */}

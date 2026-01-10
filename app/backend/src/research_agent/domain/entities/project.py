@@ -13,6 +13,7 @@ class Project:
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     description: Optional[str] = None
+    user_id: Optional[str] = None  # Owner user ID for multi-tenant isolation
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -23,4 +24,3 @@ class Project:
         if description is not None:
             self.description = description
         self.updated_at = datetime.utcnow()
-

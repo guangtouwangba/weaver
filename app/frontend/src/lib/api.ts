@@ -52,7 +52,7 @@ function getApiBaseUrl(): string {
   if (typeof window !== 'undefined' && (window as any).__API_URL__) {
     _cachedApiUrl = (window as any).__API_URL__;
     console.log('[API] Using window config URL:', _cachedApiUrl);
-    return _cachedApiUrl;
+    return _cachedApiUrl || '';
   }
 
   // Default to localhost for development (only on client-side)
@@ -232,7 +232,7 @@ export interface CanvasNode {
     type: 'question' | 'alternative' | 'counterargument';
     content: string;
   }>;
-  
+
   // === Unified Node Model: Generation Output Fields ===
   // For nodes created from generation outputs (mindmap, summary, etc.)
   outputId?: string;        // Backend output ID for persistence
@@ -349,18 +349,44 @@ class ApiError extends Error {
   }
 }
 
+// Auth token getter - will be set by AuthContext
+let _getAuthToken: (() => Promise<string | null>) | null = null;
+
+/**
+ * Set the auth token getter function
+ * Called by AuthContext on initialization
+ */
+export function setAuthTokenGetter(getter: () => Promise<string | null>): void {
+  _getAuthToken = getter;
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${getApiUrl()}${endpoint}`;
 
+  // Get auth token if available
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Add Authorization header if we have a token
+  if (_getAuthToken) {
+    try {
+      const token = await _getAuthToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('[API] Failed to get auth token:', error);
+    }
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -390,6 +416,12 @@ export const projectsApi = {
 
   delete: (id: string) =>
     fetchApi<void>(`/api/v1/projects/${id}`, { method: 'DELETE' }),
+
+  migrate: (anonSessionId: string) =>
+    fetchApi<void>('/api/v1/projects/migrate', {
+      method: 'POST',
+      body: JSON.stringify({ anonymous_session_id: anonSessionId }),
+    }),
 };
 
 // Presigned URL response type
@@ -1289,6 +1321,8 @@ export const tagsApi = {
     fetchApi<void>(`/api/v1/tags/${tagId}`, { method: 'DELETE' }),
 };
 
+
+
 // =============================================================================
 // URL Content Extraction API
 // =============================================================================
@@ -1333,8 +1367,8 @@ export const urlApi = {
   extract: (url: string, options: { force?: boolean; projectId?: string } = {}) =>
     fetchApi<UrlContent>('/api/v1/url/extract', {
       method: 'POST',
-      body: JSON.stringify({ 
-        url, 
+      body: JSON.stringify({
+        url,
         force: options.force ?? false,
         project_id: options.projectId,
       }),
@@ -1384,7 +1418,7 @@ export const urlApi = {
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const status = await urlApi.getStatus(id);
-      
+
       if (onStatusChange) {
         onStatusChange(status);
       }

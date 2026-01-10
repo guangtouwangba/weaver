@@ -147,6 +147,10 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"  # Or self-hosted URL
 
+    # Supabase Auth
+    supabase_jwt_secret: str = ""  # JWT secret for verifying Supabase Auth tokens
+    auth_bypass_enabled: bool = False  # Set True for local dev without auth
+
     # Evaluation - Ragas
     evaluation_enabled: bool = False
     evaluation_sample_rate: float = 0.1  # Evaluate 10% of queries by default
@@ -180,7 +184,7 @@ class Settings(BaseSettings):
 
     # Redis Configuration (for ARQ task queue)
     redis_url: str = ""  # redis://localhost:6379 or rediss://...@upstash.io:6379
-    
+
     # URL Extraction Configuration
     url_extraction_timeout: int = 60  # Timeout for URL extraction tasks (seconds)
     url_content_max_length: int = 50000  # Maximum content length (characters)

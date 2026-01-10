@@ -38,6 +38,8 @@ class ProjectModel(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
 
     # Relationships
     documents: Mapped[List["DocumentModel"]] = relationship(
@@ -780,12 +782,16 @@ class UrlContentModel(Base):
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     url: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     normalized_url: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    platform: Mapped[str] = mapped_column(String(50), nullable=False)  # youtube, bilibili, douyin, web
+    platform: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # youtube, bilibili, douyin, web
     content_type: Mapped[str] = mapped_column(String(50), nullable=False)  # video, article, link
 
     # Extracted content
     title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Article text or transcript
+    content: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # Article text or transcript
     thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Platform-specific metadata
@@ -810,10 +816,7 @@ class UrlContentModel(Base):
 
     # Project association (for studio sidebar persistence)
     project_id: Mapped[Optional[UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
     # Optional: User ownership (for multi-tenant)

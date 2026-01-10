@@ -26,7 +26,11 @@ class ProjectRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, project_id: UUID) -> bool:
+    async def delete(self, project_id: UUID, user_id: str | None = None) -> bool:
         """Delete a project."""
         pass
 
+    @abstractmethod
+    async def migrate_user_data(self, from_user_id: str, to_user_id: str) -> int:
+        """Migrate projects from one user to another."""
+        pass

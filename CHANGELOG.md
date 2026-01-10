@@ -6,7 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [Unreleased]
 
+### Added
+- **Authentication**: Integrated Supabase Auth for strict user isolation.
+- **User Scoping**: Projects and files are now scoped to the authenticated user.
+- **Anonymous Trial**: New users can try the app with limited quota (3 projects, 2 uploads) without signing in.
+- **Backend**: Added `user_id` to `projects` table and updated all API endpoints to enforce ownership.
+- **Storage**: Files are now stored in user-specific paths in Supabase Storage and local filesystem.
+- **Frontend**: Added Login page, User Menu, and Protected Route wrappers.
+
+### Changed
+- **API**: Endpoints now require `Authorization: Bearer <token>` header (handled automatically by frontend).
+- **Database**: `projects` table now has a `user_id` column.
+- **Files**: Upload path structure changed from `{project_id}/{file.id}` to `{user_id}/{project_id}/{file.id}`.
+
+### Deprecated
+- **Upload API**: The synchronous `POST /projects/{id}/documents` endpoint is deprecated in favor of the presigned URL flow.
+
+### Security
+- **Strict Access Control**: Users can only access their own projects and documents.
+- **Public/Anonymous Access**: Only allowed if `AUTH_BYPASS_ENABLED` is true or for specific anonymous-allowed endpoints.
 ### Performance - 2026-01-09
 
 #### Mindmap Generation: Batch Mode (No Streaming)

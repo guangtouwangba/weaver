@@ -10,6 +10,8 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 
+🌐 **[Try Weaver Live →](https://weaver.zeabur.app)**
+
 ---
 
 ## 🆚 Why Weaver over NotebookLM?
@@ -61,13 +63,15 @@
 git clone https://github.com/guangtouwangba/weaver.git
 cd weaver && make setup
 
-# Configure (add your OPENROUTER_API_KEY)
+# Configure (add your OPENROUTER_API_KEY and Supabase credentials)
 cp env.example .env && nano .env
 
 # Run
 make run-backend   # Terminal 1: API on :8000
 make run-frontend  # Terminal 2: UI on :3000
 ```
+
+> **Note**: For local development without Supabase, set `AUTH_BYPASS_ENABLED=true` in .env
 
 **30 seconds to your first insight!** 🎉
 

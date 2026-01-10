@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Stack, Tooltip, IconButton } from '@/components/ui';
+import { UserMenu } from '@/components/UserMenu';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   HomeIcon,
@@ -148,29 +149,9 @@ export default function GlobalSidebar() {
       <div style={{ flexGrow: 1 }} />
 
       {/* User Zone */}
-      <Tooltip title="User Profile" placement="right">
-        <Link href="/settings" style={{ textDecoration: 'none' }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radii.full,
-              backgroundColor: colors.primary[500],
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: 14,
-              fontWeight: 600,
-              border: '2px solid white',
-              boxShadow: shadows.sm,
-              cursor: 'pointer',
-            }}
-          >
-            AL
-          </div>
-        </Link>
-      </Tooltip>
+      <div style={{ marginBottom: 16 }}>
+        <UserMenu minimized={true} />
+      </div>
     </div>
   );
 }

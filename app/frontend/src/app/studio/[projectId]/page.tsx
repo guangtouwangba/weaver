@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import {
   Text,
 } from "@/components/ui";
+import { useAuth } from "@/contexts/AuthContext";
+import { AnonymousLimitPrompt } from "@/components/AnonymousLimitPrompt";
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { useStudio, StudioProvider } from "@/contexts/StudioContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -57,11 +59,11 @@ function StudioPageContent() {
     openDocumentPreview,
     navigateToSource,
   } = useStudio();
-  const { toast } = useToast();
+  const toast = useToast();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [interactionMode, setInteractionMode] = useState<'select' | 'pan' | 'connect' | 'logic_connect'>('select');
+  const [interactionMode, setInteractionMode] = useState<'select' | 'pan' | 'connect' | 'logic_connect' | 'magic'>('select');
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
 
   // Import Dialog State
@@ -97,8 +99,17 @@ function StudioPageContent() {
     setSelectedNodeIds(new Set());
   };
 
+  const { isAnonymous } = useAuth();
+  const [limitPromptOpen, setLimitPromptOpen] = useState(false);
+
   // Handle File Upload from Dialog
   const handleFileSelect = async (file: File) => {
+    if (isAnonymous && documents.length >= 2) {
+      setIsImportDialogOpen(false);
+      setLimitPromptOpen(true);
+      return;
+    }
+
     try {
       const newDoc = await documentsApi.upload(projectId, file);
       setDocuments([newDoc, ...documents]);
@@ -110,6 +121,12 @@ function StudioPageContent() {
 
   // Handle URL Import from Dialog
   const handleUrlImport = async (url: string) => {
+    if (isAnonymous && documents.length >= 2) {
+      setIsImportDialogOpen(false);
+      setLimitPromptOpen(true);
+      return;
+    }
+
     const toastId = toast.loading("Extracting content...", "Please wait while we process the URL");
     try {
       console.log('Importing URL:', url);
@@ -207,6 +224,12 @@ function StudioPageContent() {
         onClose={() => setIsImportDialogOpen(false)}
         onFileSelect={handleFileSelect}
         onUrlImport={handleUrlImport}
+      />
+
+      <AnonymousLimitPrompt
+        isOpen={limitPromptOpen}
+        onClose={() => setLimitPromptOpen(false)}
+        limitType="files"
       />
 
       <PDFPreviewModal />

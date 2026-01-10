@@ -2,9 +2,8 @@
 
 import os
 import tempfile
-from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -12,6 +11,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from research_agent.api.auth.supabase import UserContext, get_optional_user
 from research_agent.api.deps import get_db, get_embedding_service
 from research_agent.application.dto.document import (
     DocumentListResponse,
@@ -20,10 +20,6 @@ from research_agent.application.dto.document import (
 )
 from research_agent.application.services.async_cleanup_service import (
     fire_and_forget_cleanup,
-)
-from research_agent.application.use_cases.document.delete_document import (
-    DeleteDocumentInput,
-    DeleteDocumentUseCase,
 )
 from research_agent.application.use_cases.document.list_documents import (
     ListDocumentsInput,
@@ -49,6 +45,9 @@ from research_agent.infrastructure.database.repositories.sqlalchemy_highlight_re
 )
 from research_agent.infrastructure.database.repositories.sqlalchemy_pending_cleanup_repo import (
     SQLAlchemyPendingCleanupRepository,
+)
+from research_agent.infrastructure.database.repositories.sqlalchemy_project_repo import (
+    SQLAlchemyProjectRepository,
 )
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
@@ -94,17 +93,14 @@ class ConfirmUploadRequest(BaseModel):
 class HighlightCreateRequest(BaseModel):
     """Request to create a highlight."""
 
-    pageNumber: int = Field(..., alias="pageNumber")
-    startOffset: int = Field(..., alias="startOffset")
-    endOffset: int = Field(..., alias="endOffset")
+    page_number: int = Field(..., alias="pageNumber")
+    start_offset: int = Field(..., alias="startOffset")
+    end_offset: int = Field(..., alias="endOffset")
     color: str  # yellow, green, blue, pink
     note: Optional[str] = None
-    rects: Optional[List[Dict[str, float]]] = None
+    rects: Optional[list[dict[str, float]]] = None
 
-    class Config:
-        """Pydantic config."""
-
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class HighlightUpdateRequest(BaseModel):
@@ -118,20 +114,17 @@ class HighlightResponse(BaseModel):
     """Response model for highlight."""
 
     id: str
-    documentId: str
-    pageNumber: int
-    startOffset: int
-    endOffset: int
+    document_id: str = Field(..., alias="documentId")
+    page_number: int = Field(..., alias="pageNumber")
+    start_offset: int = Field(..., alias="startOffset")
+    end_offset: int = Field(..., alias="endOffset")
     color: str
     note: Optional[str] = None
-    rects: Optional[List[Dict[str, float]]] = None
-    createdAt: str
-    updatedAt: str
+    rects: Optional[list[dict[str, float]]] = None
+    created_at: str = Field(..., alias="createdAt")
+    updated_at: str = Field(..., alias="updatedAt")
 
-    class Config:
-        """Pydantic config."""
-
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 # ============== Helper Functions ==============
@@ -155,6 +148,7 @@ def get_supabase_storage() -> Optional[SupabaseStorageService]:
 async def get_presigned_upload_url(
     project_id: UUID,
     request: PresignRequest,
+    user: UserContext = Depends(get_optional_user),
 ) -> PresignResponse:
     """
     Generate a presigned URL for direct file upload to Supabase Storage.
@@ -177,6 +171,8 @@ async def get_presigned_upload_url(
         f"bucket={settings.storage_bucket}"
     )
 
+    authorization_bypass = settings.auth_bypass_enabled
+    # Verify project ownership if auth is enabled
     storage = get_supabase_storage()
     if not storage:
         error_msg = (
@@ -187,11 +183,28 @@ async def get_presigned_upload_url(
         logger.error(f"[Presign] Configuration error: {error_msg}")
         raise HTTPException(status_code=501, detail=error_msg)
 
+    # Determine user ID for path scoping
+    user_id = user.user_id if user else "public"
+
+    # Ownership Check
+    if not authorization_bypass:
+        # We need session to access DB
+        async with AsyncSession(get_db.engine) as db_session:
+            project_repo = SQLAlchemyProjectRepository(db_session)
+            project = await project_repo.get(project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(status_code=403, detail="Not authorized")
+
     try:
-        logger.info(f"[Presign] Creating signed upload URL for project {project_id}")
+        logger.info(
+            f"[Presign] Creating signed upload URL for project {project_id} (user={user_id})"
+        )
         result = await storage.create_signed_upload_url(
             project_id=str(project_id),
             filename=request.filename,
+            user_id=user_id,
         )
 
         logger.info(
@@ -284,7 +297,7 @@ async def confirm_upload(
             is_temp = False
 
             # If file is in Supabase (remote), download it first
-            if request.file_path.startswith("projects/") and storage:
+            if "projects/" in request.file_path and storage:
                 logger.info(f"[THUMBNAIL] Downloading remote file: {request.file_path}")
                 content = await storage.download_file(request.file_path)
 
@@ -365,9 +378,24 @@ async def confirm_upload(
 async def list_documents(
     project_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> DocumentListResponse:
     """List all documents for a project."""
+    # Verify project ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+
+        # Check if project belongs to user
+        user_id = user.user_id if user else None
+        if project.user_id and project.user_id != user_id:
+            # If project has user_id but request user doesn't match (or is None)
+            raise HTTPException(status_code=403, detail="Not authorized to access this project")
+
     document_repo = SQLAlchemyDocumentRepository(session)
+    # ... (existing code, ensure user_scoped list if needed, but project is already scoped)
     use_case = ListDocumentsUseCase(document_repo)
 
     result = await use_case.execute(ListDocumentsInput(project_id=project_id))
@@ -405,6 +433,7 @@ async def upload_document(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
     embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
+    user: UserContext = Depends(get_optional_user),
 ) -> DocumentUploadResponse:
     """
     Upload a PDF document (DEPRECATED).
@@ -417,6 +446,17 @@ async def upload_document(
 
     The new flow supports WebSocket notifications for real-time status updates.
     """
+    # Verify project ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+
+        user_id = user.user_id if user else None
+        if project.user_id and project.user_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this project")
+
     # Validate file type
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -432,6 +472,9 @@ async def upload_document(
     storage = LocalStorageService(settings.upload_dir)
     pdf_parser = PyMuPDFParser()
     chunking_service = ChunkingService()
+
+    # Determine user ID for path scoping
+    user_id = user.user_id if user else "public"
 
     use_case = UploadDocumentUseCase(
         document_repo=document_repo,
@@ -449,6 +492,7 @@ async def upload_document(
                 filename=file.filename,
                 file_content=file.file,
                 file_size=file_size,
+                user_id=user_id,
             )
         )
 
@@ -471,6 +515,7 @@ async def upload_document(
 async def get_document(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> DocumentResponse:
     """Get document details by ID."""
     document_repo = SQLAlchemyDocumentRepository(session)
@@ -478,6 +523,19 @@ async def get_document(
 
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Verify ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(document.project_id)
+
+        if project:
+            user_id = user.user_id if user else None
+            # Only enforce if project has an owner
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to access this document"
+                )
 
     return DocumentResponse(
         id=document.id,
@@ -500,6 +558,7 @@ async def get_document(
 async def get_document_file(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ):
     """
     Get the PDF file for a document.
@@ -513,8 +572,24 @@ async def get_document_file(
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
 
+    # Verify ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(document.project_id)
+
+        if project:
+            user_id = user.user_id if user else None
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to access this document"
+                )
+
     # Check if file is stored in Supabase Storage (path starts with "projects/")
-    if document.file_path.startswith("projects/") and not Path(document.file_path).is_absolute():
+    if (
+        document.file_path.startswith("projects/")
+        or "projects/" in document.file_path
+        and not Path(document.file_path).is_absolute()
+    ):
         storage = get_supabase_storage()
         if storage:
             try:
@@ -548,6 +623,7 @@ async def get_document_file(
 async def get_document_thumbnail(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ):
     """
     Get the thumbnail image for a document.
@@ -562,6 +638,19 @@ async def get_document_thumbnail(
     if not document:
         logger.warning(f"[DEBUG] Document not found: {document_id}")
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Verify ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(document.project_id)
+
+        if project:
+            user_id = user.user_id if user else None
+            # Allow thumbnail access if public? No, strict.
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to access this document"
+                )
 
     logger.info(f"[DEBUG] DB Thumbnail path: {document.thumbnail_path}")
 
@@ -586,6 +675,7 @@ async def get_document_thumbnail(
 async def get_document_chunks(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ):
     """Get parsed text chunks for a document (for text preview/debugging)."""
     document_repo = SQLAlchemyDocumentRepository(session)
@@ -595,6 +685,17 @@ async def get_document_chunks(
     document = await document_repo.find_by_id(document_id)
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Verify ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(document.project_id)
+        if project:
+            user_id = user.user_id if user else None
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to access this document"
+                )
 
     # Get chunks
     chunks = await chunk_repo.find_by_document(document_id)
@@ -618,6 +719,7 @@ async def get_document_chunks(
 async def delete_document(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> None:
     """
     Delete a document and its file from storage.
@@ -643,6 +745,17 @@ async def delete_document(
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
 
+    # Verify ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(document.project_id)
+        if project:
+            user_id = user.user_id if user else None
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to delete this document"
+                )
+
     file_path = document.file_path
     project_id = document.project_id
     cleanup_id = None
@@ -662,12 +775,8 @@ async def delete_document(
             logger.warning(f"[DeleteDocument] Failed to record pending cleanup: {e}")
 
     # Step 2: Delete database records (synchronous - must succeed)
-    use_case = DeleteDocumentUseCase(
-        document_repo=document_repo,
-        chunk_repo=chunk_repo,
-        storage=LocalStorageService(settings.upload_dir),  # Dummy, won't be used
-    )
-
+    # Step 2: Delete database records (synchronous - must succeed)
+    # We use repository directly instead of UseCase since we want to handle cleanup separately
     try:
         # Delete chunks
         deleted_chunks = await chunk_repo.delete_by_document(document_id)
@@ -704,12 +813,13 @@ def get_highlight_repo(session: AsyncSession = Depends(get_db)) -> SQLAlchemyHig
     return SQLAlchemyHighlightRepository(session)
 
 
-@router.get("/documents/{document_id}/highlights", response_model=List[HighlightResponse])
+@router.get("/documents/{document_id}/highlights", response_model=list[HighlightResponse])
 async def list_highlights(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
     highlight_repo: SQLAlchemyHighlightRepository = Depends(get_highlight_repo),
-) -> List[HighlightResponse]:
+    user: UserContext = Depends(get_optional_user),
+) -> list[HighlightResponse]:
     """List all highlights for a document."""
     # Verify document exists
     document_repo = SQLAlchemyDocumentRepository(session)
@@ -717,19 +827,30 @@ async def list_highlights(
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
 
+    # Verify ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(document.project_id)
+        if project:
+            user_id = user.user_id if user else None
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to access this document"
+                )
+
     highlights = await highlight_repo.find_by_document(document_id)
     return [
         HighlightResponse(
             id=str(h.id),
-            documentId=str(h.document_id),
-            pageNumber=h.page_number,
-            startOffset=h.start_offset,
-            endOffset=h.end_offset,
+            document_id=str(h.document_id),
+            page_number=h.page_number,
+            start_offset=h.start_offset,
+            end_offset=h.end_offset,
             color=h.color,
             note=h.note,
             rects=h.rects.get("rects") if h.rects and isinstance(h.rects, dict) else None,
-            createdAt=h.created_at.isoformat(),
-            updatedAt=h.updated_at.isoformat(),
+            created_at=h.created_at.isoformat(),
+            updated_at=h.updated_at.isoformat(),
         )
         for h in highlights
     ]
@@ -743,6 +864,7 @@ async def create_highlight(
     request: HighlightCreateRequest,
     session: AsyncSession = Depends(get_db),
     highlight_repo: SQLAlchemyHighlightRepository = Depends(get_highlight_repo),
+    user: UserContext = Depends(get_optional_user),
 ) -> HighlightResponse:
     """Create a new highlight."""
     # Verify document exists
@@ -750,6 +872,17 @@ async def create_highlight(
     document = await document_repo.find_by_id(document_id)
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+
+    # Verify ownership
+    if not settings.auth_bypass_enabled:
+        project_repo = SQLAlchemyProjectRepository(session)
+        project = await project_repo.get(document.project_id)
+        if project:
+            user_id = user.user_id if user else None
+            if project.user_id and project.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to modify this document"
+                )
 
     # Validate color
     valid_colors = ["yellow", "green", "blue", "pink"]
@@ -766,9 +899,9 @@ async def create_highlight(
     try:
         highlight = await highlight_repo.create(
             document_id=document_id,
-            page_number=request.pageNumber,
-            start_offset=request.startOffset,
-            end_offset=request.endOffset,
+            page_number=request.page_number,
+            start_offset=request.start_offset,
+            end_offset=request.end_offset,
             color=request.color,
             note=request.note,
             rects=rects_dict,
@@ -781,15 +914,15 @@ async def create_highlight(
 
         return HighlightResponse(
             id=str(highlight.id),
-            documentId=str(highlight.document_id),
-            pageNumber=highlight.page_number,
-            startOffset=highlight.start_offset,
-            endOffset=highlight.end_offset,
+            document_id=str(highlight.document_id),
+            page_number=highlight.page_number,
+            start_offset=highlight.start_offset,
+            end_offset=highlight.end_offset,
             color=highlight.color,
             note=highlight.note,
             rects=rects_list,
-            createdAt=highlight.created_at.isoformat(),
-            updatedAt=highlight.updated_at.isoformat(),
+            created_at=highlight.created_at.isoformat(),
+            updated_at=highlight.updated_at.isoformat(),
         )
     except HTTPException:
         # Re-raise HTTPException as-is
@@ -845,17 +978,17 @@ async def update_highlight(
 
     return HighlightResponse(
         id=str(highlight.id),
-        documentId=str(highlight.document_id),
-        pageNumber=highlight.page_number,
-        startOffset=highlight.start_offset,
-        endOffset=highlight.end_offset,
+        document_id=str(highlight.document_id),
+        page_number=highlight.page_number,
+        start_offset=highlight.start_offset,
+        end_offset=highlight.end_offset,
         color=highlight.color,
         note=highlight.note,
         rects=highlight.rects.get("rects")
         if highlight.rects and isinstance(highlight.rects, dict)
         else None,
-        createdAt=highlight.created_at.isoformat(),
-        updatedAt=highlight.updated_at.isoformat(),
+        created_at=highlight.created_at.isoformat(),
+        updated_at=highlight.updated_at.isoformat(),
     )
 
 
@@ -929,7 +1062,7 @@ class CommentResponse(BaseModel):
 class CommentListResponse(BaseModel):
     """Response model for listing comments."""
 
-    comments: List[CommentResponse]
+    comments: list[CommentResponse]
     total: int
 
 
@@ -1033,14 +1166,14 @@ async def create_comment(
 
 
 @router.get(
-    "/documents/{document_id}/comments/{comment_id}/replies", response_model=List[CommentResponse]
+    "/documents/{document_id}/comments/{comment_id}/replies", response_model=list[CommentResponse]
 )
 async def list_comment_replies(
     document_id: UUID,
     comment_id: UUID,
     session: AsyncSession = Depends(get_db),
     comment_repo=Depends(get_comment_repo),
-) -> List[CommentResponse]:
+) -> list[CommentResponse]:
     """List replies to a comment."""
     # Verify document exists
     document_repo = SQLAlchemyDocumentRepository(session)
