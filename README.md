@@ -2,13 +2,14 @@
 
 > **Weave knowledge into insights.**
 > An AI-powered research workspace with an infinite canvas.
+> *Inspired by [NotebookLM](https://notebooklm.google.com/)*
 
 ![Weaver](https://img.shields.io/badge/Status-Alpha-orange)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js%2015-black)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
-Weaver is a powerful research workspace that helps you organize, analyze, and synthesize information using an infinite canvas interface and advanced RAG (Retrieval-Augmented Generation) capabilities.
+Weaver is a powerful, open-source research workspace inspired by Google's NotebookLM. It helps you organize, analyze, and synthesize information using an infinite canvas interface and advanced RAG (Retrieval-Augmented Generation) capabilities.
 
 ## ✨ Features
 
