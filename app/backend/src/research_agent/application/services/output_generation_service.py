@@ -329,6 +329,7 @@ class OutputGenerationService:
                             options=options,
                             llm_service=llm_service.with_trace("mindmap-generation"),
                             session=session,
+                            url_content_ids=url_content_ids,
                         )
 
         except asyncio.CancelledError:
@@ -380,6 +381,7 @@ class OutputGenerationService:
         options: dict[str, Any],
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
+        url_content_ids: list[UUID | None] = None,
     ) -> None:
         """Run mindmap generation using 2-phase direct generation algorithm.
 
@@ -411,7 +413,14 @@ class OutputGenerationService:
         document_id_from_event: str | None = None
 
         # Get the first document ID for source references
-        primary_document_id = str(document_ids[0]) if document_ids else None
+        primary_document_id = None
+        if document_ids:
+            primary_document_id = str(document_ids[0])
+        elif url_content_ids:
+            # Filter out None values just in case
+            valid_urls = [uid for uid in url_content_ids if uid]
+            if valid_urls:
+                primary_document_id = str(valid_urls[0])
 
         async for event in agent.generate(
             document_content=annotated_content,

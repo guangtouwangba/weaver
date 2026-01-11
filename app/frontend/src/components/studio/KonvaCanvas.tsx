@@ -445,14 +445,14 @@ const VideoCard = ({
   const meta = node.fileMetadata;
   const fileType = meta?.fileType || 'youtube';
   const platformConfig = getVideoPlatformConfig(fileType);
-  
+
   const thumbUrl = meta?.thumbnailUrl;
   const channelName = meta?.channelName || 'Unknown Channel';
   const viewCount = meta?.viewCount || '';
   const publishedAt = meta?.publishedAt || '';
   const duration = formatDuration(meta?.duration);
   const sourceUrl = meta?.sourceUrl || '';
-  
+
   // Card dimensions - larger for better visibility
   const padding = 16;
   const headerHeight = 48;
@@ -461,10 +461,10 @@ const VideoCard = ({
   const infoHeight = 90;
   const linkHeight = 44;
   const cardHeight = headerHeight + thumbHeight + infoHeight + linkHeight + 20;
-  
+
   const strokeColor = isHighlighted ? '#3B82F6' : (isSelected ? platformConfig.primaryColor : '#E5E7EB');
   const strokeWidth = isSelected || isHighlighted ? 2 : 1;
-  
+
   // Build meta string: "ChannelName • 24K views • 2 days ago"
   const metaParts = [channelName];
   if (viewCount) metaParts.push(viewCount);
@@ -485,7 +485,7 @@ const VideoCard = ({
         shadowBlur={12}
         shadowOffsetY={4}
       />
-      
+
       {/* === Header === */}
       <Group x={padding} y={14}>
         {/* Platform Logo */}
@@ -502,7 +502,7 @@ const VideoCard = ({
           fontFamily="Inter, system-ui, sans-serif"
         />
       </Group>
-      
+
       {/* Header Right Icons */}
       <Group x={width - 60} y={14}>
         {/* External Link Icon */}
@@ -514,7 +514,7 @@ const VideoCard = ({
           <Path data={MORE_ICON} fill="#9CA3AF" />
         </Group>
       </Group>
-      
+
       {/* === Thumbnail Area === */}
       <Group x={padding} y={headerHeight}>
         {/* Thumbnail Background */}
@@ -524,7 +524,7 @@ const VideoCard = ({
           fill="#1F2937"
           cornerRadius={12}
         />
-        
+
         {/* Thumbnail Image */}
         {thumbUrl && (
           <URLImage
@@ -534,7 +534,7 @@ const VideoCard = ({
             cornerRadius={12}
           />
         )}
-        
+
         {/* Play Button Overlay (centered) - larger size */}
         <Group x={thumbWidth / 2 - 32} y={thumbHeight / 2 - 32}>
           {/* Outer circle with platform color */}
@@ -555,7 +555,7 @@ const VideoCard = ({
             fill="white"
           />
         </Group>
-        
+
         {/* Duration Badge (bottom-right) - larger */}
         {duration && (
           <Group x={thumbWidth - 56} y={thumbHeight - 32}>
@@ -577,7 +577,7 @@ const VideoCard = ({
           </Group>
         )}
       </Group>
-      
+
       {/* === Video Info Section === */}
       <Group x={padding} y={headerHeight + thumbHeight + 16}>
         {/* Channel Avatar - larger */}
@@ -598,7 +598,7 @@ const VideoCard = ({
           align="center"
           fontFamily="Inter, system-ui, sans-serif"
         />
-        
+
         {/* Title & Meta */}
         <Group x={54}>
           <Text
@@ -623,7 +623,7 @@ const VideoCard = ({
           />
         </Group>
       </Group>
-      
+
       {/* === URL Link Section === */}
       <Group x={padding} y={headerHeight + thumbHeight + infoHeight + 8}>
         {/* Separator Line */}
@@ -632,12 +632,12 @@ const VideoCard = ({
           stroke="#F3F4F6"
           strokeWidth={1}
         />
-        
+
         {/* Link Icon */}
         <Group y={6} scaleX={0.7} scaleY={0.7}>
           <Path data={LINK_ICON} stroke="#3B82F6" strokeWidth={2} fill="transparent" />
         </Group>
-        
+
         {/* URL Text */}
         <Text
           x={22}
@@ -669,7 +669,7 @@ const WebPageCard = ({
   const title = node.title || 'Web Page';
   const description = node.content || '';
   const thumbnailUrl = meta?.thumbnailUrl;
-  
+
   // Extract domain from URL for display
   const getDomain = (url: string): string => {
     try {
@@ -679,7 +679,7 @@ const WebPageCard = ({
       return url;
     }
   };
-  
+
   // Get favicon URL (using Google's favicon service as it's CORS-friendly)
   const getFaviconUrl = (url: string): string => {
     try {
@@ -689,10 +689,10 @@ const WebPageCard = ({
       return '';
     }
   };
-  
+
   const domain = getDomain(sourceUrl);
   const faviconUrl = getFaviconUrl(sourceUrl);
-  
+
   // Card dimensions
   const padding = 16;
   const headerHeight = 48;
@@ -708,7 +708,7 @@ const WebPageCard = ({
   const footerHeight = 50;
 
   const cardHeight = headerHeight + (thumbnailUrl ? thumbHeight + 16 : 0) + textContentHeight + footerHeight;
-  
+
   const primaryColor = '#0D9488'; // Teal for web
   const strokeColor = isHighlighted ? '#3B82F6' : (isSelected ? primaryColor : '#E5E7EB');
   const strokeWidth = isSelected || isHighlighted ? 2 : 1;
@@ -727,7 +727,7 @@ const WebPageCard = ({
         shadowBlur={12}
         shadowOffsetY={4}
       />
-      
+
       {/* === Header === */}
       <Group x={padding} y={14}>
         {/* Globe Icon */}
@@ -744,7 +744,7 @@ const WebPageCard = ({
           fontFamily="Inter, system-ui, sans-serif"
         />
       </Group>
-      
+
       {/* Header Right Icons */}
       <Group x={width - 60} y={14}>
         <Group scaleX={0.85} scaleY={0.85}>
@@ -758,29 +758,29 @@ const WebPageCard = ({
       {/* === Thumbnail Area (Optional) === */}
       {thumbnailUrl && (
         <Group x={padding} y={headerHeight}>
-           {/* Placeholder Background (Globe) - Shows while loading or if error */}
-           <Group>
-             <Rect
+          {/* Placeholder Background (Globe) - Shows while loading or if error */}
+          <Group>
+            <Rect
               width={thumbWidth}
               height={thumbHeight}
               fill="#F0FDFA"
               cornerRadius={8}
             />
-            <Group x={thumbWidth/2 - 20} y={thumbHeight/2 - 20} opacity={0.3}>
+            <Group x={thumbWidth / 2 - 20} y={thumbHeight / 2 - 20} opacity={0.3}>
               <Path data={GLOBE_ICON} fill={primaryColor} scaleX={2} scaleY={2} />
             </Group>
-           </Group>
+          </Group>
 
-           {/* Actual Thumbnail */}
-           <URLImage
-              src={thumbnailUrl}
-              width={thumbWidth}
-              height={thumbHeight}
-              cornerRadius={8}
-            />
+          {/* Actual Thumbnail */}
+          <URLImage
+            src={thumbnailUrl}
+            width={thumbWidth}
+            height={thumbHeight}
+            cornerRadius={8}
+          />
         </Group>
       )}
-      
+
       {/* === Content Area === */}
       <Group x={padding} y={headerHeight + (thumbnailUrl ? thumbHeight + 16 : 0)}>
         {/* Content Background (Only if no thumbnail, to keep it clean) */}
@@ -793,7 +793,7 @@ const WebPageCard = ({
             fill="#F0FDFA"
           />
         )}
-        
+
         {/* Favicon and Domain */}
         <Group y={16}>
           {/* Favicon background circle */}
@@ -815,7 +815,7 @@ const WebPageCard = ({
               height={24}
             />
           )}
-          
+
           {/* Domain name */}
           <Text
             x={40}
@@ -827,7 +827,7 @@ const WebPageCard = ({
             fontFamily="Inter, system-ui, sans-serif"
           />
         </Group>
-        
+
         {/* Title */}
         <Text
           y={56}
@@ -842,7 +842,7 @@ const WebPageCard = ({
           ellipsis={true}
           height={42}
         />
-        
+
         {/* Description snippet */}
         {description && (
           <Text
@@ -859,7 +859,7 @@ const WebPageCard = ({
           />
         )}
       </Group>
-      
+
       {/* === Footer === */}
       <Group x={padding} y={headerHeight + (thumbnailUrl ? thumbHeight + 16 : 0) + textContentHeight}>
         {/* Separator Line */}
@@ -868,12 +868,12 @@ const WebPageCard = ({
           stroke="#E5E7EB"
           strokeWidth={1}
         />
-        
+
         {/* Link Icon */}
         <Group y={16} scaleX={0.65} scaleY={0.65}>
           <Path data={LINK_ICON} stroke="#0D9488" strokeWidth={2} fill="transparent" />
         </Group>
-        
+
         {/* URL Text */}
         <Text
           x={20}
@@ -960,7 +960,7 @@ const SourcePreviewCard = ({
   const fileType = node.fileMetadata?.fileType || 'pdf';
   const isVideoType = ['youtube', 'video', 'bilibili', 'douyin'].includes(fileType);
   const isWebType = fileType === 'web';
-  
+
   // Use new video card for video types (YouTube, Bilibili, Douyin, etc.)
   if (isVideoType) {
     return (
@@ -972,7 +972,7 @@ const SourcePreviewCard = ({
       />
     );
   }
-  
+
   // Use web page card for web/URL types
   if (isWebType) {
     return (
@@ -984,11 +984,11 @@ const SourcePreviewCard = ({
       />
     );
   }
-  
+
   // Original PDF/Document card for non-video types
   const thumbUrl = node.fileMetadata?.thumbnailUrl;
   const config = getSourceTypeConfig(fileType);
-  
+
   const strokeColor = isActiveThinking ? '#8B5CF6' : (isHighlighted ? '#3B82F6' : (isSelected ? config.primaryColor : '#E7E5E4'));
   const strokeWidth = isSelected || isHighlighted ? 2 : 1;
   const shadowBlur = isSelected ? 12 : 4;
@@ -1015,10 +1015,10 @@ const SourcePreviewCard = ({
       {/* Header */}
       <Group x={12} y={12}>
         {fileType === 'pdf' ? (
-        <Group scaleX={0.7} scaleY={0.7}>
+          <Group scaleX={0.7} scaleY={0.7}>
             <Path data={PDF_ICON_BODY} fill={config.primaryColor} />
             <Path data={PDF_ICON_FOLD} fill={config.primaryColor} fillOpacity={0.5} />
-        </Group>
+          </Group>
         ) : (
           <Text text={config.icon} fontSize={16} />
         )}
@@ -1066,9 +1066,9 @@ const SourcePreviewCard = ({
       <Group x={12} y={displayHeight - 38}>
         <Rect width={28} height={28} fill={config.iconBgColor} cornerRadius={6} />
         {fileType === 'pdf' ? (
-        <Group x={6} y={6} scaleX={0.7} scaleY={0.7}>
+          <Group x={6} y={6} scaleX={0.7} scaleY={0.7}>
             <Path data={PDF_ICON_BODY} fill={config.primaryColor} />
-        </Group>
+          </Group>
         ) : (
           <Text x={6} y={4} text={config.icon} fontSize={14} />
         )}
@@ -1119,7 +1119,7 @@ const SuperArticleCard = ({
 
   const borderColor = '#667eea';
   const bgColor = '#FAFBFF';
-  
+
   // Get first section preview
   const firstSection = articleData?.sections?.[0];
   const sectionCount = articleData?.sections?.length || 0;
@@ -1139,7 +1139,7 @@ const SuperArticleCard = ({
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
-      
+
       {/* Top Accent Bar - Gradient effect with two rects */}
       <Rect
         y={0}
@@ -1148,7 +1148,7 @@ const SuperArticleCard = ({
         fill={borderColor}
         cornerRadius={[12, 12, 0, 0]}
       />
-      
+
       {/* Document Icon */}
       <Text
         x={12}
@@ -1156,7 +1156,7 @@ const SuperArticleCard = ({
         text="📄"
         fontSize={16}
       />
-      
+
       {/* Type Badge */}
       <Rect
         x={width - 60}
@@ -1174,7 +1174,7 @@ const SuperArticleCard = ({
         fontStyle="bold"
         fill={borderColor}
       />
-      
+
       {/* Title */}
       <Text
         x={36}
@@ -1187,7 +1187,7 @@ const SuperArticleCard = ({
         wrap="word"
         ellipsis
       />
-      
+
       {/* Divider */}
       <Rect
         x={12}
@@ -1196,7 +1196,7 @@ const SuperArticleCard = ({
         height={1}
         fill="#E5E7EB"
       />
-      
+
       {/* Content Preview */}
       <Text
         x={12}
@@ -1210,7 +1210,7 @@ const SuperArticleCard = ({
         ellipsis
         lineHeight={1.4}
       />
-      
+
       {/* Footer - Section count */}
       <Rect
         x={12}
@@ -1255,11 +1255,11 @@ const SuperActionListCard = ({
 
   const borderColor = '#f59e0b';
   const bgColor = '#FFFCF5';
-  
+
   const items = actionData?.items || [];
   const completedCount = items.filter(item => item.done).length;
   const totalCount = items.length;
-  
+
   // Show first 4 items max
   const visibleItems = items.slice(0, 4);
 
@@ -1277,7 +1277,7 @@ const SuperActionListCard = ({
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
-      
+
       {/* Top Accent Bar */}
       <Rect
         y={0}
@@ -1286,7 +1286,7 @@ const SuperActionListCard = ({
         fill={borderColor}
         cornerRadius={[12, 12, 0, 0]}
       />
-      
+
       {/* Checklist Icon */}
       <Text
         x={12}
@@ -1294,7 +1294,7 @@ const SuperActionListCard = ({
         text="✅"
         fontSize={16}
       />
-      
+
       {/* Type Badge */}
       <Rect
         x={width - 52}
@@ -1312,7 +1312,7 @@ const SuperActionListCard = ({
         fontStyle="bold"
         fill="#D97706"
       />
-      
+
       {/* Title */}
       <Text
         x={36}
@@ -1325,7 +1325,7 @@ const SuperActionListCard = ({
         wrap="word"
         ellipsis
       />
-      
+
       {/* Divider */}
       <Rect
         x={12}
@@ -1334,7 +1334,7 @@ const SuperActionListCard = ({
         height={1}
         fill="#E5E7EB"
       />
-      
+
       {/* Action Items List */}
       {visibleItems.map((item, index) => (
         <Group key={item.id} y={52 + index * 26}>
@@ -1371,7 +1371,7 @@ const SuperActionListCard = ({
           />
         </Group>
       ))}
-      
+
       {/* More items indicator */}
       {items.length > 4 && (
         <Text
@@ -1383,7 +1383,7 @@ const SuperActionListCard = ({
           fontStyle="italic"
         />
       )}
-      
+
       {/* Footer - Progress */}
       <Rect
         x={12}
@@ -1428,7 +1428,7 @@ const MindmapKonvaCard = ({
 
   const borderColor = '#10B981'; // Green for mindmap
   const bgColor = '#F0FDF4';
-  
+
   const nodes = mindmapData?.nodes || [];
   const rootNode = nodes.find(n => n.depth === 0) || nodes[0];
   const firstLevelNodes = nodes.filter(n => n.depth === 1).slice(0, 4);
@@ -1448,7 +1448,7 @@ const MindmapKonvaCard = ({
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
-      
+
       {/* Top Accent Bar */}
       <Rect
         y={0}
@@ -1457,7 +1457,7 @@ const MindmapKonvaCard = ({
         fill={borderColor}
         cornerRadius={[12, 12, 0, 0]}
       />
-      
+
       {/* Mindmap Icon */}
       <Text
         x={12}
@@ -1465,7 +1465,7 @@ const MindmapKonvaCard = ({
         text="🗺️"
         fontSize={16}
       />
-      
+
       {/* Type Badge */}
       <Rect
         x={width - 68}
@@ -1483,7 +1483,7 @@ const MindmapKonvaCard = ({
         fontStyle="bold"
         fill={borderColor}
       />
-      
+
       {/* Title */}
       <Text
         x={36}
@@ -1496,7 +1496,7 @@ const MindmapKonvaCard = ({
         wrap="word"
         ellipsis
       />
-      
+
       {/* Divider */}
       <Rect
         x={12}
@@ -1505,7 +1505,7 @@ const MindmapKonvaCard = ({
         height={1}
         fill="#E5E7EB"
       />
-      
+
       {/* Root Node Preview */}
       {rootNode && (
         <Group y={52}>
@@ -1528,7 +1528,7 @@ const MindmapKonvaCard = ({
           />
         </Group>
       )}
-      
+
       {/* First Level Nodes Preview */}
       {firstLevelNodes.map((n, index) => (
         <Group key={n.id} y={84 + index * 22}>
@@ -1549,7 +1549,7 @@ const MindmapKonvaCard = ({
           />
         </Group>
       ))}
-      
+
       {/* More nodes indicator */}
       {nodes.length > 5 && (
         <Text
@@ -1561,7 +1561,7 @@ const MindmapKonvaCard = ({
           fontStyle="italic"
         />
       )}
-      
+
       {/* Footer */}
       <Rect
         x={12}
@@ -1606,7 +1606,7 @@ const SummaryKonvaCard = ({
 
   const borderColor = '#8B5CF6'; // Purple for summary
   const bgColor = '#FAF5FF';
-  
+
   const summary = summaryData?.summary || '';
   const keyFindings = summaryData?.keyFindings || [];
   const previewText = summary.substring(0, 180);
@@ -1625,7 +1625,7 @@ const SummaryKonvaCard = ({
         shadowBlur={isSelected ? 16 : 8}
         shadowOffsetY={4}
       />
-      
+
       {/* Top Accent Bar */}
       <Rect
         y={0}
@@ -1634,7 +1634,7 @@ const SummaryKonvaCard = ({
         fill={borderColor}
         cornerRadius={[12, 12, 0, 0]}
       />
-      
+
       {/* Summary Icon */}
       <Text
         x={12}
@@ -1642,7 +1642,7 @@ const SummaryKonvaCard = ({
         text="📋"
         fontSize={16}
       />
-      
+
       {/* Type Badge */}
       <Rect
         x={width - 68}
@@ -1660,7 +1660,7 @@ const SummaryKonvaCard = ({
         fontStyle="bold"
         fill={borderColor}
       />
-      
+
       {/* Title */}
       <Text
         x={36}
@@ -1673,7 +1673,7 @@ const SummaryKonvaCard = ({
         wrap="word"
         ellipsis
       />
-      
+
       {/* Divider */}
       <Rect
         x={12}
@@ -1682,7 +1682,7 @@ const SummaryKonvaCard = ({
         height={1}
         fill="#E5E7EB"
       />
-      
+
       {/* Summary Preview */}
       <Text
         x={12}
@@ -1696,7 +1696,7 @@ const SummaryKonvaCard = ({
         ellipsis
         lineHeight={1.4}
       />
-      
+
       {/* Footer */}
       <Rect
         x={12}
@@ -1783,12 +1783,12 @@ const KnowledgeNode = ({
   const isSourceNode = node.subType === 'source';
   // Check if this node has a source reference (for link-back feature)
   const hasSourceRef = !isSourceNode && node.sourceId;
-  
+
   // Check for Magic Cursor generated super cards
   const isSuperArticle = node.type === 'super_article';
   const isSuperActionList = node.type === 'super_action_list';
   const isSuperCard = isSuperArticle || isSuperActionList;
-  
+
   // Check for unified node model types (generation outputs as CanvasNodes)
   const isMindmap = node.type === 'mindmap';
   const isSummary = node.type === 'summary';
@@ -2322,7 +2322,7 @@ export default function KonvaCanvas({
     nodeIds: string[];
     screenPosition: { x: number; y: number };
   } | null>(null);
-  
+
   // Magic Cursor generation state
   const [magicGenerationTask, setMagicGenerationTask] = useState<{
     taskId: string;
@@ -2378,7 +2378,7 @@ export default function KonvaCanvas({
   // Node Editing State
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
-  
+
   // Web Page Reader State
   const [webPageReader, setWebPageReader] = useState<{
     open: boolean;
@@ -2418,11 +2418,13 @@ export default function KonvaCanvas({
     addSection,
     canvasSections,
     setCanvasSections,
+    // Alias currentView to avoid conflict if used locally, or just use it directly
     currentView: studioCurrentView,
     activeThinkingId,
     setActiveThinkingId,
     setCrossBoundaryDragNode,
     documents, // Get documents for Inspiration Dock
+    urlContents, // Get URL contents (videos)
     generationTasks, // Get generation tasks to check for completed outputs
     // Get canvas state from context as fallback
     canvasNodes: contextNodes,
@@ -2431,6 +2433,19 @@ export default function KonvaCanvas({
     setCanvasNodes: contextSetNodes,
     setCanvasEdges: contextSetEdges,
     setCanvasViewport: contextSetViewport,
+    addNodeToCanvas,
+    saveCanvas,
+    clearCanvas,
+    // currentView, // We aliased it to studioCurrentView above
+    viewStates,
+    setViewStates,
+    setCurrentView,
+    switchView,
+    navigateToMessage,
+    setHighlightedNodeId,
+    crossBoundaryDragNode,
+    startNewTopic,
+    autoThinkingPathEnabled,
   } = useStudio();
 
   const {
@@ -3086,39 +3101,39 @@ export default function KonvaCanvas({
 
   // WebSocket for Magic Cursor generation (article/action_list)
   const magicWsEnabled = !!projectId && !!magicGenerationTask?.taskId;
-  
+
   useOutputWebSocket({
     projectId: projectId || '',
     taskId: magicGenerationTask?.taskId || null,
     enabled: magicWsEnabled,
     onGenerationComplete: async (outputId, message) => {
       console.log('[KonvaCanvas] Magic generation complete:', outputId, message);
-      
+
       // IMPORTANT: Only process events with a valid outputId
       // Multiple events may be received; ignore ones without outputId
       if (!outputId) {
         console.log('[KonvaCanvas] Ignoring generation_complete without outputId');
         return; // Early return - don't clear state for invalid events
       }
-      
+
       if (magicGenerationTask && projectId) {
         try {
           // Fetch the full output data
           const output = await outputsApi.get(projectId, outputId);
           console.log('[KonvaCanvas] Fetched output:', output);
-          
+
           if (output && output.data) {
             const { snapshotContext, outputType } = magicGenerationTask;
-            
+
             // Position at bottom-right of selection + 20px offset
             const newNodeX = snapshotContext.x + snapshotContext.width + 20;
             const newNodeY = snapshotContext.y;
-            
+
             // Get title from output data
             const outputData = output.data as Record<string, unknown>;
-            const title = (outputData.title as string) || 
+            const title = (outputData.title as string) ||
               (outputType === 'article' ? 'Generated Article' : 'Action Items');
-            
+
             // Create the new canvas node (unified node model)
             const newNode: Partial<CanvasNode> = {
               id: `supercard-${outputId}`,
@@ -3140,17 +3155,17 @@ export default function KonvaCanvas({
                 snapshotContext,
               },
             };
-            
+
             // Add the node via callback
             onNodeAdd?.(newNode);
-            
+
             console.log('[KonvaCanvas] Created Super Card node:', newNode);
           }
         } catch (fetchError) {
           console.error('[KonvaCanvas] Failed to fetch output:', fetchError);
         }
       }
-      
+
       // Clear generation state - only after processing valid event
       setMagicGenerationTask(null);
       setIsGeneratingMagic(false);
@@ -3579,13 +3594,13 @@ export default function KonvaCanvas({
           // Calculate screen position for Intent Menu (bottom-right of selection)
           const screenX = (box.x + box.width) * viewport.scale + viewport.x;
           const screenY = (box.y + box.height) * viewport.scale + viewport.y;
-          
+
           setMagicSelection({
             rect: { x: box.x, y: box.y, width: box.width, height: box.height },
             nodeIds: selectedIds,
             screenPosition: { x: screenX + 8, y: screenY + 8 },
           });
-          
+
           // Also update selection for visual feedback
           setSelectedNodeIds(new Set(selectedIds));
         } else {
@@ -3614,7 +3629,7 @@ export default function KonvaCanvas({
   // Handle Intent Menu action
   const handleIntentAction = useCallback(async (action: IntentAction) => {
     if (!magicSelection || !projectId) return;
-    
+
     // Validate max nodes (50 limit per design)
     const MAX_NODES = 50;
     if (magicSelection.nodeIds.length > MAX_NODES) {
@@ -3622,28 +3637,28 @@ export default function KonvaCanvas({
       // TODO: Show toast notification
       return;
     }
-    
+
     console.log('[KonvaCanvas] Intent action:', action, 'for nodes:', magicSelection.nodeIds);
-    
+
     // Helper to extract content from different node types
     const extractNodeContent = (node: CanvasNode | undefined): string => {
       if (!node) return '';
-      
+
       // Handle mindmap nodes - extract node labels
       if (node.type === 'mindmap') {
         try {
-          const mindmapData = (node.outputData as { nodes?: Array<{ label: string; content?: string }> }) 
+          const mindmapData = (node.outputData as { nodes?: Array<{ label: string; content?: string }> })
             || JSON.parse(node.content || '{}');
           if (mindmapData.nodes) {
             return mindmapData.nodes.map(n => `${n.label}${n.content ? `: ${n.content}` : ''}`).join('\n');
           }
         } catch { /* ignore parse errors */ }
       }
-      
+
       // Handle summary nodes - extract summary and key findings
       if (node.type === 'summary') {
         try {
-          const summaryData = (node.outputData as { summary?: string; keyFindings?: Array<{ label: string; content: string }> }) 
+          const summaryData = (node.outputData as { summary?: string; keyFindings?: Array<{ label: string; content: string }> })
             || JSON.parse(node.content || '{}');
           let content = summaryData.summary || '';
           if (summaryData.keyFindings) {
@@ -3652,11 +3667,11 @@ export default function KonvaCanvas({
           return content;
         } catch { /* ignore parse errors */ }
       }
-      
+
       // Default: return regular content
       return node.content || '';
     };
-    
+
     // Gather node data for generation (with type-specific content extraction)
     const nodeData = magicSelection.nodeIds.map(nodeId => {
       const node = nodes.find(n => n.id === nodeId);
@@ -3667,14 +3682,14 @@ export default function KonvaCanvas({
         type: node?.type || 'note',  // Include type for backend context
       };
     }).filter(nd => nd.content || nd.title);
-    
+
     // Map intent action to output type
     const outputTypeMap: Record<IntentAction, OutputType> = {
       'draft_article': 'article',
       'action_list': 'action_list',
     };
     const outputType = outputTypeMap[action];
-    
+
     // Store snapshot context for future refresh
     const snapshotContext = {
       x: magicSelection.rect.x,
@@ -3682,11 +3697,11 @@ export default function KonvaCanvas({
       width: magicSelection.rect.width,
       height: magicSelection.rect.height,
     };
-    
+
     try {
       // Set loading state
       setIsGeneratingMagic(true);
-      
+
       // Call the API to start generation
       const response = await outputsApi.generate(
         projectId,
@@ -3698,9 +3713,9 @@ export default function KonvaCanvas({
           snapshot_context: snapshotContext,
         }
       );
-      
+
       console.log('[KonvaCanvas] Generation started:', response);
-      
+
       // Set the task ID to enable WebSocket listening
       setMagicGenerationTask({
         taskId: response.task_id,
@@ -3708,16 +3723,16 @@ export default function KonvaCanvas({
         snapshotContext,
         sourceNodeIds: magicSelection.nodeIds,
       });
-      
+
     } catch (error) {
       console.error('[KonvaCanvas] Generation failed:', error);
       setIsGeneratingMagic(false);
       toast.error('Generation failed', 'Could not generate content. Please try again.');
     }
-    
+
     // Clear magic selection
     setMagicSelection(null);
-    
+
     // Switch back to select mode
     onToolChange?.('select');
   }, [magicSelection, projectId, nodes, onToolChange]);
@@ -4143,7 +4158,7 @@ export default function KonvaCanvas({
                 onNodeAdd(nodeData);
                 handled = true;
               }
-              
+
               // Handle URL drops from sidebar (YouTube, Bilibili, Douyin, Web)
               if (data.type === 'url') {
                 // Map platform to fileType
@@ -4154,12 +4169,12 @@ export default function KonvaCanvas({
                   web: 'web',
                 };
                 const fileType = platformToFileType[data.platform] || 'web';
-                
+
                 // Video cards are wider than regular cards for better thumbnail display
                 const videoCardWidth = 320;
                 // Calculate proper height for video cards based on 16:9 thumbnail
                 const videoCardHeight = 48 + ((videoCardWidth - 32) * 9 / 16) + 90 + 44 + 20; // header + thumb + info + link + padding
-                
+
                 const nodeData = {
                   type: 'knowledge',
                   title: data.title || data.url,
@@ -4802,7 +4817,7 @@ export default function KonvaCanvas({
                   onDoubleClick={() => {
                     const fileType = node.fileMetadata?.fileType;
                     const isVideoType = ['youtube', 'video', 'bilibili', 'douyin'].includes(fileType || '');
-                    
+
                     // Handle video types first (YouTube, Bilibili, etc.) - open player modal
                     if (isVideoType) {
                       setYoutubePlayer({ open: true, node });
@@ -4873,8 +4888,8 @@ export default function KonvaCanvas({
                 y={selectionRect.y}
                 width={selectionRect.width}
                 height={selectionRect.height}
-                fill={toolMode === 'magic' 
-                  ? "rgba(102, 126, 234, 0.15)" 
+                fill={toolMode === 'magic'
+                  ? "rgba(102, 126, 234, 0.15)"
                   : "rgba(59, 130, 246, 0.1)"}
                 stroke={toolMode === 'magic' ? "#764ba2" : "#3B82F6"}
                 strokeWidth={toolMode === 'magic' ? 2 : 1}
@@ -4919,7 +4934,7 @@ export default function KonvaCanvas({
                   shadowBlur={12}
                   shadowOffsetY={4}
                 />
-                
+
                 {/* Top Accent Bar */}
                 <Rect
                   y={0}
@@ -4928,7 +4943,7 @@ export default function KonvaCanvas({
                   fill={magicGenerationTask.outputType === 'article' ? '#667eea' : '#f59e0b'}
                   cornerRadius={[12, 12, 0, 0]}
                 />
-                
+
                 {/* Loading Icon */}
                 <Text
                   x={(magicGenerationTask.outputType === 'article' ? 320 : 280) / 2 - 12}
@@ -4936,7 +4951,7 @@ export default function KonvaCanvas({
                   text="✨"
                   fontSize={24}
                 />
-                
+
                 {/* Loading Text */}
                 <Text
                   x={0}
@@ -4948,7 +4963,7 @@ export default function KonvaCanvas({
                   fill="#6B7280"
                   align="center"
                 />
-                
+
                 {/* Subtitle */}
                 <Text
                   x={0}
@@ -4959,7 +4974,7 @@ export default function KonvaCanvas({
                   fill="#9CA3AF"
                   align="center"
                 />
-                
+
                 {/* Animated dots indicator (static representation) */}
                 <Group y={145}>
                   <Rect
@@ -5265,14 +5280,14 @@ export default function KonvaCanvas({
         {editingSuperCardId && editingSuperCardType === 'article' && (() => {
           const node = nodes.find(n => n.id === editingSuperCardId);
           if (!node) return null;
-          
+
           let articleData: ArticleData;
           try {
             articleData = JSON.parse(node.content || '{}');
           } catch {
             articleData = { title: node.title || 'Untitled Article', sections: [] };
           }
-          
+
           return (
             <ArticleEditor
               nodeId={node.id}
@@ -5302,14 +5317,14 @@ export default function KonvaCanvas({
         {editingSuperCardId && editingSuperCardType === 'action_list' && (() => {
           const node = nodes.find(n => n.id === editingSuperCardId);
           if (!node) return null;
-          
+
           let actionData: ActionListData;
           try {
             actionData = JSON.parse(node.content || '{}');
           } catch {
             actionData = { title: node.title || 'Action Items', items: [] };
           }
-          
+
           return (
             <ActionListEditor
               nodeId={node.id}
@@ -5339,14 +5354,14 @@ export default function KonvaCanvas({
         {editingSuperCardId && editingSuperCardType === 'mindmap' && (() => {
           const node = nodes.find(n => n.id === editingSuperCardId);
           if (!node) return null;
-          
+
           let mindmapData: MindmapData;
           try {
             mindmapData = (node.outputData as MindmapData) || JSON.parse(node.content || '{}');
           } catch {
             mindmapData = { nodes: [], edges: [] };
           }
-          
+
           return (
             <MindMapEditor
               initialData={mindmapData}
@@ -5371,36 +5386,121 @@ export default function KonvaCanvas({
               onOpenSourceRef={(sourceId, sourceType, location, quote) => {
                 // Handle source reference navigation from mindmap
                 if (sourceType === 'video') {
-                  // Find the source node to get video metadata
+                  // Strategy 1: Find the source node on the canvas
+                  let videoMetadata: any = null;
+                  let videoTitle = 'Video';
+
+                  // Try to find as a canvas node first
                   const sourceNode = nodes.find(n => n.sourceId === sourceId || n.id === sourceId);
+
                   if (sourceNode) {
-                    // Parse timestamp from location (e.g., "12:30" or "1:23:45")
-                    let startTime = 0;
-                    if (location) {
-                      const parts = location.split(':').map(Number);
-                      if (parts.length === 2) {
-                        startTime = parts[0] * 60 + parts[1];
-                      } else if (parts.length === 3) {
-                        startTime = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                    videoMetadata = sourceNode.fileMetadata;
+                    videoTitle = sourceNode.title || 'Video';
+                  } else {
+                    // Strategy 2: Fallback to project documents (PDF/Video uploads)
+                    // Note: ProjectDocument interface currently doesn't expose metadata in frontend type
+                    // but we cast to any to access potential backend fields or simply look in urlContents primarily.
+
+                    // Strategy 3: Fallback to URL contents (Direct links) - MOST LIKELY for YouTube
+                    const urlContent = urlContents.find(u => u.id === sourceId);
+                    if (urlContent) {
+                      videoMetadata = {
+                        videoId: (urlContent.meta_data as any)?.video_id,
+                        channelName: (urlContent.meta_data as any)?.channel_name,
+                        sourceUrl: urlContent.url,
+                      };
+                      videoTitle = urlContent.title || 'Video';
+                    } else {
+                      // Try documents as last resort (e.g. uploaded mp4)
+                      const doc = documents.find(d => d.id === sourceId);
+                      if (doc) {
+                        // Fallback structure if metadata missing
+                        videoTitle = doc.filename || 'Video';
                       }
                     }
+                  }
+
+                  if (videoMetadata && (videoMetadata.videoId || videoMetadata.sourceUrl)) {
+                    // Parse timestamp from location (e.g., "12:30" or "1:23:45")
+                    // Backend sends [TIME:MM:SS] but regex likely strips [TIME:] before we see it here
+                    // If it still has [TIME:], strip it
+                    let cleanLocation = location || '';
+                    if (cleanLocation.includes('[TIME:')) {
+                      cleanLocation = cleanLocation.replace('[TIME:', '').replace(']', '');
+                    }
+
+                    let startTime = 0;
+                    if (cleanLocation) {
+                      const parts = cleanLocation.split(':').map(p => parseInt(p, 10));
+                      // Handle MM:SS
+                      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                        startTime = parts[0] * 60 + parts[1];
+                      }
+                      // Handle HH:MM:SS
+                      else if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+                        startTime = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                      }
+                      // Handle raw seconds string
+                      else if (parts.length === 1 && !isNaN(parts[0])) {
+                        startTime = parts[0];
+                      }
+                    }
+
+                    console.log(`[KonvaCanvas] Opening video player: ${videoTitle} at ${startTime}s (${location})`);
+
                     // Open video player with the source node (will navigate to timestamp)
-                    setYoutubePlayer({ 
-                      open: true, 
-                      node: { 
-                        ...sourceNode, 
-                        fileMetadata: { 
-                          ...sourceNode.fileMetadata, 
-                          startTime 
-                        } 
-                      } 
+                    setYoutubePlayer({
+                      open: true,
+                      node: {
+                        id: sourceId,
+                        type: 'file', // Dummy type
+                        title: videoTitle,
+                        content: '',
+                        x: 0,
+                        y: 0,
+                        width: 0,
+                        height: 0,
+                        color: 'red',
+                        tags: [],
+                        viewType: 'free',
+                        fileMetadata: {
+                          ...videoMetadata,
+                          fileType: 'video',
+                          startTime
+                        }
+                      }
                     });
+                  } else {
+                    console.warn(`[KonvaCanvas] Could not find video source for ID: ${sourceId}`);
                   }
                 } else if (sourceType === 'web') {
                   // Find web source node and open reader
                   const sourceNode = nodes.find(n => n.sourceId === sourceId || n.id === sourceId);
+
                   if (sourceNode) {
                     setWebPageReader({ open: true, node: sourceNode });
+                  } else {
+                    // Fallback to URL contents
+                    const urlContent = urlContents.find(u => u.id === sourceId);
+                    if (urlContent) {
+                      setWebPageReader({
+                        open: true,
+                        node: {
+                          id: urlContent.id,
+                          type: 'file',
+                          title: urlContent.title || 'Web Page',
+                          content: urlContent.content || '',
+                          x: 0, y: 0, width: 0, height: 0,
+                          color: 'blue',
+                          tags: [],
+                          viewType: 'free',
+                          fileMetadata: {
+                            sourceUrl: urlContent.url,
+                            fileType: 'web'
+                          }
+                        }
+                      });
+                    }
                   }
                 } else {
                   // PDF or document - use onOpenSource callback
@@ -5423,14 +5523,14 @@ export default function KonvaCanvas({
         {editingSuperCardId && editingSuperCardType === 'summary' && (() => {
           const node = nodes.find(n => n.id === editingSuperCardId);
           if (!node) return null;
-          
+
           let summaryData: SummaryData;
           try {
             summaryData = (node.outputData as SummaryData) || JSON.parse(node.content || '{}');
           } catch {
             summaryData = { summary: '', keyFindings: [], documentTitle: '' };
           }
-          
+
           return (
             <div
               style={{
@@ -5474,12 +5574,12 @@ export default function KonvaCanvas({
                     <CloseIcon size={20} />
                   </Button>
                 </div>
-                
+
                 <div style={{ marginBottom: 20 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 600, color: '#6B7280', marginBottom: 8 }}>Summary</h3>
                   <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6 }}>{summaryData.summary}</p>
                 </div>
-                
+
                 {summaryData.keyFindings && summaryData.keyFindings.length > 0 && (
                   <div>
                     <h3 style={{ fontSize: 14, fontWeight: 600, color: '#6B7280', marginBottom: 12 }}>
