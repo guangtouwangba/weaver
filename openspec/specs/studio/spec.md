@@ -1316,6 +1316,51 @@ The system SHALL provide a panel to display source references when a mindmap nod
 - **AND** the user SHALL return to the mindmap view
 - **AND** no node SHALL be selected
 
+### Requirement: Timestamp Extraction
+The system SHALL support extracting and retaining timestamp information from video sources to enable temporal navigation.
+
+#### Scenario: Extracting Timestamped Transcripts
+- **GIVEN** a YouTube video URL
+- **WHEN** the `YouTubeExtractor` processes the video
+- **THEN** the content should be formatted with timestamps (e.g. `[MM:SS] Text content...`)
+- **AND** the metadata should indicate `has_timestamps: true`
+
+### Requirement: Temporal Node Generation
+The mindmap generation process SHALL identify and persist timestamp references for nodes derived from video content.
+
+#### Scenario: Generating Nodes with Video References
+- **GIVEN** a document content containing timestamped transcript segments
+- **WHEN** the `MindmapAgent` generates nodes
+- **THEN** the `SourceRef` for the node should include `sourceType: "video"`
+- **AND** the `location` field should contain the timestamp in seconds (e.g. "125")
+- **AND** the `quote` should contain the relevant transcript text
+
+### Requirement: Interactive Video Navigation
+The frontend SHALL provide a mechanism to play video content starting from the specific timestamp associated with a mindmap node.
+
+#### Scenario: Navigating from Node to Video
+- **GIVEN** a Mindmap Node with a valid video `SourceRef`
+- **WHEN** the user clicks the "Play" button on the node
+- **THEN** the Studio Video Player should load the video (if not loaded)
+- **AND** the player should seek to the specified timestamp
+- **AND** the video should start playing automatically
+
+### Requirement: Unified Mixed-Media Handling
+The system SHALL support seamless switching between different source types (Video, PDF, Web) within a single project session.
+
+#### Scenario: Switching from PDF to Video
+- **GIVEN** the user is currently viewing a PDF document in the source panel
+- **WHEN** the user clicks a Mindmap Node associated with a Video
+- **THEN** the source panel should switch from the PDF Viewer to the Video Player
+- **AND** the video should be loaded and sought to the correct timestamp
+- **AND** the PDF state (e.g. current page) should be preserved if possible
+
+#### Scenario: Switching from Video to PDF
+- **GIVEN** the user is currently watching a Video
+- **WHEN** the user clicks a Mindmap Node associated with a PDF
+- **THEN** the source panel should switch from the Video Player to the PDF Viewer
+- **AND** the PDF should open at the specified page
+
 ### Requirement: Unified Canvas Node Model
 The system SHALL represent all canvas elements (notes, generation outputs, source nodes) as a single unified `CanvasNode` data structure.
 
