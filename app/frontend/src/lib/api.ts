@@ -183,6 +183,7 @@ export interface CanvasNode {
   tags: string[];
   sourceId?: string;
   sourcePage?: number;
+  sourceMessageId?: string;
   // New fields for view system
   viewType: 'free' | 'thinking';
   sectionId?: string;
@@ -1128,7 +1129,7 @@ export interface OutputResponse {
   id: string;
   project_id: string;
   output_type: OutputType;
-  document_ids: string[];
+  source_ids: string[];
   status: 'generating' | 'complete' | 'error' | 'cancelled';
   title?: string;
   data?: SummaryData | MindmapData | ArticleData | ActionListData | Record<string, unknown>;
@@ -1154,17 +1155,15 @@ export const outputsApi = {
   generate: (
     projectId: string,
     outputType: OutputType,
-    documentIds: string[],
+    sourceIds: string[],
     title?: string,
-    options?: Record<string, unknown>,
-    urlContentIds?: string[]
+    options?: Record<string, unknown>
   ) =>
     fetchApi<GenerateOutputResponse>(`/api/v1/projects/${projectId}/outputs/generate`, {
       method: 'POST',
       body: JSON.stringify({
         output_type: outputType,
-        document_ids: documentIds,
-        url_content_ids: urlContentIds || [],
+        source_ids: sourceIds,
         title,
         options,
       }),

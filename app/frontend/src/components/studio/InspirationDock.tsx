@@ -13,6 +13,7 @@ import { SummaryData, MindmapData } from '@/lib/api';
 export default function InspirationDock() {
   const {
     documents,
+    urlContents,
     projectId,
     selectedDocumentIds,
     isInspirationDockVisible,
@@ -111,7 +112,7 @@ export default function InspirationDock() {
   if (!isInspirationDockVisible) return null;
 
   const handleAction = async (actionType: 'summarize' | 'map' | 'podcast' | 'quiz' | 'timeline' | 'compare') => {
-    if (documents.length === 0) return;
+    if (documents.length === 0 && urlContents.length === 0) return;
 
     // Map action type to generation type
     const typeMap: Record<string, GenerationType> = {
@@ -382,10 +383,10 @@ export default function InspirationDock() {
                 transition: 'all 0.3s ease'
               }}
             >
-              {documents.length === 0 ? (
+              {documents.length === 0 && urlContents.length === 0 ? (
                 <Stack direction="row" align="center" gap={1} style={{ paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8 }}>
                   <Text variant="bodySmall" color="secondary" style={{ fontWeight: 500 }}>
-                    Upload a document to start
+                    Add a source (PDF or Link) to start
                   </Text>
                 </Stack>
               ) : (
@@ -442,7 +443,7 @@ export default function InspirationDock() {
             </Surface>
 
             {/* Close Dock Button - Outside the main paper */}
-            {documents.length > 0 && (
+            {(documents.length > 0 || urlContents.length > 0) && (
               <div
                 className="close-dock-btn"
                 style={{

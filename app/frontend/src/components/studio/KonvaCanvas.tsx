@@ -1421,8 +1421,15 @@ const MindmapKonvaCard = ({
   // Parse mindmap data from outputData or content
   let mindmapData: { nodes?: Array<{ id: string; label: string; depth?: number }>; edges?: Array<{ source: string; target: string }> } | null = null;
   try {
-    mindmapData = (node.outputData as typeof mindmapData) || JSON.parse(node.content || '{}');
-  } catch {
+    if (node.outputData && typeof node.outputData === 'object') {
+      mindmapData = node.outputData as unknown as typeof mindmapData;
+    } else {
+      const rawContent = (node.outputData as unknown as string) || node.content || '{}';
+      mindmapData = typeof rawContent === 'string' ? JSON.parse(rawContent) : (rawContent as unknown as typeof mindmapData);
+    }
+    console.log(`[MindmapCard:${node.id}] Parsed nodes:`, mindmapData?.nodes?.length || 0);
+  } catch (e) {
+    console.error(`[MindmapCard:${node.id}] Parse error:`, e);
     mindmapData = null;
   }
 
@@ -1599,8 +1606,15 @@ const SummaryKonvaCard = ({
   // Parse summary data from outputData or content
   let summaryData: { summary?: string; keyFindings?: Array<{ label: string; content: string }>; documentTitle?: string } | null = null;
   try {
-    summaryData = (node.outputData as typeof summaryData) || JSON.parse(node.content || '{}');
-  } catch {
+    if (node.outputData && typeof node.outputData === 'object') {
+      summaryData = node.outputData as unknown as typeof summaryData;
+    } else {
+      const rawContent = (node.outputData as unknown as string) || node.content || '{}';
+      summaryData = typeof rawContent === 'string' ? JSON.parse(rawContent) : (rawContent as unknown as typeof summaryData);
+    }
+    console.log(`[SummaryCard:${node.id}] Parsed summary length:`, summaryData?.summary?.length || 0);
+  } catch (e) {
+    console.error(`[SummaryCard:${node.id}] Parse error:`, e);
     summaryData = null;
   }
 
@@ -2724,7 +2738,7 @@ export default function KonvaCanvas({
     }
 
     // Connect Mode Logic
-    if (toolMode === 'connect' || toolMode === 'logic_connect') {
+    if ((toolMode as any) === 'connect' || (toolMode as any) === 'logic_connect') {
       e.cancelBubble = true;
       setConnectingFromNodeId(nodeId);
       const stage = e.target.getStage();
@@ -3062,7 +3076,7 @@ export default function KonvaCanvas({
       // But we still check if we have a pending result to update.
       if (pendingSynthesisResult) {
         // Extract synthesis specific fields from metadata if available
-        const metadata = nodeData.metadata || {};
+        const metadata = (nodeData as any).metadata || {};
 
         // Parse content field which contains Markdown formatted insight
         // We might want to keep the raw parts if available, but for now we have the full content string
@@ -3187,7 +3201,7 @@ export default function KonvaCanvas({
       if (id && id.startsWith('node-')) {
         return id.replace('node-', '');
       }
-      target = target.parent as Konva.Node;
+      target = target.getParent() as any;
     }
     // Fallback: use target directly (shouldn't reach here normally)
     const id = e.target.id();
@@ -3219,7 +3233,7 @@ export default function KonvaCanvas({
       // The event target might be this Group or we need to find the parent Group
       let groupNode = e.target;
       while (groupNode && !groupNode.id()?.startsWith('node-')) {
-        groupNode = groupNode.parent as Konva.Node;
+        groupNode = groupNode.getParent() as any;
       }
 
       const x = groupNode ? groupNode.x() : e.target.x();
@@ -3706,7 +3720,7 @@ export default function KonvaCanvas({
       const response = await outputsApi.generate(
         projectId,
         outputType,
-        [], // No document IDs - using canvas node data
+        [], // No source IDs - using canvas node data
         action === 'draft_article' ? 'Generated Article' : 'Action Items',
         {
           node_data: nodeData,
@@ -3815,7 +3829,7 @@ export default function KonvaCanvas({
 
       // === P1: Reconnection Live Preview ===
       // If we are dragging an endpoint, use the cursor position instead of the anchor
-      if (isReconnecting && reconnectingEdge.x !== undefined && reconnectingEdge.y !== undefined) {
+      if (isReconnecting && reconnectingEdge && reconnectingEdge.x !== undefined && reconnectingEdge.y !== undefined) {
         if (reconnectingEdge.type === 'source') {
           // Keep direction for now, or calculate based on relative pos
           sourceAnchor = { x: reconnectingEdge.x, y: reconnectingEdge.y, direction: sourceAnchorDir };
@@ -3876,11 +3890,11 @@ export default function KonvaCanvas({
           key={edge.id || `${edge.source}-${edge.target}-${index}`}
           onClick={(e) => {
             e.cancelBubble = true;
-            setSelectedEdgeId(edge.id);
+            setSelectedEdgeId(edge.id || null);
           }}
           onTap={(e) => {
             e.cancelBubble = true;
-            setSelectedEdgeId(edge.id);
+            setSelectedEdgeId(edge.id || null);
           }}
         >
           {/* Hit area for easier selection - invisible wide stroke */}
@@ -3945,7 +3959,7 @@ export default function KonvaCanvas({
                 const pointer = stage?.getPointerPosition();
 
                 // If the edge selection bubble didn't happen first, we ensure it's selected
-                setSelectedEdgeId(edge.id);
+                setSelectedEdgeId(edge.id || null);
 
                 if (pointer) {
                   setEdgeLabelDialog({
@@ -4028,7 +4042,7 @@ export default function KonvaCanvas({
                 stroke="white"
                 strokeWidth={2}
                 draggable
-                onDragMove={(e) => handleEdgeHandleDragMove(e, edge.id, 'source')}
+                onDragMove={(e) => handleEdgeHandleDragMove(e, edge.id || '', 'source')}
                 onDragEnd={(e) => handleEdgeHandleDragEnd(e, edge, 'source')}
                 onMouseEnter={() => {
                   const container = stageRef.current?.container();
@@ -4048,7 +4062,7 @@ export default function KonvaCanvas({
                 stroke="white"
                 strokeWidth={2}
                 draggable
-                onDragMove={(e) => handleEdgeHandleDragMove(e, edge.id, 'target')}
+                onDragMove={(e) => handleEdgeHandleDragMove(e, edge.id || '', 'target')}
                 onDragEnd={(e) => handleEdgeHandleDragEnd(e, edge, 'target')}
                 onMouseEnter={() => {
                   const container = stageRef.current?.container();
@@ -5357,7 +5371,7 @@ export default function KonvaCanvas({
 
           let mindmapData: MindmapData;
           try {
-            mindmapData = (node.outputData as MindmapData) || JSON.parse(node.content || '{}');
+            mindmapData = (node.outputData as unknown as MindmapData) || JSON.parse(node.content || '{}');
           } catch {
             mindmapData = { nodes: [], edges: [] };
           }
@@ -5375,7 +5389,7 @@ export default function KonvaCanvas({
                 if (onNodesChange) {
                   const updatedNodes = nodes.map(n =>
                     n.id === editingSuperCardId
-                      ? { ...n, outputData: data, content: JSON.stringify(data) }
+                      ? { ...n, outputData: data as unknown as Record<string, unknown>, content: JSON.stringify(data) }
                       : n
                   );
                   onNodesChange(updatedNodes);
@@ -5526,7 +5540,7 @@ export default function KonvaCanvas({
 
           let summaryData: SummaryData;
           try {
-            summaryData = (node.outputData as SummaryData) || JSON.parse(node.content || '{}');
+            summaryData = (node.outputData as unknown as SummaryData) || JSON.parse(node.content || '{}');
           } catch {
             summaryData = { summary: '', keyFindings: [], documentTitle: '' };
           }
@@ -5658,8 +5672,8 @@ export default function KonvaCanvas({
         {/* Generation Outputs Overlay - Renders completed generation tasks at their positions */}
         <GenerationOutputsOverlay viewport={viewport} />
 
-        {/* Inspiration Dock - Shown when canvas is empty, no outputs exist, but documents are uploaded */}
-        {visibleNodes.length === 0 && documents.length > 0 && !hasCompletedOutputs && (
+        {/* Inspiration Dock - Shown when canvas is empty, no outputs exist, but sources are uploaded */}
+        {visibleNodes.length === 0 && (documents.length > 0 || urlContents.length > 0) && !hasCompletedOutputs && (
           <InspirationDock />
         )}
 

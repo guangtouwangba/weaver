@@ -3,7 +3,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,11 +87,10 @@ class OutputGenerationService:
         self,
         project_id: UUID,
         output_type: str,
-        document_ids: list[UUID],
+        source_ids: list[UUID],
         title: str | None,
         options: dict[str, Any],
         session: AsyncSession,
-        url_content_ids: list[UUID | None] = None,
     ) -> dict[str, Any]:
         """
         Start a new output generation task.
@@ -99,27 +98,25 @@ class OutputGenerationService:
         Args:
             project_id: Project ID
             output_type: Type of output (mindmap, summary, etc.)
-            document_ids: Source document IDs
+            source_ids: List of document or URL content IDs
             title: Optional title
             options: Generation options
             session: Database session
-            url_content_ids: Optional list of URL content IDs (YouTube, web, etc.)
 
         Returns:
             Dict with task_id and output_id
         """
-        url_content_ids = url_content_ids or []
 
         # Validate that we have some content source, except for types that use node_data
         # Custom, article, and action_list types can work with canvas node_data instead of documents
         types_with_node_data = ("custom", "article", "action_list")
         has_node_data = options and (options.get("node_data") or options.get("mode"))
         is_type_with_node_data = output_type in types_with_node_data and has_node_data
-        has_content_source = document_ids or url_content_ids
+        has_content_source = bool(source_ids)
 
         if not has_content_source and not is_type_with_node_data:
             raise ValueError(
-                "At least one document ID or URL content ID is required for output generation"
+                "At least one source ID (document or URL) is required for output generation"
             )
 
         task_id = str(uuid4())
@@ -128,7 +125,7 @@ class OutputGenerationService:
 
         logger.info(
             f"[OutputService] Starting generation: task={task_id}, "
-            f"project={project_id}, type={output_type}, docs={len(document_ids)}, urls={len(url_content_ids)}"
+            f"project={project_id}, type={output_type}, sources={len(source_ids)}"
         )
 
         # Create output record
@@ -137,7 +134,7 @@ class OutputGenerationService:
             id=output_id,
             project_id=project_id,
             output_type=OutputType(output_type),
-            document_ids=document_ids,
+            source_ids=source_ids,
             status=OutputStatus.GENERATING,
             title=title,
         )
@@ -158,8 +155,7 @@ class OutputGenerationService:
         asyncio_task = asyncio.create_task(
             self._run_generation(
                 task_info=task_info,
-                document_ids=document_ids,
-                url_content_ids=url_content_ids,
+                source_ids=source_ids,
                 title=title,
                 options=options,
             )
@@ -182,17 +178,15 @@ class OutputGenerationService:
     async def _run_generation(
         self,
         task_info: TaskInfo,
-        document_ids: list[UUID],
+        source_ids: list[UUID],
         title: str | None,
         options: dict[str, Any],
-        url_content_ids: list[UUID | None] = None,
     ) -> None:
         """
         Run the generation task.
 
         This runs in a separate asyncio task.
         """
-        url_content_ids = url_content_ids or []
         project_id = task_info.project_id
         task_id = task_info.task_id
         output_id = task_info.output_id
@@ -244,20 +238,18 @@ class OutputGenerationService:
                         if not document_content:
                             raise ValueError("No valid node content available in node_data")
                     else:
-                        # Load document content (from both documents and URL contents)
-                        document_content = await self._load_document_content(
-                            document_ids, session, url_content_ids
-                        )
+                        # Load resource content via ResourceResolver
+                        document_content = await self._load_document_content(source_ids, session)
 
-                        # Debug: Check loaded content
-                        logger.info(
-                            f"[OutputService] Loaded document_content: length={len(document_content) if document_content else 0}, "
-                            f"has_TIME_markers={'[TIME:' in (document_content or '')}, "
-                            f"has_PAGE_markers={'[PAGE:' in (document_content or '')}"
-                        )
+                    # Debug: Check loaded content
+                    logger.info(
+                        f"[OutputService] Loaded document_content: length={len(document_content) if document_content else 0}, "
+                        f"has_TIME_markers={'[TIME:' in (document_content or '')}, "
+                        f"has_PAGE_markers={'[PAGE:' in (document_content or '')}"
+                    )
 
-                        if not document_content:
-                            raise ValueError("No document content available")
+                    if not document_content:
+                        raise ValueError("No document content available")
 
                     if output_type == "summary":
                         # Summary generation with Langfuse trace
@@ -324,12 +316,11 @@ class OutputGenerationService:
                             project_id=project_id,
                             output_id=output_id,
                             document_content=document_content,
-                            document_ids=document_ids,
+                            source_ids=source_ids,
                             title=title,
                             options=options,
                             llm_service=llm_service.with_trace("mindmap-generation"),
                             session=session,
-                            url_content_ids=url_content_ids,
                         )
 
         except asyncio.CancelledError:
@@ -376,12 +367,11 @@ class OutputGenerationService:
         project_id: str,
         output_id: UUID,
         document_content: str,
-        document_ids: list[UUID],
+        source_ids: list[UUID],
         title: str | None,
         options: dict[str, Any],
         llm_service: OpenRouterLLMService,
         session: AsyncSession,
-        url_content_ids: list[UUID | None] = None,
     ) -> None:
         """Run mindmap generation using 2-phase direct generation algorithm.
 
@@ -396,7 +386,7 @@ class OutputGenerationService:
 
         # Prepare page-annotated content for source references
         annotated_content = await self._load_page_annotated_content(
-            document_ids, session, document_content
+            source_ids, session, document_content
         )
 
         # Create agent with new algorithm settings
@@ -412,15 +402,8 @@ class OutputGenerationService:
         markdown_content: str | None = None
         document_id_from_event: str | None = None
 
-        # Get the first document ID for source references
-        primary_document_id = None
-        if document_ids:
-            primary_document_id = str(document_ids[0])
-        elif url_content_ids:
-            # Filter out None values just in case
-            valid_urls = [uid for uid in url_content_ids if uid]
-            if valid_urls:
-                primary_document_id = str(valid_urls[0])
+        # Get the first source ID for source references
+        primary_document_id = str(source_ids[0]) if source_ids else None
 
         async for event in agent.generate(
             document_content=annotated_content,
@@ -810,26 +793,20 @@ class OutputGenerationService:
 
     async def _load_document_content(
         self,
-        document_ids: list[UUID],
+        source_ids: list[UUID],
         session: AsyncSession,
-        url_content_ids: list[UUID | None] = None,
     ) -> str:
         """
         Load and combine content from documents and URL contents.
 
         Uses ResourceResolver for unified content loading across all resource types.
         """
-        # Combine all resource IDs
-        all_resource_ids = list(document_ids)
-        if url_content_ids:
-            all_resource_ids.extend(url_content_ids)
-
-        if not all_resource_ids:
+        if not source_ids:
             return ""
 
         # Use ResourceResolver for unified content loading
         resolver = ResourceResolver(session)
-        resources = await resolver.resolve_many(all_resource_ids)
+        resources = await resolver.resolve_many(source_ids)
 
         content_parts = []
         for resource in resources:
@@ -853,7 +830,7 @@ class OutputGenerationService:
 
     async def _load_page_annotated_content(
         self,
-        document_ids: list[UUID],
+        source_ids: list[UUID],
         session: AsyncSession,
         fallback_content: str,
     ) -> str:
@@ -861,18 +838,19 @@ class OutputGenerationService:
         Load document content with page annotations for source references.
 
         Attempts to load document chunks (which have page_number) and annotate
-        the content with [PAGE:X] markers. Falls back to raw content if chunks
-        are not available.
+        the content with [PAGE:X] markers. For other resources (videos, etc.)
+        it uses the standard formatted content. Ensure no content is lost
+        even if mixed sources are used.
 
         Args:
-            document_ids: List of document UUIDs
+            source_ids: List of source UUIDs (documents or URL contents)
             session: Database session
-            fallback_content: Content to use if page annotation fails
+            fallback_content: Content to use if loading fails completely
 
         Returns:
-            Page-annotated content string
+            Page-annotated and combined content string
         """
-        if not document_ids:
+        if not source_ids:
             return fallback_content
 
         try:
@@ -880,45 +858,56 @@ class OutputGenerationService:
 
             from research_agent.infrastructure.database.models import DocumentChunkModel
 
+            # Use ResourceResolver to get all resources in order
+            resolver = ResourceResolver(session)
+            resources = await resolver.resolve_many(source_ids)
+
             annotated_parts = []
 
-            for doc_id in document_ids:
-                # Query chunks for this document, ordered by page_number and chunk_index
+            for resource in resources:
+                source_id = resource.id
+                # Check for chunks (primarily for documents)
                 stmt = (
                     select(DocumentChunkModel)
-                    .where(DocumentChunkModel.document_id == doc_id)
+                    .where(DocumentChunkModel.document_id == source_id)
                     .order_by(DocumentChunkModel.page_number, DocumentChunkModel.chunk_index)
                 )
                 result = await session.execute(stmt)
                 chunks = result.scalars().all()
 
-                if not chunks:
-                    # No chunks, use fallback
-                    logger.debug(f"[OutputService] No chunks found for document {doc_id}")
-                    continue
+                if chunks:
+                    # Group chunks by page number
+                    pages: dict[int, list[str]] = {}
+                    for chunk in chunks:
+                        page_num = chunk.page_number or 1
+                        if page_num not in pages:
+                            pages[page_num] = []
+                        pages[page_num].append(chunk.content)
 
-                # Group chunks by page number
-                pages: dict[int, list[str]] = {}
-                for chunk in chunks:
-                    page_num = chunk.page_number or 1
-                    if page_num not in pages:
-                        pages[page_num] = []
-                    pages[page_num].append(chunk.content)
+                    # Build annotated content for this PDF
+                    pdf_annotated = []
+                    for page_num in sorted(pages.keys()):
+                        page_content = "\n".join(pages[page_num])
+                        pdf_annotated.append(f"[PAGE:{page_num}]\n{page_content}")
 
-                # Build annotated content
-                for page_num in sorted(pages.keys()):
-                    page_content = "\n".join(pages[page_num])
-                    annotated_parts.append(f"[PAGE:{page_num}]\n{page_content}")
+                    annotated_parts.append("\n\n".join(pdf_annotated))
+                else:
+                    # No chunks (Video, WebPage, or Document without chunks)
+                    # Use formatted content from Resource
+                    formatted = resource.get_formatted_content()
+                    if formatted:
+                        annotated_parts.append(formatted)
 
             if annotated_parts:
-                annotated_content = "\n\n".join(annotated_parts)
+                # Combine all sources with the standard separator
+                annotated_content = "\n\n---\n\n".join(annotated_parts)
                 logger.info(
-                    f"[OutputService] Created page-annotated content: "
-                    f"{len(annotated_parts)} pages, {len(annotated_content)} chars"
+                    f"[OutputService] Created combined/annotated content: "
+                    f"{len(annotated_parts)} sources, {len(annotated_content)} chars"
                 )
                 return annotated_content
 
-            # No annotated content, use fallback
+            # No parts found, use fallback
             return fallback_content
 
         except Exception as e:
@@ -1039,7 +1028,7 @@ class OutputGenerationService:
             raise ValueError("Output not found")
 
         # Get document content for context
-        document_content = await self._load_document_content(output.document_ids, session)
+        document_content = await self._load_document_content(output.source_ids, session)
 
         # Create task info
         task_info = TaskInfo(
@@ -1203,7 +1192,6 @@ class OutputGenerationService:
         Returns:
             task_id for tracking via WebSocket
         """
-        from research_agent.domain.agents.synthesis_agent import SynthesisAgent
 
         task_id = str(uuid4())
         project_id_str = str(project_id)

@@ -34,7 +34,7 @@ class OutputStatus(str, Enum):
 @dataclass
 class SourceRef:
     """Reference to source content for traceability.
-    
+
     Supports multiple source types for future extensibility:
     - document: PDF, markdown, etc. (location = page number)
     - video/audio: Media files (location = timestamp in seconds)
@@ -243,9 +243,7 @@ class SummaryData:
         """Create from dictionary."""
         return cls(
             summary=data.get("summary", ""),
-            key_findings=[
-                KeyFinding.from_dict(kf) for kf in data.get("keyFindings", [])
-            ],
+            key_findings=[KeyFinding.from_dict(kf) for kf in data.get("keyFindings", [])],
             document_title=data.get("documentTitle", ""),
         )
 
@@ -431,7 +429,7 @@ class Output:
     id: UUID = field(default_factory=uuid4)
     project_id: Optional[UUID] = None
     output_type: OutputType = OutputType.MINDMAP
-    document_ids: List[UUID] = field(default_factory=list)
+    source_ids: List[UUID] = field(default_factory=list)
     status: OutputStatus = OutputStatus.GENERATING
     title: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
@@ -495,4 +493,3 @@ class Output:
         if self.output_type != OutputType.ACTION_LIST or not self.data:
             return None
         return ActionListData.from_dict(self.data)
-

@@ -9,7 +9,7 @@ import {
   Surface,
   Spinner,
   Stack,
-  Dialog,
+  ConfirmDialog,
   Menu,
   MenuItem
 } from "@/components/ui";
@@ -30,6 +30,7 @@ import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
 import ProjectCard from '@/components/dashboard/ProjectCard';
 import ProjectListItem from '@/components/dashboard/ProjectListItem';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -53,10 +54,8 @@ export default function DashboardPage() {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Snackbar state
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+  // Snackbar state removed in favor of useToast
+  const toast = useToast();
 
   // Auth context
   const { canCreateProject, updateAnonProjectCount, isAnonymous } = useAuth();
@@ -133,23 +132,17 @@ export default function DashboardPage() {
     try {
       await projectsApi.delete(projectToDelete.id);
       setProjects((prev) => prev.filter((p) => p.id !== projectToDelete.id));
-      setSnackbarMessage(`Project "${projectToDelete.name}" deleted`);
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
+      toast.success('Project Deleted', `Project "${projectToDelete.name}" has been removed.`);
       setDeleteDialogOpen(false);
       setProjectToDelete(null);
     } catch (err: any) {
-      setSnackbarMessage(err.message || 'Failed to delete project');
-      setSnackbarSeverity('error');
-      setSnackbarOpen(true);
+      toast.error('Delete Failed', err.message || 'Failed to delete project');
     } finally {
       setDeleting(false);
     }
   };
 
-  const handleSnackbarClose = () => {
-    setSnackbarOpen(false);
-  };
+
 
 
   // Derived state
@@ -369,71 +362,18 @@ export default function DashboardPage() {
         </Menu>
 
         {/* Delete confirmation dialog */}
-        <Dialog
+        <ConfirmDialog
           open={deleteDialogOpen}
           onClose={handleCloseDeleteDialog}
+          onConfirm={handleConfirmDelete}
           title="Delete Project"
-          size="sm"
-          actions={
-            <>
-              <Button
-                variant="ghost"
-                onClick={handleCloseDeleteDialog}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleConfirmDelete}
-                loading={deleting}
-              >
-                Delete
-              </Button>
-            </>
-          }
-        >
-          <div style={{ padding: 24 }}>
-            <Text variant="body" style={{ color: '#6B7280' }}>
-              Are you sure you want to delete "
-              <strong>{projectToDelete?.name}</strong>
-              "? This action cannot be undone.
-            </Text>
-          </div>
-        </Dialog>
+          message={`Are you sure you want to delete "${projectToDelete?.name}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          isDanger={true}
+          loading={deleting}
+        />
 
-        {/* Snackbar replacement (Toast) */}
-        {snackbarOpen && (
-          <div style={{
-            position: 'fixed',
-            bottom: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 2000,
-            minWidth: 300
-          }}>
-            <Surface
-              elevation={3}
-              radius="lg"
-              style={{
-                padding: '12px 16px',
-                backgroundColor: snackbarSeverity === 'success' ? '#10B981' : '#EF4444',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-              }}
-            >
-              <Text variant="bodySmall" style={{ color: 'white', fontWeight: 500 }}>
-                {snackbarMessage}
-              </Text>
-              <div onClick={handleSnackbarClose} style={{ cursor: 'pointer', marginLeft: 16, display: 'flex', alignItems: 'center' }}>
-                <CloseIcon size={16} style={{ color: 'white' }} />
-              </div>
-            </Surface>
-          </div>
-        )}
+
 
       </div>
     </GlobalLayout>

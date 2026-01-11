@@ -15,7 +15,8 @@ import {
   Chip,
   Modal,
   Spinner,
-  Collapse
+  Collapse,
+  ConfirmDialog
 } from "@/components/ui";
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
@@ -441,13 +442,13 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   // Handle slash command execution
   const executeCommand = (commandInput: string): boolean => {
     const result = parseCommand(commandInput);
-    
+
     if (!result.success) {
       setCommandFeedback(result.error || 'Invalid command');
       setTimeout(() => setCommandFeedback(null), 3000);
       return false;
     }
-    
+
     if (result.action) {
       const actionResult = dispatch(result.action);
       if (actionResult.success) {
@@ -463,7 +464,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       setTimeout(() => setCommandFeedback(null), 5000);
       return true;
     }
-    
+
     return false;
   };
 
@@ -601,22 +602,22 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     if (showCommandPalette && ['ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
       return; // CommandPalette handles these
     }
-    
+
     if (e.key === 'Escape') {
       setShowCommandPalette(false);
       return;
     }
-    
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: any) => {
     const value = e.target.value;
     setInput(value);
-    
+
     // Show command palette when typing /
     if (value === '/' || (value.startsWith('/') && !value.includes(' '))) {
       setShowCommandPalette(true);
@@ -680,10 +681,10 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       // Handle URL Content Drop (YouTube, Bilibili, Douyin, Web)
       else if (data.type === 'url') {
         if (!contextNodes.some(n => n.id === data.id)) {
-          const platformLabel = data.platform === 'youtube' ? 'YouTube' 
+          const platformLabel = data.platform === 'youtube' ? 'YouTube'
             : data.platform === 'bilibili' ? 'Bilibili'
-            : data.platform === 'douyin' ? 'Douyin'
-            : 'Web';
+              : data.platform === 'douyin' ? 'Douyin'
+                : 'Web';
           setContextNodes(prev => [...prev, {
             id: data.id,
             title: data.title || data.url,
@@ -731,9 +732,9 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               variant="default"
               size="lg" // FAB equivalent
               onClick={onToggle}
-              style={{ 
-                borderRadius: '50%', 
-                width: 56, 
+              style={{
+                borderRadius: '50%',
+                width: 56,
                 height: 56,
                 boxShadow: isLoading ? `0 0 20px ${colors.primary[400]}40` : undefined,
                 transition: 'box-shadow 0.3s ease',
@@ -937,11 +938,11 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
             <div style={{ display: 'flex', gap: 8 }}>
               {chatMessages.length > 0 && (
                 <Tooltip title="Clear chat history">
-                  <IconButton 
-                    size="sm" 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setChatMessages([]); 
+                  <IconButton
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChatMessages([]);
                     }}
                   >
                     <DeleteIcon size={16} />
@@ -1083,8 +1084,8 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
                     )}
                     {/* Show ThinkingIndicator for empty AI message during loading */}
                     {msg.role === 'ai' && !msg.content && isLoading ? (
-                      <ThinkingIndicatorInline 
-                        step={thinkingStatus?.step} 
+                      <ThinkingIndicatorInline
+                        step={thinkingStatus?.step}
                         message={thinkingStatus?.message}
                       />
                     ) : (
@@ -1186,18 +1187,18 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
               style={{
                 marginBottom: 8,
                 padding: '8px 12px',
-                backgroundColor: commandFeedback.startsWith('✓') 
-                  ? 'rgba(34, 197, 94, 0.1)' 
+                backgroundColor: commandFeedback.startsWith('✓')
+                  ? 'rgba(34, 197, 94, 0.1)'
                   : commandFeedback.startsWith('✗')
-                  ? 'rgba(239, 68, 68, 0.1)'
-                  : 'rgba(13, 148, 136, 0.1)',
+                    ? 'rgba(239, 68, 68, 0.1)'
+                    : 'rgba(13, 148, 136, 0.1)',
                 borderRadius: radii.md,
                 fontSize: '0.75rem',
                 color: commandFeedback.startsWith('✓')
                   ? colors.success[600]
                   : commandFeedback.startsWith('✗')
-                  ? colors.error[600]
-                  : colors.text.secondary,
+                    ? colors.error[600]
+                    : colors.text.secondary,
                 whiteSpace: 'pre-wrap',
               }}
             >
@@ -1282,13 +1283,15 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         <MenuItem onClick={handleDeleteSessionConfirm} danger style={{ color: '#EF4444' }}>Delete</MenuItem>
       </Menu>
 
-      <Modal open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <Modal.Header>Delete Conversation?</Modal.Header>
-        <Modal.Footer>
-          <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeleteSession}>Delete</Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteSession}
+        title="Delete Conversation?"
+        message={`Are you sure you want to delete "${chatSessions.find(s => s.id === sessionToDelete)?.title || 'this conversation'}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        loading={isLoading}
+      />
 
     </div >
   );

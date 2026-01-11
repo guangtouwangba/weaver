@@ -1,6 +1,5 @@
 """API endpoints for output generation (mindmap, summary, etc.)."""
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -53,7 +52,7 @@ async def generate_output(
     """
     logger.info(
         f"[Outputs API] Generate request: project={project_id}, "
-        f"type={request.output_type}, docs={request.document_ids}, urls={request.url_content_ids}"
+        f"type={request.output_type}, sources={request.source_ids}"
     )
 
     # Validate that we have some content source, except for types that use node_data
@@ -63,20 +62,19 @@ async def generate_output(
         request.options.get("node_data") or request.options.get("mode")
     )
     is_type_with_node_data = request.output_type in types_with_node_data and has_node_data
-    has_content_source = request.document_ids or request.url_content_ids
+    has_content_source = bool(request.source_ids)
 
     if not has_content_source and not is_type_with_node_data:
         raise HTTPException(
             status_code=400,
-            detail="At least one document ID or URL content ID is required for output generation",
+            detail="At least one source ID is required for output generation",
         )
 
     try:
         result = await output_generation_service.start_generation(
             project_id=project_id,
             output_type=request.output_type,
-            document_ids=request.document_ids,
-            url_content_ids=request.url_content_ids,
+            source_ids=request.source_ids,
             title=request.title,
             options=request.options or {},
             session=session,
@@ -130,7 +128,7 @@ async def list_outputs(
                 id=o.id,
                 project_id=o.project_id,
                 output_type=o.output_type.value,
-                document_ids=o.document_ids,
+                source_ids=o.source_ids,
                 status=o.status.value,
                 title=o.title,
                 data=o.data,
@@ -167,7 +165,7 @@ async def get_output(
         id=output.id,
         project_id=output.project_id,
         output_type=output.output_type.value,
-        document_ids=output.document_ids,
+        source_ids=output.source_ids,
         status=output.status.value,
         title=output.title,
         data=output.data,
@@ -227,7 +225,7 @@ async def update_output(
         id=updated.id,
         project_id=updated.project_id,
         output_type=updated.output_type.value,
-        document_ids=updated.document_ids,
+        source_ids=updated.source_ids,
         status=updated.status.value,
         title=updated.title,
         data=updated.data,

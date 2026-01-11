@@ -96,14 +96,16 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
   ) => {
     if (!projectId) return;
 
-    // Start generation via API (with both document IDs and URL content IDs)
+    // Combine IDs into unified sourceIds list
+    const sourceIds = [...targetDocumentIds, ...(targetUrlContentIds || [])];
+
+    // Start generation via API (with unified sourceIds)
     const { task_id, output_id } = await outputsApi.generate(
       projectId,
       'mindmap',
-      targetDocumentIds,
+      sourceIds,
       title,
-      undefined, // options
-      targetUrlContentIds || []
+      undefined // options
     );
 
     console.log(`[Mindmap] Started streaming generation: task=${task_id}, output=${output_id}`);
@@ -345,7 +347,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     // Check if we have any content sources (documents or URL contents)
     const hasDocuments = documents.length > 0;
     const hasUrlContents = urlContents && urlContents.length > 0;
-    
+
     if (!hasDocuments && !hasUrlContents) {
       console.warn('No documents or URL contents to generate from');
       return;
@@ -368,8 +370,8 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       // Collect document IDs (if any documents exist)
       const targetDocumentIds = hasDocuments
         ? (selectedDocumentIds.size > 0
-            ? Array.from(selectedDocumentIds)
-            : documents.map(d => d.id).filter(id => id))
+          ? Array.from(selectedDocumentIds)
+          : documents.map(d => d.id).filter(id => id))
         : [];
 
       // Collect URL content IDs (all completed URL contents - content is loaded by backend)
@@ -396,7 +398,10 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       }
       const title = `Generated ${type}`;
 
-      console.log(`Starting ${type} generation, docs=${targetDocumentIds.length}, urls=${targetUrlContentIds.length}`);
+      // Combine IDs into unified sourceIds list
+      const sourceIds = [...targetDocumentIds, ...targetUrlContentIds];
+
+      console.log(`Starting ${type} generation, sources=${sourceIds.length}`);
 
       // Use streaming for mindmap, polling for others
       if (type === 'mindmap') {
@@ -406,10 +411,9 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
         const { output_id } = await outputsApi.generate(
           projectId,
           type as 'summary' | 'flashcards',
-          targetDocumentIds,
+          sourceIds,
           title,
-          undefined,
-          targetUrlContentIds
+          undefined
         );
 
         await handleFallbackPolling(output_id, type, docTitle);
@@ -474,7 +478,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     // Check if we have any content sources (documents or URL contents)
     const hasDocuments = documents.length > 0;
     const hasUrlContents = urlContents && urlContents.length > 0;
-    
+
     if (!hasDocuments && !hasUrlContents) {
       console.warn('No documents or URL contents to generate from');
       return;
@@ -491,8 +495,8 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     // Collect document IDs (if any documents exist)
     const targetDocumentIds = hasDocuments
       ? (selectedDocumentIds.size > 0
-          ? Array.from(selectedDocumentIds)
-          : documents.map(d => d.id).filter(id => id))
+        ? Array.from(selectedDocumentIds)
+        : documents.map(d => d.id).filter(id => id))
       : [];
 
     // Collect URL content IDs (all completed URL contents - content is loaded by backend)
@@ -523,14 +527,16 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
     // Start the generation process asynchronously (fire and forget)
     (async () => {
       try {
-        // Start generation via API (with both document IDs and URL content IDs)
+        // Combine IDs into unified sourceIds list
+        const sourceIds = [...targetDocumentIds, ...targetUrlContentIds];
+
+        // Start generation via API (with unified sourceIds)
         const { task_id, output_id } = await outputsApi.generate(
           projectId,
           type as 'summary' | 'mindmap' | 'flashcards',
-          targetDocumentIds,
+          sourceIds,
           title,
-          undefined, // options
-          targetUrlContentIds
+          undefined // options
         );
 
         // Update task with backend IDs
@@ -752,7 +758,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       // Check if this is an output node (created from outputs API)
       // Output nodes have IDs like "output-{uuid}" or have an outputId field
       const isOutputNode = nodeId.startsWith('output-') || nodeToDelete.outputId;
-      
+
       if (isOutputNode) {
         // Extract the actual output ID
         const outputId = nodeToDelete.outputId || nodeId.replace('output-', '');
@@ -831,7 +837,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
         'custom',
         finalDocumentIds, // Can be empty - node_data will be used instead
         `Synthesis: ${mode}`,
-        { 
+        {
           mode, // synthesis mode
           node_data: nodeData // canvas node content
         }

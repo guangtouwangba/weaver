@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Collapse } from '@/components/ui/primitives';
-import { Stack, Text, IconButton, Tooltip, Spinner } from '@/components/ui';
+import { Stack, Text, IconButton, Tooltip, Spinner, ConfirmDialog } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   DescriptionIcon,
@@ -12,7 +12,7 @@ import {
   UploadFileIcon,
   MenuOpenIcon,
   CloseIcon,
-  ErrorOutlineIcon,
+  ErrorIcon,
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument, urlApi, UrlContent } from '@/lib/api';
@@ -100,10 +100,26 @@ const SkeletonBar = ({ width, height = 16, style = {} }: { width: string | numbe
 );
 
 export default function ResourceSidebar({ width = 300, collapsed = false, onToggle }: ResourceSidebarProps) {
-  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, openDocumentPreview, urlContents, addUrlContent, removeUrlContent } = useStudio();
+  const {
+    projectId,
+    documents,
+    setDocuments,
+    activeDocumentId,
+    setActiveDocumentId,
+    openDocumentPreview,
+    urlContents,
+    addUrlContent,
+    removeUrlContent,
+    deleteDocument
+  } = useStudio();
 
   // Subscribe to document status updates
-  useDocumentWebSocket(projectId, documents, setDocuments);
+  useDocumentWebSocket({
+    projectId,
+    onDocumentStatusChange: (event) => {
+      // Logic for updating document status if needed
+    }
+  });
 
   // UI State
   const [filesExpanded, setFilesExpanded] = useState(true);
@@ -113,6 +129,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+  // Delete confirmation state
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<string | null>(null);
+  const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // URL extraction state
   const [pendingUrlExtractions, setPendingUrlExtractions] = useState<PendingUrlExtraction[]>([]);
@@ -196,21 +217,18 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
     }
   };
 
-  const handleDeleteDocument = async (docId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!projectId) return;
-
+  const handleDeleteDocument = async (docId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsDeleting(true);
     setDeletingIds(prev => new Set(prev).add(docId));
 
     try {
-      await documentsApi.delete(docId);
-      setDocuments(documents.filter(d => d.id !== docId));
-      if (activeDocumentId === docId) {
-        setActiveDocumentId(null);
-      }
+      await deleteDocument(docId);
+      setConfirmDeleteDoc(null);
     } catch (error) {
       console.error('Delete failed:', error);
     } finally {
+      setIsDeleting(false);
       setDeletingIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(docId);
@@ -268,10 +286,10 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         prev.map(p =>
           p.id === extractionId
             ? {
-                ...p,
-                status: 'failed',
-                errorMessage: error instanceof Error ? error.message : 'Failed to extract URL',
-              }
+              ...p,
+              status: 'failed',
+              errorMessage: error instanceof Error ? error.message : 'Failed to extract URL',
+            }
             : p
         )
       );
@@ -281,12 +299,14 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   // Remove URL extraction from list (pending or persisted)
   const handleRemoveUrlExtraction = async (id: string, isPersisted: boolean = false) => {
     if (isPersisted) {
-      // Delete from backend and remove from context
+      setIsDeleting(true);
       try {
-        await urlApi.delete(id);
-        removeUrlContent(id);
+        await removeUrlContent(id);
+        setConfirmDeleteUrl(null);
       } catch (error) {
         console.error('Failed to delete URL content:', error);
+      } finally {
+        setIsDeleting(false);
       }
     } else {
       setPendingUrlExtractions(prev => prev.filter(p => p.id !== id));
@@ -454,13 +474,13 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                       sourceUrl: extraction.url,
                     });
                   } else if (extraction.status === 'completed' && extraction.platform === 'web' && extraction.content) {
-                     // For web pages, open the reader modal preview
-                     setWebPageReader({
-                       open: true,
-                       title: extraction.title || 'Web Page',
-                       content: extraction.content?.content || '',
-                       sourceUrl: extraction.url,
-                     });
+                    // For web pages, open the reader modal preview
+                    setWebPageReader({
+                      open: true,
+                      title: extraction.title || 'Web Page',
+                      content: extraction.content?.content || '',
+                      sourceUrl: extraction.url,
+                    });
                   }
                 }}
                 style={{
@@ -651,7 +671,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveUrlExtraction(urlContent.id, true);
+                      setConfirmDeleteUrl(urlContent.id);
                     }}
                     style={{ opacity: 0.6 }}
                   >
@@ -674,7 +694,10 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                     openDocumentPreview(doc.id);
                   }
                 }}
-                onDelete={(e) => handleDeleteDocument(doc.id, e)}
+                onDelete={(e) => {
+                  e.stopPropagation();
+                  setConfirmDeleteDoc(doc.id);
+                }}
               />
             ))}
 
@@ -720,6 +743,28 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
           domain={webPageReader.sourceUrl ? new URL(webPageReader.sourceUrl).hostname : undefined}
         />
       )}
+
+      {/* Confirm Delete Document Dialog */}
+      <ConfirmDialog
+        open={confirmDeleteDoc !== null}
+        onClose={() => setConfirmDeleteDoc(null)}
+        onConfirm={() => { if (confirmDeleteDoc) handleDeleteDocument(confirmDeleteDoc); }}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${documents.find(d => d.id === confirmDeleteDoc)?.filename}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        loading={isDeleting}
+      />
+
+      {/* Confirm Delete URL Dialog */}
+      <ConfirmDialog
+        open={confirmDeleteUrl !== null}
+        onClose={() => setConfirmDeleteUrl(null)}
+        onConfirm={() => { if (confirmDeleteUrl) handleRemoveUrlExtraction(confirmDeleteUrl, true); }}
+        title="Remove Link"
+        message={`Are you sure you want to remove "${urlContents.find(u => u.id === confirmDeleteUrl)?.title || 'this link'}"? This action cannot be undone.`}
+        confirmLabel="Remove"
+        loading={isDeleting}
+      />
 
       <style>{`
         @keyframes pulse {

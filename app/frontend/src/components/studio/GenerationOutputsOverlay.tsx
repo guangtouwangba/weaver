@@ -16,10 +16,10 @@
  */
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { Surface, Stack, Text, Spinner } from '@/components/ui';
+import { Surface, Stack, Text, Spinner, IconButton } from '@/components/ui';
 import { colors, shadows, radii } from '@/components/ui/tokens';
 import { useStudio, GenerationType, GenerationTask } from '@/contexts/StudioContext';
-import { AutoAwesomeIcon, AccountTreeIcon, OpenWithIcon } from '@/components/ui/icons';
+import { AutoAwesomeIcon, AccountTreeIcon, OpenWithIcon, CloseIcon, ErrorIcon } from '@/components/ui/icons';
 
 interface GenerationOutputsOverlayProps {
   viewport: { x: number; y: number; scale: number };
@@ -40,26 +40,31 @@ interface DragPosition {
   y: number;
 }
 
-// Loading placeholder card for generating tasks
+// Loading or Error placeholder card for generating/failed tasks
 function LoadingCard({
   task,
   viewport,
   onDragStart,
+  onDismiss,
   isDragging,
 }: {
   task: GenerationTask;
   viewport: { x: number; y: number; scale: number };
   onDragStart: (e: React.MouseEvent, taskId: string) => void;
+  onDismiss: (taskId: string) => void;
   isDragging: boolean;
 }) {
   // Convert canvas coordinates to screen coordinates
   const screenX = task.position.x * viewport.scale + viewport.x;
   const screenY = task.position.y * viewport.scale + viewport.y;
 
+  const isError = task.status === 'error';
   const isMindmap = task.type === 'mindmap';
-  const gradientColor = isMindmap
-    ? `linear-gradient(135deg, ${colors.success[500]} 0%, ${colors.success[600]} 100%)`
-    : `linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)`;
+  const gradientColor = isError
+    ? `linear-gradient(135deg, ${colors.error[500]} 0%, ${colors.error[600]} 100%)`
+    : isMindmap
+      ? `linear-gradient(135deg, ${colors.success[500]} 0%, ${colors.success[600]} 100%)`
+      : `linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)`;
   const typeLabel = isMindmap ? 'MINDMAP' : 'SUMMARY';
   const TypeIcon = isMindmap ? AccountTreeIcon : AutoAwesomeIcon;
 
@@ -100,6 +105,7 @@ function LoadingCard({
         boxShadow: isDragging
           ? '0 12px 40px rgba(139, 92, 246, 0.25)'
           : shadows.lg,
+        borderColor: isError ? colors.error[300] : undefined,
       }}
     >
       {/* Header - entire header is draggable */}
@@ -110,21 +116,23 @@ function LoadingCard({
         className="drag-handle"
         style={{
           marginBottom: 16,
-          cursor: 'grab',
+          cursor: isError ? 'default' : 'grab',
           userSelect: 'none',
           overflow: 'hidden',
         }}
       >
-        {/* Drag Indicator Icon */}
-        <div
-          style={{
-            padding: 4,
-            borderRadius: radii.sm,
-            color: colors.text.disabled,
-          }}
-        >
-          <OpenWithIcon size={14} />
-        </div>
+        {/* Drag Indicator Icon (hidden for error state) */}
+        {!isError && (
+          <div
+            style={{
+              padding: 4,
+              borderRadius: radii.sm,
+              color: colors.text.disabled,
+            }}
+          >
+            <OpenWithIcon size={14} />
+          </div>
+        )}
 
         {/* Icon */}
         <div
@@ -140,7 +148,7 @@ function LoadingCard({
             flexShrink: 0,
           }}
         >
-          <TypeIcon size="sm" />
+          {isError ? <ErrorIcon size="sm" /> : <TypeIcon size="sm" />}
         </div>
 
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
@@ -154,14 +162,31 @@ function LoadingCard({
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              color: isError ? colors.error[700] : undefined,
             }}
           >
-            {task.title || `Generating ${task.type}...`}
+            {isError ? 'Generation Failed' : (task.title || `Generating ${task.type}...`)}
           </Text>
           <Text variant="overline" color="secondary" style={{ fontSize: '0.65rem' }}>
             {typeLabel}
           </Text>
         </div>
+
+        {/* Close button for error state */}
+        {isError && (
+          <IconButton
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDismiss(task.id);
+            }}
+            style={{
+              color: colors.text.secondary,
+            }}
+          >
+            <CloseIcon size={16} />
+          </IconButton>
+        )}
       </Stack>
 
       <Stack
@@ -170,22 +195,35 @@ function LoadingCard({
         justify="center"
         gap={1}
         style={{
-          paddingTop: 32,
-          paddingBottom: 32,
-          backgroundColor: colors.background.subtle,
+          paddingTop: isError ? 16 : 32,
+          paddingBottom: isError ? 16 : 32,
+          backgroundColor: isError ? colors.error[50] : colors.background.subtle,
           borderRadius: radii.md,
         }}
       >
-        <Spinner
-          size="md"
-          color={isMindmap ? 'secondary' : 'primary'}
-        />
-        <Text variant="bodySmall" color="secondary" style={{ fontWeight: 500 }}>
-          Generating...
-        </Text>
-        <Text variant="caption" color="disabled">
-          This may take a moment
-        </Text>
+        {isError ? (
+          <>
+            <Text variant="bodySmall" color="error" style={{ fontWeight: 500, textAlign: 'center' }}>
+              {task.error || 'An error occurred'}
+            </Text>
+            <Text variant="caption" color="secondary" style={{ textAlign: 'center', marginTop: 4 }}>
+              Click × to dismiss
+            </Text>
+          </>
+        ) : (
+          <>
+            <Spinner
+              size="md"
+              color={isMindmap ? 'secondary' : 'primary'}
+            />
+            <Text variant="bodySmall" color="secondary" style={{ fontWeight: 500 }}>
+              Generating...
+            </Text>
+            <Text variant="caption" color="disabled">
+              This may take a moment
+            </Text>
+          </>
+        )}
       </Stack>
     </Surface>
   );
@@ -195,6 +233,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
   const {
     generationTasks,
     updateGenerationTaskPosition,
+    removeGenerationTask,
   } = useStudio();
 
   // Drag state - only tracks if drag is active and initial conditions
@@ -221,14 +260,15 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
   const renderableTasks = useMemo(() => {
     const tasks: GenerationTask[] = [];
     generationTasks.forEach(task => {
-      // Only show pending/generating tasks as loading cards
+      // Show pending/generating tasks as loading cards
+      // Also show error tasks so users can see failures (they'll auto-dismiss or be closable)
       // Completed tasks are now CanvasNodes rendered in KonvaCanvas
       // Note: We don't check !task.result because streaming mindmap updates result during generation
-      if (task.status === 'pending' || task.status === 'generating') {
+      if (task.status === 'pending' || task.status === 'generating' || task.status === 'error') {
         tasks.push(task);
       }
     });
-    console.log('[Overlay] Rendering loading tasks:', tasks.map(t => t.id));
+    console.log('[Overlay] Rendering tasks:', tasks.map(t => `${t.id}(${t.status})`));
     return tasks;
   }, [generationTasks]);
 
@@ -376,7 +416,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
           pointer-events: auto;
         }
       `}</style>
-      {/* Only render loading cards for pending/generating tasks */}
+      {/* Render loading cards for pending/generating tasks and error cards for failed tasks */}
       {/* Completed outputs are now CanvasNodes rendered in KonvaCanvas (unified node model) */}
       {renderableTasks.map(task => {
         const isDragging = dragState?.taskId === task.id;
@@ -386,6 +426,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
             task={task}
             viewport={viewport}
             onDragStart={handleDragStart}
+            onDismiss={removeGenerationTask}
             isDragging={isDragging}
           />
         );

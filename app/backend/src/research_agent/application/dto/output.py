@@ -19,13 +19,9 @@ class GenerateOutputRequest(BaseModel):
         description="Type of output to generate (mindmap, summary, article, action_list, etc.)",
         pattern="^(mindmap|summary|flashcards|podcast|quiz|timeline|compare|custom|article|action_list)$",
     )
-    document_ids: list[UUID] = Field(
+    source_ids: list[UUID] = Field(
         default_factory=list,
-        description="List of document IDs to generate output from",
-    )
-    url_content_ids: list[UUID] = Field(
-        default_factory=list,
-        description="List of URL content IDs (YouTube, web pages, etc.) to generate output from",
+        description="List of resource IDs (documents, URLs, etc.) to generate output from",
     )
     title: str | None = Field(
         None,
@@ -100,7 +96,8 @@ class OutputResponse(BaseModel):
     id: UUID
     project_id: UUID
     output_type: str
-    document_ids: list[UUID]
+    source_ids: list[UUID]
+    highlight_node_id: str | None = None
     status: str
     title: str | None = None
     data: dict[str, Any] | None = None

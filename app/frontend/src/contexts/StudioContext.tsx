@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, urlApi, UrlContent, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
+import { useToast } from '@/contexts/ToastContext';
 
 // === Generation Task Types for Concurrent Outputs ===
 export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
@@ -80,7 +81,8 @@ interface StudioContextType {
   urlContents: UrlContent[];
   setUrlContents: (contents: UrlContent[] | ((prev: UrlContent[]) => UrlContent[])) => void;
   addUrlContent: (content: UrlContent) => void;
-  removeUrlContent: (id: string) => void;
+  removeUrlContent: (id: string) => Promise<void>;
+  deleteDocument: (documentId: string) => Promise<void>;
 
   // Canvas
   canvasNodes: CanvasNode[];
@@ -154,6 +156,7 @@ interface StudioContextType {
   setHighlightedMessageId: (id: string | null) => void;
   navigateToNode: (nodeId: string) => void;
   highlightedNodeId: string | null;
+  setHighlightedNodeId: (id: string | null) => void;
 
   // === Thinking Graph (Dynamic Mind Map) ===
   activeThinkingId: string | null;  // Currently active thinking node (fork point)
@@ -215,14 +218,15 @@ export function StudioProvider({
   children: ReactNode;
   projectId: string;
 }) {
+  const toast = useToast();
   const [projectTitle, setProjectTitle] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
-  
+
   // URL Contents (YouTube, web links, etc.)
   const [urlContents, setUrlContents] = useState<UrlContent[]>([]);
-  
+
   const addUrlContent = useCallback((content: UrlContent) => {
     setUrlContents(prev => {
       // Avoid duplicates
@@ -232,10 +236,26 @@ export function StudioProvider({
       return [content, ...prev];
     });
   }, []);
-  
-  const removeUrlContent = useCallback((id: string) => {
-    setUrlContents(prev => prev.filter(c => c.id !== id));
-  }, []);
+
+  const removeUrlContent = useCallback(async (id: string) => {
+    try {
+      await urlApi.delete(id);
+      setUrlContents(prev => prev.filter(c => c.id !== id));
+      toast.success('Link Removed', 'The source has been removed from your project.');
+    } catch (error: any) {
+      toast.error('Failed to Remove Link', error.message || 'An unexpected error occurred.');
+    }
+  }, [toast]);
+
+  const deleteDocument = useCallback(async (documentId: string) => {
+    try {
+      await documentsApi.delete(documentId);
+      setDocuments(prev => prev.filter(d => d.id !== documentId));
+      toast.success('Document Deleted', 'The document has been removed from your project.');
+    } catch (error: any) {
+      toast.error('Failed to Delete Document', error.message || 'An unexpected error occurred.');
+    }
+  }, [toast]);
 
   const toggleDocumentSelection = useCallback((id: string, multiSelect: boolean = false) => {
     setSelectedDocumentIds(prev => {
@@ -389,22 +409,29 @@ export function StudioProvider({
     setGenerationTasks(prev => {
       const task = prev.get(taskId);
       if (!task) return prev;
-      
+
       // Get task details for node creation
       const { type, position, outputId } = task;
-      
+
       // Create a CanvasNode for the completed output (unified node model)
       const nodeType = type; // 'mindmap', 'summary', etc.
       const nodeId = outputId ? `output-${outputId}` : `output-${taskId}`;
-      
+
       // Determine card dimensions and color based on type
-      const cardConfig = {
+      const cardConfig: Record<string, { width: number; height: number; color: string }> = {
         mindmap: { width: 380, height: 280, color: '#10B981' },
         summary: { width: 380, height: 280, color: '#8B5CF6' },
         article: { width: 320, height: 200, color: '#667eea' },
         action_list: { width: 280, height: 180, color: '#f59e0b' },
-      }[type] || { width: 300, height: 200, color: '#6B7280' };
-      
+        podcast: { width: 320, height: 200, color: '#8B5CF6' },
+        quiz: { width: 320, height: 200, color: '#10B981' },
+        timeline: { width: 320, height: 200, color: '#3B82F6' },
+        compare: { width: 320, height: 200, color: '#6366F1' },
+        flashcards: { width: 320, height: 200, color: '#F43F5E' },
+      };
+
+      const config = cardConfig[type] || { width: 300, height: 200, color: '#6B7280' };
+
       const newNode: CanvasNode = {
         id: nodeId,
         type: nodeType,
@@ -412,9 +439,9 @@ export function StudioProvider({
         content: JSON.stringify(result),
         x: position.x,
         y: position.y,
-        width: cardConfig.width,
-        height: cardConfig.height,
-        color: cardConfig.color,
+        width: config.width,
+        height: config.height,
+        color: config.color,
         tags: [],
         viewType: 'free',
         outputId: outputId,
@@ -422,16 +449,16 @@ export function StudioProvider({
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
+
       // Add the node to canvas
       setCanvasNodes(prevNodes => {
         // Filter out any existing node with the same ID to avoid duplicates
         const filtered = prevNodes.filter(n => n.id !== nodeId);
         return [...filtered, newNode];
       });
-      
+
       console.log(`[StudioContext] Converted generation task ${taskId} to CanvasNode:`, newNode);
-      
+
       // Remove the task from generationTasks since it's now a CanvasNode
       const next = new Map(prev);
       next.delete(taskId);
@@ -467,8 +494,9 @@ export function StudioProvider({
       try {
         console.log(`[StudioContext] Deleting output ${task.outputId} for task ${taskId}`);
         await outputsApi.delete(projectId, task.outputId);
-      } catch (error) {
+      } catch (error: any) {
         console.error('[StudioContext] Failed to delete output persistence:', error);
+        toast.error('Failed to delete output from server', error.message);
         // We don't rollback state here because the user intent was to remove it from view
         // and we don't want it popping back up.
         // It's better to fail silently on the backend delete than to have a "zombie" card.
@@ -847,8 +875,14 @@ export function StudioProvider({
   }, [projectId]);
 
   const deleteChatSession = useCallback(async (sessionId: string) => {
-    await chatApi.deleteSession(projectId, sessionId);
-    setChatSessions(prev => prev.filter(s => s.id !== sessionId));
+    try {
+      await chatApi.deleteSession(projectId, sessionId);
+      setChatSessions(prev => prev.filter(s => s.id !== sessionId));
+      toast.success('Session Deleted', 'Chat session has been removed.');
+    } catch (error: any) {
+      toast.error('Failed to delete session', error.message);
+      return;
+    }
 
     // If we deleted the active session, switch to another one
     if (sessionId === activeSessionId) {
@@ -960,90 +994,102 @@ export function StudioProvider({
               },
             });
           }
-        }
+          // === Unified Node Model: Convert outputs to CanvasNodes ===
+          // Completed outputs (summary, mindmap, article, action_list) become CanvasNodes
+          // This enables Magic Cursor selection and unified interactions
+          if (outputsRes && outputsRes.outputs.length > 0) {
+            // Filter for complete outputs only
+            const completeOutputs = outputsRes.outputs.filter(
+              (o: OutputResponse) => o.status === 'complete'
+            );
 
-        // === Unified Node Model: Convert outputs to CanvasNodes ===
-        // Completed outputs (summary, mindmap, article, action_list) become CanvasNodes
-        // This enables Magic Cursor selection and unified interactions
-        if (outputsRes && outputsRes.outputs.length > 0) {
-          // Filter for complete outputs only
-          const completeOutputs = outputsRes.outputs.filter(
-            (o: OutputResponse) => o.status === 'complete'
-          );
+            // Pre-extract existing output node positions from canvasRes to preserve them
+            const canvasOutputPositions = new Map<string, { x: number; y: number }>();
+            if (canvasRes && canvasRes.nodes) {
+              canvasRes.nodes.forEach((node: CanvasNode) => {
+                if (node.id.startsWith('output-')) {
+                  canvasOutputPositions.set(node.id, { x: node.x, y: node.y });
+                }
+              });
+            }
 
-          // Grid layout for multiple outputs: position them in a grid pattern
-          const CARD_WIDTH = 380;
-          const CARD_HEIGHT = 280;
-          const GAP = 40;
-          const START_X = 200;
-          const START_Y = 200;
+            // Grid layout for multiple outputs: position them in a grid pattern
+            const CARD_WIDTH = 380;
+            const CARD_HEIGHT = 280;
+            const GAP = 40;
+            const START_X = 200;
+            const START_Y = 200;
 
-          // Convert outputs to CanvasNodes (unified node model)
-          const outputNodes: CanvasNode[] = completeOutputs
-            .filter((output: OutputResponse) => output.data)
-            .map((output: OutputResponse, index: number) => {
-              // Calculate grid position (2 columns)
-              const col = index % 2;
-              const row = Math.floor(index / 2);
-              const x = START_X + col * (CARD_WIDTH + GAP);
-              const y = START_Y + row * (CARD_HEIGHT + GAP);
+            // Convert outputs to CanvasNodes (unified node model)
+            const outputNodes: CanvasNode[] = completeOutputs
+              .filter((output: OutputResponse) => output.data)
+              .map((output: OutputResponse, index: number) => {
+                const nodeId = `output-${output.id}`;
+                const existingPos = canvasOutputPositions.get(nodeId);
 
-              // Map output_type to node type
-              const nodeType = output.output_type; // 'mindmap', 'summary', 'article', 'action_list'
+                // Calculate grid position (2 columns) as fallback
+                const col = index % 2;
+                const row = Math.floor(index / 2);
+                const gridX = START_X + col * (CARD_WIDTH + GAP);
+                const gridY = START_Y + row * (CARD_HEIGHT + GAP);
 
-              const node: CanvasNode = {
-                id: `output-${output.id}`,
-                type: nodeType,
-                title: output.title || `${nodeType} output`,
-                content: JSON.stringify(output.data),
-                x,
-                y,
-                width: CARD_WIDTH,
-                height: CARD_HEIGHT,
-                color: nodeType === 'mindmap' ? '#10B981' : nodeType === 'summary' ? '#8B5CF6' : '#667eea',
-                tags: [],
-                viewType: 'free',
-                outputId: output.id,
-                outputData: output.data as Record<string, unknown>,
-                createdAt: output.created_at,
-                updatedAt: output.updated_at,
-              };
+                // Map output_type to node type
+                const nodeType = output.output_type; // 'mindmap', 'summary', 'article', 'action_list'
 
-              return node;
-            });
+                const node: CanvasNode = {
+                  id: nodeId,
+                  type: nodeType,
+                  title: output.title || `${nodeType} output`,
+                  content: JSON.stringify(output.data),
+                  x: existingPos?.x ?? gridX,
+                  y: existingPos?.y ?? gridY,
+                  width: CARD_WIDTH,
+                  height: CARD_HEIGHT,
+                  color: nodeType === 'mindmap' ? '#10B981' : nodeType === 'summary' ? '#8B5CF6' : '#667eea',
+                  tags: [],
+                  viewType: 'free',
+                  outputId: output.id,
+                  outputData: output.data as Record<string, unknown>,
+                  createdAt: output.created_at,
+                  updatedAt: output.updated_at,
+                };
 
-          // Merge output nodes with canvas nodes
-          if (outputNodes.length > 0) {
-            setCanvasNodes(prev => {
-              // Filter out any existing output nodes to avoid duplicates
-              const existingNonOutputNodes = prev.filter(n => !n.id.startsWith('output-'));
-              return [...existingNonOutputNodes, ...outputNodes];
-            });
-          }
+                return node;
+              });
 
-          // Also set legacy states for backward compatibility
-          const latestSummary = completeOutputs.find(
-            (o: OutputResponse) => o.output_type === 'summary'
-          );
-          if (latestSummary?.data) {
-            setSummaryResult({
-              data: latestSummary.data as SummaryData,
-              title: latestSummary.title || 'Summary',
-            });
-            // Keep overlay closed - user clicks to view
-            setShowSummaryOverlay(false);
-          }
+            // Merge output nodes with canvas nodes
+            if (outputNodes.length > 0) {
+              setCanvasNodes(prev => {
+                // Filter out any existing output nodes to avoid duplicates
+                const existingNonOutputNodes = prev.filter(n => !n.id.startsWith('output-'));
+                return [...existingNonOutputNodes, ...outputNodes];
+              });
+            }
 
-          const latestMindmap = completeOutputs.find(
-            (o: OutputResponse) => o.output_type === 'mindmap'
-          );
-          if (latestMindmap?.data) {
-            setMindmapResult({
-              data: latestMindmap.data as MindmapData,
-              title: latestMindmap.title || 'Mindmap',
-            });
-            // Keep overlay closed - user clicks to view
-            setShowMindmapOverlay(false);
+            // Also set legacy states for backward compatibility
+            const latestSummary = completeOutputs.find(
+              (o: OutputResponse) => o.output_type === 'summary'
+            );
+            if (latestSummary?.data) {
+              setSummaryResult({
+                data: latestSummary.data as SummaryData,
+                title: latestSummary.title || 'Summary',
+              });
+              // Keep overlay closed - user clicks to view
+              setShowSummaryOverlay(false);
+            }
+
+            const latestMindmap = completeOutputs.find(
+              (o: OutputResponse) => o.output_type === 'mindmap'
+            );
+            if (latestMindmap?.data) {
+              setMindmapResult({
+                data: latestMindmap.data as MindmapData,
+                title: latestMindmap.title || 'Mindmap',
+              });
+              // Keep overlay closed - user clicks to view
+              setShowMindmapOverlay(false);
+            }
           }
         }
 
@@ -1095,9 +1141,7 @@ export function StudioProvider({
     };
 
     loadData();
-  }, [projectId]);
-
-
+  }, [projectId, createChatSession, switchChatSession]);
 
   const value: StudioContextType = {
     projectId,
@@ -1114,6 +1158,7 @@ export function StudioProvider({
     setUrlContents,
     addUrlContent,
     removeUrlContent,
+    deleteDocument,
     canvasNodes,
     setCanvasNodes,
     canvasEdges,
@@ -1162,17 +1207,19 @@ export function StudioProvider({
     setHighlightedMessageId,
     navigateToNode,
     highlightedNodeId,
-    // Thinking Graph
+    setHighlightedNodeId,
     activeThinkingId,
     setActiveThinkingId,
     thinkingStepCounter,
     appendThinkingDraftStep,
     finalizeThinkingStep,
     startNewTopic,
-    // Inspiration Dock
     isInspirationDockVisible,
     setInspirationDockVisible,
-    // Concurrent Generation Tasks
+    isPreviewModalOpen,
+    previewDocumentId,
+    openDocumentPreview,
+    closeDocumentPreview,
     generationTasks,
     startGeneration,
     updateGenerationTask,
@@ -1183,7 +1230,6 @@ export function StudioProvider({
     getActiveGenerationsOfType,
     hasActiveGenerations,
     saveGenerationOutput,
-    // Legacy Generation State (backward compatibility)
     isGenerating,
     setIsGenerating,
     generationError,
@@ -1196,12 +1242,6 @@ export function StudioProvider({
     setMindmapResult,
     showMindmapOverlay,
     setShowMindmapOverlay,
-
-    // PDF Preview
-    isPreviewModalOpen,
-    previewDocumentId,
-    openDocumentPreview,
-    closeDocumentPreview,
   };
 
   return (
@@ -1218,4 +1258,3 @@ export function useStudio() {
   }
   return context;
 }
-

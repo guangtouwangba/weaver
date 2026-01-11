@@ -22,7 +22,7 @@ class SQLAlchemyOutputRepository:
             id=output.id,
             project_id=output.project_id,
             output_type=output.output_type.value,
-            document_ids=output.document_ids,
+            source_ids=output.source_ids,
             status=output.status.value,
             title=output.title,
             data=output.data,
@@ -35,9 +35,7 @@ class SQLAlchemyOutputRepository:
 
     async def find_by_id(self, output_id: UUID) -> Optional[Output]:
         """Find output by ID."""
-        result = await self._session.execute(
-            select(OutputModel).where(OutputModel.id == output_id)
-        )
+        result = await self._session.execute(select(OutputModel).where(OutputModel.id == output_id))
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
@@ -62,9 +60,7 @@ class SQLAlchemyOutputRepository:
             query = query.where(OutputModel.output_type == output_type)
 
         # Get total count
-        count_query = select(func.count()).select_from(
-            query.subquery()
-        )
+        count_query = select(func.count()).select_from(query.subquery())
         total = (await self._session.execute(count_query)).scalar() or 0
 
         # Apply pagination and ordering
@@ -77,9 +73,7 @@ class SQLAlchemyOutputRepository:
 
     async def update(self, output: Output) -> Output:
         """Update an existing output."""
-        result = await self._session.execute(
-            select(OutputModel).where(OutputModel.id == output.id)
-        )
+        result = await self._session.execute(select(OutputModel).where(OutputModel.id == output.id))
         model = result.scalar_one_or_none()
 
         if not model:
@@ -96,9 +90,7 @@ class SQLAlchemyOutputRepository:
 
     async def delete(self, output_id: UUID) -> bool:
         """Delete an output by ID."""
-        result = await self._session.execute(
-            select(OutputModel).where(OutputModel.id == output_id)
-        )
+        result = await self._session.execute(select(OutputModel).where(OutputModel.id == output_id))
         model = result.scalar_one_or_none()
 
         if not model:
@@ -114,7 +106,7 @@ class SQLAlchemyOutputRepository:
             id=model.id,
             project_id=model.project_id,
             output_type=OutputType(model.output_type),
-            document_ids=list(model.document_ids) if model.document_ids else [],
+            source_ids=list(model.source_ids) if model.source_ids else [],
             status=OutputStatus(model.status),
             title=model.title,
             data=model.data,
@@ -122,11 +114,3 @@ class SQLAlchemyOutputRepository:
             created_at=model.created_at,
             updated_at=model.updated_at,
         )
-
-
-
-
-
-
-
-

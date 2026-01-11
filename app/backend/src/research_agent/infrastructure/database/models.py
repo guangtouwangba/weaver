@@ -683,7 +683,7 @@ class OutputModel(Base):
     # Output type: 'mindmap', 'summary', 'custom', etc.
     output_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     # Source document IDs that this output was generated from
-    document_ids: Mapped[List[UUID]] = mapped_column(
+    source_ids: Mapped[List[UUID]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), nullable=False, server_default="{}"
     )
     # Status: 'generating', 'complete', 'error', 'cancelled'

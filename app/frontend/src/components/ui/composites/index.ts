@@ -27,6 +27,10 @@ export type { InputProps } from './Input';
 export { TextField } from './TextField';
 export type { TextFieldProps } from './TextField';
 
+// ConfirmDialog
+export { ConfirmDialog } from './ConfirmDialog';
+export type { ConfirmDialogProps } from './ConfirmDialog';
+
 // Tabs
 export { Tabs, Tab, TabPanel } from './Tabs';
 export type { TabsProps, TabProps, TabPanelProps } from './Tabs';
