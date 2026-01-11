@@ -13,7 +13,7 @@
   - Ensure the `collapsed` boolean is preserved during state updates and saved to the backend.
 
 ## Verification
-- [ ] **Manual UI Test**
+- [x] **Manual UI Test**
   - Generate a mindmap.
   - Collapse a branch and verify children disappear.
   - Expand the branch and verify children reappear.

@@ -1,7 +1,8 @@
-# Capability: mindmap-navigation
+# mindmap-navigation Specification
 
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change enable-mindmap-node-collapsing. Update Purpose after archive.
+## Requirements
 ### Requirement: Mindmap Visibility Control
 The system SHALL allow users to toggle the visibility of node subtrees.
 
@@ -17,3 +18,4 @@ The system SHALL allow users to toggle the visibility of node subtrees.
 - **When** the user clicks the expand button on node A
 - **Then** its immediate children SHALL be visible (unless they are also collapsed)
 - **And** node A SHALL display a collapse indicator (-)
+
