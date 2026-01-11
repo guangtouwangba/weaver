@@ -1070,6 +1070,7 @@ export interface MindmapNode {
   color: string;
   status: 'generating' | 'complete' | 'error';
   sourceRefs?: SourceRef[];  // Source references for drilldown
+  collapsed?: boolean;  // Whether this node's children are collapsed
 }
 
 export interface MindmapEdge {

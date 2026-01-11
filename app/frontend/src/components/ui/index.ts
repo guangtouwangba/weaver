@@ -18,3 +18,6 @@ export * from './composites';
 
 // Icons (already exists)
 export * from './icons';
+
+// New Global Components
+export * from './Toast';

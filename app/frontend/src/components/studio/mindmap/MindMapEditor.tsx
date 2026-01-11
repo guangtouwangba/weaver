@@ -396,35 +396,62 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   );
 
   // Sync with external data updates (e.g. streaming) and deduplicate
+  // Use ref to track previous initialData to avoid unnecessary updates
+  const prevInitialDataRef = useRef(initialData);
   useEffect(() => {
-    setData((prev) => {
-      // Quick check if data actually changed (by length) to avoid unnecessary updates
-      if (prev.nodes.length === initialData.nodes.length) {
-        return prev;
+    // Deep comparison: check if nodes actually changed
+    const prevNodes = prevInitialDataRef.current.nodes;
+    const currentNodes = initialData.nodes;
+    
+    // Quick check: if lengths are the same and all node IDs match, skip update
+    if (prevNodes.length === currentNodes.length) {
+      const prevNodeIds = new Set(prevNodes.map(n => n.id));
+      const currentNodeIds = new Set(currentNodes.map(n => n.id));
+      const idsMatch = prevNodeIds.size === currentNodeIds.size && 
+        Array.from(prevNodeIds).every(id => currentNodeIds.has(id));
+      
+      if (idsMatch) {
+        // Check if any node content actually changed
+        const hasChanges = currentNodes.some(newNode => {
+          const oldNode = prevNodes.find(n => n.id === newNode.id);
+          if (!oldNode) return true;
+          return oldNode.label !== newNode.label || 
+                 oldNode.content !== newNode.content ||
+                 oldNode.status !== newNode.status;
+        });
+        
+        if (!hasChanges) {
+          prevInitialDataRef.current = initialData;
+          return; // No changes, skip update
+        }
       }
+    }
 
+    setData((prev) => {
       const existingNodesMap = new Map(prev.nodes.map(n => [n.id, n]));
       const uniqueNewNodes = deduplicateNodes(initialData.nodes);
 
       const mergedNodes = uniqueNewNodes.map(newNode => {
         const existingNode = existingNodesMap.get(newNode.id);
         if (existingNode) {
-          // Preserve existing position
+          // Preserve existing position and collapsed state
           return {
             ...newNode,
             x: existingNode.x,
             y: existingNode.y,
+            collapsed: existingNode.collapsed,
           };
         }
         return newNode;
       });
 
+      prevInitialDataRef.current = initialData;
       return {
         ...initialData,
         nodes: mergedNodes
       };
     });
-  }, [initialData, setData]); // Added setData to deps
+  }, [initialData, setData]);
 
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
   // Helper for single selection compatibility if needed
@@ -922,6 +949,91 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     [data.nodes, selectedNodeId]
   );
 
+  // Calculate which nodes have children and build node map for efficient lookup
+  const { nodesWithChildren, nodeMap } = useMemo(() => {
+    const childrenMap = new Map<string, boolean>();
+    const map = new Map<string, MindmapNode>();
+    
+    data.nodes.forEach(node => {
+      map.set(node.id, node);
+      if (node.parentId) {
+        childrenMap.set(node.parentId, true);
+      }
+    });
+    
+    return { nodesWithChildren: childrenMap, nodeMap: map };
+  }, [data.nodes]);
+
+  // Filter visible nodes and edges - optimized with node map
+  const { visibleNodes, visibleNodeIds } = useMemo(() => {
+    const visible = new Set<string>();
+    const visibleList: MindmapNode[] = [];
+    const checked = new Set<string>(); // Track nodes we've already checked
+    
+    // Helper to check if a node is visible (all ancestors must not be collapsed)
+    const checkVisibility = (nodeId: string): boolean => {
+      // If already checked, return cached result
+      if (checked.has(nodeId)) {
+        return visible.has(nodeId);
+      }
+      
+      checked.add(nodeId);
+      
+      const node = nodeMap.get(nodeId);
+      if (!node) {
+        return false;
+      }
+      
+      // Root nodes (no parent) are always visible
+      if (!node.parentId) {
+        visible.add(nodeId);
+        return true;
+      }
+      
+      // Check if parent is collapsed first (faster check)
+      const parent = nodeMap.get(node.parentId);
+      if (parent?.collapsed) {
+        return false; // Parent is collapsed, so this node is hidden
+      }
+      
+      // Recursively check if parent is visible
+      const parentVisible = checkVisibility(node.parentId);
+      if (!parentVisible) {
+        return false; // Parent is not visible
+      }
+      
+      // Node is visible
+      visible.add(nodeId);
+      return true;
+    };
+    
+    // Check all nodes
+    data.nodes.forEach(node => {
+      if (checkVisibility(node.id)) {
+        visibleList.push(node);
+      }
+    });
+    
+    return { visibleNodes: visibleList, visibleNodeIds: visible };
+  }, [data.nodes, nodeMap]);
+
+  const visibleEdges = useMemo(() => {
+    return data.edges.filter(edge => 
+      visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+    );
+  }, [data.edges, visibleNodeIds]);
+
+  // Handle toggle collapse
+  const handleToggleCollapse = useCallback((nodeId: string) => {
+    setData({
+      ...data,
+      nodes: data.nodes.map(n => 
+        n.id === nodeId ? { ...n, collapsed: !(n.collapsed ?? false) } : n
+      ),
+    });
+    setHasChanges(true);
+  }, [data, setData]);
+
   return (
     <div
       style={{
@@ -1046,9 +1158,9 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
             )}
 
             {/* Edges - only render after layout is complete */}
-            {!isCalculatingLayout && data.edges.map((edge) => {
-              const source = data.nodes.find((n) => n.id === edge.source);
-              const target = data.nodes.find((n) => n.id === edge.target);
+            {!isCalculatingLayout && visibleEdges.map((edge) => {
+              const source = visibleNodes.find((n) => n.id === edge.source);
+              const target = visibleNodes.find((n) => n.id === edge.target);
               if (!source || !target) return null;
               return (
                 <CurvedMindMapEdge
@@ -1063,7 +1175,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
             })}
 
             {/* Nodes - only render after layout is complete */}
-            {!isCalculatingLayout && data.nodes.map((node) => (
+            {!isCalculatingLayout && visibleNodes.map((node) => (
               <RichMindMapNode
                 key={node.id}
                 node={node}
@@ -1074,6 +1186,8 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
                 onDoubleClick={handleNodeDoubleClick}
                 onDragEnd={handleNodeDragEnd}
                 onDrilldown={handleNodeDrilldown}
+                hasChildren={nodesWithChildren.has(node.id)}
+                onToggleCollapse={handleToggleCollapse}
               />
             ))}
           </Layer>

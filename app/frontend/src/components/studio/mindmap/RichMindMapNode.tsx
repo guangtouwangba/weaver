@@ -31,6 +31,10 @@ interface RichMindMapNodeProps {
   onDragEnd?: (nodeId: string, x: number, y: number) => void;
   /** Callback when user clicks to drilldown into source references */
   onDrilldown?: (nodeId: string) => void;
+  /** Whether this node has children */
+  hasChildren?: boolean;
+  /** Callback when user toggles collapse/expand */
+  onToggleCollapse?: (nodeId: string) => void;
 }
 
 // ============================================================================
@@ -272,6 +276,8 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
   onClick,
   onDragEnd,
   onDrilldown,
+  hasChildren = false,
+  onToggleCollapse,
 }) => {
   const groupRef = useRef<Konva.Group>(null);
   const glowRef = useRef<Konva.Rect>(null);
@@ -426,6 +432,17 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
 
   // Handle single click for drilldown (if not editing)
   const handleClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Check if click target is the toggle button or its children
+    const target = e.target;
+    let current: any = target;
+    while (current) {
+      if (current.name() === 'toggle-button') {
+        // Click is on toggle button, don't handle it here
+        return;
+      }
+      current = current.getParent();
+    }
+    
     // Call standard onClick first
     onClick?.(node.id, e);
     
@@ -496,6 +513,7 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
         shadowOpacity={styles.shadowOpacity}
         shadowOffsetY={4}
       />
+
 
       {/* ============ ROOT VARIANT ============ */}
       {variant === 'root' && (
@@ -660,6 +678,74 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
             color={tokens.text.muted}
           />
         </>
+      )}
+      
+      {/* Collapse/Expand Toggle Button - rendered LAST to ensure it's on top and clickable */}
+      {hasChildren && onToggleCollapse && (
+        <Group
+          name="toggle-button"
+          x={finalWidth - 20}
+          y={finalHeight / 2}
+          listening={true}
+          perfectDrawEnabled={false}
+          onMouseDown={(e) => {
+            // Prevent drag from starting when clicking toggle button
+            e.cancelBubble = true;
+            e.evt.stopPropagation();
+            e.evt.preventDefault();
+          }}
+          onTouchStart={(e) => {
+            // Prevent drag from starting when touching toggle button
+            e.cancelBubble = true;
+            e.evt.stopPropagation();
+            e.evt.preventDefault();
+          }}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            e.evt.stopPropagation();
+            onToggleCollapse(node.id);
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            e.evt.stopPropagation();
+            onToggleCollapse(node.id);
+          }}
+          onMouseEnter={(e) => {
+            e.cancelBubble = true;
+            const stage = groupRef.current?.getStage();
+            if (stage) {
+              stage.container().style.cursor = 'pointer';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.cancelBubble = true;
+            const stage = groupRef.current?.getStage();
+            if (stage) {
+              stage.container().style.cursor = 'default';
+            }
+          }}
+        >
+          <Circle
+            radius={14}
+            fill={isHovered ? tokens.card.borderActive : tokens.card.bg}
+            stroke={tokens.card.borderActive}
+            strokeWidth={1.5}
+            opacity={isHovered ? 1 : 0.9}
+            listening={true}
+            perfectDrawEnabled={false}
+          />
+          <Text
+            x={-6}
+            y={-8}
+            text={node.collapsed ? '▶' : '▼'}
+            fontSize={10}
+            fill={tokens.card.borderActive}
+            align="center"
+            verticalAlign="middle"
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        </Group>
       )}
     </Group>
   );

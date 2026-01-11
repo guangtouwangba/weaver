@@ -30,7 +30,7 @@ import { projectsApi, Project } from "@/lib/api";
 import CreateProjectDialog from '@/components/dialogs/CreateProjectDialog';
 import ProjectCard from '@/components/dashboard/ProjectCard';
 import ProjectListItem from '@/components/dashboard/ProjectListItem';
-import { useToast } from '@/contexts/ToastContext';
+import { useNotification } from '@/contexts/NotificationContext';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -54,8 +54,8 @@ export default function DashboardPage() {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Snackbar state removed in favor of useToast
-  const toast = useToast();
+  // Snackbar state removed in favor of useNotification
+  const toast = useNotification();
 
   // Auth context
   const { canCreateProject, updateAnonProjectCount, isAnonymous } = useAuth();

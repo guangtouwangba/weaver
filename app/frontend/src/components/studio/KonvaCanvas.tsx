@@ -50,7 +50,7 @@ import {
   ArrowUpwardIcon, CloseIcon, CheckIcon, LayersIcon, AutoAwesomeIcon, SearchIcon,
   EditIcon, DeleteIcon,
 } from '@/components/ui/icons';
-import { useToast } from '@/contexts/ToastContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { useStudio } from '@/contexts/StudioContext';
 import { useCanvasActions } from '@/hooks/useCanvasActions';
 import { ToolMode } from './CanvasToolbar';
@@ -2471,7 +2471,7 @@ export default function KonvaCanvas({
     handleImportSource
   } = useCanvasActions({ onOpenImport });
 
-  const toast = useToast();
+  const toast = useNotification();
 
   // Use props if provided, otherwise fall back to context values
   const nodes = propNodes ?? contextNodes ?? [];

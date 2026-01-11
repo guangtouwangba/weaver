@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnonymousLimitPrompt } from "@/components/AnonymousLimitPrompt";
 import GlobalLayout from "@/components/layout/GlobalLayout";
 import { useStudio, StudioProvider } from "@/contexts/StudioContext";
-import { useToast } from "@/contexts/ToastContext";
+import { useNotification } from "@/contexts/NotificationContext";
 import ResourceSidebar from "@/components/studio/ResourceSidebar";
 import AssistantPanel from "@/components/studio/AssistantPanel";
 import KonvaCanvas from "@/components/studio/KonvaCanvas";
@@ -59,7 +59,7 @@ function StudioPageContent() {
     openDocumentPreview,
     navigateToSource,
   } = useStudio();
-  const toast = useToast();
+  const toast = useNotification();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -144,14 +144,14 @@ function StudioPageContent() {
       // Add to documents list (urlContents in StudioContext)
       addUrlContent(completedContent);
 
-      toast.updateToast(toastId, {
+      toast.updateNotification(toastId, {
         type: 'success',
         title: 'Import Successful',
         message: `Successfully imported "${completedContent.title || 'URL content'}"`,
       });
     } catch (error) {
       console.error('URL extraction failed:', error);
-      toast.updateToast(toastId, {
+      toast.updateNotification(toastId, {
         type: 'error',
         title: 'Import Failed',
         message: error instanceof Error ? error.message : 'Failed to extract content from URL',

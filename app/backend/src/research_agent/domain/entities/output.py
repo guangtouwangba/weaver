@@ -83,6 +83,7 @@ class MindmapNode:
     color: str = "default"
     status: str = "complete"  # "generating" | "complete" | "error"
     source_refs: List["SourceRef"] = field(default_factory=list)  # Source references for drilldown
+    collapsed: bool = False  # Whether this node's children are collapsed
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -99,6 +100,7 @@ class MindmapNode:
             "color": self.color,
             "status": self.status,
             "sourceRefs": [ref.to_dict() for ref in self.source_refs],
+            "collapsed": self.collapsed,
         }
 
     @classmethod
@@ -118,6 +120,7 @@ class MindmapNode:
             color=data.get("color", "default"),
             status=data.get("status", "complete"),
             source_refs=[SourceRef.from_dict(ref) for ref in source_refs_data],
+            collapsed=data.get("collapsed", False),
         )
 
 

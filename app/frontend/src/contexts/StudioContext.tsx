@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, urlApi, UrlContent, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
-import { useToast } from '@/contexts/ToastContext';
+import { useNotification } from '@/contexts/NotificationContext';
 
 // === Generation Task Types for Concurrent Outputs ===
 export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
@@ -218,7 +218,7 @@ export function StudioProvider({
   children: ReactNode;
   projectId: string;
 }) {
-  const toast = useToast();
+  const toast = useNotification();
   const [projectTitle, setProjectTitle] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
@@ -1141,7 +1141,8 @@ export function StudioProvider({
     };
 
     loadData();
-  }, [projectId, createChatSession, switchChatSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]); // Only depend on projectId - createChatSession and switchChatSession are stable and only used inside loadData
 
   const value: StudioContextType = {
     projectId,

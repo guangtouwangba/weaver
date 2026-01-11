@@ -752,6 +752,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         title="Delete Document"
         message={`Are you sure you want to delete "${documents.find(d => d.id === confirmDeleteDoc)?.filename}"? This action cannot be undone.`}
         confirmLabel="Delete"
+        isDanger={true}
         loading={isDeleting}
       />
 
@@ -763,6 +764,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         title="Remove Link"
         message={`Are you sure you want to remove "${urlContents.find(u => u.id === confirmDeleteUrl)?.title || 'this link'}"? This action cannot be undone.`}
         confirmLabel="Remove"
+        isDanger={true}
         loading={isDeleting}
       />
 

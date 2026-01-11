@@ -1290,6 +1290,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         title="Delete Conversation?"
         message={`Are you sure you want to delete "${chatSessions.find(s => s.id === sessionToDelete)?.title || 'this conversation'}"? This action cannot be undone.`}
         confirmLabel="Delete"
+        isDanger={true}
         loading={isLoading}
       />
 
