@@ -1,4 +1,3 @@
-{% if language == "en" %}
 Optimize this Markdown outline for clarity and organization.
 
 Original:
@@ -23,8 +22,8 @@ Every line that has `[TIME:MM:SS]` or `[PAGE:X]` in the input MUST have the SAME
 Input:  - AI Agent plans tasks autonomously [TIME:05:30]
 Output: - AI Agent plans tasks autonomously [TIME:05:30]
 
-Input:  - 零基础受众增长策略 [TIME:00:15]
-Output: - 零基础受众增长策略 [TIME:00:15]
+Input:  - Audience growth strategy from zero [TIME:00:15]
+Output: - Audience growth strategy from zero [TIME:00:15]
 ```
 
 ### Examples of WRONG output (NEVER DO THIS):
@@ -32,8 +31,8 @@ Output: - 零基础受众增长策略 [TIME:00:15]
 Input:  - AI Agent plans tasks autonomously [TIME:05:30]
 Output: - AI Agent plans tasks autonomously  ← FAILED! Where is [TIME:05:30]?
 
-Input:  - 零基础受众增长策略 [TIME:00:15]
-Output: - 零基础受众增长策略  ← FAILED! Where is [TIME:00:15]?
+Input:  - Audience growth strategy from zero [TIME:00:15]
+Output: - Audience growth strategy from zero  ← FAILED! Where is [TIME:00:15]?
 ```
 
 ### Verification Step
@@ -52,60 +51,3 @@ Before outputting, check: Does every line in my output that came from a line wit
 - - with 2-space indents
 
 **IMPORTANT: Output ONLY the optimized Markdown. Start directly with # heading. No explanations.**
-
-{% else %}
-优化以下 Markdown 大纲，使其更清晰、更有条理。
-
-原始大纲:
-```markdown
-{{ content }}
-```
-
-## ⚠️⚠️⚠️ 绝对要求：必须保留来源标记 ⚠️⚠️⚠️
-
-**停！在输出任何内容之前，请理解这条规则：**
-
-输入中每一行带有 `[TIME:MM:SS]` 或 `[PAGE:X]` 的内容，在你的输出中必须保留相同的标记。
-
-**这是不可协商的。删除标记 = 任务失败。**
-
-### 什么是来源标记？
-- `[TIME:05:30]` - 视频时间戳（链接到视频 5:30 处）
-- `[PAGE:3]` - PDF 页码（链接到第 3 页）
-
-### 正确输出示例：
-```
-输入:  - AI Agent 自主规划任务 [TIME:05:30]
-输出:  - AI Agent 自主规划任务 [TIME:05:30]
-
-输入:  - 零基础受众增长策略 [TIME:00:15]
-输出:  - 零基础受众增长策略 [TIME:00:15]
-```
-
-### 错误输出示例（绝对禁止）：
-```
-输入:  - AI Agent 自主规划任务 [TIME:05:30]
-输出:  - AI Agent 自主规划任务  ← 失败！[TIME:05:30] 去哪了？
-
-输入:  - 零基础受众增长策略 [TIME:00:15]
-输出:  - 零基础受众增长策略  ← 失败！[TIME:00:15] 去哪了？
-```
-
-### 验证步骤
-输出前检查：我输出的每一行，如果来自带有 [TIME:XX:XX] 的行，是否仍然保留了该标记？如果没有，把它加回去！
-
-## 优化规则
-
-1. **去重**: 删除父子同名节点、删除同级重复、合并相似内容
-2. **结构**: 控制在 3-4 层深度，确保父子逻辑关系
-3. **清理**: 删除致谢寒暄、抽象分类词；节点名 ≤ 30 字符
-4. **保留**: 人名地名公司名、数字日期、因果关系
-5. **强制要求**: 保留每行末尾的所有 `[PAGE:X]` 和 `[TIME:MM:SS]` 标记 - 绝对不要删除它们
-
-## 格式
-- # 根标题
-- - 和 2空格缩进
-
-**重要：只输出优化后的 Markdown。直接以 # 标题开始。不要解释。**
-
-{% endif %}

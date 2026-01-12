@@ -19,17 +19,17 @@ Every piece of content that has `[TIME:MM:SS]` or `[PAGE:X]` in the input MUST h
 
 ### Examples of CORRECT output:
 ```
-Input text: AI Agent 自主规划任务 [TIME:05:30]
-Output:     - AI Agent 自主规划任务 [TIME:05:30]
+Input text: AI Agent plans tasks autonomously [TIME:05:30]
+Output:     - AI Agent plans tasks autonomously [TIME:05:30]
 
-Input text: 零基础受众增长策略 [TIME:00:15]
-Output:     - 零基础受众增长策略 [TIME:00:15]
+Input text: Audience growth strategy from zero [TIME:00:15]
+Output:     - Audience growth strategy from zero [TIME:00:15]
 ```
 
 ### Examples of WRONG output (NEVER DO THIS):
 ```
-Input text: AI Agent 自主规划任务 [TIME:05:30]
-Output:     - AI Agent 自主规划任务  ← FAILED! Where is [TIME:05:30]?
+Input text: AI Agent plans tasks autonomously [TIME:05:30]
+Output:     - AI Agent plans tasks autonomously  ← FAILED! Where is [TIME:05:30]?
 ```
 
 ### Verification Step
