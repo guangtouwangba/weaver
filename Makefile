@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend install-system-deps run-backend run-frontend run dev clean venv
+.PHONY: help install install-backend install-backend-deps install-frontend install-system-deps run-backend run-frontend run dev clean venv venv-fresh
 
 # Variables
 VENV_DIR = venv
@@ -34,6 +34,31 @@ help:
 
 # Create virtual environment
 venv:
+	@if [ -d "$(VENV_DIR)" ]; then \
+		echo "✅ Virtual environment already exists at ./$(VENV_DIR)"; \
+	else \
+		echo "🐍 Checking Python version..."; \
+		PYTHON_CMD=$$(command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3 2>/dev/null); \
+		if [ -z "$$PYTHON_CMD" ]; then \
+			echo "❌ Error: Python 3 not found. Please install Python 3.11 or higher."; \
+			exit 1; \
+		fi; \
+		PYTHON_VER=$$($$PYTHON_CMD --version 2>&1 | awk '{print $$2}'); \
+		PYTHON_MAJOR=$$(echo $$PYTHON_VER | cut -d. -f1); \
+		PYTHON_MINOR=$$(echo $$PYTHON_VER | cut -d. -f2); \
+		if [ "$$PYTHON_MAJOR" -lt 3 ] || ([ "$$PYTHON_MAJOR" -eq 3 ] && [ "$$PYTHON_MINOR" -lt 11 ]); then \
+			echo "❌ Error: Python 3.11+ required (pyproject.toml), but found Python $$PYTHON_VER"; \
+			echo "   Please install Python 3.11 or higher: brew install python@3.11"; \
+			exit 1; \
+		fi; \
+		echo "✅ Found Python $$PYTHON_VER at $$PYTHON_CMD"; \
+		echo "🐍 Creating Python virtual environment with $$PYTHON_CMD..."; \
+		$$PYTHON_CMD -m venv $(VENV_DIR); \
+		echo "✅ Virtual environment created at ./$(VENV_DIR)"; \
+	fi
+
+# Force recreate virtual environment (used by install)
+venv-fresh:
 	@echo "🐍 Checking Python version..."
 	@PYTHON_CMD=$$(command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3 2>/dev/null); \
 	if [ -z "$$PYTHON_CMD" ]; then \
@@ -81,14 +106,18 @@ install-system-deps:
 	@echo "✅ System dependencies installed!"
 
 # Install all dependencies
-install: venv install-system-deps install-backend install-frontend
+install: venv-fresh install-system-deps install-backend-deps install-frontend
 	@echo "✅ All dependencies installed successfully!"
 	@echo ""
 	@echo "💡 To activate the virtual environment manually:"
 	@echo "   source $(VENV_DIR)/bin/activate"
 
-# Install backend dependencies
-install-backend: venv
+# Install backend dependencies (with fresh venv)
+install-backend: venv-fresh install-backend-deps
+	@echo ""
+
+# Install backend dependencies only (no venv recreation)
+install-backend-deps:
 	@echo "📦 Installing backend dependencies..."
 	@$(PIP) install --upgrade pip setuptools wheel
 	@cd app/backend && ../../$(PIP) install -e .
