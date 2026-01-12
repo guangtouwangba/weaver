@@ -15,7 +15,7 @@ class RetrievalConfig:
 
     top_k: int | None = None  # If None, will use settings.retrieval_top_k
     min_similarity: float | None = None  # If None, will use settings.retrieval_min_similarity
-    
+
     def __post_init__(self):
         """Initialize from settings if not explicitly provided."""
         settings = get_settings()
@@ -43,6 +43,7 @@ class RetrievalService:
         query: str,
         project_id: UUID,
         top_k: int | None = None,
+        document_id: UUID | None = None,
     ) -> List[SearchResult]:
         """Retrieve relevant chunks for a query."""
         # Get query embedding
@@ -53,11 +54,12 @@ class RetrievalService:
             query_embedding=query_embedding,
             project_id=project_id,
             limit=top_k or self.config.top_k,
+            document_id=document_id,
         )
 
-        # Filter by minimum similarity if configured
-        if self.config.min_similarity > 0:
+        # Filter by minimum similarity if configured, but allow all chunks if scoped to a document
+        # (This supports "Summarize this document" type queries where similarity might be low)
+        if self.config.min_similarity > 0 and not document_id:
             results = [r for r in results if r.similarity >= self.config.min_similarity]
 
         return results
-

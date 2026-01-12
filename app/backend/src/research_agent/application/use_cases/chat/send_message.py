@@ -63,11 +63,8 @@ class SendMessageUseCase:
             query=input.message,
             project_id=input.project_id,
             top_k=input.top_k,
+            document_id=input.document_id,
         )
-
-        # Filter by document if specified
-        if input.document_id:
-            results = [r for r in results if r.document_id == input.document_id]
 
         if not results:
             return SendMessageOutput(
@@ -109,4 +106,3 @@ class SendMessageUseCase:
             answer=response.content,
             sources=sources,
         )
-

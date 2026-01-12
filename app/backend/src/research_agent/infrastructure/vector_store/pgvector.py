@@ -41,6 +41,7 @@ class PgVectorStore(VectorStore):
         query_embedding: List[float],
         project_id: UUID,
         limit: int = 5,
+        document_id: UUID | None = None,
     ) -> List[SearchResult]:
         """
         Search for similar chunks using pgvector.
@@ -52,8 +53,20 @@ class PgVectorStore(VectorStore):
         # Convert embedding to pgvector format string
         embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
 
+        # Build query
+        where_clause = "project_id = cast(:project_id as uuid) AND embedding IS NOT NULL"
+        params = {
+            "embedding": embedding_str,
+            "project_id": str(project_id),
+            "limit": limit,
+        }
+
+        if document_id:
+            where_clause += " AND document_id = cast(:document_id as uuid)"
+            params["document_id"] = str(document_id)
+
         # Use explicit parameter binding for asyncpg compatibility
-        query = text("""
+        query = text(f"""
             SELECT 
                 id,
                 document_id,
@@ -61,15 +74,10 @@ class PgVectorStore(VectorStore):
                 page_number,
                 1 - (embedding <=> cast(:embedding as vector)) AS similarity
             FROM document_chunks
-            WHERE project_id = cast(:project_id as uuid)
-                AND embedding IS NOT NULL
+            WHERE {where_clause}
             ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT :limit
-        """).bindparams(
-            bindparam("embedding", value=embedding_str),
-            bindparam("project_id", value=str(project_id)),
-            bindparam("limit", value=limit),
-        )
+        """).bindparams(**{k: bindparam(k, value=v) for k, v in params.items()})
 
         try:
             result = await self._session.execute(query)
@@ -104,6 +112,7 @@ class PgVectorStore(VectorStore):
         vector_weight: float = 0.7,
         keyword_weight: float = 0.3,
         k: int = 20,  # Retrieve top-k from each method before fusion
+        document_id: UUID | None = None,
     ) -> List[SearchResult]:
         """
         Hybrid search combining vector similarity and full-text search using RRF.
@@ -129,8 +138,8 @@ class PgVectorStore(VectorStore):
 
         # Run both searches in parallel
         vector_results, keyword_results = await asyncio.gather(
-            self._vector_search(query_embedding, project_id, k),
-            self._keyword_search(query_text, project_id, k),
+            self._vector_search(query_embedding, project_id, k, document_id),
+            self._keyword_search(query_text, project_id, k, document_id),
         )
 
         # Apply Reciprocal Rank Fusion (RRF)
@@ -150,11 +159,23 @@ class PgVectorStore(VectorStore):
         query_embedding: List[float],
         project_id: UUID,
         limit: int,
+        document_id: UUID | None = None,
     ) -> List[Dict[str, Any]]:
         """Vector similarity search returning raw results."""
         embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
 
-        query = text("""
+        where_clause = "project_id = cast(:project_id as uuid) AND embedding IS NOT NULL"
+        params = {
+            "embedding": embedding_str,
+            "project_id": str(project_id),
+            "limit": limit,
+        }
+
+        if document_id:
+            where_clause += " AND document_id = cast(:document_id as uuid)"
+            params["document_id"] = str(document_id)
+
+        query = text(f"""
             SELECT 
                 id,
                 document_id,
@@ -162,15 +183,10 @@ class PgVectorStore(VectorStore):
                 page_number,
                 1 - (embedding <=> cast(:embedding as vector)) AS score
             FROM document_chunks
-            WHERE project_id = cast(:project_id as uuid)
-                AND embedding IS NOT NULL
+            WHERE {where_clause}
             ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT :limit
-        """).bindparams(
-            bindparam("embedding", value=embedding_str),
-            bindparam("project_id", value=str(project_id)),
-            bindparam("limit", value=limit),
-        )
+        """).bindparams(**{k: bindparam(k, value=v) for k, v in params.items()})
 
         try:
             result = await self._session.execute(query)
@@ -204,13 +220,25 @@ class PgVectorStore(VectorStore):
         query_text: str,
         project_id: UUID,
         limit: int,
+        document_id: UUID | None = None,
     ) -> List[Dict[str, Any]]:
         """Full-text search using PostgreSQL TSVector."""
         # Sanitize query text for tsquery
         # Replace special characters and prepare for websearch_to_tsquery
         sanitized_query = query_text.strip()
 
-        query = text("""
+        where_clause = "project_id = cast(:project_id as uuid) AND content_tsvector @@ websearch_to_tsquery('english', :query)"
+        params = {
+            "query": sanitized_query,
+            "project_id": str(project_id),
+            "limit": limit,
+        }
+
+        if document_id:
+            where_clause += " AND document_id = cast(:document_id as uuid)"
+            params["document_id"] = str(document_id)
+
+        query = text(f"""
             SELECT 
                 id,
                 document_id,
@@ -218,15 +246,10 @@ class PgVectorStore(VectorStore):
                 page_number,
                 ts_rank_cd(content_tsvector, websearch_to_tsquery('english', :query)) AS score
             FROM document_chunks
-            WHERE project_id = cast(:project_id as uuid)
-                AND content_tsvector @@ websearch_to_tsquery('english', :query)
+            WHERE {where_clause}
             ORDER BY score DESC
             LIMIT :limit
-        """).bindparams(
-            bindparam("query", value=sanitized_query),
-            bindparam("project_id", value=str(project_id)),
-            bindparam("limit", value=limit),
-        )
+        """).bindparams(**{k: bindparam(k, value=v) for k, v in params.items()})
 
         try:
             result = await self._session.execute(query)

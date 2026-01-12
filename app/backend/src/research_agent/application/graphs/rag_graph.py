@@ -223,6 +223,8 @@ class GraphState(TypedDict):
     retrieved_memories: list[dict[str, Any]]  # Semantically retrieved past discussions
     # Canvas context
     canvas_context: str  # Context from explicitly selected canvas nodes
+    # Active document scope
+    active_document_id: str | None  # If set, limits scope to this document ID
 
 
 # --- Grading Schema ---
@@ -1040,6 +1042,7 @@ async def rerank(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """
     Rerank retrieved documents using LLM-based relevance scoring.
     Takes top-k documents and reranks them for better precision.
+    Bypasses reranking for documents matching the active_document_id.
     """
     import time
 
@@ -1052,6 +1055,12 @@ async def rerank(state: GraphState, llm: ChatOpenAI) -> GraphState:
         return {"reranked_documents": []}
 
     logger.info(f"Reranking {len(documents)} documents")
+
+    active_doc_id = state.get("active_document_id")
+    if active_doc_id:
+        logger.info(
+            f"[Rerank] Active document ID: {active_doc_id}, bypassing checks for matching docs"
+        )
 
     # Prompt for scoring document relevance
     system_prompt = """You are a document relevance scorer. Rate how relevant the given document
@@ -1076,6 +1085,13 @@ Output ONLY a single number between 0-10. No explanation."""
     doc_scores = []
     for i, doc in enumerate(documents):
         try:
+            # Auto-pass if document matches active context
+            doc_id = doc.metadata.get("document_id")
+            if active_doc_id and doc_id == active_doc_id:
+                logger.debug(f"[Rerank] Auto-passing doc {i + 1} (matches active_doc_id)")
+                doc_scores.append((10.0, doc))
+                continue
+
             # Truncate very long documents
             doc_content = (
                 doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
@@ -1136,6 +1152,12 @@ def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
         f"[Grade] Grading {len(documents)} documents for relevance (question: '{question[:50]}...')"
     )
 
+    active_doc_id = state.get("active_document_id")
+    if active_doc_id:
+        logger.info(
+            f"[Grade] Active document ID: {active_doc_id}, bypassing checks for matching docs"
+        )
+
     # Simple prompt that asks for yes/no directly (no structured output needed)
     system_prompt = """You are a grader assessing relevance of a retrieved document to a user question.
 If the document contains keyword(s) or semantic meaning related to the question, it is relevant.
@@ -1157,6 +1179,13 @@ Reply with ONLY 'yes' or 'no'. Nothing else."""
     filtered_docs = []
     for i, doc in enumerate(documents):
         try:
+            # Auto-pass if document matches active context
+            doc_id = doc.metadata.get("document_id")
+            if active_doc_id and doc_id == active_doc_id:
+                logger.info(f"[Grade] Auto-passing doc {i + 1} (matches active_doc_id)")
+                filtered_docs.append(doc)
+                continue
+
             logger.debug(f"[Grade] Grading document {i + 1}/{len(documents)}")
 
             # Truncate very long documents
@@ -1685,6 +1714,7 @@ async def stream_rag_response(
     session: Any = None,  # AsyncSession
     embedding_service: Any = None,  # EmbeddingService
     canvas_context: str = "",  # Context from canvas nodes
+    active_document_id: str | None = None,  # Active document scope
 ):
     """
     Stream RAG response token by token with intent-based adaptive strategies.
@@ -1716,6 +1746,7 @@ async def stream_rag_response(
         "question": question,
         "chat_history": chat_history or [],
         "canvas_context": canvas_context,
+        "active_document_id": active_document_id,
     }
 
     # Step 1: Query rewriting / expansion (optional)

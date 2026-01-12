@@ -125,7 +125,7 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
                 style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justifyContent: 'flex-start', // Changed from center to prevent overflow overlap
                     gap: 4,
                     height: sizeStyle.height,
                     paddingLeft: sizeStyle.paddingX,
@@ -142,6 +142,7 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
                     transition: 'all 0.15s ease',
                     userSelect: 'none',
                     whiteSpace: 'nowrap',
+                    maxWidth: '100%', // Ensure chip doesn't exceed parent
                     ...style,
                 }}
             >
@@ -152,12 +153,19 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
                             alignItems: 'center',
                             justifyContent: 'center',
                             marginLeft: -2,
+                            flexShrink: 0, // Prevent icon from shrinking
                         }}
                     >
                         {icon}
                     </span>
                 )}
-                <span>{label}</span>
+                <span style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    minWidth: 0, // Allow flex child to shrink below content size
+                }}>
+                    {label}
+                </span>
                 {onDelete && (
                     <button
                         type="button"
@@ -179,6 +187,7 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
                             cursor: disabled ? 'default' : 'pointer',
                             opacity: 0.7,
                             transition: 'opacity 0.15s, background-color 0.15s',
+                            flexShrink: 0, // Prevent delete button from shrinking
                         }}
                         onMouseEnter={(e) => {
                             if (!disabled) {

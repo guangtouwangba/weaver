@@ -325,6 +325,7 @@ class StreamMessageUseCase:
                     project_id=input.project_id,
                     k=input.top_k,
                     use_hybrid_search=input.use_hybrid_search,
+                    document_id=input.document_id,
                 )
 
                 # Create LangChain LLM
@@ -351,6 +352,7 @@ class StreamMessageUseCase:
                     session=self._session,
                     embedding_service=self._embedding_service,
                     canvas_context=canvas_context,
+                    active_document_id=str(input.document_id) if input.document_id else None,
                 ):
                     if event["type"] == "sources":
                         # Convert LangChain documents to SourceRef
