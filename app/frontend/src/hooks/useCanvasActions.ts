@@ -79,6 +79,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       height: type === 'sticky' ? 200 : 160,
       color: type === 'sticky' ? '#fef3c7' : 'white',
       viewType: 'free',
+      tags: [],
     };
 
     addNodeToCanvas(node);
@@ -762,14 +763,35 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
       if (isOutputNode) {
         // Extract the actual output ID
         const outputId = nodeToDelete.outputId || nodeId.replace('output-', '');
-        // Delete from outputs API
-        await outputsApi.delete(projectId, outputId);
-        console.log(`Output ${outputId} deleted successfully`);
-      } else {
-        // Regular canvas node - delete from canvas API
-        await canvasApi.deleteNode(projectId, nodeId);
-        console.log(`Node ${nodeId} deleted successfully`);
+
+        try {
+          // Attempt to delete from outputs API
+          await outputsApi.delete(projectId, outputId);
+          console.log(`Output ${outputId} deleted successfully`);
+        } catch (error: any) {
+          // Handle 404 Not Found gracefully - if it's gone from backend, we just need to clean up canvas
+          // API client generic error might not give us status code directly easily depending on implementation,
+          // so we check message or assume best effort if specific error structure isn't available.
+          // Adjust this check based on actual API error structure.
+          const isNotFound = error?.status === 404 ||
+            error?.message?.includes('not found') ||
+            error?.message?.includes('404');
+
+          if (isNotFound) {
+            console.warn(`Output ${outputId} not found in backend, proceeding to delete canvas node.`);
+          } else {
+            // For other errors (auth, server error), we should probably rethrow to trigger rollback
+            console.error(`Failed to delete output ${outputId} from backend:`, error);
+            throw error;
+          }
+        }
       }
+
+      // ALWAYS delete the visual node from canvas API
+      // This ensures we don't end up with "zombie nodes" if output deletion had issues or was already done
+      await canvasApi.deleteNode(projectId, nodeId);
+      console.log(`Node ${nodeId} deleted from canvas successfully`);
+
     } catch (error) {
       console.error(`Failed to delete node ${nodeId}:`, error);
 

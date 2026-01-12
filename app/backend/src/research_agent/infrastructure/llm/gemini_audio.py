@@ -159,7 +159,24 @@ class GeminiAudioTranscriber:
                     prefix="youtube_cookies_",
                     suffix=".txt",
                 )
-                cookie_temp_file.write(settings.youtube_cookies_content)
+
+                content = settings.youtube_cookies_content
+                if not content.startswith("# Netscape"):
+                    logger.info(
+                        "[GeminiTranscriber] Converting cookies from Header format to Netscape format"
+                    )
+                    cookies = []
+                    # Helper to convert header format to Netscape format
+                    raw_cookies = [c.strip() for c in content.split(";") if c.strip()]
+                    for cookie in raw_cookies:
+                        if "=" not in cookie:
+                            continue
+                        name, value = cookie.split("=", 1)
+                        # Netscape format: domain flag path secure expiration name value
+                        cookies.append(f".youtube.com\tTRUE\t/\tTRUE\t2147483647\t{name}\t{value}")
+                    content = "# Netscape HTTP Cookie File\n" + "\n".join(cookies) + "\n"
+
+                cookie_temp_file.write(content)
                 cookie_temp_file.close()
                 cookie_temp_path = Path(cookie_temp_file.name)
                 logger.info("[GeminiTranscriber] Using cookies provided via environment variable")
