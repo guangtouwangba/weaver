@@ -730,6 +730,59 @@ export const healthApi = {
 // WebSocket URL helper
 export function getWebSocketUrl(): string {
   const apiUrl = getApiUrl();
+  
+  // If apiUrl is empty (using Next.js proxy), we need to construct the WebSocket URL
+  // directly to the backend since Next.js rewrites don't support WebSocket
+  if (!apiUrl && typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // Check for runtime WebSocket URL config
+    if ((window as any).__WS_URL__) {
+      console.log('[WebSocket] Using window config URL:', (window as any).__WS_URL__);
+      return (window as any).__WS_URL__;
+    }
+    
+    // Check for NEXT_PUBLIC_WS_URL env var (set at build time)
+    const wsEnvUrl = process.env.NEXT_PUBLIC_WS_URL;
+    if (wsEnvUrl && wsEnvUrl !== 'undefined') {
+      console.log('[WebSocket] Using NEXT_PUBLIC_WS_URL:', wsEnvUrl);
+      return wsEnvUrl;
+    }
+    
+    // Try to get API_URL from Next.js build-time config and convert to WebSocket
+    // This is set in next.config.ts and used for rewrites
+    const apiEnvUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiEnvUrl && apiEnvUrl !== 'undefined' && !apiEnvUrl.includes('.internal')) {
+      const wsUrl = apiEnvUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      console.log('[WebSocket] Derived from NEXT_PUBLIC_API_URL:', wsUrl);
+      return wsUrl;
+    }
+    
+    // For Zeabur deployments, try to derive API hostname from frontend hostname
+    if (hostname.includes('zeabur.app')) {
+      const apiHostname = hostname
+        .replace('-web-', '-api-')
+        .replace('-frontend-', '-api-')
+        .replace('research-agent-rag-web', 'research-agent-rag-api')
+        .replace('research-agent-rag-frontend', 'research-agent-rag-api');
+      
+      // If hostname didn't change, we can't derive the API URL
+      if (apiHostname !== hostname) {
+        console.log('[WebSocket] Constructing Zeabur backend URL for:', apiHostname);
+        return `wss://${apiHostname}`;
+      }
+      
+      // For custom domains like weaver.zeabur.app, log a warning
+      console.warn('[WebSocket] Cannot derive API URL from hostname:', hostname);
+      console.warn('[WebSocket] Please set NEXT_PUBLIC_WS_URL or NEXT_PUBLIC_API_URL environment variable');
+    }
+    
+    // Fallback to current origin with ws/wss (will likely fail for proxied setups)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    console.log('[WebSocket] Fallback to current origin:', `${protocol}//${window.location.host}`);
+    return `${protocol}//${window.location.host}`;
+  }
+  
   // Convert HTTP(S) to WS(S)
   return apiUrl
     .replace('https://', 'wss://')

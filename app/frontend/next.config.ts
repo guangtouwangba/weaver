@@ -21,6 +21,9 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    // Expose API_URL as NEXT_PUBLIC_API_URL for client-side WebSocket connections
+    // This is needed because Next.js rewrites don't support WebSocket
+    NEXT_PUBLIC_API_URL: process.env.API_URL || process.env.NEXT_PUBLIC_API_URL,
   },
   async rewrites() {
     const apiUrl = process.env.API_URL || 'http://localhost:8000';
