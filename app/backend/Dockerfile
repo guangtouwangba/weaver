@@ -19,7 +19,9 @@ COPY src src/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir .
+    pip install --no-cache-dir . && \
+    # Verify critical dependencies are installed
+    python -c "import youtube_transcript_api; print('✓ youtube-transcript-api installed')"
 
 # --- Production Stage ---
 FROM python:3.13-slim

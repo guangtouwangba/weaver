@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.10.9",
@@ -44,7 +47,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^9",
-    "eslint-config-next": "16.0.4"
+    "eslint-config-next": "16.0.4",
+    "fast-check": "^3.22.0",
+    "vitest": "^2.1.0"
   }
 }
