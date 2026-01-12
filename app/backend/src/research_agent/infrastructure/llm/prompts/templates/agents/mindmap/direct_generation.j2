@@ -5,19 +5,35 @@ Convert this text into **structured knowledge notes**.
 
 {% include "_base/skills.j2" %}
 
-## ⚠️ CRITICAL: Source Marker Preservation
+## ⚠️⚠️⚠️ ABSOLUTE REQUIREMENT: SOURCE MARKER PRESERVATION ⚠️⚠️⚠️
 
-**You MUST preserve ALL source markers `[TIME:MM:SS]` and `[PAGE:X]` exactly as they appear in the input!**
+**STOP! Before you output anything, understand this rule:**
 
-These markers link content to original sources (video timestamps, PDF pages). Removing them breaks navigation functionality.
+Every piece of content that has `[TIME:MM:SS]` or `[PAGE:X]` in the input MUST have the SAME marker in your output.
 
-Example - CORRECT:
-- Input text: `AI Agent 自主规划任务 [TIME:05:30]`
-- Output: `- AI Agent 自主规划任务 [TIME:05:30]`
+**This is NON-NEGOTIABLE. Failure to preserve markers = FAILED TASK.**
 
-Example - WRONG (DO NOT DO THIS):
-- Input text: `AI Agent 自主规划任务 [TIME:05:30]`
-- Output: `- AI Agent 自主规划任务` ← WRONG! Marker removed!
+### What are source markers?
+- `[TIME:05:30]` - Video timestamp (links to video at 5:30)
+- `[PAGE:3]` - PDF page number (links to page 3)
+
+### Examples of CORRECT output:
+```
+Input text: AI Agent 自主规划任务 [TIME:05:30]
+Output:     - AI Agent 自主规划任务 [TIME:05:30]
+
+Input text: 零基础受众增长策略 [TIME:00:15]
+Output:     - 零基础受众增长策略 [TIME:00:15]
+```
+
+### Examples of WRONG output (NEVER DO THIS):
+```
+Input text: AI Agent 自主规划任务 [TIME:05:30]
+Output:     - AI Agent 自主规划任务  ← FAILED! Where is [TIME:05:30]?
+```
+
+### Verification Step
+Before outputting, check: Does every line in my output that came from content with [TIME:XX:XX] still have that marker? If not, ADD IT BACK.
 
 ## Core Principle
 
@@ -42,7 +58,7 @@ Example - WRONG (DO NOT DO THIS):
 - Input text contains source markers like `[PAGE:X]` or `[TIME:MM:SS]`
 - When extracting points, you **MUST preserve** the most relevant source marker at the end of each line
 - If a point spans multiple sources, keep the primary source marker
-- **MANDATORY**: Every extracted point should retain its source marker
+- **MANDATORY**: Every extracted point should retain its source marker - DO NOT REMOVE THEM
 
 ## Extraction Principles
 
@@ -50,7 +66,7 @@ Example - WRONG (DO NOT DO THIS):
 2. **Show causality**: Cause → effect, problem → solution
 3. **Distinguish importance**: Core ideas vs supporting details
 4. **Remove noise**: Acknowledgements, greetings, repetition
-5. **MANDATORY**: Keep ALL `[PAGE:X]` and `[TIME:MM:SS]` markers
+5. **MANDATORY**: Keep ALL `[PAGE:X]` and `[TIME:MM:SS]` markers - NEVER DELETE THEM
 
 ## Format
 - # for root heading (summarize theme)

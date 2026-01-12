@@ -145,6 +145,8 @@ class Settings(BaseSettings):
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"  # Or self-hosted URL
+    langfuse_log_full_content: bool = True  # Log full prompt/response content (default: True)
+    langfuse_max_content_length: int = 500  # Max length when truncating (only used when log_full_content=False)
 
     # Supabase Auth
     supabase_jwt_secret: str = ""  # JWT secret for verifying Supabase Auth tokens

@@ -120,6 +120,26 @@ class OpenRouterLLMService(LLMService):
             headers["X-Title"] = self._site_name
         return headers
 
+    def _prepare_content_for_logging(self, content: str) -> str:
+        """Prepare content for Langfuse logging based on configuration.
+        
+        Args:
+            content: The content to prepare for logging
+            
+        Returns:
+            Full content if langfuse_log_full_content is True,
+            otherwise truncated content based on langfuse_max_content_length
+        """
+        settings = get_settings()
+        
+        if settings.langfuse_log_full_content:
+            return content
+        
+        max_len = settings.langfuse_max_content_length
+        if len(content) > max_len:
+            return content[:max_len] + "..."
+        return content
+
     async def chat(self, messages: List[ChatMessage]) -> ChatResponse:
         """Send chat messages and get response with optional Langfuse tracing."""
         langfuse = _get_langfuse_client()
@@ -128,11 +148,11 @@ class OpenRouterLLMService(LLMService):
         # Create Langfuse generation if enabled (new API v3)
         if langfuse and self._trace_name:
             try:
-                # Prepare input data for logging
+                # Prepare input data for logging (respects langfuse_log_full_content setting)
                 input_data = [
                     {
                         "role": m.role,
-                        "content": m.content[:500] + "..." if len(m.content) > 500 else m.content,
+                        "content": self._prepare_content_for_logging(m.content),
                     }
                     for m in messages
                 ]
@@ -142,7 +162,10 @@ class OpenRouterLLMService(LLMService):
                     name=f"{self._trace_name}-llm-call",
                     model=self._model,
                     input=input_data,
-                    metadata={"trace_name": self._trace_name},
+                    metadata={
+                        "trace_name": self._trace_name,
+                        "model": self._model,  # Also include in metadata for easier filtering
+                    },
                 )
             except Exception as e:
                 logger.warning(f"[Langfuse] Failed to create generation: {e}")
@@ -165,13 +188,10 @@ class OpenRouterLLMService(LLMService):
             # Log output to Langfuse (new API: update then end)
             if generation:
                 try:
-                    output_preview = (
-                        result.content[:1000] + "..."
-                        if len(result.content) > 1000
-                        else result.content
-                    )
+                    # Prepare output for logging (respects langfuse_log_full_content setting)
+                    output_content = self._prepare_content_for_logging(result.content)
                     generation.update(
-                        output=output_preview,
+                        output=output_content,
                         usage_details={
                             "input": result.usage.get("prompt_tokens", 0),
                             "output": result.usage.get("completion_tokens", 0),
