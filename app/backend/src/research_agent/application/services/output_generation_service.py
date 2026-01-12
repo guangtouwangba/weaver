@@ -382,7 +382,7 @@ class OutputGenerationService:
         Backend returns markdown; frontend parses to nodes/edges.
         """
         from research_agent.application.graphs.mindmap_graph import _parse_markdown_to_nodes
-        from research_agent.domain.skills.srp import SRP_SKILL
+        from research_agent.domain.skills.mindmap_skill import SRP_SKILL
 
         # Prepare page-annotated content for source references
         annotated_content = await self._load_page_annotated_content(
