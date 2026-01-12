@@ -110,7 +110,7 @@ def _extract_content(text: str) -> str:
 
 def _count_source_markers(text: str) -> dict[str, int]:
     """Count source markers in text.
-    
+
     Returns a dict with counts for each marker type:
     - 'time': count of [TIME:MM:SS] markers
     - 'page': count of [PAGE:X] markers
@@ -119,36 +119,34 @@ def _count_source_markers(text: str) -> dict[str, int]:
     # Pattern for time markers: [TIME:12:30], [TIME:1:23:45]
     time_pattern = r"\[TIME:\d{1,2}:\d{2}(?::\d{2})?\]"
     time_count = len(re.findall(time_pattern, text, re.IGNORECASE))
-    
+
     # Pattern for page markers: [PAGE:15], [PAGE:15-17]
     page_pattern = r"\[PAGE:\d+(?:\s*-\s*\d+)?\]"
     page_count = len(re.findall(page_pattern, text, re.IGNORECASE))
-    
-    return {
-        'time': time_count,
-        'page': page_count,
-        'total': time_count + page_count
-    }
+
+    return {"time": time_count, "page": page_count, "total": time_count + page_count}
 
 
 def _validate_marker_preservation(original: str, refined: str) -> tuple[bool, str]:
     """Validate that source markers are preserved after refinement.
-    
+
     Returns (is_valid, message).
     - is_valid: True if markers are preserved (or original had none)
     - message: Description of the validation result
     """
     original_counts = _count_source_markers(original)
     refined_counts = _count_source_markers(refined)
-    
+
     # If original had no markers, nothing to validate
-    if original_counts['total'] == 0:
+    if original_counts["total"] == 0:
         return True, "No source markers in original content"
-    
+
     # Check if refined has significantly fewer markers (allow some reduction due to deduplication)
     # We use 50% threshold - if more than half are lost, consider it a failure
-    preservation_ratio = refined_counts['total'] / original_counts['total'] if original_counts['total'] > 0 else 1.0
-    
+    preservation_ratio = (
+        refined_counts["total"] / original_counts["total"] if original_counts["total"] > 0 else 1.0
+    )
+
     if preservation_ratio < 0.5:
         return False, (
             f"Source markers lost during refinement: "
@@ -158,7 +156,7 @@ def _validate_marker_preservation(original: str, refined: str) -> tuple[bool, st
             f"(TIME:{refined_counts['time']}, PAGE:{refined_counts['page']}), "
             f"preservation ratio: {preservation_ratio:.1%}"
         )
-    
+
     return True, (
         f"Source markers preserved: "
         f"original {original_counts['total']} -> refined {refined_counts['total']} "
@@ -235,92 +233,93 @@ def _parse_markdown_to_nodes(
     if not lines:
         return nodes, edges, root_id
 
-    # Stack to track parent nodes at each indent level
-    # Each entry: (node_id, indent_level)
+    # Stack to track parent nodes at each depth level
+    # Each entry: (node_id, depth)
     parent_stack: List[tuple[str, int]] = []
+
+    # Track the depth of the most recent header to anchor bullet points
+    # Start at -1 so top level bullets (if valid) start at 0
+    last_header_depth = -1
 
     for line in lines:
         if not line.strip():
             continue
 
-        # Check if it's a heading (root)
-        if line.startswith("#"):
-            # Extract heading text
-            heading_match = re.match(r"^#+\s*(.+)$", line)
-            if heading_match:
-                label = heading_match.group(1).strip()
-                clean_label, source_refs = _parse_source_marker(label)
+        current_depth = 0
+        clean_label = ""
+        source_refs = []
+        is_valid_node = False
 
-                # Fill in document_id for source refs
-                for ref in source_refs:
-                    ref.source_id = document_id or ""
+        # Check if it's a heading
+        heading_match = re.match(r"^(#+)\s*(.+)$", line)
+        if heading_match:
+            is_valid_node = True
+            level = len(heading_match.group(1))
+            # Map level 1 (#) to depth 0, level 2 (##) to depth 1, etc.
+            current_depth = level - 1
+            last_header_depth = current_depth
 
-                node_id = f"node-{uuid4().hex[:8]}"
-                node = MindmapNode(
-                    id=node_id,
-                    label=clean_label[:50],  # Limit label length
-                    content=clean_label,
-                    depth=0,
-                    parent_id=None,
-                    x=0,
-                    y=0,
-                    width=NODE_WIDTH,
-                    height=NODE_HEIGHT,
-                    color="primary",
-                    status="complete",
-                    source_refs=source_refs,
-                )
-                nodes[node_id] = node.to_dict()
-                root_id = node_id
-                parent_stack = [(node_id, -1)]  # Root is at indent -1
-            continue
-
-        # Check if it's a bullet point
-        bullet_match = re.match(r"^(\s*)-\s*(.+)$", line)
-        if bullet_match:
-            indent = len(bullet_match.group(1))
-            label = bullet_match.group(2).strip()
+            label = heading_match.group(2).strip()
             clean_label, source_refs = _parse_source_marker(label)
 
-            # Fill in document_id for source refs
-            for ref in source_refs:
-                ref.source_id = document_id or ""
+        # Check if it's a bullet point
+        else:
+            bullet_match = re.match(r"^(\s*)-\s*(.+)$", line)
+            if bullet_match:
+                is_valid_node = True
+                indent = len(bullet_match.group(1))
+                # Bullets start 1 level deeper than the last header
+                # Indent 0 = last_header_depth + 1
+                current_depth = last_header_depth + 1 + (indent // 2)
 
-            # Calculate depth based on indent (2 spaces per level)
-            depth = (indent // 2) + 1
+                label = bullet_match.group(2).strip()
+                clean_label, source_refs = _parse_source_marker(label)
 
-            # Find parent by popping stack until we find smaller indent
-            while parent_stack and parent_stack[-1][1] >= indent:
-                parent_stack.pop()
+        if not is_valid_node:
+            continue
 
-            parent_id = parent_stack[-1][0] if parent_stack else root_id
+        # Common node creation logic
 
-            node_id = f"node-{uuid4().hex[:8]}"
-            node = MindmapNode(
-                id=node_id,
-                label=clean_label[:50],  # Limit label length
-                content=clean_label,
-                depth=depth,
-                parent_id=parent_id,
-                x=0,
-                y=0,
-                width=NODE_WIDTH,
-                height=NODE_HEIGHT,
-                color=_get_color_for_level(depth),
-                status="complete",
-                source_refs=source_refs,
-            )
-            nodes[node_id] = node.to_dict()
+        # Fill in document_id for source refs
+        for ref in source_refs:
+            ref.source_id = document_id or ""
 
-            # Create edge
-            if parent_id:
-                edge_id = f"edge-{parent_id}-{node_id}"
-                edge = MindmapEdge(id=edge_id, source=parent_id, target=node_id)
-                edges.append(edge.to_dict())
+        # Find parent
+        # Pop stack until we find a node with depth < current_depth
+        while parent_stack and parent_stack[-1][1] >= current_depth:
+            parent_stack.pop()
 
-            # Push to stack
-            parent_stack.append((node_id, indent))
-            logger.debug(f"[_parse_markdown_to_nodes] Created node {node_id} at depth {depth}")
+        parent_id = parent_stack[-1][0] if parent_stack else None
+
+        node_id = f"node-{uuid4().hex[:8]}"
+
+        # Set root_id if this is the first root encountered
+        if parent_id is None and root_id is None:
+            root_id = node_id
+
+        node = MindmapNode(
+            id=node_id,
+            label=clean_label[:50],  # Limit label length
+            content=clean_label,
+            depth=current_depth,
+            parent_id=parent_id,
+            x=0,
+            y=0,
+            width=NODE_WIDTH,
+            height=NODE_HEIGHT,
+            color=_get_color_for_level(current_depth),
+            status="complete",
+            source_refs=source_refs,
+        )
+        nodes[node_id] = node.to_dict()
+
+        if parent_id:
+            edge_id = f"edge-{parent_id}-{node_id}"
+            edge = MindmapEdge(id=edge_id, source=parent_id, target=node_id)
+            edges.append(edge.to_dict())
+
+        parent_stack.append((node_id, current_depth))
+        logger.debug(f"[_parse_markdown_to_nodes] Created node {node_id} at depth {current_depth}")
 
     logger.info(f"[_parse_markdown_to_nodes] Parsed {len(nodes)} nodes and {len(edges)} edges")
     return nodes, edges, root_id
@@ -409,8 +408,8 @@ async def direct_generate(state: MindmapState) -> MindmapState:
             f"output has {output_marker_counts['total']} markers "
             f"(TIME:{output_marker_counts['time']}, PAGE:{output_marker_counts['page']})"
         )
-        
-        if input_marker_counts['total'] > 0 and output_marker_counts['total'] == 0:
+
+        if input_marker_counts["total"] > 0 and output_marker_counts["total"] == 0:
             logger.warning(
                 f"[MindmapGraph] WARNING: All source markers lost during direct generation! "
                 f"Input had {input_marker_counts['total']} markers but output has none."
@@ -450,7 +449,7 @@ async def refine_output(state: MindmapState) -> MindmapState:
         f"[MindmapGraph] Original content has {original_marker_counts['total']} source markers "
         f"(TIME:{original_marker_counts['time']}, PAGE:{original_marker_counts['page']})"
     )
-    
+
     # Log original markdown before refine
     logger.info(f"[MindmapGraph] Original Markdown (before refine):\n{markdown}")
 
@@ -491,7 +490,7 @@ async def refine_output(state: MindmapState) -> MindmapState:
         # Validate source marker preservation
         is_valid, validation_msg = _validate_marker_preservation(markdown, refined)
         logger.info(f"[MindmapGraph] Marker validation: {validation_msg}")
-        
+
         if not is_valid:
             logger.warning(
                 f"[MindmapGraph] Source markers lost during refinement! "
