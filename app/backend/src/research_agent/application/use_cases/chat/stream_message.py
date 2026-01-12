@@ -208,6 +208,33 @@ class StreamMessageUseCase:
                 )
                 trace.log("HISTORY", messages_count=len(messages))
 
+                # === Context Extraction from History ===
+                active_entities = {}
+                current_focus = None
+                
+                # Replay history to rebuild entity state (oldest to newest)
+                # messages are returned newest-first, so reverse them
+                for msg in reversed(messages):
+                    if msg.context_refs:
+                        if "entities" in msg.context_refs:
+                            active_entities.update(msg.context_refs["entities"])
+                        if "focus" in msg.context_refs:
+                            current_focus = msg.context_refs["focus"]
+                
+                # Incorporate current request context (new attachments)
+                if context_refs:
+                    # If user attached URLs, they become active entities
+                    if "urls" in context_refs and context_refs["urls"]:
+                        for url in context_refs["urls"]:
+                            entity = {
+                                "id": url["id"], 
+                                "type": "video" if "video" in url.get("platform", "").lower() else "document",
+                                "title": url["title"]
+                            }
+                            active_entities[url["id"]] = entity
+                            current_focus = entity # Focus shifts to new attachment
+
+
                 # === Canvas Context Retrieval ===
                 canvas_context = ""
                 canvas_node_count = 0
@@ -349,10 +376,11 @@ class StreamMessageUseCase:
                     enable_intent_cache=settings.intent_cache_enabled,
                     rag_mode=input.rag_mode,
                     project_id=input.project_id,
-                    session=self._session,
                     embedding_service=self._embedding_service,
                     canvas_context=canvas_context,
                     active_document_id=str(input.document_id) if input.document_id else None,
+                    active_entities=active_entities,
+                    current_focus=current_focus,
                 ):
                     if event["type"] == "sources":
                         # Convert LangChain documents to SourceRef
@@ -396,10 +424,15 @@ class StreamMessageUseCase:
                         ]
 
                         yield StreamEvent(type="sources", sources=sources)
-                    elif event["type"] == "citations":
                         # Handle citations from long context mode
                         citations_data = event.get("citations", [])
                         trace.metrics["citations_count"] = len(citations_data)
+                    elif event["type"] == "context_update":
+                        # Update current context state for persistence
+                        if "active_entities" in event:
+                            active_entities.update(event["active_entities"])
+                        if "current_focus" in event:
+                            current_focus = event["current_focus"]
                     elif event["type"] == "status":
                         # Forward thinking status events to frontend
                         yield StreamEvent(
@@ -427,6 +460,10 @@ class StreamMessageUseCase:
                         role="ai",
                         content=full_response,
                         sources=response_sources,
+                        context_refs={
+                            "entities": active_entities,
+                            "focus": current_focus,
+                        } if active_entities or current_focus else None
                     )
                     await repo.save(ai_message)
 

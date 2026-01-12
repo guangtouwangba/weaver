@@ -18,6 +18,7 @@ from research_agent.infrastructure.llm.prompts import render_prompt
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import rag_log, rag_log_with_timing
+from research_agent.domain.services.conversation_context import ConversationContext
 
 # Query rewrite cache (in-memory, simple LRU could be added later)
 _rewrite_cache: dict[str, dict[str, str]] = {}
@@ -225,6 +226,9 @@ class GraphState(TypedDict):
     canvas_context: str  # Context from explicitly selected canvas nodes
     # Active document scope
     active_document_id: str | None  # If set, limits scope to this document ID
+    # Context Awareness
+    active_entities: dict[str, Any]  # Tracked entities (videos, docs) by ID
+    current_focus: dict[str, Any] | None  # Current subject of discussion
 
 
 # --- Grading Schema ---
@@ -484,6 +488,7 @@ def validate_rewrite(original: str, rewritten: str, max_expansion_ratio: float =
     return True
 
 
+
 # --- Node Functions ---
 
 
@@ -526,6 +531,26 @@ async def transform_query(
             return _rewrite_cache[cache_key]
 
     logger.info(f"Rewriting query with {len(chat_history)} history messages")
+
+    # Resolve entity references using ConversationContext
+    auth_ctx = ConversationContext(
+        entities=state.get("active_entities"),
+        focus=state.get("current_focus"),
+    )
+    resolved_entity = auth_ctx.resolve_reference(question)
+    extra_updates = {}
+
+    if resolved_entity:
+        logger.info(
+            f"[Context] Resolved reference to: {resolved_entity.get('title')} ({resolved_entity.get('id')})"
+        )
+        extra_updates["current_focus"] = resolved_entity
+        if resolved_entity.get("type") in ["document", "video"]:
+            extra_updates["active_document_id"] = resolved_entity.get("id")
+
+        # Inject context hint for better rewriting
+        question = f"{question} (Referring to {resolved_entity.get('type')} '{resolved_entity.get('title')}')"
+
 
     # Build context
     history_context = "\n".join(
@@ -583,17 +608,18 @@ NOT: "如何通过配置文件定义图谱模式的Node对象？" ✗"""
         logger.info(f"[Rewrite] '{question}' -> '{rewritten}'")
 
         result = {"rewritten_question": rewritten, "question": question}
+        final_result = {**result, **extra_updates}
 
         # Cache result
         if enable_cache and cache_key:
-            _rewrite_cache[cache_key] = result
+            _rewrite_cache[cache_key] = final_result
             # Simple cache size limit (keep last 100 entries)
             if len(_rewrite_cache) > 100:
                 # Remove oldest entry (simple FIFO)
                 oldest_key = next(iter(_rewrite_cache))
                 del _rewrite_cache[oldest_key]
 
-        return result
+        return final_result
 
     except Exception as e:
         logger.error(f"Rewrite failed: {e}")
@@ -1014,8 +1040,30 @@ async def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphStat
     else:
         logger.info(f"[Retrieve] Using default strategy: top_k={retriever.k}")
 
-    # Async retriever call
-    documents = await retriever._aget_relevant_documents(query)
+    # Apply context filters
+    active_doc_id = state.get("active_document_id")
+    # Store original filter to restore (if retriever is shared, which relies on LangChain internals)
+    # Ideally we pass filter to _aget_relevant_documents but if it's not supported we modify retriever
+    original_search_kwargs = getattr(retriever, "search_kwargs", {}).copy()
+    
+    if active_doc_id:
+        current_filter = original_search_kwargs.get("filter", {})
+        # Merge or overwrite? Usually overwrite for specific doc scope
+        # Assuming pgvector filter format: {"document_id": "uuid"}
+        new_filter = current_filter.copy()
+        new_filter["document_id"] = active_doc_id
+        
+        # Update retriever
+        retriever.search_kwargs["filter"] = new_filter
+        logger.info(f"[Retrieve] Applied filter: document_id={active_doc_id}")
+
+    try:
+        # Async retriever call
+        documents = await retriever._aget_relevant_documents(query)
+    finally:
+        # Restore original filter if we modified it
+        if active_doc_id:
+            retriever.search_kwargs = original_search_kwargs
 
     # Calculate metrics
     latency_ms = round((time.time() - start_time) * 1000, 2)
@@ -1715,6 +1763,8 @@ async def stream_rag_response(
     embedding_service: Any = None,  # EmbeddingService
     canvas_context: str = "",  # Context from canvas nodes
     active_document_id: str | None = None,  # Active document scope
+    active_entities: dict[str, Any] | None = None,
+    current_focus: dict[str, Any] | None = None,
 ):
     """
     Stream RAG response token by token with intent-based adaptive strategies.
@@ -1734,6 +1784,14 @@ async def stream_rag_response(
         enable_rewrite_cache: Cache rewrite results to avoid redundant LLM calls
         enable_intent_cache: Cache intent classification results
         max_expansion_ratio: Maximum allowed expansion ratio (rewritten/original length)
+        rag_mode: RAG mode (traditional | long_context | auto)
+        project_id: Project UUID
+        session: Database session
+        embedding_service: Embedding service
+        canvas_context: Context from canvas nodes
+        active_document_id: Active document scope
+        active_entities: Map of active entities for context resolution
+        current_focus: Current entity in focus 
 
     Yields:
         dict with 'type' and 'content' keys
@@ -1747,7 +1805,42 @@ async def stream_rag_response(
         "chat_history": chat_history or [],
         "canvas_context": canvas_context,
         "active_document_id": active_document_id,
+        "active_entities": active_entities or {},
+        "current_focus": current_focus,
+        "active_entities": active_entities or {},
+        "current_focus": current_focus,
     }
+
+    # Step 0: Entity Resolution (Context-Awareness)
+    # Resolve "this video", "that pdf" references before any processing
+    auth_ctx = ConversationContext(
+        entities=state.get("active_entities"),
+        focus=state.get("current_focus"),
+    )
+    resolved_entity = auth_ctx.resolve_reference(question)
+    
+    if resolved_entity:
+        logger.info(
+            f"[Stream] Resolved reference to: {resolved_entity.get('title')} ({resolved_entity.get('id')})"
+        )
+        state["current_focus"] = resolved_entity
+        
+        # Propagate to document filter
+        if resolved_entity.get("type") in ["document", "video"]:
+            state["active_document_id"] = resolved_entity.get("id")
+            
+        # Emit context update event for persistence
+        yield {
+            "type": "context_update",
+            "current_focus": resolved_entity,
+            "active_entities": state.get("active_entities") # Optional, if we updated list
+        }
+        
+        # Inject hint into question for downstream tasks (rewrite/retrieval)
+        # We append a hint so LLM/Keyword search knows the context
+        hint = f" (Referring to {resolved_entity.get('type')} '{resolved_entity.get('title')}')"
+        if hint not in question:
+            state["question"] = question + hint
 
     # Step 1: Query rewriting / expansion (optional)
     # Build history context for prompt-based resolution (used in generation step)

@@ -34,13 +34,28 @@ help:
 
 # Create virtual environment
 venv:
-	@if [ ! -d "$(VENV_DIR)" ]; then \
-		echo "🐍 Creating Python virtual environment..."; \
-		python3 -m venv $(VENV_DIR); \
-		echo "✅ Virtual environment created at ./$(VENV_DIR)"; \
-	else \
-		echo "✅ Virtual environment already exists"; \
-	fi
+	@echo "🐍 Checking Python version..."
+	@PYTHON_CMD=$$(command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3 2>/dev/null); \
+	if [ -z "$$PYTHON_CMD" ]; then \
+		echo "❌ Error: Python 3 not found. Please install Python 3.11 or higher."; \
+		exit 1; \
+	fi; \
+	PYTHON_VER=$$($$PYTHON_CMD --version 2>&1 | awk '{print $$2}'); \
+	PYTHON_MAJOR=$$(echo $$PYTHON_VER | cut -d. -f1); \
+	PYTHON_MINOR=$$(echo $$PYTHON_VER | cut -d. -f2); \
+	if [ "$$PYTHON_MAJOR" -lt 3 ] || ([ "$$PYTHON_MAJOR" -eq 3 ] && [ "$$PYTHON_MINOR" -lt 11 ]); then \
+		echo "❌ Error: Python 3.11+ required (pyproject.toml), but found Python $$PYTHON_VER"; \
+		echo "   Please install Python 3.11 or higher: brew install python@3.11"; \
+		exit 1; \
+	fi; \
+	echo "✅ Found Python $$PYTHON_VER at $$PYTHON_CMD"; \
+	if [ -d "$(VENV_DIR)" ]; then \
+		echo "⚠️  Virtual environment already exists. Removing old venv..."; \
+		rm -rf $(VENV_DIR); \
+	fi; \
+	echo "🐍 Creating Python virtual environment with $$PYTHON_CMD..."; \
+	$$PYTHON_CMD -m venv $(VENV_DIR); \
+	echo "✅ Virtual environment created at ./$(VENV_DIR)"
 
 # Install system dependencies (poppler for pdf2image, ffmpeg for audio transcription)
 install-system-deps:
