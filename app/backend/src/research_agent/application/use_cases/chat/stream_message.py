@@ -18,12 +18,12 @@ from research_agent.infrastructure.database.session import get_async_session
 from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.infrastructure.evaluation.evaluation_logger import EvaluationLogger
 from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
-from research_agent.infrastructure.llm.langchain_openrouter import create_langchain_llm
+from research_agent.infrastructure.llm.openrouter import create_langchain_llm
+from research_agent.infrastructure.resource_resolver import ResourceResolver
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
 from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import RAGTrace
-from research_agent.infrastructure.resource_resolver import ResourceResolver
 
 settings = get_settings()
 
@@ -81,7 +81,9 @@ class StreamEvent:
     content: Optional[str] = None
     sources: Optional[List[SourceRef]] = None
     citations: Optional[List[dict]] = None  # Citations from long context mode
-    step: Optional[str] = None  # For status events: rewriting, memory, analyzing, retrieving, ranking, generating
+    step: Optional[str] = (
+        None  # For status events: rewriting, memory, analyzing, retrieving, ranking, generating
+    )
     message: Optional[str] = None  # Human-readable status message
 
 
@@ -136,27 +138,30 @@ class StreamMessageUseCase:
         context_refs = None
         if input.context_url_ids or input.context_node_ids or input.context_nodes:
             context_refs = {}
-            
+
             # Fetch URL content metadata for display
             if input.context_url_ids:
                 try:
+                    from uuid import UUID as UUID_type
+
                     from research_agent.infrastructure.database.repositories.sqlalchemy_url_content_repo import (
                         SQLAlchemyUrlContentRepository,
                     )
-                    from uuid import UUID as UUID_type
-                    
+
                     url_repo = SQLAlchemyUrlContentRepository(self._session)
                     urls = []
                     for url_id in input.context_url_ids:
                         try:
                             url_content = await url_repo.get_by_id(UUID_type(url_id))
                             if url_content:
-                                urls.append({
-                                    "id": str(url_content.id),
-                                    "title": url_content.title,
-                                    "platform": url_content.platform,
-                                    "url": url_content.url,
-                                })
+                                urls.append(
+                                    {
+                                        "id": str(url_content.id),
+                                        "title": url_content.title,
+                                        "platform": url_content.platform,
+                                        "url": url_content.url,
+                                    }
+                                )
                         except Exception as e:
                             logger.warning(f"Failed to fetch URL content {url_id}: {e}")
                             urls.append({"id": url_id, "title": "URL"})
@@ -164,7 +169,7 @@ class StreamMessageUseCase:
                 except Exception as e:
                     logger.error(f"Failed to fetch URL metadata: {e}")
                     context_refs["url_ids"] = input.context_url_ids
-                    
+
             if input.context_node_ids:
                 context_refs["node_ids"] = input.context_node_ids
             if input.context_nodes:
@@ -253,7 +258,7 @@ class StreamMessageUseCase:
                         resolver = ResourceResolver(self._session)
                         url_uuids = [UUID(uid) for uid in input.context_url_ids]
                         resources = await resolver.resolve_many(url_uuids)
-                        
+
                         url_context_parts = []
                         max_content_length = 50000  # Truncate long transcripts/articles
 
@@ -262,10 +267,16 @@ class StreamMessageUseCase:
                                 # Truncate content if too long
                                 content = resource.display_content
                                 if len(content) > max_content_length:
-                                    content = content[:max_content_length] + "\n\n[Content truncated...]"
+                                    content = (
+                                        content[:max_content_length] + "\n\n[Content truncated...]"
+                                    )
 
                                 # Build context with source info
-                                source_info = f"Source: {resource.source_url}\n\n" if resource.source_url else ""
+                                source_info = (
+                                    f"Source: {resource.source_url}\n\n"
+                                    if resource.source_url
+                                    else ""
+                                )
                                 url_context_parts.append(
                                     f"{resource.get_formatted_content().split(chr(10), 1)[0]}\n"
                                     f"{source_info}{content}"
@@ -276,7 +287,9 @@ class StreamMessageUseCase:
                             url_count = len(url_context_parts)
 
                     except Exception as e:
-                        logger.error(f"[ResourceContext] Failed to retrieve URL content: {e}", exc_info=True)
+                        logger.error(
+                            f"[ResourceContext] Failed to retrieve URL content: {e}", exc_info=True
+                        )
 
                 # Combine canvas context and URL context
                 if url_context:
