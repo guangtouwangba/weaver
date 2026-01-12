@@ -30,7 +30,7 @@ function LoginContent() {
             // Check if there's a hash with access_token (implicit flow)
             const hash = window.location.hash;
             console.log('[Login] Checking URL hash:', hash ? 'Has hash' : 'No hash');
-            
+
             if (hash && hash.includes('access_token')) {
                 console.log('[Login] Found access_token in hash, getting session...');
                 // Supabase client will automatically detect and set the session from URL
@@ -95,6 +95,17 @@ function LoginContent() {
         );
     }
 
+    const getRedirectUrl = () => {
+        if (typeof window === 'undefined') return '';
+        // Prefer env var if set (for consistent behavior behind proxies)
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+        if (siteUrl) {
+            return `${siteUrl}/auth/callback`;
+        }
+        // Fallback to window origin
+        return `${window.location.origin}/auth/callback`;
+    };
+
     return (
         <Container maxW="container.sm" py={20}>
             <VStack spacing={8} align="stretch">
@@ -119,7 +130,7 @@ function LoginContent() {
                                 },
                             }}
                             providers={['google', 'github']}
-                            redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
+                            redirectTo={getRedirectUrl()}
                             onlyThirdPartyProviders={false}
                             magicLink={true}
                         />
