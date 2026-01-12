@@ -10,7 +10,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Find .env file - check multiple locations
 def find_env_file() -> str:
     """Find .env file in current dir or parent dirs."""
-    import os
 
     candidates = []
 
@@ -44,7 +43,7 @@ if _env_file_exists:
     print(f"[Config] Loading .env from: {_env_file_path}")
 else:
     # This is normal in production - Zeabur/Docker uses environment variables directly
-    print(f"[Config] No .env file found (using environment variables instead)")
+    print("[Config] No .env file found (using environment variables instead)")
 
 
 class Settings(BaseSettings):
@@ -189,11 +188,25 @@ class Settings(BaseSettings):
     url_extraction_timeout: int = 60  # Timeout for URL extraction tasks (seconds)
     url_content_max_length: int = 50000  # Maximum content length (characters)
     disable_ssrf_check: bool = False  # Disable SSRF protection (only for development/testing)
+    youtube_cookies_path: str = ""  # Path to Netscape formatted cookies file for YouTube auth
+    youtube_cookies_content: str = ""  # Raw content of cookies.txt (useful for cloud envs)
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         """Parse CORS origins from comma-separated string."""
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+        # Default/Known origins
+        defaults = [
+            "https://research-agent-rag-web-dev.zeabur.app",
+            "https://research-agent-rag-frontend-dev.zeabur.app",
+            "https://weaver.zeabur.app",  # Production frontend
+            "http://localhost:3000",
+            "http://localhost:3001",
+        ]
+
+        # Deduplicate and return
+        return list(set(origins + defaults))
 
     @property
     def is_development(self) -> bool:

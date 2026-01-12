@@ -113,9 +113,13 @@ class GeminiAudioTranscriber:
         """
         try:
             import yt_dlp
+
+            from research_agent.config import get_settings
         except ImportError:
             logger.error("[GeminiTranscriber] yt-dlp not installed. Run: pip install yt-dlp")
             return None, None
+
+        settings = get_settings()
 
         # Create temp file
         temp_dir = tempfile.mkdtemp(prefix="gemini_audio_")
@@ -135,33 +139,67 @@ class GeminiAudioTranscriber:
             "no_warnings": True,
         }
 
-        url = f"https://www.youtube.com/watch?v={video_id}"
-
+        # Add cookies if configured
+        cookie_temp_path: Optional[Path] = None
         try:
-            logger.info(f"[GeminiTranscriber] Downloading audio: {video_id}")
+            if settings.youtube_cookies_path:
+                cookies_path = Path(settings.youtube_cookies_path)
+                if cookies_path.exists():
+                    logger.info(f"[GeminiTranscriber] Using cookies from file: {cookies_path}")
+                    ydl_opts["cookiefile"] = str(cookies_path)
+                else:
+                    logger.warning(
+                        f"[GeminiTranscriber] Configured cookies file not found: {cookies_path}"
+                    )
+            elif settings.youtube_cookies_content:
+                # Create temp cookie file
+                cookie_temp_file = tempfile.NamedTemporaryFile(
+                    mode="w",
+                    delete=False,
+                    prefix="youtube_cookies_",
+                    suffix=".txt",
+                )
+                cookie_temp_file.write(settings.youtube_cookies_content)
+                cookie_temp_file.close()
+                cookie_temp_path = Path(cookie_temp_file.name)
+                logger.info("[GeminiTranscriber] Using cookies provided via environment variable")
+                ydl_opts["cookiefile"] = str(cookie_temp_path)
 
-            # Run yt-dlp in executor to avoid blocking
-            loop = asyncio.get_event_loop()
+            url = f"https://www.youtube.com/watch?v={video_id}"
 
-            def download():
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    return info.get("duration", 0)
+            try:
+                logger.info(f"[GeminiTranscriber] Downloading audio: {video_id}")
 
-            duration = await loop.run_in_executor(None, download)
+                # Run yt-dlp in executor to avoid blocking
+                loop = asyncio.get_event_loop()
 
-            # Find the actual output file (yt-dlp may add/change extension)
-            for file in Path(temp_dir).glob(f"{video_id}.*"):
-                if file.suffix in (".mp3", ".m4a", ".webm", ".opus"):
-                    logger.info(f"[GeminiTranscriber] Downloaded: {file}, duration={duration}s")
-                    return file, duration
+                def download():
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=True)
+                        return info.get("duration", 0)
 
-            logger.error(f"[GeminiTranscriber] Audio file not found after download")
-            return None, None
+                duration = await loop.run_in_executor(None, download)
 
-        except Exception as e:
-            logger.error(f"[GeminiTranscriber] Download failed: {e}")
-            return None, None
+                # Find the actual output file (yt-dlp may add/change extension)
+                for file in Path(temp_dir).glob(f"{video_id}.*"):
+                    if file.suffix in (".mp3", ".m4a", ".webm", ".opus"):
+                        logger.info(f"[GeminiTranscriber] Downloaded: {file}, duration={duration}s")
+                        return file, duration
+
+                logger.error(f"[GeminiTranscriber] Audio file not found after download")
+                return None, None
+
+            except Exception as e:
+                logger.error(f"[GeminiTranscriber] Download failed: {e}")
+                return None, None
+
+        finally:
+            # Cleanup temp cookie file if created
+            if cookie_temp_path and cookie_temp_path.exists():
+                try:
+                    cookie_temp_path.unlink()
+                except Exception as e:
+                    logger.warning(f"[GeminiTranscriber] Failed to cleanup temp cookie file: {e}")
 
     async def _encode_audio(self, audio_path: Path) -> Optional[str]:
         """Read and base64 encode audio file."""
