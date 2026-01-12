@@ -47,15 +47,28 @@ class GeminiAudioTranscriber:
     # Gemini model for audio transcription
     TRANSCRIPTION_MODEL = "google/gemini-2.0-flash-001"
 
-    # Max duration in seconds (60 minutes / 1 hour)
-    MAX_DURATION_SECONDS = 60 * 60
-
     # Token rate: ~32 tokens per second of audio
     TOKENS_PER_SECOND = 32
 
-    def __init__(self, api_key: str, max_duration_seconds: int = MAX_DURATION_SECONDS):
+    def __init__(self, api_key: str, max_duration_minutes: Optional[int] = None):
+        """Initialize transcriber.
+        
+        Args:
+            api_key: OpenRouter API key
+            max_duration_minutes: Maximum video duration in minutes (defaults to config value)
+        """
         self._api_key = api_key
-        self._max_duration = max_duration_seconds
+        
+        # Get default from config if not specified
+        if max_duration_minutes is None:
+            try:
+                from research_agent.config import get_settings
+                settings = get_settings()
+                max_duration_minutes = settings.gemini_audio_max_duration_minutes
+            except Exception:
+                max_duration_minutes = 60  # Fallback default
+        
+        self._max_duration = max_duration_minutes * 60  # Convert to seconds
 
     async def transcribe_youtube(self, video_id: str) -> TranscriptionResult:
         """Transcribe a YouTube video's audio.
@@ -330,20 +343,20 @@ class GeminiAudioTranscriber:
 async def transcribe_youtube_video(
     video_id: str,
     api_key: str,
-    max_duration_minutes: int = 30,
+    max_duration_minutes: Optional[int] = None,
 ) -> TranscriptionResult:
     """Convenience function to transcribe a YouTube video.
 
     Args:
         video_id: YouTube video ID
         api_key: OpenRouter API key
-        max_duration_minutes: Maximum video duration in minutes
+        max_duration_minutes: Maximum video duration in minutes (defaults to config value)
 
     Returns:
         TranscriptionResult with transcript containing [TIME:MM:SS] markers
     """
     transcriber = GeminiAudioTranscriber(
         api_key=api_key,
-        max_duration_seconds=max_duration_minutes * 60,
+        max_duration_minutes=max_duration_minutes,
     )
     return await transcriber.transcribe_youtube(video_id)

@@ -190,6 +190,9 @@ class Settings(BaseSettings):
     disable_ssrf_check: bool = False  # Disable SSRF protection (only for development/testing)
     youtube_cookies_path: str = ""  # Path to Netscape formatted cookies file for YouTube auth
     youtube_cookies_content: str = ""  # Raw content of cookies.txt (useful for cloud envs)
+    
+    # Gemini Audio Transcription Configuration
+    gemini_audio_max_duration_minutes: int = 60  # Maximum video duration for Gemini audio transcription (minutes)
 
     @property
     def cors_origins_list(self) -> list[str]:
