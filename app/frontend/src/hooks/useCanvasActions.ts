@@ -631,6 +631,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
               case 'generation_complete':
                 console.log('[Mindmap WS Concurrent] Complete');
                 console.log('[Mindmap WS Concurrent] markdownContent present:', !!data.markdownContent);
+                console.log('[Mindmap WS Concurrent] Full event data:', JSON.stringify(data).substring(0, 500));
 
                 // Check for markdown content (new batch mode)
                 let finalData = streamingData;
@@ -640,21 +641,32 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                     data.markdownContent,
                     data.documentId
                   );
-                  console.log('[Mindmap WS Concurrent] Parsed:', parsedData.nodes.length, 'nodes');
+                  console.log('[Mindmap WS Concurrent] Parsed:', parsedData.nodes.length, 'nodes,', parsedData.edges.length, 'edges');
                   finalData = parsedData;
+                } else {
+                  console.log('[Mindmap WS Concurrent] No markdown, using streaming data:', streamingData.nodes.length, 'nodes');
                 }
 
                 // Apply layout to final data before completing
                 if (finalData.nodes.length > 0) {
+                  console.log('[Mindmap WS Concurrent] Applying layout to', finalData.nodes.length, 'nodes');
                   const layoutResult = applyLayout(finalData, 'balanced', 1200, 800);
                   finalData = {
                     nodes: layoutResult.nodes,
                     edges: [...finalData.edges]
                   };
+                  console.log('[Mindmap WS Concurrent] Layout applied, first node position:', layoutResult.nodes[0]?.x, layoutResult.nodes[0]?.y);
+                } else {
+                  console.warn('[Mindmap WS Concurrent] No nodes to layout!');
                 }
 
-                console.log(`[Mindmap WS Concurrent] Calling completeGeneration for task ${localTaskId}`);
-                completeGeneration(localTaskId, finalData, docTitle);
+                console.log(`[Mindmap WS Concurrent] Calling completeGeneration for task ${localTaskId} with`, finalData.nodes.length, 'nodes');
+                console.log('[Mindmap WS Concurrent] Final data sample:', JSON.stringify(finalData).substring(0, 300));
+                
+                // Call completeGeneration and wait for it to finish
+                await completeGeneration(localTaskId, finalData, docTitle);
+                
+                console.log('[Mindmap WS Concurrent] completeGeneration finished, cleaning up WebSocket');
                 clearInterval(pingInterval);
                 ws.close();
                 resolve();
@@ -721,7 +733,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
         console.log(`[Concurrent] ${type} complete`);
 
         // Only update generationTasks, not legacy overlay state
-        completeGeneration(localTaskId, output.data, output.title || docTitle);
+        await completeGeneration(localTaskId, output.data, output.title || docTitle);
         return;
       } else if (output.status === 'error') {
         const errMsg = output.error_message || 'Generation failed';

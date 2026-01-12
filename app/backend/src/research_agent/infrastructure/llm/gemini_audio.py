@@ -153,6 +153,11 @@ class GeminiAudioTranscriber:
             # Explicitly specify ffmpeg location (searches common paths)
             "ffmpeg_location": "/usr/bin",
         }
+        
+        # Add proxy if configured
+        if settings.youtube_proxy_url:
+            logger.info(f"[GeminiTranscriber] Using proxy for yt-dlp")
+            ydl_opts["proxy"] = settings.youtube_proxy_url
 
         # Add cookies if configured
         cookie_temp_path: Optional[Path] = None

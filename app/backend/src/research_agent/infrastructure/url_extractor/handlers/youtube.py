@@ -7,6 +7,9 @@ import re
 from typing import List, Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
+from research_agent.infrastructure.url_extractor.handlers.youtube_retry import (
+    execute_youtube_api_call,
+)
 from research_agent.infrastructure.url_extractor.utils import (
     PLATFORM_PATTERNS,
     truncate_content,
@@ -141,30 +144,49 @@ class YouTubeExtractor(URLExtractor):
 
         try:
             from youtube_transcript_api import YouTubeTranscriptApi
+            from youtube_transcript_api._proxy_config import GenericProxyConfig
+            
+            from research_agent.config import get_settings
+
+            settings = get_settings()
+
+            # Configure proxy if available
+            proxy_config = None
+            if settings.youtube_proxy_url:
+                logger.info(f"[YouTubeExtractor] Using proxy for transcript API")
+                proxy_config = GenericProxyConfig(
+                    http_proxy=settings.youtube_proxy_url,
+                    https_proxy=settings.youtube_proxy_url,
+                )
 
             # Create API instance (v1.x requires instantiation)
-            ytt_api = YouTubeTranscriptApi()
+            ytt_api = YouTubeTranscriptApi(proxy_config=proxy_config) if proxy_config else YouTubeTranscriptApi()
 
             # Preferred languages in order of priority
             preferred_languages = ("zh-Hans", "zh-Hant", "zh", "en", "ja", "ko")
 
             # Try 1: Direct fetch with preferred languages
             try:
-                transcript = await asyncio.to_thread(
-                    ytt_api.fetch,
-                    video_id,
-                    languages=preferred_languages,
+                def fetch_transcript():
+                    return ytt_api.fetch(video_id, languages=preferred_languages)
+                
+                result, success = await execute_youtube_api_call(
+                    func=fetch_transcript,
+                    operation_name=f"fetch transcript for {video_id}",
+                    max_retries=2,
                 )
-                # Convert FetchedTranscript to list of dicts
-                transcript_list = [
-                    {"text": s.text, "start": s.start, "duration": s.duration} for s in transcript
-                ]
-                text = self._format_transcript(transcript_list)
-                if text:
-                    logger.info(
-                        f"[YouTubeExtractor] Got transcript with preferred languages for {video_id}"
-                    )
-                    return text, True
+                
+                if success and result:
+                    # Convert FetchedTranscript to list of dicts
+                    transcript_list = [
+                        {"text": s.text, "start": s.start, "duration": s.duration} for s in result
+                    ]
+                    text = self._format_transcript(transcript_list)
+                    if text:
+                        logger.info(
+                            f"[YouTubeExtractor] Got transcript with preferred languages for {video_id}"
+                        )
+                        return text, True
             except Exception as e:
                 error_str = str(e)
                 if "NoTranscriptFound" in error_str or "No transcripts were found" in error_str:
@@ -176,10 +198,17 @@ class YouTubeExtractor(URLExtractor):
 
             # Try 2: List all transcripts and pick the best one
             try:
-                transcript_list_obj = await asyncio.to_thread(
-                    ytt_api.list,
-                    video_id,
+                def list_transcripts():
+                    return ytt_api.list(video_id)
+                
+                transcript_list_obj, success = await execute_youtube_api_call(
+                    func=list_transcripts,
+                    operation_name=f"list transcripts for {video_id}",
+                    max_retries=2,
                 )
+                
+                if not success or not transcript_list_obj:
+                    return None, False
 
                 # Try manually created transcripts first
                 for transcript_info in transcript_list_obj:
@@ -343,7 +372,7 @@ class YouTubeExtractor(URLExtractor):
             result = await transcribe_youtube_video(
                 video_id=video_id,
                 api_key=settings.openrouter_api_key,
-                max_duration_minutes=30,
+                max_duration_minutes=settings.gemini_audio_max_duration_minutes,
             )
 
             if result.success and result.transcript:

@@ -409,7 +409,9 @@ export function StudioProvider({
   }, []);
 
   // Complete a generation task with result - converts to CanvasNode (unified model)
-  const completeGeneration = useCallback((taskId: string, result: unknown, title?: string) => {
+  const completeGeneration = useCallback(async (taskId: string, result: unknown, title?: string) => {
+    console.log(`[StudioContext] completeGeneration called: taskId=${taskId}, title=${title}`);
+    
     // Access current tasks via ref to avoid dependency cycles and stale closures
     const task = generationTasksRef.current.get(taskId);
 
@@ -458,25 +460,45 @@ export function StudioProvider({
       updatedAt: new Date().toISOString(),
     };
 
-    // Add the node to canvas - INDEPENDENT STATE UPDATE
-    console.log(`[StudioContext] completeGeneration: Adding node ${nodeId} to canvas. Type: ${nodeType}, OutputID: ${outputId}, Pos: ${position.x},${position.y}`);
+    console.log(`[StudioContext] completeGeneration: Creating node ${nodeId}. Type: ${nodeType}, OutputID: ${outputId}, Pos: ${position.x},${position.y}`);
+    console.log(`[StudioContext] Node data preview:`, JSON.stringify(newNode).substring(0, 200));
+
+    // Persist to backend first to ensure data consistency
+    if (projectId) {
+      try {
+        await canvasApi.createNode(projectId, newNode);
+        console.log(`[StudioContext] Node ${nodeId} persisted to backend successfully`);
+      } catch (error) {
+        console.error(`[StudioContext] Failed to persist node ${nodeId}:`, error);
+        // Continue with local state update even if backend fails
+      }
+    } else {
+      console.warn(`[StudioContext] No projectId, skipping backend persistence`);
+    }
+
+    // Add the node to canvas - Force state update with new array reference
+    console.log(`[StudioContext] Adding node to canvas state...`);
     setCanvasNodes(prevNodes => {
       // Filter out any existing node with the same ID to avoid duplicates
       const filtered = prevNodes.filter(n => n.id !== nodeId);
       const newNodes = [...filtered, newNode];
-      console.log(`[StudioContext] Canvas nodes updated. Count: ${newNodes.length}, Added: ${newNode.id}`);
+      console.log(`[StudioContext] Canvas nodes updated. Previous count: ${prevNodes.length}, New count: ${newNodes.length}, Added: ${newNode.id}`);
       return newNodes;
     });
 
-    console.log(`[StudioContext] Converted generation task ${taskId} to CanvasNode:`, newNode);
+    console.log(`[StudioContext] Converted generation task ${taskId} to CanvasNode:`, newNode.id);
 
     // Remove the task from generationTasks - INDEPENDENT STATE UPDATE
+    console.log(`[StudioContext] Removing task ${taskId} from generationTasks`);
     setGenerationTasks(prev => {
       const next = new Map(prev);
-      next.delete(taskId);
+      const deleted = next.delete(taskId);
+      console.log(`[StudioContext] Task ${taskId} removed: ${deleted}, remaining tasks: ${next.size}`);
       return next;
     });
-  }, []);
+
+    console.log(`[StudioContext] completeGeneration finished for task ${taskId}`);
+  }, [projectId]);
 
   // Mark a generation task as failed
   const failGeneration = useCallback((taskId: string, error: string) => {

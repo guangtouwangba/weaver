@@ -193,6 +193,15 @@ class Settings(BaseSettings):
     
     # Gemini Audio Transcription Configuration
     gemini_audio_max_duration_minutes: int = 60  # Maximum video duration for Gemini audio transcription (minutes)
+    
+    # YouTube Proxy Configuration (for working around IP bans)
+    # See: https://github.com/jdepoix/youtube-transcript-api#working-around-ip-bans-requestblocked-or-ipblocked-exception
+    youtube_proxy_url: str = ""  # HTTP/HTTPS/SOCKS proxy URL (e.g., http://user:pass@proxy.com:8080)
+    
+    # YouTube Rate Limiting (free alternative to proxies)
+    youtube_rate_limit_enabled: bool = True  # Enable rate limiting to avoid IP bans
+    youtube_min_delay: float = 2.0  # Minimum delay between requests (seconds)
+    youtube_max_delay: float = 60.0  # Maximum delay for exponential backoff (seconds)
 
     @property
     def cors_origins_list(self) -> list[str]:
