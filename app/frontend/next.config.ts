@@ -23,10 +23,20 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
   async rewrites() {
+    const apiUrl = process.env.API_URL || 'http://localhost:8000';
+    // Remove trailing slash if present
+    const baseUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+    console.log('[Next.js Rewrite] API_URL:', baseUrl);
+    
     return [
       {
         source: '/api/:path*',
-        destination: process.env.API_URL || 'http://localhost:8000/api/:path*',
+        destination: `${baseUrl}/api/:path*`,
+      },
+      // Also proxy health check
+      {
+        source: '/health',
+        destination: `${baseUrl}/health`,
       },
     ];
   },

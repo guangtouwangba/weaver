@@ -20,6 +20,14 @@ function getApiBaseUrl(): string {
 
     // If running on Zeabur public domain, auto-detect the API URL
     if (hostname.includes('zeabur.app')) {
+      // For deployments using internal backend URL (e.g., weaver.zeabur.app),
+      // use relative path and let Next.js rewrite rules proxy to backend
+      if (hostname === 'weaver.zeabur.app') {
+        _cachedApiUrl = '';  // Use relative paths, Next.js rewrites will handle /api/* -> backend
+        console.log('[API] Using relative API path (Next.js proxy)');
+        return _cachedApiUrl;
+      }
+      
       // Replace 'web' or 'frontend' with 'api' in the hostname
       const apiHostname = hostname
         .replace('-web-', '-api-')
