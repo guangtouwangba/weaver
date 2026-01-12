@@ -594,7 +594,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
           console.log('[Mindmap WS Concurrent] Connected');
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = async (event) => {
           if (event.data === 'pong') return;
 
           try {
