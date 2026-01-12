@@ -1,6 +1,7 @@
 """Integration tests for project operations."""
 
 import pytest
+import uuid
 from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,10 +23,25 @@ async def test_create_project(client: AsyncClient, db_session: AsyncSession):
     assert "id" in data
 
     # Verify in DB
+    # Note: SQLite storage of UUID might vary (hex vs string with dashes), so we check both or generic
+    project_id = data['id']
+    # Try querying with the ID as is (dashes) or without dashes
+    query_id = project_id
+
+    # In the debug output we saw the DB has no dashes: '5894b1dea7c8481b93be12167b455cd1'
+    # API returned: '5894b1de-a7c8-481b-93be-12167b455cd1'
+    # So we might need to strip dashes for the query if the underlying storage stripped them.
+    # However, standard UUID storage in VARCHAR(36) should keep dashes.
+    # The discrepancy suggests the app might be using .hex when saving or SQLAlchemy UUID type handling on SQLite does it.
+
+    # We construct a query that checks both forms to be robust
+    id_no_dash = project_id.replace("-", "")
+
     result = await db_session.execute(
-        text(f"SELECT name FROM projects WHERE id = '{data['id']}'")
+        text(f"SELECT name FROM projects WHERE id = '{project_id}' OR id = '{id_no_dash}'")
     )
     row = result.first()
+
     assert row is not None
     assert row[0] == "Integration Test Project"
 
@@ -86,7 +102,9 @@ async def test_delete_project(client: AsyncClient, db_session: AsyncSession):
     assert get_res.status_code == 404
 
     # Verify Gone via DB
+    # Check both formats
+    id_no_dash = project_id.replace("-", "")
     result = await db_session.execute(
-        text(f"SELECT * FROM projects WHERE id = '{project_id}'")
+        text(f"SELECT * FROM projects WHERE id = '{project_id}' OR id = '{id_no_dash}'")
     )
     assert result.first() is None
