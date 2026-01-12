@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         available_tokens = calculate_available_tokens(
             settings.llm_model, settings.long_context_safety_ratio
         )
-        logger.info(f"  Long Context Settings:")
+        logger.info("  Long Context Settings:")
         logger.info(
             f"    - Safety Ratio: {settings.long_context_safety_ratio} ({settings.long_context_safety_ratio * 100}% of context window)"
         )
@@ -113,7 +113,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Database initialization completed")
     except Exception as e:
         logger.warning(f"⚠️  Database initialization warning: {e}")
-        logger.warning("   Application will continue - database connections will be retried on demand")
+        logger.warning(
+            "   Application will continue - database connections will be retried on demand"
+        )
 
     # Start background worker
     try:
@@ -129,13 +131,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         # Start worker in background
         worker_task = asyncio.create_task(_background_worker.start())
+
         # Add error callback to catch any unhandled exceptions
         def worker_error_handler(task):
             try:
                 task.result()
             except Exception as e:
                 logger.error(f"❌ Background worker crashed: {e}", exc_info=True)
-        
+
         worker_task.add_done_callback(worker_error_handler)
         logger.info("✅ Background worker task created and started")
     except Exception as e:
@@ -151,7 +154,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             await asyncio.wait_for(_background_worker.stop(), timeout=30.0)
             logger.info("Background worker stopped")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Background worker stop timed out")
         except Exception as e:
             logger.warning(f"Error stopping background worker: {e}")
@@ -159,7 +162,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Close database connections gracefully
     try:
         await asyncio.wait_for(close_db(), timeout=10.0)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("Database close timed out during shutdown")
     except Exception as e:
         logger.warning(f"Error during database close: {e}")
@@ -209,7 +212,8 @@ def create_app() -> FastAPI:
     zeabur_origins = [
         "https://research-agent-rag-web-dev.zeabur.app",
         "https://research-agent-rag-frontend-dev.zeabur.app",
-        "https://weaver.zeabur.app",  # Production frontend
+        "https://research-agent-rag-api-dev.zeabur.app",
+        "https://weaver.zeabur.app",
         "http://localhost:3000",
         "http://localhost:3001",
     ]
