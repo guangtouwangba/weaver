@@ -74,6 +74,7 @@
     - 验证 WebSocket 消息处理逻辑
     - 添加详细日志便于调试
     - _Requirements: 3.1, 3.2_
+    - **调查进展**: 已验证数据流正确，添加了调试日志到 `parseSourceMarkers` 和 `KonvaCanvas.onOpenSourceRef`
 
   - [ ] 5.2 检查并修复 `completeGeneration` 函数
     - 确保 `setCanvasNodes` 创建新数组引用
@@ -95,6 +96,25 @@
     - 测试 WebSocket 完成事件处理
     - 测试状态更新时机
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+  - [x] 5.6 修复时间戳跳转功能
+    - **根本原因**: LLM refine 步骤删除了 `[TIME:XX:XX]` 标记
+    - **修复方案**: 
+      1. 更新 `refine.j2` 模板，添加更强的来源标记保留指令
+         - 添加 "⚠️ CRITICAL: Source Marker Preservation" 专门章节
+         - 添加正确/错误示例对比
+         - 将保留标记从规则列表中的一项提升为独立的强制要求
+      2. 添加后端校验逻辑 `_validate_marker_preservation`
+         - 在 refine 后检查标记保留率
+         - 如果超过 50% 的标记丢失，回退到原始内容
+         - 添加详细日志记录标记数量变化
+    - **已添加调试日志**:
+      - `mindmap-parser.ts`: `parseSourceMarkers` 函数记录 TIME 标记和 documentId
+      - `KonvaCanvas.tsx`: `onOpenSourceRef` 记录 sourceId 和可用的 urlContents
+    - **修改文件**: 
+      - `app/backend/src/research_agent/infrastructure/llm/prompts/templates/agents/mindmap/refine.j2`
+      - `app/backend/src/research_agent/application/graphs/mindmap_graph.py`
+    - _Requirements: 5.4_
 
 - [ ] 6. Checkpoint - 验证状态同步修复
   - 确保所有状态同步测试通过，如有问题请询问用户

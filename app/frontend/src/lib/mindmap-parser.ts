@@ -49,6 +49,15 @@ function parseSourceMarkers(
   // Pattern for time markers: [TIME:12:30] or [TIME:1:23:45] (also legacy [12:30])
   const timePattern = /\[(?:TIME:)?(\d{1,2}:\d{2}(?::\d{2})?)\]/g;
 
+  // Debug: Check for time markers in input
+  const hasTimeMarkers = timePattern.test(text);
+  if (hasTimeMarkers) {
+    console.log('[parseSourceMarkers] Found TIME markers in text:', text.substring(0, 100));
+    console.log('[parseSourceMarkers] documentId for sourceRefs:', documentId || 'EMPTY');
+  }
+  // Reset regex after test
+  timePattern.lastIndex = 0;
+
   // Remove markers from text first to get clean text
   let cleanText = text.replace(pagePattern, '').replace(timePattern, '').trim();
 
@@ -251,7 +260,13 @@ export function parseMarkdownToMindmap(
     }
   }
 
+  // Summary logging for debugging source references
+  const nodesWithSourceRefs = nodes.filter(n => n.sourceRefs && n.sourceRefs.length > 0);
   console.log('[MindmapParser] Parsed:', nodes.length, 'nodes,', edges.length, 'edges, rootId:', rootId);
+  console.log('[MindmapParser] Nodes with sourceRefs:', nodesWithSourceRefs.length);
+  if (nodesWithSourceRefs.length > 0) {
+    console.log('[MindmapParser] Sample sourceRef:', JSON.stringify(nodesWithSourceRefs[0].sourceRefs));
+  }
   return { nodes, edges, rootId };
 }
 

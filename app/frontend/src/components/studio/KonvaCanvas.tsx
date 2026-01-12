@@ -5398,11 +5398,16 @@ export default function KonvaCanvas({
                 setEditingSuperCardType(null);
               }}
               onOpenSourceRef={(sourceId, sourceType, location, quote) => {
+                console.log('[KonvaCanvas] onOpenSourceRef called:', { sourceId, sourceType, location });
+                
                 // Handle source reference navigation from mindmap
                 if (sourceType === 'video') {
                   // Strategy 1: Find the source node on the canvas
                   let videoMetadata: any = null;
                   let videoTitle = 'Video';
+
+                  console.log('[KonvaCanvas] Looking for video source, sourceId:', sourceId);
+                  console.log('[KonvaCanvas] Available urlContents:', urlContents.map(u => ({ id: u.id, title: u.title })));
 
                   // Try to find as a canvas node first
                   const sourceNode = nodes.find(n => n.sourceId === sourceId || n.id === sourceId);

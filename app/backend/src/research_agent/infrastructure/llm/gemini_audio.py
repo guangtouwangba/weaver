@@ -150,9 +150,26 @@ class GeminiAudioTranscriber:
             ],
             "quiet": True,
             "no_warnings": True,
-            # Explicitly specify ffmpeg location (searches common paths)
-            "ffmpeg_location": "/usr/bin",
         }
+        
+        # Auto-detect ffmpeg location (cross-platform)
+        import shutil
+        ffmpeg_path = shutil.which("ffmpeg")
+        if ffmpeg_path:
+            # Use the directory containing ffmpeg
+            ffmpeg_dir = str(Path(ffmpeg_path).parent)
+            ydl_opts["ffmpeg_location"] = ffmpeg_dir
+            logger.info(f"[GeminiTranscriber] Using ffmpeg from: {ffmpeg_dir}")
+        else:
+            # Fallback: try common paths
+            common_paths = ["/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"]
+            for path in common_paths:
+                if Path(path, "ffmpeg").exists():
+                    ydl_opts["ffmpeg_location"] = path
+                    logger.info(f"[GeminiTranscriber] Using ffmpeg from fallback: {path}")
+                    break
+            else:
+                logger.warning("[GeminiTranscriber] ffmpeg not found, yt-dlp may fail")
         
         # Add proxy if configured
         if settings.youtube_proxy_url:

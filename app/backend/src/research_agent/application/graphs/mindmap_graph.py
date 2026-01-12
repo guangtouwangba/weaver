@@ -108,6 +108,64 @@ def _extract_content(text: str) -> str:
     return text
 
 
+def _count_source_markers(text: str) -> dict[str, int]:
+    """Count source markers in text.
+    
+    Returns a dict with counts for each marker type:
+    - 'time': count of [TIME:MM:SS] markers
+    - 'page': count of [PAGE:X] markers
+    - 'total': total count
+    """
+    # Pattern for time markers: [TIME:12:30], [TIME:1:23:45]
+    time_pattern = r"\[TIME:\d{1,2}:\d{2}(?::\d{2})?\]"
+    time_count = len(re.findall(time_pattern, text, re.IGNORECASE))
+    
+    # Pattern for page markers: [PAGE:15], [PAGE:15-17]
+    page_pattern = r"\[PAGE:\d+(?:\s*-\s*\d+)?\]"
+    page_count = len(re.findall(page_pattern, text, re.IGNORECASE))
+    
+    return {
+        'time': time_count,
+        'page': page_count,
+        'total': time_count + page_count
+    }
+
+
+def _validate_marker_preservation(original: str, refined: str) -> tuple[bool, str]:
+    """Validate that source markers are preserved after refinement.
+    
+    Returns (is_valid, message).
+    - is_valid: True if markers are preserved (or original had none)
+    - message: Description of the validation result
+    """
+    original_counts = _count_source_markers(original)
+    refined_counts = _count_source_markers(refined)
+    
+    # If original had no markers, nothing to validate
+    if original_counts['total'] == 0:
+        return True, "No source markers in original content"
+    
+    # Check if refined has significantly fewer markers (allow some reduction due to deduplication)
+    # We use 50% threshold - if more than half are lost, consider it a failure
+    preservation_ratio = refined_counts['total'] / original_counts['total'] if original_counts['total'] > 0 else 1.0
+    
+    if preservation_ratio < 0.5:
+        return False, (
+            f"Source markers lost during refinement: "
+            f"original had {original_counts['total']} markers "
+            f"(TIME:{original_counts['time']}, PAGE:{original_counts['page']}), "
+            f"refined has {refined_counts['total']} markers "
+            f"(TIME:{refined_counts['time']}, PAGE:{refined_counts['page']}), "
+            f"preservation ratio: {preservation_ratio:.1%}"
+        )
+    
+    return True, (
+        f"Source markers preserved: "
+        f"original {original_counts['total']} -> refined {refined_counts['total']} "
+        f"(preservation ratio: {preservation_ratio:.1%})"
+    )
+
+
 def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
     """Parse source markers from text and return (clean_text, source_refs).
 
@@ -341,6 +399,24 @@ async def direct_generate(state: MindmapState) -> MindmapState:
         if not markdown:
             return {**state, "error": "Failed to generate mindmap", "markdown_output": ""}
 
+        # Validate source marker preservation in direct generation
+        input_marker_counts = _count_source_markers(content)
+        output_marker_counts = _count_source_markers(markdown)
+        logger.info(
+            f"[MindmapGraph] Direct generation marker check: "
+            f"input had {input_marker_counts['total']} markers "
+            f"(TIME:{input_marker_counts['time']}, PAGE:{input_marker_counts['page']}), "
+            f"output has {output_marker_counts['total']} markers "
+            f"(TIME:{output_marker_counts['time']}, PAGE:{output_marker_counts['page']})"
+        )
+        
+        if input_marker_counts['total'] > 0 and output_marker_counts['total'] == 0:
+            logger.warning(
+                f"[MindmapGraph] WARNING: All source markers lost during direct generation! "
+                f"Input had {input_marker_counts['total']} markers but output has none."
+            )
+            return {**state, "error": "Failed to generate mindmap", "markdown_output": ""}
+
         logger.info(f"[MindmapGraph] Generated {len(markdown.split(chr(10)))} lines")
 
         return {
@@ -367,6 +443,16 @@ async def refine_output(state: MindmapState) -> MindmapState:
 
     if not markdown:
         return {**state, "error": "No content to refine"}
+
+    # Count original markers for validation
+    original_marker_counts = _count_source_markers(markdown)
+    logger.info(
+        f"[MindmapGraph] Original content has {original_marker_counts['total']} source markers "
+        f"(TIME:{original_marker_counts['time']}, PAGE:{original_marker_counts['page']})"
+    )
+    
+    # Log original markdown before refine
+    logger.info(f"[MindmapGraph] Original Markdown (before refine):\n{markdown}")
 
     # Emit progress
     await emit(
@@ -401,6 +487,18 @@ async def refine_output(state: MindmapState) -> MindmapState:
         original_lines = len(markdown.split("\n"))
         refined_lines = len(refined.split("\n"))
         logger.info(f"[MindmapGraph] Refined: {original_lines} -> {refined_lines} lines")
+
+        # Validate source marker preservation
+        is_valid, validation_msg = _validate_marker_preservation(markdown, refined)
+        logger.info(f"[MindmapGraph] Marker validation: {validation_msg}")
+        
+        if not is_valid:
+            logger.warning(
+                f"[MindmapGraph] Source markers lost during refinement! "
+                f"Falling back to original content to preserve navigation functionality."
+            )
+            # Use original content to preserve source markers
+            refined = markdown
 
         # Log the refined markdown for debugging
         logger.info(f"[MindmapGraph] Refined Markdown Output:\n{refined}")

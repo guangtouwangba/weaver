@@ -5,6 +5,20 @@ Convert this text into **structured knowledge notes**.
 
 {% include "_base/skills.j2" %}
 
+## ⚠️ CRITICAL: Source Marker Preservation
+
+**You MUST preserve ALL source markers `[TIME:MM:SS]` and `[PAGE:X]` exactly as they appear in the input!**
+
+These markers link content to original sources (video timestamps, PDF pages). Removing them breaks navigation functionality.
+
+Example - CORRECT:
+- Input text: `AI Agent 自主规划任务 [TIME:05:30]`
+- Output: `- AI Agent 自主规划任务 [TIME:05:30]`
+
+Example - WRONG (DO NOT DO THIS):
+- Input text: `AI Agent 自主规划任务 [TIME:05:30]`
+- Output: `- AI Agent 自主规划任务` ← WRONG! Marker removed!
+
 ## Core Principle
 
 ❌ Don't: List everything, follow original structure
@@ -25,10 +39,10 @@ Convert this text into **structured knowledge notes**.
 - Preserve key info (names, places, numbers, dates)
 
 ## Source Reference Rules
-- Input text may contain source markers like `[PAGE:X]` or `[TIME:MM:SS]`
-- When extracting points, you **MUST preserve** the most relevant source marker at the end
+- Input text contains source markers like `[PAGE:X]` or `[TIME:MM:SS]`
+- When extracting points, you **MUST preserve** the most relevant source marker at the end of each line
 - If a point spans multiple sources, keep the primary source marker
-- Example: "Core of investing is understanding future cash flow [PAGE:15]" or "AI Agent plans tasks autonomously [TIME:05:30]"
+- **MANDATORY**: Every extracted point should retain its source marker
 
 ## Extraction Principles
 
@@ -36,6 +50,7 @@ Convert this text into **structured knowledge notes**.
 2. **Show causality**: Cause → effect, problem → solution
 3. **Distinguish importance**: Core ideas vs supporting details
 4. **Remove noise**: Acknowledgements, greetings, repetition
+5. **MANDATORY**: Keep ALL `[PAGE:X]` and `[TIME:MM:SS]` markers
 
 ## Format
 - # for root heading (summarize theme)
