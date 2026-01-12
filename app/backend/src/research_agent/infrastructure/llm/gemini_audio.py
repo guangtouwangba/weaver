@@ -47,8 +47,8 @@ class GeminiAudioTranscriber:
     # Gemini model for audio transcription
     TRANSCRIPTION_MODEL = "google/gemini-2.0-flash-001"
 
-    # Max duration in seconds (30 minutes)
-    MAX_DURATION_SECONDS = 30 * 60
+    # Max duration in seconds (60 minutes / 1 hour)
+    MAX_DURATION_SECONDS = 60 * 60
 
     # Token rate: ~32 tokens per second of audio
     TOKENS_PER_SECOND = 32
