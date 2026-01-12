@@ -209,6 +209,7 @@ def create_app() -> FastAPI:
     zeabur_origins = [
         "https://research-agent-rag-web-dev.zeabur.app",
         "https://research-agent-rag-frontend-dev.zeabur.app",
+        "https://weaver.zeabur.app",  # Production frontend
         "http://localhost:3000",
         "http://localhost:3001",
     ]
