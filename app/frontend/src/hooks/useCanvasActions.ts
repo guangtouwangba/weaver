@@ -653,6 +653,7 @@ export function useCanvasActions({ onOpenImport }: UseCanvasActionsProps = {}) {
                   };
                 }
 
+                console.log(`[Mindmap WS Concurrent] Calling completeGeneration for task ${localTaskId}`);
                 completeGeneration(localTaskId, finalData, docTitle);
                 clearInterval(pingInterval);
                 ws.close();

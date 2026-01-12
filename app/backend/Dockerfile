@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
     git \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder

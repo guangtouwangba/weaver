@@ -359,6 +359,10 @@ export function StudioProvider({
   // === Concurrent Generation Tasks State ===
   const [generationTasks, setGenerationTasks] = useState<Map<string, GenerationTask>>(new Map());
 
+  // Ref to access current tasks in callbacks without dependencies
+  const generationTasksRef = useRef(generationTasks);
+  generationTasksRef.current = generationTasks;
+
   // Start a new generation task
   const startGeneration = useCallback((type: GenerationType, position: { x: number; y: number }): string => {
     const taskId = `gen-${type}-${crypto.randomUUID()}`;
@@ -406,60 +410,68 @@ export function StudioProvider({
 
   // Complete a generation task with result - converts to CanvasNode (unified model)
   const completeGeneration = useCallback((taskId: string, result: unknown, title?: string) => {
+    // Access current tasks via ref to avoid dependency cycles and stale closures
+    const task = generationTasksRef.current.get(taskId);
+
+    if (!task) {
+      console.warn(`[StudioContext] completeGeneration: Task ${taskId} not found.`);
+      return;
+    }
+
+    // Get task details for node creation
+    const { type, position, outputId } = task;
+
+    // Create a CanvasNode for the completed output (unified node model)
+    const nodeType = type; // 'mindmap', 'summary', etc.
+    const nodeId = outputId ? `output-${outputId}` : `output-${taskId}`;
+
+    // Determine card dimensions and color based on type
+    const cardConfig: Record<string, { width: number; height: number; color: string }> = {
+      mindmap: { width: 380, height: 280, color: '#10B981' },
+      summary: { width: 380, height: 280, color: '#8B5CF6' },
+      article: { width: 320, height: 200, color: '#667eea' },
+      action_list: { width: 280, height: 180, color: '#f59e0b' },
+      podcast: { width: 320, height: 200, color: '#8B5CF6' },
+      quiz: { width: 320, height: 200, color: '#10B981' },
+      timeline: { width: 320, height: 200, color: '#3B82F6' },
+      compare: { width: 320, height: 200, color: '#6366F1' },
+      flashcards: { width: 320, height: 200, color: '#F43F5E' },
+    };
+
+    const config = cardConfig[type] || { width: 300, height: 200, color: '#6B7280' };
+
+    const newNode: CanvasNode = {
+      id: nodeId,
+      type: nodeType,
+      title: title || `${type} output`,
+      content: JSON.stringify(result),
+      x: position.x,
+      y: position.y,
+      width: config.width,
+      height: config.height,
+      color: config.color,
+      tags: [],
+      viewType: 'free',
+      outputId: outputId,
+      outputData: result as Record<string, unknown>,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Add the node to canvas - INDEPENDENT STATE UPDATE
+    console.log(`[StudioContext] completeGeneration: Adding node ${nodeId} to canvas. Type: ${nodeType}, OutputID: ${outputId}, Pos: ${position.x},${position.y}`);
+    setCanvasNodes(prevNodes => {
+      // Filter out any existing node with the same ID to avoid duplicates
+      const filtered = prevNodes.filter(n => n.id !== nodeId);
+      const newNodes = [...filtered, newNode];
+      console.log(`[StudioContext] Canvas nodes updated. Count: ${newNodes.length}, Added: ${newNode.id}`);
+      return newNodes;
+    });
+
+    console.log(`[StudioContext] Converted generation task ${taskId} to CanvasNode:`, newNode);
+
+    // Remove the task from generationTasks - INDEPENDENT STATE UPDATE
     setGenerationTasks(prev => {
-      const task = prev.get(taskId);
-      if (!task) return prev;
-
-      // Get task details for node creation
-      const { type, position, outputId } = task;
-
-      // Create a CanvasNode for the completed output (unified node model)
-      const nodeType = type; // 'mindmap', 'summary', etc.
-      const nodeId = outputId ? `output-${outputId}` : `output-${taskId}`;
-
-      // Determine card dimensions and color based on type
-      const cardConfig: Record<string, { width: number; height: number; color: string }> = {
-        mindmap: { width: 380, height: 280, color: '#10B981' },
-        summary: { width: 380, height: 280, color: '#8B5CF6' },
-        article: { width: 320, height: 200, color: '#667eea' },
-        action_list: { width: 280, height: 180, color: '#f59e0b' },
-        podcast: { width: 320, height: 200, color: '#8B5CF6' },
-        quiz: { width: 320, height: 200, color: '#10B981' },
-        timeline: { width: 320, height: 200, color: '#3B82F6' },
-        compare: { width: 320, height: 200, color: '#6366F1' },
-        flashcards: { width: 320, height: 200, color: '#F43F5E' },
-      };
-
-      const config = cardConfig[type] || { width: 300, height: 200, color: '#6B7280' };
-
-      const newNode: CanvasNode = {
-        id: nodeId,
-        type: nodeType,
-        title: title || `${type} output`,
-        content: JSON.stringify(result),
-        x: position.x,
-        y: position.y,
-        width: config.width,
-        height: config.height,
-        color: config.color,
-        tags: [],
-        viewType: 'free',
-        outputId: outputId,
-        outputData: result as Record<string, unknown>,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Add the node to canvas
-      setCanvasNodes(prevNodes => {
-        // Filter out any existing node with the same ID to avoid duplicates
-        const filtered = prevNodes.filter(n => n.id !== nodeId);
-        return [...filtered, newNode];
-      });
-
-      console.log(`[StudioContext] Converted generation task ${taskId} to CanvasNode:`, newNode);
-
-      // Remove the task from generationTasks since it's now a CanvasNode
       const next = new Map(prev);
       next.delete(taskId);
       return next;

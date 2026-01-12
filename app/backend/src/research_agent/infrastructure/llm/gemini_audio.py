@@ -137,6 +137,8 @@ class GeminiAudioTranscriber:
             ],
             "quiet": True,
             "no_warnings": True,
+            # Explicitly specify ffmpeg location (searches common paths)
+            "ffmpeg_location": "/usr/bin",
         }
 
         # Add cookies if configured

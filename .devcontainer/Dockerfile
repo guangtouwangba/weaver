@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     # PostgreSQL 客户端
     postgresql-client \
+    # 音视频处理工具 (yt-dlp 依赖)
+    ffmpeg \
     # 其他有用的工具
     vim \
     nano \

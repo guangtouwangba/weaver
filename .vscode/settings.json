@@ -66,6 +66,7 @@
     "*.env": "dotenv",
     "pyproject.toml": "toml",
     "uv.lock": "toml"
-  }
+  },
+  "kiroAgent.configureMCP": "Disabled"
 }
 
