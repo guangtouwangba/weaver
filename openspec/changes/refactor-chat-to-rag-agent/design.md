@@ -87,19 +87,31 @@ class RAGAgentState(TypedDict):
     should_continue: bool
 ```
 
-### Decision 5: Prompt 集成策略
-**选择**: 保留现有 prompt，Agent system prompt 作为包装层
+### Decision 5: Prompt 集成策略 (XML Mega-Prompt Default)
+**选择**: 全局默认使用 XML Mega-Prompt 模式，废弃 `rag_mode`。
 
-```python
-AGENT_SYSTEM_PROMPT = """
-You are a RAG Agent with the following tools:
-{tools}
+**Prompt 结构**:
+```xml
+<system_instruction>
+You are a RAG Agent. Use the provided tools and context to answer.
+...
+</system_instruction>
 
-{MEMORY_AWARE_SYSTEM_PROMPT}  # 复用现有 prompt
+<documents>
+  <document id="doc_01">...</document>
+  <document id="doc_02">...</document>
+</documents>
 
-Based on the user's question, decide which tools to use.
-"""
+<output_rules>
+Must use <cite doc_id="..." quote="...">...</cite> for citations.
+</output_rules>
 ```
+
+**理由**:
+- 提高模型指令遵循能力
+- 统一 Citation 格式，简化前端解析逻辑
+- 支持严格的幻觉校验 (Quote Verification)
+- 简化配置，不再需要在 multiple modes 间切换
 
 ## Architecture Diagram
 

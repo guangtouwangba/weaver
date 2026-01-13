@@ -21,6 +21,19 @@ The system SHALL provide a RAG (Retrieval-Augmented Generation) Agent that orche
 - **AND** selects appropriate retrieval and generation strategies
 - **AND** structures the response as a comparison format
 
+### Requirement: Global XML Context Format
+The system SHALL use XML-structured context (Mega-Prompt) for all generation tasks to ensure citation accuracy and prevent hallucinations.
+
+#### Scenario: XML Context Injection
+- **WHEN** the Agent calls the LLM for generation
+- **THEN** the context is formatted with `<documents>` and `<document>` XML tags
+- **AND** strict citation rules are injected via `<output_rules>`
+
+#### Scenario: Verified Citation Generation
+- **WHEN** the Agent generates an answer
+- **THEN** it MUST use `<cite doc_id="..." quote="...">` format
+- **AND** the `quote` attribute MUST be a verbatim extract from the source document
+
 ### Requirement: RAG Agent Tools
 The system SHALL provide a set of reusable tools for the RAG Agent to perform its tasks.
 

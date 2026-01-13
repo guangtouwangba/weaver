@@ -14,6 +14,12 @@
 - **[NEW]** `agents/rag_tools.py` - 将现有节点函数封装为 `@tool` 装饰器的工具集
 - **[NEW]** `agents/rag_memory.py` - Memory 模块封装（Episodic + Semantic + Session）
 - **[MODIFY]** `stream_message.py` - 简化为 Agent 的调用入口
+- **[MODIFY]** `rag_prompt.py` - 将 `build_mega_prompt` 设为默认 Prompt 构建方式
+
+### Global Mega-Prompt
+- 移除 `rag_mode` 配置，全局默认使用 **XML Mega-Prompt** 模式
+- 所有 Generation 步骤均使用 XML 结构化上下文 (`<documents>...`)
+- 强制使用 `<cite>` 标签进行引用，以支持前端精确跳转和后端幻觉校验
 
 ### Tools 封装
 将 `rag_graph.py` 中的核心能力封装为独立 Tools：
