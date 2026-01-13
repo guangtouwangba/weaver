@@ -11,6 +11,8 @@ Responsible for collecting and aggregating context required for RAG from multipl
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.shared.utils.logger import logger
@@ -44,6 +46,33 @@ class ContextEngine:
             session: Database session, used to query Canvas and URL content
         """
         self._session = session
+
+    async def _rollback_safely(self) -> None:
+        try:
+            await self._session.rollback()
+        except Exception:
+            return
+
+    async def _ensure_clean_transaction(self) -> None:
+        """
+        Ensure the session is in a clean transaction state.
+        Rollback if there's a failed transaction.
+
+        This prevents InFailedSQLTransactionError by detecting when a previous
+        SQL statement has failed and the transaction needs to be rolled back.
+        """
+        try:
+            # Check if connection is in a failed transaction by attempting a simple query
+            # If it fails with InFailedSQLTransactionError, we need to rollback
+            await self._session.execute(text("SELECT 1"))
+        except DBAPIError as e:
+            if "InFailedSQLTransactionError" in str(e) or "current transaction is aborted" in str(
+                e
+            ):
+                logger.warning("[ContextEngine] Detected failed transaction state, rolling back...")
+                await self._session.rollback()
+            else:
+                raise
 
     async def resolve(
         self,
@@ -166,6 +195,9 @@ class ContextEngine:
 
         urls = []
         try:
+            # Ensure clean transaction state before DB queries
+            await self._ensure_clean_transaction()
+
             url_repo = SQLAlchemyUrlContentRepository(self._session)
             for url_id in url_ids:
                 try:
@@ -181,9 +213,11 @@ class ContextEngine:
                         )
                 except Exception as e:
                     logger.warning(f"Failed to fetch URL content {url_id}: {e}")
+                    await self._rollback_safely()
                     urls.append({"id": url_id, "title": "URL"})
         except Exception as e:
             logger.error(f"Failed to fetch URL metadata: {e}")
+            await self._rollback_safely()
             # Fallback: only save ID
             urls = [{"id": uid, "title": "URL"} for uid in url_ids]
 
@@ -275,6 +309,9 @@ class ContextEngine:
                     SQLAlchemyCanvasRepository,
                 )
 
+                # Ensure clean transaction state before DB query
+                await self._ensure_clean_transaction()
+
                 canvas_repo = SQLAlchemyCanvasRepository(self._session)
                 canvas = await canvas_repo.find_by_project(project_id)
 
@@ -285,6 +322,7 @@ class ContextEngine:
                             context_parts.append(f"## Node: {node.title}\n{node.content}")
             except Exception as e:
                 logger.error(f"[CanvasContext] Failed to retrieve canvas nodes: {e}", exc_info=True)
+                await self._rollback_safely()
 
         if context_parts:
             return "\n\n".join(context_parts), len(context_parts)
@@ -308,6 +346,9 @@ class ContextEngine:
 
         try:
             from research_agent.infrastructure.resource_resolver import ResourceResolver
+
+            # Ensure clean transaction state before DB queries
+            await self._ensure_clean_transaction()
 
             resolver = ResourceResolver(self._session)
             url_uuids = [UUID(uid) for uid in context_url_ids]
@@ -340,6 +381,7 @@ class ContextEngine:
 
         except Exception as e:
             logger.error(f"[ResourceContext] Failed to retrieve URL content: {e}", exc_info=True)
+            await self._rollback_safely()
 
         return "", 0
 
@@ -377,11 +419,15 @@ class ContextEngine:
         """
         # Priority 1: Current focus is video
         if current_focus and current_focus.get("type") == "video":
-            return current_focus.get("id")
+            source_id = current_focus.get("id")
+            if isinstance(source_id, str):
+                return source_id
 
         # Priority 2: First attached URL
         if context_refs.urls:
-            return context_refs.urls[0].get("id")
+            source_id = context_refs.urls[0].get("id")
+            if isinstance(source_id, str):
+                return source_id
 
         # Priority 3: Most recent video entity
         for ent in reversed(list(active_entities.values())):

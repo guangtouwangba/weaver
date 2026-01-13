@@ -1,11 +1,12 @@
 """Unit tests for the SynthesisAgent multi-step reasoning pipeline."""
 
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from research_agent.domain.agents.base_agent import OutputEventType
 from research_agent.domain.agents.synthesis_agent import SynthesisAgent
+from research_agent.infrastructure.llm.base import ChatResponse
 
 
 class TestSynthesisAgent:
@@ -19,13 +20,13 @@ class TestSynthesisAgent:
         # Track call count to return different responses for each step
         call_count = 0
 
-        async def mock_generate(prompt: str) -> str:
+        async def mock_chat(messages):
             nonlocal call_count
             call_count += 1
 
             if call_count == 1:
                 # Step 1: Reasoning
-                return """## Domain Analysis
+                content = """## Domain Analysis
 - Input 1: Chemistry (Hydrogen)
 - Input 2: Physics (Fire/Combustion)
 
@@ -39,7 +40,7 @@ Based on my analysis, the strongest bridge is Chemical Reactions because both hy
 
             elif call_count == 2:
                 # Step 2: Drafting
-                return json.dumps(
+                content = json.dumps(
                     {
                         "title": "The Energy Dance: Hydrogen and Fire",
                         "main_insight": "Hydrogen and fire are intrinsically linked through combustion chemistry. Hydrogen serves as one of the most energy-dense fuels, and when it reacts with oxygen (fire), it releases tremendous energy. This connection represents the fundamental principle of energy transformation.",
@@ -56,7 +57,7 @@ Based on my analysis, the strongest bridge is Chemical Reactions because both hy
 
             elif call_count == 3:
                 # Step 3: Review
-                return """## Critique
+                content = """## Critique
 - Logical Soundness: 5 - The connection is scientifically accurate
 - Accuracy: 4 - The science is correct but could be more detailed
 - Depth: 4 - Good insight but could explore more applications
@@ -71,7 +72,7 @@ Based on my analysis, the strongest bridge is Chemical Reactions because both hy
 
             else:
                 # Step 4: Refinement
-                return json.dumps(
+                content = json.dumps(
                     {
                         "title": "The Energy Dance: Hydrogen and Fire - A Clean Energy Future",
                         "main_insight": "Hydrogen and fire share a profound connection through combustion chemistry. When hydrogen burns (reacts with oxygen), it releases energy while producing only water as a byproduct. This clean combustion makes hydrogen a promising candidate for sustainable energy, representing nature's elegant solution to energy transformation.",
@@ -87,7 +88,9 @@ Based on my analysis, the strongest bridge is Chemical Reactions because both hy
                     }
                 )
 
-        mock.generate = mock_generate
+            return ChatResponse(content=content, model="mock", usage={})
+
+        mock.chat = mock_chat
         return mock
 
     @pytest.fixture
@@ -155,4 +158,5 @@ Based on my analysis, the strongest bridge is Chemical Reactions because both hy
 
         error_events = [e for e in events if e.type == OutputEventType.GENERATION_ERROR]
         assert len(error_events) == 1
-        assert "2 inputs" in error_events[0].message
+        assert error_events[0].error_message is not None
+        assert "2 inputs" in error_events[0].error_message
