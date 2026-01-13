@@ -61,6 +61,13 @@ class PgVectorStore(VectorStore):
             "limit": limit,
         }
 
+        # Debug logging for search parameters
+        debug_params = params.copy()
+        debug_params["embedding"] = "..."  # Truncate for logging
+        logger.info(
+            f"[VectorStore] Search Prams: project_id={project_id}, document_id={document_id}, limit={limit}"
+        )
+
         if document_id:
             where_clause += " AND document_id = cast(:document_id as uuid)"
             params["document_id"] = str(document_id)
@@ -77,7 +84,7 @@ class PgVectorStore(VectorStore):
             WHERE {where_clause}
             ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT :limit
-        """).bindparams(**{k: bindparam(k, value=v) for k, v in params.items()})
+        """).bindparams(*[bindparam(k, value=v) for k, v in params.items()])
 
         try:
             result = await self._session.execute(query)
@@ -186,7 +193,7 @@ class PgVectorStore(VectorStore):
             WHERE {where_clause}
             ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT :limit
-        """).bindparams(**{k: bindparam(k, value=v) for k, v in params.items()})
+        """).bindparams(*[bindparam(k, value=v) for k, v in params.items()])
 
         try:
             result = await self._session.execute(query)
@@ -249,7 +256,7 @@ class PgVectorStore(VectorStore):
             WHERE {where_clause}
             ORDER BY score DESC
             LIMIT :limit
-        """).bindparams(**{k: bindparam(k, value=v) for k, v in params.items()})
+        """).bindparams(*[bindparam(k, value=v) for k, v in params.items()])
 
         try:
             result = await self._session.execute(query)

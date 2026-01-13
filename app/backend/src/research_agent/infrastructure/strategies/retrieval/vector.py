@@ -12,7 +12,7 @@ from langchain_core.documents import Document
 from research_agent.domain.entities.config import RetrievalConfig
 from research_agent.domain.strategies.base import IRetrievalStrategy, RetrievalResult
 from research_agent.infrastructure.embedding.base import EmbeddingService
-from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
+from research_agent.infrastructure.vector_store.base import VectorStore
 from research_agent.shared.utils.logger import logger
 
 
@@ -27,14 +27,14 @@ class VectorRetrievalStrategy(IRetrievalStrategy):
     def __init__(
         self,
         embedding_service: EmbeddingService,
-        vector_store: PgVectorStore,
+        vector_store: VectorStore,
     ):
         """
         Initialize vector retrieval strategy.
 
         Args:
             embedding_service: Service for generating embeddings
-            vector_store: PGVector store for similarity search
+            vector_store: Vector store (PGVector or Weaviate)
         """
         self._embedding_service = embedding_service
         self._vector_store = vector_store

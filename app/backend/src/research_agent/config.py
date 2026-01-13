@@ -146,7 +146,9 @@ class Settings(BaseSettings):
     langfuse_secret_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"  # Or self-hosted URL
     langfuse_log_full_content: bool = True  # Log full prompt/response content (default: True)
-    langfuse_max_content_length: int = 500  # Max length when truncating (only used when log_full_content=False)
+    langfuse_max_content_length: int = (
+        500  # Max length when truncating (only used when log_full_content=False)
+    )
 
     # Supabase Auth
     supabase_jwt_secret: str = ""  # JWT secret for verifying Supabase Auth tokens
@@ -159,6 +161,11 @@ class Settings(BaseSettings):
     # Retrieval Configuration
     retrieval_top_k: int = 5  # Number of top similar documents to retrieve for RAG
     retrieval_min_similarity: float = 0.0  # Minimum similarity threshold (0.0 = no filter)
+
+    # Vector Store Configuration
+    # "pgvector" - PostgreSQL pgvector (default)
+    # "weaviate" - Weaviate Vector Database
+    vector_store_provider: str = "pgvector"
 
     # Query Rewrite Configuration
     # use_llm_rewrite: If True, use LLM for query rewriting (more accurate, ~1-2s latency)
@@ -192,14 +199,18 @@ class Settings(BaseSettings):
     disable_ssrf_check: bool = False  # Disable SSRF protection (only for development/testing)
     youtube_cookies_path: str = ""  # Path to Netscape formatted cookies file for YouTube auth
     youtube_cookies_content: str = ""  # Raw content of cookies.txt (useful for cloud envs)
-    
+
     # Gemini Audio Transcription Configuration
-    gemini_audio_max_duration_minutes: int = 60  # Maximum video duration for Gemini audio transcription (minutes)
-    
+    gemini_audio_max_duration_minutes: int = (
+        60  # Maximum video duration for Gemini audio transcription (minutes)
+    )
+
     # YouTube Proxy Configuration (for working around IP bans)
     # See: https://github.com/jdepoix/youtube-transcript-api#working-around-ip-bans-requestblocked-or-ipblocked-exception
-    youtube_proxy_url: str = ""  # HTTP/HTTPS/SOCKS proxy URL (e.g., http://user:pass@proxy.com:8080)
-    
+    youtube_proxy_url: str = (
+        ""  # HTTP/HTTPS/SOCKS proxy URL (e.g., http://user:pass@proxy.com:8080)
+    )
+
     # YouTube Rate Limiting (free alternative to proxies)
     youtube_rate_limit_enabled: bool = True  # Enable rate limiting to avoid IP bans
     youtube_min_delay: float = 2.0  # Minimum delay between requests (seconds)

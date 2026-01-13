@@ -20,8 +20,8 @@ from research_agent.infrastructure.evaluation.evaluation_logger import Evaluatio
 from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
 from research_agent.infrastructure.llm.openrouter import create_langchain_llm
 from research_agent.infrastructure.resource_resolver import ResourceResolver
+from research_agent.infrastructure.vector_store.factory import get_vector_store
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
-from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import RAGTrace
 
@@ -211,7 +211,7 @@ class StreamMessageUseCase:
                 # === Context Extraction from History ===
                 active_entities = {}
                 current_focus = None
-                
+
                 # Replay history to rebuild entity state (oldest to newest)
                 # messages are returned newest-first, so reverse them
                 for msg in reversed(messages):
@@ -220,20 +220,21 @@ class StreamMessageUseCase:
                             active_entities.update(msg.context_refs["entities"])
                         if "focus" in msg.context_refs:
                             current_focus = msg.context_refs["focus"]
-                
+
                 # Incorporate current request context (new attachments)
                 if context_refs:
                     # If user attached URLs, they become active entities
                     if "urls" in context_refs and context_refs["urls"]:
                         for url in context_refs["urls"]:
                             entity = {
-                                "id": url["id"], 
-                                "type": "video" if "video" in url.get("platform", "").lower() else "document",
-                                "title": url["title"]
+                                "id": url["id"],
+                                "type": "video"
+                                if "video" in url.get("platform", "").lower()
+                                else "document",
+                                "title": url["title"],
                             }
                             active_entities[url["id"]] = entity
-                            current_focus = entity # Focus shifts to new attachment
-
+                            current_focus = entity  # Focus shifts to new attachment
 
                 # === Canvas Context Retrieval ===
                 canvas_context = ""
@@ -345,7 +346,7 @@ class StreamMessageUseCase:
                     ]
 
                 # Create vector store and retriever with hybrid search option
-                vector_store = PgVectorStore(self._session)
+                vector_store = get_vector_store(self._session)
                 retriever = create_pgvector_retriever(
                     vector_store=vector_store,
                     embedding_service=self._embedding_service,
@@ -463,7 +464,9 @@ class StreamMessageUseCase:
                         context_refs={
                             "entities": active_entities,
                             "focus": current_focus,
-                        } if active_entities or current_focus else None
+                        }
+                        if active_entities or current_focus
+                        else None,
                     )
                     await repo.save(ai_message)
 

@@ -14,11 +14,11 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
+from research_agent.domain.services.conversation_context import ConversationContext
 from research_agent.infrastructure.llm.prompts import render_prompt
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import rag_log, rag_log_with_timing
-from research_agent.domain.services.conversation_context import ConversationContext
 
 # Query rewrite cache (in-memory, simple LRU could be added later)
 _rewrite_cache: dict[str, dict[str, str]] = {}
@@ -488,7 +488,6 @@ def validate_rewrite(original: str, rewritten: str, max_expansion_ratio: float =
     return True
 
 
-
 # --- Node Functions ---
 
 
@@ -550,7 +549,6 @@ async def transform_query(
 
         # Inject context hint for better rewriting
         question = f"{question} (Referring to {resolved_entity.get('type')} '{resolved_entity.get('title')}')"
-
 
     # Build context
     history_context = "\n".join(
@@ -1042,28 +1040,22 @@ async def retrieve(state: GraphState, retriever: PGVectorRetriever) -> GraphStat
 
     # Apply context filters
     active_doc_id = state.get("active_document_id")
-    # Store original filter to restore (if retriever is shared, which relies on LangChain internals)
-    # Ideally we pass filter to _aget_relevant_documents but if it's not supported we modify retriever
-    original_search_kwargs = getattr(retriever, "search_kwargs", {}).copy()
-    
+    # Store original filter to restore
+    original_document_id = getattr(retriever, "document_id", None)
+
     if active_doc_id:
-        current_filter = original_search_kwargs.get("filter", {})
-        # Merge or overwrite? Usually overwrite for specific doc scope
-        # Assuming pgvector filter format: {"document_id": "uuid"}
-        new_filter = current_filter.copy()
-        new_filter["document_id"] = active_doc_id
-        
-        # Update retriever
-        retriever.search_kwargs["filter"] = new_filter
+        # Update retriever document_id filter
+        # PGVectorRetriever expects UUID or string that can be cast to UUID
+        retriever.document_id = active_doc_id
         logger.info(f"[Retrieve] Applied filter: document_id={active_doc_id}")
 
     try:
         # Async retriever call
         documents = await retriever._aget_relevant_documents(query)
     finally:
-        # Restore original filter if we modified it
+        # Restore original filter
         if active_doc_id:
-            retriever.search_kwargs = original_search_kwargs
+            retriever.document_id = original_document_id
 
     # Calculate metrics
     latency_ms = round((time.time() - start_time) * 1000, 2)
@@ -1791,7 +1783,7 @@ async def stream_rag_response(
         canvas_context: Context from canvas nodes
         active_document_id: Active document scope
         active_entities: Map of active entities for context resolution
-        current_focus: Current entity in focus 
+        current_focus: Current entity in focus
 
     Yields:
         dict with 'type' and 'content' keys
@@ -1818,24 +1810,24 @@ async def stream_rag_response(
         focus=state.get("current_focus"),
     )
     resolved_entity = auth_ctx.resolve_reference(question)
-    
+
     if resolved_entity:
         logger.info(
             f"[Stream] Resolved reference to: {resolved_entity.get('title')} ({resolved_entity.get('id')})"
         )
         state["current_focus"] = resolved_entity
-        
+
         # Propagate to document filter
         if resolved_entity.get("type") in ["document", "video"]:
             state["active_document_id"] = resolved_entity.get("id")
-            
+
         # Emit context update event for persistence
         yield {
             "type": "context_update",
             "current_focus": resolved_entity,
-            "active_entities": state.get("active_entities") # Optional, if we updated list
+            "active_entities": state.get("active_entities"),  # Optional, if we updated list
         }
-        
+
         # Inject hint into question for downstream tasks (rewrite/retrieval)
         # We append a hint so LLM/Keyword search knows the context
         hint = f" (Referring to {resolved_entity.get('type')} '{resolved_entity.get('title')}')"

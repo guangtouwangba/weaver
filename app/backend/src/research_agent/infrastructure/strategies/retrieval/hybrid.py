@@ -12,7 +12,7 @@ from langchain_core.documents import Document
 from research_agent.domain.entities.config import RetrievalConfig
 from research_agent.domain.strategies.base import IRetrievalStrategy, RetrievalResult
 from research_agent.infrastructure.embedding.base import EmbeddingService
-from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
+from research_agent.infrastructure.vector_store.base import VectorStore
 from research_agent.shared.utils.logger import logger
 
 
@@ -26,7 +26,7 @@ class HybridRetrievalStrategy(IRetrievalStrategy):
     def __init__(
         self,
         embedding_service: EmbeddingService,
-        vector_store: PgVectorStore,
+        vector_store: VectorStore,
         vector_weight: float = 0.7,
         keyword_weight: float = 0.3,
     ):
@@ -35,7 +35,7 @@ class HybridRetrievalStrategy(IRetrievalStrategy):
 
         Args:
             embedding_service: Service for generating embeddings
-            vector_store: PGVector store (must support hybrid_search)
+            vector_store: Vector store (must support hybrid_search)
             vector_weight: Weight for vector search results (0-1)
             keyword_weight: Weight for keyword search results (0-1)
         """

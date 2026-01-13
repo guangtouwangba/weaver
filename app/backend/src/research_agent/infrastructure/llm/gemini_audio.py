@@ -52,22 +52,23 @@ class GeminiAudioTranscriber:
 
     def __init__(self, api_key: str, max_duration_minutes: Optional[int] = None):
         """Initialize transcriber.
-        
+
         Args:
             api_key: OpenRouter API key
             max_duration_minutes: Maximum video duration in minutes (defaults to config value)
         """
         self._api_key = api_key
-        
+
         # Get default from config if not specified
         if max_duration_minutes is None:
             try:
                 from research_agent.config import get_settings
+
                 settings = get_settings()
                 max_duration_minutes = settings.gemini_audio_max_duration_minutes
             except Exception:
                 max_duration_minutes = 60  # Fallback default
-        
+
         self._max_duration = max_duration_minutes * 60  # Convert to seconds
 
     async def transcribe_youtube(self, video_id: str) -> TranscriptionResult:
@@ -151,9 +152,10 @@ class GeminiAudioTranscriber:
             "quiet": True,
             "no_warnings": True,
         }
-        
+
         # Auto-detect ffmpeg location (cross-platform)
         import shutil
+
         ffmpeg_path = shutil.which("ffmpeg")
         if ffmpeg_path:
             # Use the directory containing ffmpeg
@@ -170,7 +172,7 @@ class GeminiAudioTranscriber:
                     break
             else:
                 logger.warning("[GeminiTranscriber] ffmpeg not found, yt-dlp may fail")
-        
+
         # Add proxy if configured
         if settings.youtube_proxy_url:
             logger.info(f"[GeminiTranscriber] Using proxy for yt-dlp")
@@ -329,7 +331,20 @@ class GeminiAudioTranscriber:
                 messages=messages,
             )
 
+            # Check for empty response
+            if not response.choices or len(response.choices) == 0:
+                logger.error("[GeminiTranscriber] Gemini returned empty response (no choices)")
+                return None
+
+            if not response.choices[0].message:
+                logger.error("[GeminiTranscriber] Gemini returned empty message")
+                return None
+
             transcript = response.choices[0].message.content
+
+            if not transcript:
+                logger.error("[GeminiTranscriber] Gemini returned empty transcript content")
+                return None
 
             # Log usage
             if response.usage:

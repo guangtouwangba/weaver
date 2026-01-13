@@ -34,6 +34,9 @@ class SendMessageInput:
     message: str
     document_id: Optional[UUID] = None
     top_k: int = field(default_factory=_get_default_top_k)
+    context_node_ids: Optional[List[str]] = None
+    context_nodes: Optional[List[dict]] = None
+    context_url_ids: Optional[List[str]] = None
 
 
 @dataclass

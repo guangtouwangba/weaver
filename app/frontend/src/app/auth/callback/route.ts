@@ -15,7 +15,9 @@ export async function GET(request: Request) {
     let origin = requestUrl.origin;
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    if (siteUrl) {
+    // Only use NEXT_PUBLIC_SITE_URL if we are NOT on localhost
+    // This allows local development to work even if the env var is set globally
+    if (siteUrl && requestUrl.hostname !== 'localhost' && requestUrl.hostname !== '127.0.0.1') {
         origin = siteUrl;
     } else {
         const forwardedHost = request.headers.get('x-forwarded-host');

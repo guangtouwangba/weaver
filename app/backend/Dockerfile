@@ -17,9 +17,9 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml README.md ./
 COPY src src/
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir . && \
+# Install uv and Python dependencies
+RUN pip install --no-cache-dir uv && \
+    uv pip install --system --no-cache . && \
     # Verify critical dependencies are installed
     python -c "import youtube_transcript_api; print('✓ youtube-transcript-api installed')"
 

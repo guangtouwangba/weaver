@@ -97,7 +97,13 @@ function LoginContent() {
 
     const getRedirectUrl = () => {
         if (typeof window === 'undefined') return '';
-        // Prefer env var if set (for consistent behavior behind proxies)
+
+        // Fix: If running on localhost, always redirect back to localhost
+        // to avoid production redirect loops during development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return `${window.location.origin}/auth/callback`;
+        }
+
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
         if (siteUrl) {
             return `${siteUrl}/auth/callback`;

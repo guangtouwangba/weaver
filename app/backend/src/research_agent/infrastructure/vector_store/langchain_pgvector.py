@@ -9,16 +9,16 @@ from langchain_core.retrievers import BaseRetriever
 
 from research_agent.config import get_settings
 from research_agent.infrastructure.embedding.base import EmbeddingService
-from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
+from research_agent.infrastructure.vector_store.base import VectorStore
 from research_agent.shared.utils.logger import logger
 
 settings = get_settings()
 
 
 class PGVectorRetriever(BaseRetriever):
-    """LangChain retriever that wraps our PGVector implementation."""
+    """LangChain retriever that wraps our vector store implementation."""
 
-    vector_store: PgVectorStore
+    vector_store: VectorStore
     embedding_service: EmbeddingService
     project_id: UUID
     k: int = settings.retrieval_top_k  # Default from settings
@@ -89,7 +89,7 @@ class PGVectorRetriever(BaseRetriever):
 
 
 def create_pgvector_retriever(
-    vector_store: PgVectorStore,
+    vector_store: VectorStore,
     embedding_service: EmbeddingService,
     project_id: UUID,
     k: int | None = None,
@@ -99,10 +99,10 @@ def create_pgvector_retriever(
     document_id: UUID | None = None,
 ) -> PGVectorRetriever:
     """
-    Factory function to create a PGVector retriever.
+    Factory function to create a retriever.
 
     Args:
-        vector_store: PGVector store instance
+        vector_store: Vector store instance
         embedding_service: Embedding service
         project_id: Project UUID
         k: Number of results to return (defaults to settings.retrieval_top_k)

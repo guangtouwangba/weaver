@@ -487,9 +487,6 @@ class DocumentProcessorTask(BaseTask):
                             embeddings=embeddings,
                         )
 
-                        logger.info(
-                            f"✅ Step 4b completed: Saved {len(chunk_data)} chunks with embeddings"
-                        )
                     except Exception as e:
                         logger.error(
                             f"❌ Step 4 failed: Embedding or chunk saving error - "
@@ -652,7 +649,7 @@ class DocumentProcessorTask(BaseTask):
                         chunk_index=chunk["chunk_index"],
                         content=chunk["content"],
                         page_number=chunk.get("page_number"),
-                        embedding=embedding,
+                        embedding=embedding if write_embeddings_to_pg else None,
                         chunk_metadata=chunk.get("metadata", {}),
                     )
                     batch_session.add(chunk_model)
