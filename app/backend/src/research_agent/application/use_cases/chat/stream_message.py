@@ -20,8 +20,8 @@ from research_agent.infrastructure.evaluation.evaluation_logger import Evaluatio
 from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
 from research_agent.infrastructure.llm.openrouter import create_langchain_llm
 from research_agent.infrastructure.resource_resolver import ResourceResolver
-from research_agent.infrastructure.vector_store.factory import get_vector_store
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
+from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import RAGTrace
 
@@ -346,7 +346,7 @@ class StreamMessageUseCase:
                     ]
 
                 # Create vector store and retriever with hybrid search option
-                vector_store = get_vector_store(self._session)
+                vector_store = PgVectorStore(self._session)
                 retriever = create_pgvector_retriever(
                     vector_store=vector_store,
                     embedding_service=self._embedding_service,
