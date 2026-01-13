@@ -117,7 +117,6 @@ export interface Citation {
 export interface ChatMessage {
   message: string;
   document_id?: string;
-  session_id?: string;  // Chat session ID
   context_node_ids?: string[];  // Optional: explicit context from canvas nodes (for DB lookup)
   context_nodes?: Array<{  // Optional: explicit context content from canvas nodes (direct)
     id: string;
@@ -127,24 +126,11 @@ export interface ChatMessage {
   context_url_ids?: string[];  // Optional: URL content IDs for video/article context
 }
 
-export interface ChatResponse {
-  answer: string;
-  sources: Array<{
-    document_id: string;
-    page_number: number;
-    snippet: string;
-    similarity: number;
-  }>;
-  session_id?: string;  // Session this message belongs to
-  citations?: Citation[];  // Mega-Prompt mode citations
-}
-
 export interface ChatHistoryResponse {
   messages: Array<{
     id: string;
     role: 'user' | 'ai';
     content: string;
-    session_id?: string;
     sources?: Array<{
       document_id: string;
       page_number: number;
@@ -161,22 +147,7 @@ export interface ChatHistoryResponse {
   }>;
 }
 
-// Chat Session types
-export interface ChatSession {
-  id: string;
-  project_id: string;
-  title: string;
-  is_shared: boolean;  // true = shared (cross-device), false = private (device-only)
-  message_count: number;
-  created_at: string;
-  updated_at: string;
-  last_message_at?: string;
-}
 
-export interface ChatSessionListResponse {
-  items: ChatSession[];
-  total: number;
-}
 
 export interface CanvasNode {
   id: string;
@@ -567,44 +538,11 @@ export const documentsApi = {
 
 // Chat API
 export const chatApi = {
-  // Session Management
-  createSession: (projectId: string, title: string = 'New Conversation', isShared: boolean = true) =>
-    fetchApi<ChatSession>(`/api/v1/projects/${projectId}/chat/sessions`, {
-      method: 'POST',
-      body: JSON.stringify({ title, is_shared: isShared }),
-    }),
-
-  listSessions: (projectId: string, includeShared: boolean = true) =>
-    fetchApi<ChatSessionListResponse>(
-      `/api/v1/projects/${projectId}/chat/sessions?include_shared=${includeShared}`
-    ),
-
-  getOrCreateDefaultSession: (projectId: string) =>
-    fetchApi<ChatSession>(`/api/v1/projects/${projectId}/chat/sessions/default`),
-
-  updateSession: (projectId: string, sessionId: string, title: string) =>
-    fetchApi<ChatSession>(`/api/v1/projects/${projectId}/chat/sessions/${sessionId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ title }),
-    }),
-
-  deleteSession: (projectId: string, sessionId: string) =>
-    fetchApi<{ success: boolean; message: string }>(
-      `/api/v1/projects/${projectId}/chat/sessions/${sessionId}`,
-      { method: 'DELETE' }
-    ),
-
   // Chat History
-  getHistory: (projectId: string, sessionId?: string) =>
+  getHistory: (projectId: string) =>
     fetchApi<ChatHistoryResponse>(
-      `/api/v1/projects/${projectId}/chat/history${sessionId ? `?session_id=${sessionId}` : ''}`
+      `/api/v1/projects/${projectId}/chat/history`
     ),
-
-  send: (projectId: string, message: ChatMessage) =>
-    fetchApi<ChatResponse>(`/api/v1/projects/${projectId}/chat`, {
-      method: 'POST',
-      body: JSON.stringify(message),
-    }),
 
   // Streaming chat
   stream: async function* (

@@ -15,8 +15,8 @@ from research_agent.infrastructure.evaluation.retrieval_metrics import (
     RetrievalMetricsResult,
 )
 from research_agent.infrastructure.evaluation.test_dataset import TestCase, TestDataset
+from research_agent.infrastructure.vector_store.factory import get_vector_store
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
-from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.shared.utils.logger import logger
 
 
@@ -116,7 +116,7 @@ class StrategyEvaluator:
         ragas_metrics_list = []
 
         # Create retriever
-        vector_store = PgVectorStore(self.session)
+        vector_store = get_vector_store(self.session)
         use_hybrid = retrieval_mode == "hybrid"
         retriever = create_pgvector_retriever(
             vector_store=vector_store,

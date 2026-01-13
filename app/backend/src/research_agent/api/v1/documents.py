@@ -34,6 +34,9 @@ from research_agent.domain.entities.task import TaskType
 from research_agent.domain.services.chunking_service import ChunkingService
 from research_agent.domain.services.thumbnail_service import ThumbnailService
 from research_agent.infrastructure.database.models import DocumentModel
+from research_agent.infrastructure.database.repositories.chunk_repo_factory import (
+    get_chunk_repository,
+)
 from research_agent.infrastructure.database.repositories.sqlalchemy_chunk_repo import (
     SQLAlchemyChunkRepository,
 )
@@ -468,7 +471,7 @@ async def upload_document(
 
     # Create dependencies
     document_repo = SQLAlchemyDocumentRepository(session)
-    chunk_repo = SQLAlchemyChunkRepository(session)
+    chunk_repo = get_chunk_repository(session)
     storage = LocalStorageService(settings.upload_dir)
     pdf_parser = PyMuPDFParser()
     chunking_service = ChunkingService()
@@ -679,7 +682,7 @@ async def get_document_chunks(
 ):
     """Get parsed text chunks for a document (for text preview/debugging)."""
     document_repo = SQLAlchemyDocumentRepository(session)
-    chunk_repo = SQLAlchemyChunkRepository(session)
+    chunk_repo = get_chunk_repository(session)
 
     # Verify document exists
     document = await document_repo.find_by_id(document_id)
@@ -735,7 +738,7 @@ async def delete_document(
     - Better user experience
     """
     document_repo = SQLAlchemyDocumentRepository(session)
-    chunk_repo = SQLAlchemyChunkRepository(session)
+    chunk_repo = get_chunk_repository(session)
     cleanup_repo = SQLAlchemyPendingCleanupRepository(session)
     local_storage = LocalStorageService(settings.upload_dir)
     supabase_storage = get_supabase_storage()

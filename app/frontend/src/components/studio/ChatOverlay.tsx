@@ -4,18 +4,14 @@ import { useState, useCallback } from 'react';
 import {
   Stack,
   Surface,
-  Text,
   IconButton,
   Spinner,
-  Chip,
 } from '@/components/ui';
 import { colors, radii, fontSize } from '@/components/ui/tokens';
 import {
   AutoAwesomeIcon,
   ArrowUpwardIcon,
-  MessageSquareIcon,
 } from '@/components/ui/icons';
-import { useStudio } from '@/contexts/StudioContext';
 import { isCommand, parseCommand } from '@/lib/commandParser';
 import { useCanvasDispatch } from '@/hooks/useCanvasDispatch';
 import CommandPalette from './CommandPalette';
@@ -29,8 +25,6 @@ export default function ChatOverlay({ onSendMessage }: ChatOverlayProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
-  const { activeSessionId, chatSessions } = useStudio();
-  const activeSession = chatSessions.find(s => s.id === activeSessionId);
   const { dispatch } = useCanvasDispatch();
 
   // Handle command execution
@@ -157,32 +151,6 @@ export default function ChatOverlay({ onSendMessage }: ChatOverlayProps) {
           padding: 20,
         }}
       >
-        {/* Context Label and Chips */}
-        {activeSessionId && activeSession && (
-          <Stack direction="row" align="center" gap={1} style={{ marginBottom: 16 }}>
-            <Text
-              variant="overline"
-              color="secondary"
-              style={{ letterSpacing: '0.5px' }}
-            >
-              CONTEXT:
-            </Text>
-            <Chip
-              label={activeSession.title.length > 25 ? activeSession.title.substring(0, 25) + '...' : activeSession.title}
-              icon={<MessageSquareIcon size={12} style={{ color: 'rgba(139, 92, 246, 0.8)' }} />}
-              size="sm"
-              style={{
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                color: 'rgba(139, 92, 246, 0.9)',
-                border: 'none',
-                height: 24,
-                fontSize: fontSize.xs,
-                fontWeight: 500,
-              }}
-            />
-          </Stack>
-        )}
-
         {/* Input Field with Sparkle Icon */}
         <Stack
           direction="row"

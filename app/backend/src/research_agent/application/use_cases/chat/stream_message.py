@@ -20,8 +20,8 @@ from research_agent.infrastructure.evaluation.evaluation_logger import Evaluatio
 from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
 from research_agent.infrastructure.llm.openrouter import create_langchain_llm
 from research_agent.infrastructure.resource_resolver import ResourceResolver
+from research_agent.infrastructure.vector_store.factory import get_vector_store
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
-from research_agent.infrastructure.vector_store.pgvector import PgVectorStore
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import RAGTrace
 
@@ -50,7 +50,6 @@ class StreamMessageInput:
     project_id: UUID
     message: str
     document_id: Optional[UUID] = None
-    session_id: Optional[UUID] = None  # Chat session ID
     top_k: int = field(default_factory=_get_default_top_k)
     use_hybrid_search: bool = False  # Enable hybrid search (vector + keyword)
     use_rewrite: bool = True  # Enable query rewriting with chat history
@@ -115,17 +114,10 @@ class StreamMessageUseCase:
         """Execute the use case with streaming using LangGraph."""
         repo = SQLAlchemyChatRepository(self._session)
 
-        # Get or create default session if not provided
-        session_id = input.session_id
-        if session_id is None:
-            default_session = await repo.get_or_create_default_session(input.project_id)
-            session_id = default_session.id
-
         # Initialize RAG Trace for end-to-end observability
         trace = RAGTrace(
             query=input.message,
             project_id=str(input.project_id),
-            session_id=str(session_id),
             extra_context={
                 "rag_mode": input.rag_mode,
                 "model": self._model,
@@ -183,7 +175,6 @@ class StreamMessageUseCase:
         await repo.save(
             ChatMessage(
                 project_id=input.project_id,
-                session_id=session_id,
                 role="user",
                 content=input.message,
                 context_refs=context_refs,
@@ -203,7 +194,6 @@ class StreamMessageUseCase:
                 chat_history = []
                 messages = await repo.get_history(
                     project_id=input.project_id,
-                    session_id=session_id,
                     limit=10,
                 )
                 trace.log("HISTORY", messages_count=len(messages))
@@ -346,7 +336,7 @@ class StreamMessageUseCase:
                     ]
 
                 # Create vector store and retriever with hybrid search option
-                vector_store = PgVectorStore(self._session)
+                vector_store = get_vector_store(self._session)
                 retriever = create_pgvector_retriever(
                     vector_store=vector_store,
                     embedding_service=self._embedding_service,
@@ -457,7 +447,6 @@ class StreamMessageUseCase:
                 if full_response:
                     ai_message = ChatMessage(
                         project_id=input.project_id,
-                        session_id=session_id,
                         role="ai",
                         content=full_response,
                         sources=response_sources,

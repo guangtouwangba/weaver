@@ -144,7 +144,7 @@ make run-frontend  # Terminal 2: UI on :3000
 |-------|-------------|
 | **Frontend** | Next.js 15, React 19, TypeScript, Konva.js (Canvas) |
 | **Backend** | Python 3.11+, FastAPI, SQLAlchemy, LangGraph |
-| **Database** | PostgreSQL, pgvector (Vector Search) |
+| **Database** | PostgreSQL, pgvector or Qdrant (Vector Search) |
 | **AI/LLM** | OpenRouter, OpenAI, Anthropic, Ollama |
 
 ---

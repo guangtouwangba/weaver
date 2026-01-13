@@ -620,15 +620,32 @@ class DocumentProcessorTask(BaseTask):
         embeddings: Optional[List[List[float]]] = None,
     ) -> None:
         """
-        Save chunks to database in batches using a fresh session.
+        Save chunks to database using ChunkRepository.
 
-        This method creates its own session to avoid connection timeout issues
-        that can occur when the caller's session has been idle during long operations
-        like embedding generation.
+        This method uses the chunk repository factory to ensure chunks are saved
+        to the correct storage backend (PostgreSQL or Qdrant) based on configuration.
+        
+        Now uses ResourceChunk entity for unified storage across all resource types.
         """
+        from uuid import uuid4
+
+        from research_agent.domain.entities.resource import ResourceType
+        from research_agent.domain.entities.resource_chunk import ResourceChunk
+        from research_agent.infrastructure.database.repositories.chunk_repo_factory import (
+            get_chunk_repository,
+        )
+
         batch_size = 50
         total_chunks = len(chunk_data)
         saved_count = 0
+
+        # Get document title for metadata
+        async with get_async_session() as title_session:
+            doc_result = await title_session.execute(
+                select(DocumentModel).where(DocumentModel.id == document_id)
+            )
+            doc = doc_result.scalar_one_or_none()
+            doc_title = doc.original_filename if doc else "Untitled"
 
         for i in range(0, total_chunks, batch_size):
             batch_end = min(i + batch_size, total_chunks)
@@ -640,23 +657,38 @@ class DocumentProcessorTask(BaseTask):
                 f"(chunks {i + 1}-{batch_end} of {total_chunks})"
             )
 
-            # ✅ Use fresh session for each batch to ensure connection is alive
+            # Use fresh session for each batch to ensure connection is alive
             async with get_async_session() as batch_session:
+                # Get chunk repository based on configuration
+                chunk_repo = get_chunk_repository(batch_session)
+
+                # Create ResourceChunk entities (unified format)
+                chunks = []
                 for chunk, embedding in zip(batch_chunks, batch_embeddings):
-                    chunk_model = DocumentChunkModel(
-                        document_id=document_id,
+                    # Build metadata with document-specific fields
+                    metadata = {
+                        "title": doc_title,
+                        "platform": "local",
+                        "page_number": chunk.get("page_number", 0),
+                        **(chunk.get("metadata", {})),
+                    }
+
+                    chunk_entity = ResourceChunk(
+                        id=uuid4(),
+                        resource_id=document_id,
+                        resource_type=ResourceType.DOCUMENT,
                         project_id=project_id,
                         chunk_index=chunk["chunk_index"],
                         content=chunk["content"],
-                        page_number=chunk.get("page_number"),
-                        embedding=embedding if write_embeddings_to_pg else None,
-                        chunk_metadata=chunk.get("metadata", {}),
+                        metadata=metadata,
                     )
-                    batch_session.add(chunk_model)
+                    if embedding:
+                        chunk_entity.set_embedding(embedding)
+                    chunks.append(chunk_entity)
 
-                # Flush and commit will happen automatically when context manager exits
-                # But let's be explicit
-                await batch_session.flush()
+                # Save using repository
+                await chunk_repo.save_batch(chunks)
+                await batch_session.commit()
 
             saved_count += len(batch_chunks)
             logger.debug(f"✅ Batch saved: {saved_count}/{total_chunks} chunks saved so far")

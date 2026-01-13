@@ -164,8 +164,13 @@ class Settings(BaseSettings):
 
     # Vector Store Configuration
     # "pgvector" - PostgreSQL pgvector (default)
-    # "weaviate" - Weaviate Vector Database
+    # "qdrant" - Qdrant Vector Database
     vector_store_provider: str = "pgvector"
+
+    # Qdrant Configuration
+    qdrant_url: str = "http://localhost:6333"  # Qdrant REST API URL
+    qdrant_api_key: str = ""  # Optional API key for authenticated deployments
+    qdrant_collection_name: str = "document_chunks"  # Collection name for storing embeddings
 
     # Query Rewrite Configuration
     # use_llm_rewrite: If True, use LLM for query rewriting (more accurate, ~1-2s latency)

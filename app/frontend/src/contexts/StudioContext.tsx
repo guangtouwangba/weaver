@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, ChatSession, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, urlApi, UrlContent, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
+import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, urlApi, UrlContent, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
 import { useNotification } from '@/contexts/NotificationContext';
 
 // === Generation Task Types for Concurrent Outputs ===
@@ -37,7 +37,6 @@ interface ChatMessage {
   id: string;
   role: 'user' | 'ai';
   content: string;
-  session_id?: string;  // Session this message belongs to
   sources?: Array<{
     document_id: string;
     page_number: number;
@@ -104,22 +103,9 @@ interface StudioContextType {
   setViewStates: (viewStates: { free: CanvasViewState; thinking: CanvasViewState }) => void;
   switchView: (view: 'free' | 'thinking') => void;
 
-  // Chat Sessions
-  chatSessions: ChatSession[];
-  setChatSessions: (sessions: ChatSession[] | ((prev: ChatSession[]) => ChatSession[])) => void;
-  activeSessionId: string | null;
-  setActiveSessionId: (id: string | null) => void;
-  sessionsLoading: boolean;
-
-  // Chat Messages (for current session)
+  // Chat Messages
   chatMessages: ChatMessage[];
   setChatMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
-
-  // Session Actions
-  createChatSession: (title?: string, isShared?: boolean) => Promise<ChatSession>;
-  switchChatSession: (sessionId: string) => Promise<void>;
-  updateChatSessionTitle: (sessionId: string, title: string) => Promise<void>;
-  deleteChatSession: (sessionId: string) => Promise<void>;
 
   // Actions
   addNodeToCanvas: (node: Omit<CanvasNode, 'id'>) => void;
@@ -295,10 +281,7 @@ export function StudioProvider({
       collapsedSectionIds: [],
     },
   });
-  // Chat Sessions state
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
+  // Chat Sessions state - REMOVED (simplified to single conversation history)
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -850,86 +833,6 @@ export function StudioProvider({
     setSourceNavigation({ documentId, pageNumber, searchText });
   }, []);
 
-  // Session Management Functions
-  const createChatSession = useCallback(async (title: string = 'New Conversation', isShared: boolean = true): Promise<ChatSession> => {
-    const session = await chatApi.createSession(projectId, title, isShared);
-    setChatSessions(prev => [session, ...prev]);
-    setActiveSessionId(session.id);
-    // Clear messages for new session
-    setChatMessages([
-      {
-        id: 'welcome',
-        role: 'ai',
-        content: "Hello! I'm your research assistant. Upload a document and ask me anything about it.",
-        timestamp: new Date(),
-      }
-    ]);
-    return session;
-  }, [projectId]);
-
-  const switchChatSession = useCallback(async (sessionId: string) => {
-    if (sessionId === activeSessionId) return;
-
-    setActiveSessionId(sessionId);
-
-    // Load history for the selected session
-    try {
-      const historyRes = await chatApi.getHistory(projectId, sessionId);
-      if (historyRes && historyRes.messages.length > 0) {
-        setChatMessages(
-          historyRes.messages.map((m) => ({
-            id: m.id,
-            role: m.role,
-            content: m.content,
-            session_id: m.session_id,
-            sources: m.sources,
-            timestamp: new Date(m.created_at),
-          }))
-        );
-      } else {
-        setChatMessages([
-          {
-            id: 'welcome',
-            role: 'ai',
-            content: "Hello! I'm your research assistant. Upload a document and ask me anything about it.",
-            timestamp: new Date(),
-          }
-        ]);
-      }
-    } catch (error) {
-      console.error('Failed to load session history:', error);
-    }
-  }, [projectId, activeSessionId]);
-
-  const updateChatSessionTitle = useCallback(async (sessionId: string, title: string) => {
-    const updatedSession = await chatApi.updateSession(projectId, sessionId, title);
-    setChatSessions(prev =>
-      prev.map(s => s.id === sessionId ? updatedSession : s)
-    );
-  }, [projectId]);
-
-  const deleteChatSession = useCallback(async (sessionId: string) => {
-    try {
-      await chatApi.deleteSession(projectId, sessionId);
-      setChatSessions(prev => prev.filter(s => s.id !== sessionId));
-      toast.success('Session Deleted', 'Chat session has been removed.');
-    } catch (error: any) {
-      toast.error('Failed to delete session', error.message);
-      return;
-    }
-
-    // If we deleted the active session, switch to another one
-    if (sessionId === activeSessionId) {
-      const remainingSessions = chatSessions.filter(s => s.id !== sessionId);
-      if (remainingSessions.length > 0) {
-        await switchChatSession(remainingSessions[0].id);
-      } else {
-        // Create a new default session
-        await createChatSession('Default Conversation', true);
-      }
-    }
-  }, [projectId, activeSessionId, chatSessions, switchChatSession, createChatSession]);
-
   // Load data on mount and when projectId changes
   useEffect(() => {
     if (!projectId) return;
@@ -955,8 +858,6 @@ export function StudioProvider({
         collapsedSectionIds: [],
       },
     });
-    setChatSessions([]);
-    setActiveSessionId(null);
     setChatMessages([
       {
         id: 'welcome',
@@ -972,15 +873,14 @@ export function StudioProvider({
     setGenerationTasks(new Map());
 
     const loadData = async () => {
-      setSessionsLoading(true);
       try {
-        const [docsRes, canvasRes, sessionsRes, outputsRes, projectRes, urlContentsRes] = await Promise.all([
+        const [docsRes, canvasRes, outputsRes, projectRes, urlContentsRes, historyRes] = await Promise.all([
           documentsApi.list(projectId),
           canvasApi.get(projectId).catch(() => null), // Handle 404 for new canvas
-          chatApi.listSessions(projectId).catch(() => null),
           outputsApi.list(projectId).catch(() => null), // Fetch saved outputs
           projectsApi.get(projectId).catch(() => null),
           urlApi.listByProject(projectId).catch(() => null), // Fetch saved URL contents
+          chatApi.getHistory(projectId).catch(() => null), // Fetch chat history
         ]);
 
         if (projectRes) {
@@ -994,6 +894,20 @@ export function StudioProvider({
         // Load persisted URL contents (YouTube videos, web links, etc.)
         if (urlContentsRes) {
           setUrlContents(urlContentsRes.items);
+        }
+
+        // Load chat history
+        if (historyRes && historyRes.messages.length > 0) {
+          setChatMessages(
+            historyRes.messages.map((m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              sources: m.sources,
+              context_refs: m.context_refs,
+              timestamp: new Date(m.created_at),
+            }))
+          );
         }
 
         if (canvasRes) {
@@ -1126,57 +1040,14 @@ export function StudioProvider({
             }
           }
         }
-
-        // Load sessions and set active session
-        let currentSessionId: string | null = null;
-        if (sessionsRes && sessionsRes.items.length > 0) {
-          setChatSessions(sessionsRes.items);
-          // Select the first session (most recent by last_message_at)
-          currentSessionId = sessionsRes.items[0].id;
-          setActiveSessionId(currentSessionId);
-        } else {
-          // Create a default session if none exist
-          try {
-            const defaultSession = await chatApi.getOrCreateDefaultSession(projectId);
-            setChatSessions([defaultSession]);
-            currentSessionId = defaultSession.id;
-            setActiveSessionId(currentSessionId);
-          } catch (error) {
-            console.error('Failed to create default session:', error);
-          }
-        }
-
-        // Load chat history for the active session
-        if (currentSessionId) {
-          try {
-            const historyRes = await chatApi.getHistory(projectId, currentSessionId);
-            if (historyRes && historyRes.messages.length > 0) {
-              setChatMessages(
-                historyRes.messages.map((m) => ({
-                  id: m.id,
-                  role: m.role,
-                  content: m.content,
-                  session_id: m.session_id,
-                  sources: m.sources,
-                  context_refs: m.context_refs,
-                  timestamp: new Date(m.created_at),
-                }))
-              );
-            }
-          } catch (error) {
-            console.error('Failed to load chat history:', error);
-          }
-        }
       } catch (error) {
         console.error('Failed to load project data:', error);
-      } finally {
-        setSessionsLoading(false);
       }
     };
 
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]); // Only depend on projectId - createChatSession and switchChatSession are stable and only used inside loadData
+  }, [projectId]); // Only depend on projectId
 
   const value: StudioContextType = {
     projectId,
@@ -1207,20 +1078,9 @@ export function StudioProvider({
     viewStates,
     setViewStates,
     switchView,
-    // Chat Sessions
-    chatSessions,
-    setChatSessions,
-    activeSessionId,
-    setActiveSessionId,
-    sessionsLoading,
     // Chat Messages
     chatMessages,
     setChatMessages,
-    // Session Actions
-    createChatSession,
-    switchChatSession,
-    updateChatSessionTitle,
-    deleteChatSession,
     // Canvas Actions
     addNodeToCanvas,
     addSection,

@@ -117,6 +117,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "   Application will continue - database connections will be retried on demand"
         )
 
+    # Initialize Qdrant collection if using Qdrant provider
+    if settings.vector_store_provider == "qdrant":
+        try:
+            from research_agent.infrastructure.vector_store.qdrant import (
+                ensure_collection_exists,
+                get_qdrant_client,
+            )
+
+            logger.info("Initializing Qdrant vector store...")
+            client = await get_qdrant_client()
+            await ensure_collection_exists(client, settings.qdrant_collection_name)
+            logger.info(f"✅ Qdrant ready (collection: {settings.qdrant_collection_name})")
+        except Exception as e:
+            logger.error(f"❌ Qdrant initialization failed: {e}")
+            logger.warning("   RAG functionality may not work until Qdrant is available")
+
     # Start background worker
     try:
         session_factory = get_async_session_factory()

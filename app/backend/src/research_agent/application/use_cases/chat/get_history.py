@@ -16,7 +16,6 @@ class ChatMessageDTO:
     id: UUID
     role: str
     content: str
-    session_id: Optional[UUID]
     sources: Optional[List[Dict[str, Any]]]
     context_refs: Optional[List[Dict[str, Any]]]
     created_at: str
@@ -27,7 +26,6 @@ class GetHistoryInput:
     """Input for get history use case."""
 
     project_id: UUID
-    session_id: Optional[UUID] = None  # If provided, get history for this session only
     limit: int = 50
 
 
@@ -48,7 +46,6 @@ class GetHistoryUseCase:
         """Execute the use case."""
         messages = await self._chat_repo.get_history(
             project_id=input.project_id,
-            session_id=input.session_id,
             limit=input.limit,
         )
 
@@ -58,7 +55,6 @@ class GetHistoryUseCase:
                     id=m.id,
                     role=m.role,
                     content=m.content,
-                    session_id=m.session_id,
                     sources=m.sources,
                     context_refs=getattr(m, "context_refs", None),
                     created_at=m.created_at.isoformat(),

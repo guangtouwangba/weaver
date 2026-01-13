@@ -66,12 +66,14 @@
 2. Factory 模式支持运行时切换 provider
 3. Docker Compose 一键部署本地 Qdrant
 4. 完整的异步支持，符合项目 async-first 设计
+5. **应用启动时自动创建 Collection**
 
 ### Non-Goals
 1. Qdrant Cloud 托管版本（复杂度高，需要单独提案）
 2. 自动数据同步（用户自行选择 provider）
 3. 多 provider 同时写入（仅单 provider 模式）
 4. Qdrant Snapshot/Backup 管理
+5. **数据迁移工具**（不在 scope 内）
 
 ## Technical Decisions
 
@@ -126,7 +128,7 @@ def get_vector_store(session: AsyncSession, provider: str | None = None) -> Vect
 **理由**:
 - 单 Collection 简化运维
 - payload 索引支持高效过滤
-- 与 pgvector 数据模型一致，便于迁移
+- 与 pgvector 数据模型一致
 
 **替代方案 (Rejected)**:
 - 每个 project 独立 Collection：运维复杂，Collection 数量爆炸
@@ -181,59 +183,74 @@ async def get_qdrant_client() -> AsyncQdrantClient:
 
 ### Decision 5: Data Ingestion Strategy
 
-**选择**: 在 document_processor 层添加 Qdrant 写入
+**策略**: 不实现双写。用户选择使用哪个 provider，数据就写入哪个存储。
+- 如果使用 `pgvector`：数据存入 PostgreSQL `document_chunks` 表
+- 如果使用 `qdrant`：数据存入 Qdrant Collection（需要实现 Qdrant ingestion 路径）
 
-**流程**:
+> **Note**: 初期实现仅支持检索，ingestion 仍走 PostgreSQL。后续可扩展 Qdrant ingestion。
+
+## Startup Behavior
+
+### Collection Initialization
+应用启动时自动检查并创建 Qdrant Collection：
+
+```python
+# 在 app startup 事件中
+@app.on_event("startup")
+async def init_qdrant():
+    if settings.vector_store_provider == "qdrant":
+        client = await get_qdrant_client()
+        await ensure_collection_exists(client, settings.qdrant_collection_name)
 ```
-DocumentProcessor.process_document()
-    │
-    ├── 1. Parse document
-    ├── 2. Chunk content
-    ├── 3. Generate embeddings
-    ├── 4. Store in PostgreSQL (document_chunks table)
-    │
-    └── 5. [NEW] Upsert to Qdrant (if provider == "qdrant")
+
+**ensure_collection_exists 实现**:
+```python
+async def ensure_collection_exists(client: AsyncQdrantClient, collection_name: str):
+    """Create collection if it doesn't exist."""
+    collections = await client.get_collections()
+    existing_names = [c.name for c in collections.collections]
+    
+    if collection_name not in existing_names:
+        await client.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(
+                size=1536,  # OpenAI embedding dimension
+                distance=Distance.COSINE,
+            ),
+        )
+        # Create payload indexes for efficient filtering
+        await client.create_payload_index(
+            collection_name=collection_name,
+            field_name="project_id",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
+        await client.create_payload_index(
+            collection_name=collection_name,
+            field_name="document_id",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
 ```
-
-**Upsert 策略**:
-- 使用 `chunk_id` 作为 Qdrant point ID
-- 支持幂等操作，重复处理不会产生重复数据
-- 删除文档时同步删除 Qdrant points
-
-## Risks / Trade-offs
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Qdrant 服务宕机 | RAG 功能不可用 | 保持 pgvector 作为 fallback；健康检查 |
-| 数据不一致 | 搜索结果不完整 | 等幂 upsert；一致性检查工具 |
-| 冷启动延迟 | 首次查询慢 | Qdrant 预热；Collection 预加载 |
-| 资源占用 | 开发环境变重 | Qdrant 可选启动；配置 profile |
-
-## Migration Plan
-
-### Phase 1: Implementation (This Proposal)
-1. 实现 QdrantVectorStore
-2. 添加 factory.py
-3. Docker Compose 配置
-4. 更新 config.py
-
-### Phase 2: Data Migration (Optional, Separate Task)
-1. 迁移脚本: pgvector → Qdrant
-2. 验证工具: 对比搜索结果
-3. 回滚脚本: Qdrant → pgvector
 
 ### Rollback Strategy
 - `VECTOR_STORE_PROVIDER=pgvector` 立即切换回 pgvector
 - 无需数据迁移，pgvector 数据始终保留
 - Qdrant 容器可停止，不影响主系统
 
-## Open Questions
+## Risks / Trade-offs
 
-1. **Collection 初始化时机**: 应用启动时 vs 首次使用时？
-   - 推荐：应用启动时检查并创建，避免首次请求延迟
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Qdrant 服务宕机 | RAG 功能不可用 | 保持 pgvector 作为 fallback；健康检查 |
+| 冷启动延迟 | 首次查询慢 | 应用启动时预创建 Collection |
+| 资源占用 | 开发环境变重 | Qdrant 可选启动；配置 profile |
+
+## Open Questions (Resolved)
+
+1. ~~**Collection 初始化时机**: 应用启动时 vs 首次使用时？~~
+   - **决定：应用启动时检查并创建**
 
 2. **Embedding 维度变更**: 如果用户切换 embedding 模型？
    - 推荐：Collection 名称包含维度信息，如 `document_chunks_1536`
 
 3. **多环境 Collection 隔离**: dev/staging/prod 如何区分？
-   - 推荐：使用 `QDRANT_COLLECTION_PREFIX` 配置
+   - 推荐：使用 `QDRANT_COLLECTION_NAME` 配置不同名称

@@ -2,52 +2,52 @@
 
 ## 1. Infrastructure Setup
 
-- [ ] 1.1 Add `qdrant-client` to `pyproject.toml` dependencies
-- [ ] 1.2 Add Qdrant service to `docker-compose.yml` with persistent volume and health check
-- [ ] 1.3 Update `config.py` with Qdrant configuration settings:
+- [x] 1.1 Add `qdrant-client` to `pyproject.toml` dependencies
+- [x] 1.2 Add Qdrant service to `docker-compose.yml` with persistent volume and health check
+- [x] 1.3 Update `config.py` with Qdrant configuration settings:
   - `qdrant_url` (default: `http://localhost:6333`)
   - `qdrant_api_key` (optional)
   - `qdrant_collection_name` (default: `document_chunks`)
 
 ## 2. Core Implementation
 
-- [ ] 2.1 Extend `VectorStore` base class in `base.py`:
+- [x] 2.1 Extend `VectorStore` base class in `base.py`:
   - Add `hybrid_search()` abstract method with default implementation
   - Add `document_id` parameter to `search()` method signature
-- [ ] 2.2 Create `infrastructure/vector_store/qdrant.py`:
+- [x] 2.2 Create `infrastructure/vector_store/qdrant.py`:
   - Implement `QdrantVectorStore` class
   - Implement `search()` method with project_id/document_id filtering
   - Implement `hybrid_search()` method (can defer to simple search initially)
   - Add collection initialization logic
-- [ ] 2.3 Create `infrastructure/vector_store/factory.py`:
+- [x] 2.3 Create `infrastructure/vector_store/factory.py`:
   - Implement `get_vector_store(session, provider=None)` function
   - Support `pgvector` and `qdrant` providers
   - Default to `config.vector_store_provider`
 
 ## 3. Application Startup Integration
 
-- [ ] 3.1 Add Qdrant collection initialization to application startup:
+- [x] 3.1 Add Qdrant collection initialization to application startup:
   - Check if collection exists
   - Create collection with vector config if not exists
   - Configure payload indexes for project_id and document_id
 
 ## 4. Integration Points
 
-- [ ] 4.1 Update `application/use_cases/chat/stream_message.py`:
+- [x] 4.1 Update `application/use_cases/chat/stream_message.py`:
   - Ensure `get_vector_store()` factory is used (already imports it)
-- [ ] 4.2 Update `api/v1/chat.py`:
+- [x] 4.2 Update `api/v1/chat.py`:
   - Replace direct `PgVectorStore(session)` with `get_vector_store(session)`
-- [ ] 4.3 Update `infrastructure/evaluation/strategy_evaluator.py`:
+- [x] 4.3 Update `infrastructure/evaluation/strategy_evaluator.py`:
   - Replace direct `PgVectorStore(session)` with factory pattern
 
 ## 5. Configuration & Documentation
 
-- [ ] 5.1 Update `.env.example` with Qdrant environment variables
-- [ ] 5.2 Update `README.md` with Qdrant setup instructions
+- [x] 5.1 Update `.env.example` with Qdrant environment variables
+- [x] 5.2 Update `README.md` with Qdrant setup instructions
 
 ## 6. Verification
 
-- [ ] 6.1 Create verification script `scripts/verify_qdrant.py`:
+- [x] 6.1 Create verification script `scripts/verify_qdrant.py`:
   - Test collection creation
   - Test vector insert
   - Test vector search

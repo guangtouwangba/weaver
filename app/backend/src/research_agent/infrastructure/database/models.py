@@ -48,9 +48,6 @@ class ProjectModel(Base):
     canvas: Mapped[Optional["CanvasModel"]] = relationship(
         "CanvasModel", back_populates="project", uselist=False, cascade="all, delete-orphan"
     )
-    chat_sessions: Mapped[List["ChatSessionModel"]] = relationship(
-        "ChatSessionModel", back_populates="project", cascade="all, delete-orphan"
-    )
     chat_messages: Mapped[List["ChatMessageModel"]] = relationship(
         "ChatMessageModel", back_populates="project", cascade="all, delete-orphan"
     )
@@ -120,7 +117,11 @@ class DocumentModel(Base):
 
 
 class DocumentChunkModel(Base):
-    """Document chunk ORM model for RAG."""
+    """Document chunk ORM model for RAG.
+    
+    DEPRECATED: Use ResourceChunkModel for new code.
+    This model is kept for backward compatibility during migration.
+    """
 
     __tablename__ = "document_chunks"
 
@@ -155,6 +156,36 @@ class DocumentChunkModel(Base):
 
     # Relationships
     document: Mapped["DocumentModel"] = relationship("DocumentModel", back_populates="chunks")
+
+
+class ResourceChunkModel(Base):
+    """Unified resource chunk ORM model for all resource types.
+    
+    This model stores chunks from any resource type (document, video, audio,
+    web page, note) with consistent schema for unified retrieval.
+    
+    Attributes:
+        resource_id: Parent resource ID (document, url_content, etc.)
+        resource_type: Type of resource (document, video, audio, web_page, note)
+        metadata: Type-specific data (title, platform, page_number, timestamps)
+    """
+
+    __tablename__ = "resource_chunks"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    resource_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    resource_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    project_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
+    chunk_metadata: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, server_default="{}", nullable=False)
+    content_tsvector: Mapped[Optional[Any]] = mapped_column(TSVECTOR, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class HighlightModel(Base):
@@ -253,44 +284,6 @@ class CanvasModel(Base):
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="canvas")
 
 
-class ChatSessionModel(Base):
-    """
-    Chat session ORM model for managing multiple conversations per project.
-
-    Supports both shared sessions (visible to all devices) and private sessions
-    (visible only to the user/device that created them).
-    """
-
-    __tablename__ = "chat_sessions"
-
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    # NULL = shared session, has value = private session for that user/device
-    user_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False, default="New Conversation")
-    # Redundant field for easier querying: True = shared, False = private
-    is_shared: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    # Timestamp of last message for sorting sessions
-    last_message_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-    # Relationships
-    project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_sessions")
-    messages: Mapped[List["ChatMessageModel"]] = relationship(
-        "ChatMessageModel", back_populates="session", cascade="all, delete-orphan"
-    )
-
-
 class ChatMessageModel(Base):
     """Chat message ORM model for storing conversation history."""
 
@@ -298,13 +291,7 @@ class ChatMessageModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
-    )
-    session_id: Mapped[Optional[UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("chat_sessions.id", ondelete="CASCADE"),
-        nullable=True,  # Nullable for backward compatibility during migration
-        index=True,
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # 'user' or 'ai'
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -315,9 +302,6 @@ class ChatMessageModel(Base):
 
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="chat_messages")
-    session: Mapped[Optional["ChatSessionModel"]] = relationship(
-        "ChatSessionModel", back_populates="messages"
-    )
 
 
 class ChatMemoryModel(Base):

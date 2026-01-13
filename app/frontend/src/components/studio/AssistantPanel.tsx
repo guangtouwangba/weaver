@@ -58,7 +58,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { useStudio } from '@/contexts/StudioContext';
-import { chatApi, Citation, ChatSession, ProjectDocument } from '@/lib/api';
+import { chatApi, Citation, ProjectDocument } from '@/lib/api';
 import { isCommand, parseCommand } from '@/lib/commandParser';
 import { useCanvasDispatch } from '@/hooks/useCanvasDispatch';
 import CommandPalette from './CommandPalette';
@@ -314,14 +314,6 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     navigateToNode,
     highlightedMessageId,
     setHighlightedMessageId,
-    // Session management
-    chatSessions,
-    activeSessionId,
-    sessionsLoading,
-    createChatSession,
-    switchChatSession,
-    updateChatSessionTitle,
-    deleteChatSession,
     // Cross-boundary drag from Konva canvas
     crossBoundaryDragNode,
     setCrossBoundaryDragNode,
@@ -360,16 +352,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
   // Collapsible Context State
   const [isContextCollapsed, setIsContextCollapsed] = useState(false);
 
-  // Session menu state
-  const [sessionMenuAnchor, setSessionMenuAnchor] = useState<null | HTMLElement>(null);
-  const [selectedSessionForMenu, setSelectedSessionForMenu] = useState<string | null>(null);
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
-
-  // Get active session object
-  const activeSession = chatSessions.find(s => s.id === activeSessionId);
+  // Get active document
   const activeDocument = documents.find(d => d.id === activeDocumentId);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -525,11 +508,10 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       const regularNodes = currentContextNodes.filter(n => n.type !== 'url');
       const urlNodes = currentContextNodes.filter(n => n.type === 'url');
 
-      // Stream response with session_id, context_nodes, and context_url_ids
+      // Stream response with context_nodes and context_url_ids
       for await (const chunk of chatApi.stream(projectId, {
         message: userInput,
         document_id: activeDocumentId || undefined,
-        session_id: activeSessionId || undefined,
         context_nodes: regularNodes.length > 0 ? regularNodes.map(n => ({
           id: n.id,
           title: n.title,
@@ -754,87 +736,6 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
       </div>
     );
   }
-
-  // Session management handlers (Keep these for future use or hidden menu)
-  const handleCreateSession = async (isShared: boolean) => {
-    try {
-      await createChatSession('New Conversation', isShared);
-      setActiveView('chat'); // Switch to chat view
-    } catch (error) {
-      console.error('Failed to create session:', error);
-    }
-  };
-
-  const handleSessionMenuOpen = (event: React.MouseEvent<HTMLElement>, sessionId: string) => {
-    event.stopPropagation();
-    setSessionMenuAnchor(event.currentTarget);
-    setSelectedSessionForMenu(sessionId);
-  };
-
-  const handleSessionMenuClose = () => {
-    setSessionMenuAnchor(null);
-    setSelectedSessionForMenu(null);
-  };
-
-  const handleStartEditSession = () => {
-    const session = chatSessions.find(s => s.id === selectedSessionForMenu);
-    if (session) {
-      setEditingSessionId(session.id);
-      setEditingTitle(session.title);
-    }
-    handleSessionMenuClose();
-  };
-
-  const handleSaveSessionTitle = async () => {
-    if (editingSessionId && editingTitle.trim()) {
-      try {
-        await updateChatSessionTitle(editingSessionId, editingTitle.trim());
-      } catch (error) {
-        console.error('Failed to update session title:', error);
-      }
-    }
-    setEditingSessionId(null);
-    setEditingTitle('');
-  };
-
-  const handleDeleteSessionConfirm = () => {
-    setSessionToDelete(selectedSessionForMenu);
-    setDeleteDialogOpen(true);
-    handleSessionMenuClose();
-  };
-
-  const handleDeleteSession = async () => {
-    if (sessionToDelete) {
-      try {
-        await deleteChatSession(sessionToDelete);
-      } catch (error) {
-        console.error('Failed to delete session:', error);
-      }
-    }
-    setDeleteDialogOpen(false);
-    setSessionToDelete(null);
-  };
-
-  // Format relative time
-  const formatRelativeTime = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  const handleSwitchSession = (id: string) => {
-    switchChatSession(id);
-    setActiveView('chat');
-  };
 
   return (
     <div style={{
@@ -1272,28 +1173,6 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
         </Surface>
 
       </div>
-
-      {/* Hidden Dialogs/Menus */}
-      <Menu
-        open={Boolean(sessionMenuAnchor)}
-        onClose={handleSessionMenuClose}
-        anchorPosition={sessionMenuAnchor ? { top: sessionMenuAnchor.getBoundingClientRect().bottom + window.scrollY, left: sessionMenuAnchor.getBoundingClientRect().left + window.scrollX } : undefined}
-      >
-        <MenuItem onClick={handleStartEditSession}>Rename</MenuItem>
-        <MenuItem onClick={handleDeleteSessionConfirm} danger style={{ color: '#EF4444' }}>Delete</MenuItem>
-      </Menu>
-
-      <ConfirmDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={handleDeleteSession}
-        title="Delete Conversation?"
-        message={`Are you sure you want to delete "${chatSessions.find(s => s.id === sessionToDelete)?.title || 'this conversation'}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        isDanger={true}
-        loading={isLoading}
-      />
-
     </div >
   );
 }
