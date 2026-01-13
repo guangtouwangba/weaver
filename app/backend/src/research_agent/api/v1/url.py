@@ -5,7 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.api.deps import get_db
+from research_agent.api.auth.supabase import UserContext, get_optional_user
+from research_agent.api.deps import get_db, verify_project_ownership
 from research_agent.application.dto.url_content import (
     URLContentListResponse,
     URLExtractRequest,
@@ -34,6 +35,7 @@ async def extract_url(
     request: URLExtractRequest,
     repo: SQLAlchemyUrlContentRepository = Depends(get_repo),
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> URLExtractResponse:
     """
     Extract content from a URL.
@@ -48,6 +50,10 @@ async def extract_url(
     Returns:
         URLExtractResponse with pending status
     """
+    # Verify project ownership if project_id is provided
+    if request.project_id:
+        await verify_project_ownership(request.project_id, user.user_id, session)
+
     url = request.url
     normalized = normalize_url(url)
 
@@ -204,6 +210,8 @@ async def list_project_url_contents(
     skip: int = 0,
     limit: int = 50,
     repo: SQLAlchemyUrlContentRepository = Depends(get_repo),
+    session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> URLContentListResponse:
     """
     List all URL contents for a project.
@@ -218,6 +226,9 @@ async def list_project_url_contents(
     Returns:
         URLContentListResponse with list of URL contents
     """
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     items = await repo.list_by_project(project_id, skip=skip, limit=limit)
     
     return URLContentListResponse(

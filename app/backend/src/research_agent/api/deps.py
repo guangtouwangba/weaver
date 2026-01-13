@@ -2,7 +2,9 @@
 
 import asyncio
 from typing import AsyncGenerator
+from uuid import UUID
 
+from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.config import get_settings
@@ -137,3 +139,82 @@ def get_embedding_service():
     else:
         logger.error("❌ No API key set! Please set OPENROUTER_API_KEY or OPENAI_API_KEY")
         raise ValueError("No embedding API key configured")
+
+
+
+# =============================================================================
+# Project Ownership Verification
+# =============================================================================
+
+
+async def get_verified_project(
+    project_id: UUID,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    Verify project exists and belongs to the authenticated user.
+
+    This dependency should be used on all project-scoped endpoints to ensure
+    users can only access their own projects.
+
+    Note: This dependency requires get_optional_user to be called separately
+    in the endpoint to get the user context. This is done to avoid circular
+    imports and keep the dependency simple.
+
+    Raises:
+        HTTPException 404: Project not found
+        HTTPException 403: User not authorized to access project
+    """
+    from research_agent.api.auth.supabase import UserContext, get_optional_user
+    from research_agent.domain.entities.project import Project
+    from research_agent.infrastructure.database.repositories.sqlalchemy_project_repo import (
+        SQLAlchemyProjectRepository,
+    )
+
+    # Import here to avoid circular imports
+    project_repo = SQLAlchemyProjectRepository(session)
+    project = await project_repo.find_by_id(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return project
+
+
+async def verify_project_ownership(
+    project_id: UUID,
+    user_id: str | None,
+    session: AsyncSession,
+) -> None:
+    """
+    Verify that a project belongs to the specified user.
+
+    This is a helper function that can be called directly when you already
+    have the user context.
+
+    Args:
+        project_id: The project UUID to verify
+        user_id: The user ID to check ownership against
+        session: Database session
+
+    Raises:
+        HTTPException 404: Project not found
+        HTTPException 403: User not authorized to access project
+    """
+    from research_agent.infrastructure.database.repositories.sqlalchemy_project_repo import (
+        SQLAlchemyProjectRepository,
+    )
+
+    project_repo = SQLAlchemyProjectRepository(session)
+    project = await project_repo.find_by_id(project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Skip ownership check if auth bypass is enabled
+    if settings.auth_bypass_enabled:
+        return
+
+    # Check ownership - if project has a user_id, it must match
+    if project.user_id and project.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this project")

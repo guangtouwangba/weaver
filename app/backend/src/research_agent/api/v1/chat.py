@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.api.deps import get_db, get_embedding_service
+from research_agent.api.auth.supabase import UserContext, get_optional_user
+from research_agent.api.deps import get_db, get_embedding_service, verify_project_ownership
 from research_agent.application.dto.chat import (
     ChatHistoryResponse,
     ChatMessageRequest,
@@ -45,8 +46,12 @@ async def stream_message(
     request: ChatMessageRequest,
     session: AsyncSession = Depends(get_db),
     embedding_service: OpenRouterEmbeddingService = Depends(get_embedding_service),
+    user: UserContext = Depends(get_optional_user),
 ) -> StreamingResponse:
     """Send a chat message and get streaming RAG response (SSE) using LangGraph."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     from research_agent.config import get_settings
     from research_agent.domain.services.config_service import AsyncConfigurationService
 
@@ -167,8 +172,12 @@ async def get_chat_history(
     project_id: UUID,
     limit: int = 50,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> ChatHistoryResponse:
     """Get chat history for a project."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     chat_repo = SQLAlchemyChatRepository(session)
     use_case = GetHistoryUseCase(chat_repo)
 

@@ -2,30 +2,30 @@
 
 ## Phase 1: Core Infrastructure
 
-1. [ ] **Add `get_verified_project` dependency to `api/deps.py`**
+1. [x] **Add `get_verified_project` dependency to `api/deps.py`**
    - Create function that verifies project ownership
    - Handle auth bypass for development mode
    - Return verified Project entity
 
 ## Phase 2: Apply to Endpoints
 
-2. [ ] **Fix `api/v1/chat.py`**
+2. [x] **Fix `api/v1/chat.py`**
    - Add `get_verified_project` dependency to `stream_message`
    - Add `get_verified_project` dependency to `get_chat_history`
    - Add `get_optional_user` import
 
-3. [ ] **Fix `api/v1/outputs.py`**
+3. [x] **Fix `api/v1/outputs.py`**
    - Add `get_verified_project` dependency to all 8 endpoints
    - Add `get_optional_user` import
 
-4. [ ] **Fix `api/v1/url.py`**
+4. [x] **Fix `api/v1/url.py`**
    - Add `get_verified_project` dependency to `extract_url`
    - Add `get_verified_project` dependency to `list_project_url_contents`
 
-5. [ ] **Fix `api/v1/canvas.py`**
+5. [x] **Fix `api/v1/canvas.py`**
    - Add `get_verified_project` dependency to all 6 endpoints
 
-6. [ ] **Fix `api/v1/documents.py`**
+6. [x] **Fix `api/v1/documents.py`**
    - Add `get_verified_project` dependency to `confirm_upload`
 
 ## Phase 3: Inbox User Scoping

@@ -252,6 +252,7 @@ async def confirm_upload(
     project_id: UUID,
     request: ConfirmUploadRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> DocumentUploadResponse:
     """
     Confirm a successful file upload and schedule async processing.
@@ -264,6 +265,10 @@ async def confirm_upload(
 
     Returns 202 Accepted - processing happens asynchronously.
     """
+    # Verify project ownership
+    from research_agent.api.deps import verify_project_ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     storage = get_supabase_storage()
     if not storage:
         raise HTTPException(status_code=501, detail="Supabase Storage not configured.")

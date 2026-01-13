@@ -5,7 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.api.deps import get_db
+from research_agent.api.auth.supabase import UserContext, get_optional_user
+from research_agent.api.deps import get_db, verify_project_ownership
 from research_agent.application.dto.canvas import (
     CanvasDataRequest,
     CanvasDataResponse,
@@ -58,8 +59,12 @@ router = APIRouter()
 async def get_canvas(
     project_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> CanvasDataResponse:
     """Get canvas data for a project."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     canvas_repo = SQLAlchemyCanvasRepository(session)
     use_case = GetCanvasUseCase(canvas_repo)
 
@@ -145,8 +150,12 @@ async def save_canvas(
     project_id: UUID,
     request: CanvasDataRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> CanvasSaveResponse:
     """Save canvas data for a project."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     canvas_repo = SQLAlchemyCanvasRepository(session)
     project_repo = SQLAlchemyProjectRepository(session)
 
@@ -193,8 +202,12 @@ async def create_canvas_node(
     project_id: UUID,
     request: CreateCanvasNodeRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> CanvasNodeOperationResponse:
     """Create a new canvas node."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     canvas_repo = SQLAlchemyCanvasRepository(session)
     project_repo = SQLAlchemyProjectRepository(session)
 
@@ -236,8 +249,12 @@ async def update_canvas_node(
     node_id: str,
     request: UpdateCanvasNodeRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> CanvasNodeOperationResponse:
     """Update a canvas node."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     canvas_repo = SQLAlchemyCanvasRepository(session)
     project_repo = SQLAlchemyProjectRepository(session)
 
@@ -278,8 +295,12 @@ async def delete_canvas_node(
     project_id: UUID,
     node_id: str,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> CanvasNodeOperationResponse:
     """Delete a canvas node."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     canvas_repo = SQLAlchemyCanvasRepository(session)
     project_repo = SQLAlchemyProjectRepository(session)
 
@@ -316,6 +337,7 @@ async def clear_canvas(
     project_id: UUID,
     view_type: str | None = None,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> CanvasSaveResponse:
     """Clear canvas data for a project (async-friendly).
 
@@ -329,6 +351,9 @@ async def clear_canvas(
         view_type: Optional. If provided ('free' or 'thinking'), only clear that view.
                    If not provided, clears all canvas data.
     """
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     from research_agent.worker.service import TaskQueueService
 
     canvas_repo = SQLAlchemyCanvasRepository(session)

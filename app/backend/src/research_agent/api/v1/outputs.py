@@ -5,7 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.api.deps import get_db
+from research_agent.api.auth.supabase import UserContext, get_optional_user
+from research_agent.api.deps import get_db, verify_project_ownership
 from research_agent.application.dto.output import (
     ExpandNodeRequest,
     GenerateOutputRequest,
@@ -38,6 +39,7 @@ async def generate_output(
     project_id: UUID,
     request: GenerateOutputRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> GenerateOutputResponse:
     """
     Start generating an output (mindmap, summary, etc.).
@@ -50,6 +52,9 @@ async def generate_output(
         - output_id: ID of the output being generated
         - websocket_channel: WebSocket path to subscribe to
     """
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     logger.info(
         f"[Outputs API] Generate request: project={project_id}, "
         f"type={request.output_type}, sources={request.source_ids}"
@@ -104,6 +109,7 @@ async def list_outputs(
     limit: int = 20,
     offset: int = 0,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> OutputListResponse:
     """
     List outputs for a project.
@@ -114,6 +120,9 @@ async def list_outputs(
         limit: Maximum number of results
         offset: Pagination offset
     """
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     outputs, total = await output_generation_service.list_outputs(
         project_id=project_id,
         output_type=output_type,
@@ -150,8 +159,12 @@ async def get_output(
     project_id: UUID,
     output_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> OutputResponse:
     """Get a specific output by ID."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     output = await output_generation_service.get_output(
         project_id=project_id,
         output_id=output_id,
@@ -183,8 +196,12 @@ async def delete_output(
     project_id: UUID,
     output_id: UUID,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> None:
     """Delete an output."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     success = await output_generation_service.delete_output(
         project_id=project_id,
         output_id=output_id,
@@ -204,12 +221,16 @@ async def update_output(
     output_id: UUID,
     request: UpdateOutputRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> OutputResponse:
     """
     Update an output's title and/or data.
 
     This is used to persist user edits to generated content (e.g., mindmap changes).
     """
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     updated = await output_generation_service.update_output(
         project_id=project_id,
         output_id=output_id,
@@ -250,6 +271,7 @@ async def expand_node(
     node_id: str,
     request: ExpandNodeRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> NodeActionResponse:
     """
     Start expanding a node with additional children.
@@ -257,6 +279,9 @@ async def expand_node(
     Returns a task_id. New nodes will be streamed via WebSocket
     as NODE_ADDED and EDGE_ADDED events.
     """
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     logger.info(f"[Outputs API] Expand node: output={output_id}, node={node_id}")
 
     try:
@@ -287,6 +312,7 @@ async def synthesize_nodes(
     output_id: UUID,
     request: SynthesizeNodesRequest,
     session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> NodeActionResponse:
     """
     Synthesize multiple nodes into a consolidated insight.
@@ -297,6 +323,8 @@ async def synthesize_nodes(
     Returns a task_id. The synthesized node will be streamed via WebSocket
     as a NODE_ADDED event.
     """
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
 
     logger.info(f"[Outputs API] Synthesize nodes: output={output_id}, nodes={request.node_ids}")
 
@@ -331,8 +359,13 @@ async def synthesize_nodes(
 async def cancel_task(
     project_id: UUID,
     task_id: str,
+    session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> None:
     """Cancel an ongoing generation task."""
+    # Verify project ownership
+    await verify_project_ownership(project_id, user.user_id, session)
+
     success = await output_generation_service.cancel_task(
         project_id=str(project_id),
         task_id=task_id,
