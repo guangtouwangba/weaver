@@ -2,8 +2,10 @@
 
 import asyncio
 import random
+import re
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, List, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +21,6 @@ from research_agent.infrastructure.embedding.base import EmbeddingService
 from research_agent.infrastructure.evaluation.evaluation_logger import EvaluationLogger
 from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
 from research_agent.infrastructure.llm.openrouter import create_langchain_llm
-from research_agent.infrastructure.resource_resolver import ResourceResolver
 from research_agent.infrastructure.vector_store.factory import get_vector_store
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
 from research_agent.shared.utils.logger import logger
@@ -38,6 +39,48 @@ class SourceRef:
     similarity: float
 
 
+class StreamingRefInjector:
+    def __init__(self, default_video_source_id: str | None):
+        self.default_video_source_id = default_video_source_id
+        self.buffer = ""
+
+    _time_pattern = re.compile(r"\[(?:TIME:)?(\d{1,2}:\d{2}(?::\d{2})?)\]")
+
+    def process_token(self, token: str) -> str:
+        self.buffer += token
+        safe_text, remaining = self._split_safe(self.buffer)
+        self.buffer = remaining
+        return self._transform(safe_text)
+
+    def flush(self) -> str:
+        out = self._transform(self.buffer)
+        self.buffer = ""
+        return out
+
+    def _split_safe(self, text: str) -> tuple[str, str]:
+        last_open = text.rfind("[")
+        if last_open == -1:
+            return text, ""
+
+        last_close = text.rfind("]")
+        if last_close < last_open:
+            return text[:last_open], text[last_open:]
+
+        return text, ""
+
+    def _transform(self, text: str) -> str:
+        if not text:
+            return ""
+        if not self.default_video_source_id:
+            return text
+
+        def repl(match: re.Match[str]) -> str:
+            ts = match.group(1)
+            return f"<{self.default_video_source_id}, {ts}>"
+
+        return self._time_pattern.sub(repl, text)
+
+
 def _get_default_top_k() -> int:
     """Get default top_k from settings."""
     return settings.retrieval_top_k
@@ -49,7 +92,7 @@ class StreamMessageInput:
 
     project_id: UUID
     message: str
-    document_id: Optional[UUID] = None
+    document_id: UUID | None = None
     top_k: int = field(default_factory=_get_default_top_k)
     use_hybrid_search: bool = False  # Enable hybrid search (vector + keyword)
     use_rewrite: bool = True  # Enable query rewriting with chat history
@@ -61,13 +104,13 @@ class StreamMessageInput:
     rag_mode: str = field(
         default_factory=lambda: settings.rag_mode
     )  # RAG mode: traditional | long_context | auto
-    context_node_ids: Optional[List[str]] = (
+    context_node_ids: list[str] | None = (
         None  # IDs of canvas nodes explicitly dragged into context (DB lookup)
     )
-    context_nodes: Optional[List[dict]] = (
+    context_nodes: list[dict[str, Any]] | None = (
         None  # Direct context nodes with content (no DB lookup needed)
     )
-    context_url_ids: Optional[List[str]] = (
+    context_url_ids: list[str] | None = (
         None  # IDs of URL content to include as context (video transcripts, articles)
     )
 
@@ -77,13 +120,13 @@ class StreamEvent:
     """Streaming event."""
 
     type: str  # "token" | "sources" | "done" | "error" | "citations" | "status"
-    content: Optional[str] = None
-    sources: Optional[List[SourceRef]] = None
-    citations: Optional[List[dict]] = None  # Citations from long context mode
-    step: Optional[str] = (
+    content: str | None = None
+    sources: list[SourceRef] | None = None
+    citations: list[dict[str, Any]] | None = None  # Citations from long context mode
+    step: str | None = (
         None  # For status events: rewriting, memory, analyzing, retrieving, ranking, generating
     )
-    message: Optional[str] = None  # Human-readable status message
+    message: str | None = None  # Human-readable status message
 
 
 class StreamMessageUseCase:
@@ -112,9 +155,12 @@ class StreamMessageUseCase:
 
     async def execute(self, input: StreamMessageInput) -> AsyncIterator[StreamEvent]:
         """Execute the use case with streaming using LangGraph."""
+        from .context_engine import ContextEngine
+        from .stream_event_processor import StreamEventProcessor
+
         repo = SQLAlchemyChatRepository(self._session)
 
-        # Initialize RAG Trace for end-to-end observability
+        # Initialize RAG Trace
         trace = RAGTrace(
             query=input.message,
             project_id=str(input.project_id),
@@ -126,207 +172,47 @@ class StreamMessageUseCase:
             },
         )
 
-        # Build context references for the user message
-        context_refs = None
-        if input.context_url_ids or input.context_node_ids or input.context_nodes:
-            context_refs = {}
-
-            # Fetch URL content metadata for display
-            if input.context_url_ids:
-                try:
-                    from uuid import UUID as UUID_type
-
-                    from research_agent.infrastructure.database.repositories.sqlalchemy_url_content_repo import (
-                        SQLAlchemyUrlContentRepository,
-                    )
-
-                    url_repo = SQLAlchemyUrlContentRepository(self._session)
-                    urls = []
-                    for url_id in input.context_url_ids:
-                        try:
-                            url_content = await url_repo.get_by_id(UUID_type(url_id))
-                            if url_content:
-                                urls.append(
-                                    {
-                                        "id": str(url_content.id),
-                                        "title": url_content.title,
-                                        "platform": url_content.platform,
-                                        "url": url_content.url,
-                                    }
-                                )
-                        except Exception as e:
-                            logger.warning(f"Failed to fetch URL content {url_id}: {e}")
-                            urls.append({"id": url_id, "title": "URL"})
-                    context_refs["urls"] = urls
-                except Exception as e:
-                    logger.error(f"Failed to fetch URL metadata: {e}")
-                    context_refs["url_ids"] = input.context_url_ids
-
-            if input.context_node_ids:
-                context_refs["node_ids"] = input.context_node_ids
-            if input.context_nodes:
-                # Store simplified node info for display (id, title only)
-                context_refs["nodes"] = [
-                    {"id": n.get("id"), "title": n.get("title", "Untitled")}
-                    for n in input.context_nodes
-                ]
-
-        # Save User Message with context references
-        await repo.save(
-            ChatMessage(
-                project_id=input.project_id,
-                role="user",
-                content=input.message,
-                context_refs=context_refs,
-            )
-        )
-
-        full_response = ""
-        response_sources: list = []
-        retrieved_documents = []  # Store documents for evaluation
-        retrieved_contexts = []  # Store context strings for evaluation
-        token_count = 0  # Track generated tokens
-
-        # Enter trace context for the main RAG pipeline
         async with trace:
             try:
-                # Get chat history for query rewriting and thinking path
-                chat_history = []
+                # Step 1: Get chat history
                 messages = await repo.get_history(
                     project_id=input.project_id,
                     limit=10,
                 )
                 trace.log("HISTORY", messages_count=len(messages))
 
-                # === Context Extraction from History ===
-                active_entities = {}
-                current_focus = None
+                # Step 2: Resolve context
+                context_engine = ContextEngine(self._session)
+                ctx = await context_engine.resolve(
+                    project_id=input.project_id,
+                    context_nodes=input.context_nodes,
+                    context_node_ids=input.context_node_ids,
+                    context_url_ids=input.context_url_ids,
+                    chat_messages=messages,
+                )
 
-                # Replay history to rebuild entity state (oldest to newest)
-                # messages are returned newest-first, so reverse them
-                for msg in reversed(messages):
-                    if msg.context_refs:
-                        if "entities" in msg.context_refs:
-                            active_entities.update(msg.context_refs["entities"])
-                        if "focus" in msg.context_refs:
-                            current_focus = msg.context_refs["focus"]
-
-                # Incorporate current request context (new attachments)
-                if context_refs:
-                    # If user attached URLs, they become active entities
-                    if "urls" in context_refs and context_refs["urls"]:
-                        for url in context_refs["urls"]:
-                            entity = {
-                                "id": url["id"],
-                                "type": "video"
-                                if "video" in url.get("platform", "").lower()
-                                else "document",
-                                "title": url["title"],
-                            }
-                            active_entities[url["id"]] = entity
-                            current_focus = entity  # Focus shifts to new attachment
-
-                # === Canvas Context Retrieval ===
-                canvas_context = ""
-                canvas_node_count = 0
-                url_count = 0
-
-                # Priority 1: Use directly passed context_nodes (no DB lookup needed)
-                if input.context_nodes:
-                    context_parts = []
-                    for node in input.context_nodes:
-                        title = node.get("title", "Untitled")
-                        content = node.get("content", "")
-                        if content:
-                            context_parts.append(f"## Node: {title}\n{content}")
-
-                    if context_parts:
-                        canvas_context = "\n\n".join(context_parts)
-                        canvas_node_count = len(context_parts)
-
-                # Priority 2: Fallback to context_node_ids (DB lookup)
-                elif input.context_node_ids:
-                    try:
-                        from research_agent.infrastructure.database.repositories.sqlalchemy_canvas_repo import (
-                            SQLAlchemyCanvasRepository,
-                        )
-
-                        canvas_repo = SQLAlchemyCanvasRepository(self._session)
-                        canvas = await canvas_repo.find_by_project(input.project_id)
-
-                        if canvas:
-                            context_parts = []
-                            for node_id in input.context_node_ids:
-                                node = canvas.find_node(node_id)
-                                if node:
-                                    context_parts.append(f"## Node: {node.title}\n{node.content}")
-
-                            if context_parts:
-                                canvas_context = "\n\n".join(context_parts)
-                                canvas_node_count = len(context_parts)
-                    except Exception as e:
-                        logger.error(
-                            f"[CanvasContext] Failed to retrieve canvas nodes: {e}", exc_info=True
-                        )
-
-                # === URL Content Context Retrieval (via ResourceResolver) ===
-                url_context = ""
-                if input.context_url_ids:
-                    try:
-                        resolver = ResourceResolver(self._session)
-                        url_uuids = [UUID(uid) for uid in input.context_url_ids]
-                        resources = await resolver.resolve_many(url_uuids)
-
-                        url_context_parts = []
-                        max_content_length = 50000  # Truncate long transcripts/articles
-
-                        for resource in resources:
-                            if resource.has_content:
-                                # Truncate content if too long
-                                content = resource.display_content
-                                if len(content) > max_content_length:
-                                    content = (
-                                        content[:max_content_length] + "\n\n[Content truncated...]"
-                                    )
-
-                                # Build context with source info
-                                source_info = (
-                                    f"Source: {resource.source_url}\n\n"
-                                    if resource.source_url
-                                    else ""
-                                )
-                                url_context_parts.append(
-                                    f"{resource.get_formatted_content().split(chr(10), 1)[0]}\n"
-                                    f"{source_info}{content}"
-                                )
-
-                        if url_context_parts:
-                            url_context = "\n\n---\n\n".join(url_context_parts)
-                            url_count = len(url_context_parts)
-
-                    except Exception as e:
-                        logger.error(
-                            f"[ResourceContext] Failed to retrieve URL content: {e}", exc_info=True
-                        )
-
-                # Combine canvas context and URL context
-                if url_context:
-                    if canvas_context:
-                        canvas_context = canvas_context + "\n\n---\n\n" + url_context
-                    else:
-                        canvas_context = url_context
-
-                # Log context retrieval
-                if canvas_node_count > 0 or url_count > 0:
+                # Log context stats
+                if ctx.canvas_node_count > 0 or ctx.url_resource_count > 0:
                     trace.log(
                         "CONTEXT",
-                        canvas_nodes=canvas_node_count,
-                        url_resources=url_count,
-                        context_chars=len(canvas_context),
+                        canvas_nodes=ctx.canvas_node_count,
+                        url_resources=ctx.url_resource_count,
+                        context_chars=len(ctx.combined_context),
                     )
 
+                # Step 3: Save user message
+                await repo.save(
+                    ChatMessage(
+                        project_id=input.project_id,
+                        role="user",
+                        content=input.message,
+                        context_refs=ctx.context_refs_for_user_message.to_dict(),
+                    )
+                )
+
+                # Step 4: Prepare chat history for rewrite
+                chat_history = []
                 if input.use_rewrite:
-                    # Convert to (human, ai) tuples
                     chat_history = [
                         (messages[i].content, messages[i + 1].content)
                         for i in range(0, len(messages) - 1, 2)
@@ -335,7 +221,7 @@ class StreamMessageUseCase:
                         and messages[i + 1].role == "ai"
                     ]
 
-                # Create vector store and retriever with hybrid search option
+                # Step 5: Create retriever and LLM
                 vector_store = get_vector_store(self._session)
                 retriever = create_pgvector_retriever(
                     vector_store=vector_store,
@@ -346,21 +232,28 @@ class StreamMessageUseCase:
                     document_id=input.document_id,
                 )
 
-                # Create LangChain LLM
                 llm = create_langchain_llm(
                     api_key=self._api_key,
                     model=self._model,
                     streaming=True,
                 )
 
-                # Stream response from enhanced LangGraph pipeline with intent classification
+                # Step 6: Stream and process events
+                ref_injector = StreamingRefInjector(ctx.default_video_source_id)
+                processor = StreamEventProcessor(
+                    ref_injector=ref_injector,
+                    trace=trace,
+                    initial_entities=ctx.active_entities,
+                    initial_focus=ctx.current_focus,
+                )
+
                 async for event in stream_rag_response(
                     question=input.message,
                     retriever=retriever,
                     llm=llm,
                     chat_history=chat_history,
                     use_rewrite=input.use_rewrite,
-                    use_llm_rewrite=settings.use_llm_rewrite,  # NEW: Use LLM rewrite or rule-based expansion
+                    use_llm_rewrite=settings.use_llm_rewrite,
                     use_intent_classification=input.use_intent_classification,
                     use_rerank=input.use_rerank,
                     use_grading=input.use_grading,
@@ -368,127 +261,68 @@ class StreamMessageUseCase:
                     rag_mode=input.rag_mode,
                     project_id=input.project_id,
                     embedding_service=self._embedding_service,
-                    canvas_context=canvas_context,
+                    canvas_context=ctx.combined_context,
                     active_document_id=str(input.document_id) if input.document_id else None,
-                    active_entities=active_entities,
-                    current_focus=current_focus,
+                    active_entities=ctx.active_entities,
+                    current_focus=ctx.current_focus,
                 ):
-                    if event["type"] == "sources":
-                        # Convert LangChain documents to SourceRef
-                        documents = event.get("documents", [])
-                        retrieved_documents = documents  # Store for evaluation
+                    # Before handling done event, flush remaining content
+                    if event.get("type") == "done":
+                        remaining = processor.get_remaining_content()
+                        if remaining:
+                            yield StreamEvent(type="token", content=remaining)
 
-                        # Calculate top similarity for logging
-                        top_similarity = max(
-                            [doc.metadata.get("similarity", 0.0) for doc in documents],
-                            default=0.0,
-                        )
+                    result = processor.process(event)
+                    if result:
+                        yield result
 
-                        # Update trace metrics for final summary
-                        trace.metrics["docs_count"] = len(documents)
-                        trace.metrics["top_similarity"] = round(top_similarity, 3)
-
-                        sources = [
-                            SourceRef(
-                                document_id=UUID(doc.metadata["document_id"]),
-                                page_number=doc.metadata["page_number"],
-                                snippet=doc.page_content[:200] + "..."
-                                if len(doc.page_content) > 200
-                                else doc.page_content,
-                                similarity=doc.metadata.get("similarity", 0.0),
-                            )
-                            for doc in documents
-                        ]
-
-                        # Store contexts for evaluation
-                        retrieved_contexts = [doc.page_content for doc in documents]
-
-                        # Store for saving to DB
-                        response_sources = [
-                            {
-                                "document_id": str(s.document_id),
-                                "page_number": s.page_number,
-                                "snippet": s.snippet,
-                                "similarity": s.similarity,
-                            }
-                            for s in sources
-                        ]
-
-                        yield StreamEvent(type="sources", sources=sources)
-                        # Handle citations from long context mode
-                        citations_data = event.get("citations", [])
-                        trace.metrics["citations_count"] = len(citations_data)
-                    elif event["type"] == "context_update":
-                        # Update current context state for persistence
-                        if "active_entities" in event:
-                            active_entities.update(event["active_entities"])
-                        if "current_focus" in event:
-                            current_focus = event["current_focus"]
-                    elif event["type"] == "status":
-                        # Forward thinking status events to frontend
-                        yield StreamEvent(
-                            type="status",
-                            step=event.get("step"),
-                            message=event.get("message"),
-                        )
-                    elif event["type"] == "token":
-                        content = event.get("content", "")
-                        full_response += content
-                        token_count += 1
-                        yield StreamEvent(type="token", content=content)
-                    elif event["type"] == "done":
-                        # Log final token count
-                        trace.metrics["token_count"] = token_count
-                        trace.metrics["answer_length"] = len(full_response)
-                        yield StreamEvent(type="done")
-
-                # Save AI Message
-                ai_message = None
-                if full_response:
+                # Step 7: Save AI message
+                stream_result = processor.get_result()
+                if stream_result.full_response:
                     ai_message = ChatMessage(
                         project_id=input.project_id,
                         role="ai",
-                        content=full_response,
-                        sources=response_sources,
+                        content=stream_result.full_response,
+                        sources=stream_result.sources,
                         context_refs={
-                            "entities": active_entities,
-                            "focus": current_focus,
+                            "entities": stream_result.active_entities,
+                            "focus": stream_result.current_focus,
                         }
-                        if active_entities or current_focus
+                        if stream_result.active_entities or stream_result.current_focus
                         else None,
                     )
                     await repo.save(ai_message)
 
-                # === Auto-Evaluation (Async, Non-blocking) ===
-                if self._should_evaluate() and full_response and retrieved_contexts:
-                    # Trigger evaluation in background (don't await)
+                # Step 8: Background tasks
+                if (
+                    self._should_evaluate()
+                    and stream_result.full_response
+                    and stream_result.retrieved_contexts
+                ):
                     asyncio.create_task(
                         self._auto_evaluate(
                             question=input.message,
-                            answer=full_response,
-                            contexts=retrieved_contexts,
+                            answer=stream_result.full_response,
+                            contexts=stream_result.retrieved_contexts,
                             project_id=input.project_id,
-                            chunking_strategy="dynamic",  # Could be detected from config
+                            chunking_strategy="dynamic",
                             retrieval_mode="hybrid" if input.use_hybrid_search else "vector",
                             llm=llm,
                         )
                     )
 
-                # === Memory Ingestion (Async, Non-blocking) ===
-                # Store the Q&A pair as a memory for future semantic retrieval
-                if full_response:
+                if stream_result.full_response:
                     asyncio.create_task(
                         self._store_memory(
                             project_id=input.project_id,
                             question=input.message,
-                            answer=full_response,
+                            answer=stream_result.full_response,
                         )
                     )
 
             except Exception as e:
                 import traceback
 
-                # Log error to trace
                 trace.log(
                     "ERROR",
                     error_type=type(e).__name__,
@@ -530,12 +364,12 @@ class StreamMessageUseCase:
         self,
         question: str,
         answer: str,
-        contexts: List[str],
+        contexts: list[str],
         project_id: UUID,
         chunking_strategy: str,
         retrieval_mode: str,
-        llm,
-    ):
+        llm: Any,
+    ) -> None:
         """
         Auto-evaluate RAG quality in background.
 
@@ -589,7 +423,7 @@ class StreamMessageUseCase:
         project_id: UUID,
         question: str,
         answer: str,
-    ):
+    ) -> None:
         """
         Store Q&A pair as a memory for future semantic retrieval.
 

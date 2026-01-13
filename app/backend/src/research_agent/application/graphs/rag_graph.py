@@ -18,7 +18,7 @@ from research_agent.domain.services.conversation_context import ConversationCont
 from research_agent.infrastructure.llm.prompts import render_prompt
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
-from research_agent.shared.utils.rag_trace import rag_log, rag_log_with_timing
+from research_agent.shared.utils.rag_trace import rag_log
 
 # Query rewrite cache (in-memory, simple LRU could be added later)
 _rewrite_cache: dict[str, dict[str, str]] = {}
@@ -59,14 +59,19 @@ class GenerationStrategy:
     system_prompt: str  # Custom system prompt for this intent
 
 
+from research_agent.infrastructure.llm.prompts.rag_prompt import (
+    CITATION_FORMAT_INSTRUCTIONS,
+)
+
 # Default strategies for each intent type
+# We append CITATION_FORMAT_INSTRUCTIONS to each prompt to ensure the LLM always knows how to cite sources
 INTENT_STRATEGIES: dict[IntentType, tuple[RetrievalStrategy, GenerationStrategy]] = {
     IntentType.FACTUAL: (
         RetrievalStrategy(top_k=3, min_similarity=0.7, use_hybrid_search=True),
         GenerationStrategy(
             style="concise",
             max_length=150,
-            system_prompt="You are a research assistant. Provide a concise, factual answer (1-2 sentences). Be direct and precise.",
+            system_prompt=f"You are a research assistant. Provide a concise, factual answer (1-2 sentences). Be direct and precise.\n{CITATION_FORMAT_INSTRUCTIONS}",
         ),
     ),
     IntentType.CONCEPTUAL: (
@@ -74,7 +79,7 @@ INTENT_STRATEGIES: dict[IntentType, tuple[RetrievalStrategy, GenerationStrategy]
         GenerationStrategy(
             style="detailed",
             max_length=500,
-            system_prompt="You are a research assistant. Provide a detailed explanation with principles and examples. Help the user understand the concept deeply.",
+            system_prompt=f"You are a research assistant. Provide a detailed explanation with principles and examples. Help the user understand the concept deeply.\n{CITATION_FORMAT_INSTRUCTIONS}",
         ),
     ),
     IntentType.COMPARISON: (
@@ -82,7 +87,7 @@ INTENT_STRATEGIES: dict[IntentType, tuple[RetrievalStrategy, GenerationStrategy]
         GenerationStrategy(
             style="structured",
             max_length=400,
-            system_prompt="You are a research assistant. Compare the items using a clear structure (table or bullet points). Highlight key similarities and differences.",
+            system_prompt=f"You are a research assistant. Compare the items using a clear structure (table or bullet points). Highlight key similarities and differences.\n{CITATION_FORMAT_INSTRUCTIONS}",
         ),
     ),
     IntentType.HOWTO: (
@@ -90,7 +95,7 @@ INTENT_STRATEGIES: dict[IntentType, tuple[RetrievalStrategy, GenerationStrategy]
         GenerationStrategy(
             style="structured",
             max_length=400,
-            system_prompt="You are a research assistant. Provide step-by-step instructions in a numbered list format. Be clear and actionable.",
+            system_prompt=f"You are a research assistant. Provide step-by-step instructions in a numbered list format. Be clear and actionable.\n{CITATION_FORMAT_INSTRUCTIONS}",
         ),
     ),
     IntentType.SUMMARY: (
@@ -98,7 +103,7 @@ INTENT_STRATEGIES: dict[IntentType, tuple[RetrievalStrategy, GenerationStrategy]
         GenerationStrategy(
             style="structured",
             max_length=500,
-            system_prompt="You are a research assistant. Provide a comprehensive summary with key points in bullet format. Cover all important aspects.",
+            system_prompt=f"You are a research assistant. Provide a comprehensive summary with key points in bullet format. Cover all important aspects.\n{CITATION_FORMAT_INSTRUCTIONS}",
         ),
     ),
     IntentType.EXPLANATION: (
@@ -106,7 +111,7 @@ INTENT_STRATEGIES: dict[IntentType, tuple[RetrievalStrategy, GenerationStrategy]
         GenerationStrategy(
             style="detailed",
             max_length=500,
-            system_prompt="You are a research assistant. Explain the reasoning and causality. Help the user understand why and how things work.",
+            system_prompt=f"You are a research assistant. Explain the reasoning and causality. Help the user understand why and how things work.\n{CITATION_FORMAT_INSTRUCTIONS}",
         ),
     ),
 }
@@ -1084,6 +1089,7 @@ async def rerank(state: GraphState, llm: ChatOpenAI) -> GraphState:
     Takes top-k documents and reranks them for better precision.
     Bypasses reranking for documents matching the active_document_id.
     """
+    import asyncio
     import time
 
     start_time = time.time()
@@ -1121,40 +1127,57 @@ Output ONLY a single number between 0-10. No explanation."""
 
     chain = score_prompt | llm | StrOutputParser()
 
-    # Score each document
-    doc_scores = []
-    for i, doc in enumerate(documents):
-        try:
-            # Auto-pass if document matches active context
-            doc_id = doc.metadata.get("document_id")
-            if active_doc_id and doc_id == active_doc_id:
-                logger.debug(f"[Rerank] Auto-passing doc {i + 1} (matches active_doc_id)")
-                doc_scores.append((10.0, doc))
-                continue
+    max_concurrency = min(4, max(1, len(documents)))
+    semaphore = asyncio.Semaphore(max_concurrency)
+    per_doc_latency_ms: list[float] = []
 
-            # Truncate very long documents
-            doc_content = (
-                doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
-            )
+    async def score_one(i: int, doc: Document) -> tuple[float, Document]:
+        doc_id = doc.metadata.get("document_id")
+        if active_doc_id and doc_id == active_doc_id:
+            logger.debug(f"[Rerank] Auto-passing doc {i + 1} (matches active_doc_id)")
+            return 10.0, doc
 
-            result = chain.invoke(
-                {"question": question, "document": doc_content},
-                config={"callbacks": get_callbacks()},
-            )
+        doc_content = doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
 
-            # Parse score
+        async with semaphore:
+            t0 = time.perf_counter()
             try:
-                score = float(result.strip().split()[0])  # Get first number
-                score = max(0.0, min(10.0, score))  # Clamp to 0-10
-            except (ValueError, IndexError):
-                logger.warning(f"[Rerank] Failed to parse score from '{result}', using 5.0")
-                score = 5.0
+                if hasattr(chain, "ainvoke"):
+                    result = await chain.ainvoke(
+                        {"question": question, "document": doc_content},
+                        config={"callbacks": get_callbacks()},
+                    )
+                else:
+                    result = await asyncio.to_thread(
+                        chain.invoke,
+                        {"question": question, "document": doc_content},
+                        config={"callbacks": get_callbacks()},
+                    )
+            finally:
+                per_doc_latency_ms.append(round((time.perf_counter() - t0) * 1000, 2))
 
-            doc_scores.append((score, doc))
-            logger.debug(f"[Rerank] Doc {i + 1}: score={score}")
-        except Exception as e:
-            logger.warning(f"[Rerank] Error scoring doc {i + 1}: {e}")
-            doc_scores.append((5.0, doc))  # Default mid-score
+        try:
+            score = float(str(result).strip().split()[0])
+            score = max(0.0, min(10.0, score))
+        except (ValueError, IndexError):
+            logger.warning(f"[Rerank] Failed to parse score from '{result}', using 5.0")
+            score = 5.0
+
+        logger.debug(f"[Rerank] Doc {i + 1}: score={score}")
+        return score, doc
+
+    scored = await asyncio.gather(
+        *[score_one(i, doc) for i, doc in enumerate(documents)],
+        return_exceptions=True,
+    )
+
+    doc_scores: list[tuple[float, Document]] = []
+    for i, result in enumerate(scored):
+        if isinstance(result, Exception):
+            logger.warning(f"[Rerank] Error scoring doc {i + 1}: {result}")
+            doc_scores.append((5.0, documents[i]))
+        else:
+            doc_scores.append(result)
 
     # Sort by score (descending) and take top documents
     sorted_docs = sorted(doc_scores, key=lambda x: x[0], reverse=True)
@@ -1162,11 +1185,19 @@ Output ONLY a single number between 0-10. No explanation."""
 
     # Log to trace
     latency_ms = round((time.time() - start_time) * 1000, 2)
+    per_doc_latency_ms_sorted = sorted(per_doc_latency_ms)
+    p95_ms = (
+        per_doc_latency_ms_sorted[int(len(per_doc_latency_ms_sorted) * 0.95) - 1]
+        if per_doc_latency_ms_sorted
+        else 0.0
+    )
     rag_log(
         "RERANK",
         input_docs=len(documents),
         output_docs=len(reranked),
         top_score=round(sorted_docs[0][0], 1) if sorted_docs else 0,
+        llm_calls=len(per_doc_latency_ms_sorted),
+        llm_p95_ms=p95_ms,
         latency_ms=latency_ms,
     )
 
@@ -1174,8 +1205,9 @@ Output ONLY a single number between 0-10. No explanation."""
     return {"reranked_documents": reranked}
 
 
-def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
+async def grade_documents(state: GraphState, llm: ChatOpenAI) -> GraphState:
     """Grade retrieved documents for relevance."""
+    import asyncio
     import time
 
     start_time = time.time()
@@ -1215,57 +1247,71 @@ Reply with ONLY 'yes' or 'no'. Nothing else."""
 
     chain = grade_prompt | llm | StrOutputParser()
 
-    # Grade each document
-    filtered_docs = []
-    for i, doc in enumerate(documents):
-        try:
-            # Auto-pass if document matches active context
-            doc_id = doc.metadata.get("document_id")
-            if active_doc_id and doc_id == active_doc_id:
-                logger.info(f"[Grade] Auto-passing doc {i + 1} (matches active_doc_id)")
-                filtered_docs.append(doc)
-                continue
+    max_concurrency = min(4, max(1, len(documents)))
+    semaphore = asyncio.Semaphore(max_concurrency)
+    per_doc_latency_ms: list[float] = []
 
-            logger.debug(f"[Grade] Grading document {i + 1}/{len(documents)}")
+    async def grade_one(i: int, doc: Document) -> tuple[bool, Document]:
+        doc_id = doc.metadata.get("document_id")
+        if active_doc_id and doc_id == active_doc_id:
+            logger.info(f"[Grade] Auto-passing doc {i + 1} (matches active_doc_id)")
+            return True, doc
 
-            # Truncate very long documents
-            doc_content = (
-                doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
-            )
+        logger.debug(f"[Grade] Grading document {i + 1}/{len(documents)}")
+        doc_content = doc.page_content[:2000] if len(doc.page_content) > 2000 else doc.page_content
 
-            result = chain.invoke(
-                {"question": question, "document": doc_content},
-                config={"callbacks": get_callbacks()},
-            )
+        async with semaphore:
+            t0 = time.perf_counter()
+            try:
+                if hasattr(chain, "ainvoke"):
+                    result = await chain.ainvoke(
+                        {"question": question, "document": doc_content},
+                        config={"callbacks": get_callbacks()},
+                    )
+                else:
+                    result = await asyncio.to_thread(
+                        chain.invoke,
+                        {"question": question, "document": doc_content},
+                        config={"callbacks": get_callbacks()},
+                    )
+            finally:
+                per_doc_latency_ms.append(round((time.perf_counter() - t0) * 1000, 2))
 
-            # Parse the response - look for yes/no
-            result_lower = result.strip().lower()
-            logger.info(f"[Grade] Document {i + 1} raw response: '{result_lower}'")
+        result_lower = str(result).strip().lower()
+        logger.debug(f"[Grade] Document {i + 1} raw response: '{result_lower}'")
+        is_relevant = "yes" in result_lower and "no" not in result_lower[:10]
+        return is_relevant, doc
 
-            is_relevant = "yes" in result_lower and "no" not in result_lower[:10]
-            logger.info(
-                f"[Grade] Document {i + 1} relevant: {is_relevant} (metadata: {doc.metadata})"
-            )
+    graded = await asyncio.gather(
+        *[grade_one(i, doc) for i, doc in enumerate(documents)],
+        return_exceptions=True,
+    )
 
-            if is_relevant:
-                filtered_docs.append(doc)
-        except Exception as e:
-            import traceback
-
-            logger.warning(
-                f"[Grade] Failed to grade document {i + 1}: {type(e).__name__}: {e}\n"
-                f"Traceback: {traceback.format_exc()}"
-            )
-            # On error, include the document (fail-safe: better to include than exclude)
+    filtered_docs: list[Document] = []
+    for i, result in enumerate(graded):
+        if isinstance(result, Exception):
+            logger.warning(f"[Grade] Failed to grade document {i + 1}: {result}")
+            filtered_docs.append(documents[i])
+            continue
+        is_relevant, doc = result
+        if is_relevant:
             filtered_docs.append(doc)
 
     # Log to trace
     latency_ms = round((time.time() - start_time) * 1000, 2)
+    per_doc_latency_ms_sorted = sorted(per_doc_latency_ms)
+    p95_ms = (
+        per_doc_latency_ms_sorted[int(len(per_doc_latency_ms_sorted) * 0.95) - 1]
+        if per_doc_latency_ms_sorted
+        else 0.0
+    )
     rag_log(
         "GRADE",
         input_docs=len(documents),
         passed_docs=len(filtered_docs),
         filtered_count=len(documents) - len(filtered_docs),
+        llm_calls=len(per_doc_latency_ms_sorted),
+        llm_p95_ms=p95_ms,
         latency_ms=latency_ms,
     )
 
@@ -1799,8 +1845,6 @@ async def stream_rag_response(
         "active_document_id": active_document_id,
         "active_entities": active_entities or {},
         "current_focus": current_focus,
-        "active_entities": active_entities or {},
-        "current_focus": current_focus,
     }
 
     # Step 0: Entity Resolution (Context-Awareness)
@@ -1988,7 +2032,7 @@ async def stream_rag_response(
             retrieve_result = await retrieve(state, retriever)
             state.update(retrieve_result)
     else:
-        logger.info(f"[RAG Mode] Using traditional retrieval mode")
+        logger.info("[RAG Mode] Using traditional retrieval mode")
         retrieve_result = await retrieve(state, retriever)
         state.update(retrieve_result)
 
@@ -2009,7 +2053,7 @@ async def stream_rag_response(
         logger.info("[Stream] Grading documents...")
         state["reranked_documents"] = documents  # Pass to grading
         logger.debug(f"[Stream] State keys before grading: {list(state.keys())}")
-        grade_result = grade_documents(state, llm)
+        grade_result = await grade_documents(state, llm)
         state.update(grade_result)  # Merge instead of replace
         documents = state.get("filtered_documents", [])
 
@@ -2209,7 +2253,27 @@ async def stream_rag_response(
 
     else:
         # Use traditional generation
-        doc_context = "\n\n".join([doc.page_content for doc in documents])
+        doc_sections: list[str] = []
+        for i, doc in enumerate(documents, 1):
+            doc_id = doc.metadata.get("document_id", "")
+            page_number = doc.metadata.get("page_number", "")
+            filename = doc.metadata.get("filename", "")
+            similarity = doc.metadata.get("similarity", None)
+
+            header_parts = [f"--- Retrieved Chunk {i} ---"]
+            if filename:
+                header_parts.append(f"filename={filename}")
+            if doc_id:
+                header_parts.append(f"document_id={doc_id}")
+            if page_number != "":
+                header_parts.append(f"page_number={page_number}")
+            if similarity is not None:
+                header_parts.append(f"similarity={round(float(similarity), 4)}")
+
+            header = " ".join(header_parts)
+            doc_sections.append(f"{header}\n{doc.page_content}")
+
+        doc_context = "\n\n".join(doc_sections)
 
     # Build memory context (session summary + relevant past discussions)
     memory_context = format_memory_for_context(state)
@@ -2261,10 +2325,16 @@ async def stream_rag_response(
         - Conversation Summary: A summary of earlier parts of the conversation
         - Relevant Past Discussions: Similar questions and answers from previous sessions
         - Retrieved Documents: Information from the knowledge base
-        
-        IMPORTANT: If the question contains pronouns or references like "it", "that", "this", "them", 
+
+        IMPORTANT: If the question contains pronouns or references like "it", "that", "this", "them",
         or references to previous topics, resolve them using the Recent Conversation context.
-        
+
+        Source Reference Format:
+        - When you reference a specific location in a source, include a marker like: <SOURCE_ID, REF_LOC>
+        - For videos/audios: REF_LOC should be a timestamp like 00:55 or 1:23:45
+        - For documents: REF_LOC should be like Page 12 (use page_number from Retrieved Chunk headers when available)
+        - SOURCE_ID must be copied exactly from context lines like "Source ID: ..." or "document_id=..."
+
         Use all available context to provide the most helpful answer.
         If you don't know the answer, just say that you don't know.
         Answer in the same language as the question."""
