@@ -78,3 +78,32 @@ jobs:
         ENVIRONMENT: "test"
       run: |
         pytest tests/integration -v
+
+  prod-check:
+    name: Production Environment Check
+    needs: quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./app/backend
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install PROD dependencies only
+      run: |
+        pip install --upgrade pip
+        # Install without [dev] extras to simulate production
+        pip install .
+
+    - name: Verify Import (Smoke Test)
+      env:
+        PYTHONPATH: src
+      run: |
+        python scripts/check_imports.py

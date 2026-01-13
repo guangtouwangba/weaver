@@ -40,6 +40,59 @@ jobs:
         context: ${{ matrix.context }}
         file: ${{ matrix.dockerfile }}
         push: false
+        load: true
         tags: research-agent-${{ matrix.service }}:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+    - name: Smoke Test - Backend
+      if: matrix.service == 'backend'
+      run: |
+        echo "Starting Backend Container..."
+        # Run detached
+        docker run -d --name test-backend \
+          -e DATABASE_URL="sqlite+aiosqlite:///:memory:" \
+          -e OPENROUTER_API_KEY="sk-mock" \
+          -p 8000:8000 \
+          research-agent-backend:latest
+
+        echo "Waiting for backend health check..."
+        # Wait up to 60 seconds
+        for i in {1..12}; do
+          if curl -s http://localhost:8000/health; then
+            echo "\nBackend is healthy!"
+            docker logs test-backend
+            exit 0
+          fi
+          echo "Waiting..."
+          sleep 5
+        done
+
+        echo "Backend failed to start!"
+        docker logs test-backend
+        exit 1
+
+    - name: Smoke Test - Frontend
+      if: matrix.service == 'frontend'
+      run: |
+        echo "Starting Frontend Container..."
+        # Run detached
+        docker run -d --name test-frontend \
+          -p 3000:3000 \
+          research-agent-frontend:latest
+
+        echo "Waiting for frontend to respond..."
+        # Wait up to 60 seconds
+        for i in {1..12}; do
+          if curl -s -I http://localhost:3000 | grep "200 OK"; then
+            echo "\nFrontend is up!"
+            docker logs test-frontend
+            exit 0
+          fi
+          echo "Waiting..."
+          sleep 5
+        done
+
+        echo "Frontend failed to start!"
+        docker logs test-frontend
+        exit 1
