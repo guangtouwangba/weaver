@@ -10,7 +10,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "prepare": "cd ../.. && husky app/frontend/.husky"
+    "prepare": "node -e \"try { require.resolve('husky') } catch (e) { process.exit(0) }\" && cd ../.. && husky app/frontend/.husky || true"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs}": [
