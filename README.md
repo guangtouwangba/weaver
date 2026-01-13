@@ -65,7 +65,6 @@ Unlike NotebookLM's rigid list view, Weaver gives you a **visual thinking space*
 - **Drag-and-drop** nodes on an infinite canvas
 - **Connect ideas** with relationship lines
 - **Rich node types** — Notes, sources, AI-generated content
-- **Real-time collaboration** via WebSocket
 
 ### 🤖 AI-Powered Research Tools
 - **💬 RAG Chat** — Ask questions about your documents with citations
@@ -166,8 +165,7 @@ make run-frontend  # Terminal 2: UI on :3000
 - [x] RAG chat with citations
 - [x] Mindmap generation
 - [ ] 🎙️ Podcast generation (like NotebookLM Audio Overviews)
-- [ ] 📱 Mobile app
-- [ ] 🔗 Obsidian plugin
+- [ ] 🌐 Chrome extension
 - [ ] 🌍 Multi-language UI
 
 ---

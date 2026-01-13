@@ -1,10 +1,10 @@
-.PHONY: help install install-backend install-backend-deps install-frontend install-system-deps run-backend run-frontend run dev clean venv venv-fresh
+.PHONY: help install install-uv install-backend install-frontend install-system-deps run-backend run-frontend run dev clean sync
 
 # Variables
-VENV_DIR = venv
-PYTHON = $(VENV_DIR)/bin/python3
-PIP = $(PYTHON) -m pip
-UVICORN = $(PYTHON) -m uvicorn
+VENV_DIR = .venv
+UV = uv
+PYTHON = $(UV) run python
+UVICORN = $(UV) run uvicorn
 
 # Default target
 help:
@@ -15,7 +15,7 @@ help:
 	@echo "  make install-backend   - Install backend dependencies only"
 	@echo "  make install-frontend  - Install frontend dependencies only"
 	@echo "  make install-system-deps - Install system dependencies (poppler for PDF)"
-	@echo "  make venv              - Create Python virtual environment"
+	@echo "  make sync              - Sync dependencies (fast, no reinstall)"
 	@echo ""
 	@echo "Running:"
 	@echo "  make run-backend       - Start backend API server (port 8000)"
@@ -32,55 +32,15 @@ help:
 	@echo "  make test              - Run tests"
 	@echo ""
 
-# Create virtual environment
-venv:
-	@if [ -d "$(VENV_DIR)" ]; then \
-		echo "✅ Virtual environment already exists at ./$(VENV_DIR)"; \
+# Install uv if not present
+install-uv:
+	@if ! command -v uv >/dev/null 2>&1; then \
+		echo "📦 Installing uv..."; \
+		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+		echo "✅ uv installed! Please restart your terminal or run: source $$HOME/.local/bin/env"; \
 	else \
-		echo "🐍 Checking Python version..."; \
-		PYTHON_CMD=$$(command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3 2>/dev/null); \
-		if [ -z "$$PYTHON_CMD" ]; then \
-			echo "❌ Error: Python 3 not found. Please install Python 3.11 or higher."; \
-			exit 1; \
-		fi; \
-		PYTHON_VER=$$($$PYTHON_CMD --version 2>&1 | awk '{print $$2}'); \
-		PYTHON_MAJOR=$$(echo $$PYTHON_VER | cut -d. -f1); \
-		PYTHON_MINOR=$$(echo $$PYTHON_VER | cut -d. -f2); \
-		if [ "$$PYTHON_MAJOR" -lt 3 ] || ([ "$$PYTHON_MAJOR" -eq 3 ] && [ "$$PYTHON_MINOR" -lt 11 ]); then \
-			echo "❌ Error: Python 3.11+ required (pyproject.toml), but found Python $$PYTHON_VER"; \
-			echo "   Please install Python 3.11 or higher: brew install python@3.11"; \
-			exit 1; \
-		fi; \
-		echo "✅ Found Python $$PYTHON_VER at $$PYTHON_CMD"; \
-		echo "🐍 Creating Python virtual environment with $$PYTHON_CMD..."; \
-		$$PYTHON_CMD -m venv $(VENV_DIR); \
-		echo "✅ Virtual environment created at ./$(VENV_DIR)"; \
+		echo "✅ uv is already installed"; \
 	fi
-
-# Force recreate virtual environment (used by install)
-venv-fresh:
-	@echo "🐍 Checking Python version..."
-	@PYTHON_CMD=$$(command -v python3.12 2>/dev/null || command -v python3.11 2>/dev/null || command -v python3 2>/dev/null); \
-	if [ -z "$$PYTHON_CMD" ]; then \
-		echo "❌ Error: Python 3 not found. Please install Python 3.11 or higher."; \
-		exit 1; \
-	fi; \
-	PYTHON_VER=$$($$PYTHON_CMD --version 2>&1 | awk '{print $$2}'); \
-	PYTHON_MAJOR=$$(echo $$PYTHON_VER | cut -d. -f1); \
-	PYTHON_MINOR=$$(echo $$PYTHON_VER | cut -d. -f2); \
-	if [ "$$PYTHON_MAJOR" -lt 3 ] || ([ "$$PYTHON_MAJOR" -eq 3 ] && [ "$$PYTHON_MINOR" -lt 11 ]); then \
-		echo "❌ Error: Python 3.11+ required (pyproject.toml), but found Python $$PYTHON_VER"; \
-		echo "   Please install Python 3.11 or higher: brew install python@3.11"; \
-		exit 1; \
-	fi; \
-	echo "✅ Found Python $$PYTHON_VER at $$PYTHON_CMD"; \
-	if [ -d "$(VENV_DIR)" ]; then \
-		echo "⚠️  Virtual environment already exists. Removing old venv..."; \
-		rm -rf $(VENV_DIR); \
-	fi; \
-	echo "🐍 Creating Python virtual environment with $$PYTHON_CMD..."; \
-	$$PYTHON_CMD -m venv $(VENV_DIR); \
-	echo "✅ Virtual environment created at ./$(VENV_DIR)"
 
 # Install system dependencies (poppler for pdf2image, ffmpeg for audio transcription)
 install-system-deps:
@@ -106,22 +66,25 @@ install-system-deps:
 	@echo "✅ System dependencies installed!"
 
 # Install all dependencies
-install: venv-fresh install-system-deps install-backend-deps install-frontend
+install: install-uv install-system-deps install-backend install-frontend
+	@echo ""
 	@echo "✅ All dependencies installed successfully!"
 	@echo ""
-	@echo "💡 To activate the virtual environment manually:"
-	@echo "   source $(VENV_DIR)/bin/activate"
+	@echo "💡 To run commands in the virtual environment:"
+	@echo "   uv run <command>"
+	@echo "   or: source $(VENV_DIR)/bin/activate"
 
-# Install backend dependencies (with fresh venv)
-install-backend: venv-fresh install-backend-deps
-	@echo ""
-
-# Install backend dependencies only (no venv recreation)
-install-backend-deps:
-	@echo "📦 Installing backend dependencies..."
-	@$(PIP) install --upgrade pip setuptools wheel
-	@cd app/backend && ../../$(PIP) install -e .
+# Install backend dependencies
+install-backend: install-uv
+	@echo "📦 Installing backend dependencies with uv..."
+	@cd app/backend && $(UV) sync
 	@echo "✅ Backend dependencies installed!"
+
+# Sync dependencies (fast update without full reinstall)
+sync:
+	@echo "🔄 Syncing backend dependencies..."
+	@cd app/backend && $(UV) sync
+	@echo "✅ Dependencies synced!"
 
 # Install frontend dependencies
 install-frontend:
@@ -130,13 +93,13 @@ install-frontend:
 	@echo "✅ Frontend dependencies installed!"
 
 # Run backend API server
-run-backend: venv
+run-backend:
 	@echo "🚀 Starting backend API server on http://localhost:8000"
 	@echo "📚 API docs: http://localhost:8000/docs"
 	@if [ ! -f .env ]; then \
 		echo "⚠️  Warning: .env file not found. Copy from env.example and configure."; \
 	fi
-	cd app/backend && ../../$(UVICORN) research_agent.main:app --reload --host 0.0.0.0 --port 8000
+	cd app/backend && $(UVICORN) research_agent.main:app --reload --host 0.0.0.0 --port 8000
 
 # Alias for run-backend
 run-api: run-backend
@@ -167,37 +130,41 @@ clean:
 # Clean everything including virtual environment
 clean-all: clean
 	@echo "🧹 Removing virtual environment..."
-	rm -rf $(VENV_DIR)
+	rm -rf $(VENV_DIR) venv
+	rm -rf app/backend/$(VENV_DIR)
 	@echo "✅ Everything cleaned!"
 
 # Run linters
-lint: venv
+lint:
 	@echo "🔍 Running linters..."
-	cd app/backend && ../../$(PYTHON) -m ruff check .
+	cd app/backend && $(UV) run ruff check .
 	cd app/frontend && npm run lint
 	@echo "✅ Linting complete!"
 
 # Run tests
-test: venv
+test:
 	@echo "🧪 Running tests..."
-	cd app/backend && ../../$(PYTHON) -m pytest
+	cd app/backend && $(UV) run pytest
 	@echo "✅ Tests complete!"
 
 # Database migrations
-migrate: venv
+migrate:
 	@echo "🗄️  Running database migrations..."
-	cd app/backend && ../../$(PYTHON) -m alembic upgrade head
+	cd app/backend && $(UV) run alembic upgrade head
 	@echo "✅ Migrations complete!"
 
 # Create new migration
-migration: venv
+migration:
 	@echo "🗄️  Creating new migration..."
 	@read -p "Migration message: " msg; \
-	cd app/backend && ../../$(PYTHON) -m alembic revision --autogenerate -m "$$msg"
+	cd app/backend && $(UV) run alembic revision --autogenerate -m "$$msg"
 
 # Check environment setup
 check-env:
 	@echo "🔍 Checking environment setup..."
+	@echo ""
+	@echo "uv version:"
+	@uv --version || echo "❌ uv not found (run: make install-uv)"
 	@echo ""
 	@echo "Python version:"
 	@python3 --version || echo "❌ Python 3 not found"
@@ -235,4 +202,3 @@ setup: check-env
 	@echo "  3. Run 'make run-backend' in one terminal"
 	@echo "  4. Run 'make run-frontend' in another terminal"
 	@echo ""
-
