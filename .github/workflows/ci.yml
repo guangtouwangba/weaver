@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y poppler-utils ffmpeg
+
+    - name: Install dependencies
+      working-directory: ./app/backend
+      run: |
+        pip install --upgrade pip
+        pip install -e .[dev]
+        pip install pytest pytest-asyncio pytest-cov aiosqlite
+
+    - name: Run Integration Tests
+      working-directory: ./app/backend
+      env:
+        PYTHONPATH: src
+        DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+        OPENROUTER_API_KEY: "sk-mock-key"
+        SUPABASE_URL: "https://mock.supabase.co"
+        SUPABASE_SERVICE_ROLE_KEY: "mock-key"
+        ENVIRONMENT: "test"
+      run: |
+        pytest tests/integration -v
