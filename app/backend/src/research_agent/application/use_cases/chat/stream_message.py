@@ -68,15 +68,30 @@ class StreamingRefInjector:
 
         return text, ""
 
+    def _time_str_to_seconds(self, time_str: str) -> int:
+        try:
+            parts = list(map(int, time_str.split(":")))
+            if len(parts) == 3:
+                return parts[0] * 3600 + parts[1] * 60 + parts[2]
+            if len(parts) == 2:
+                return parts[0] * 60 + parts[1]
+            return 0
+        except ValueError:
+            return 0
+
     def _transform(self, text: str) -> str:
         if not text:
             return ""
-        if not self.default_video_source_id:
-            return text
 
         def repl(match: re.Match[str]) -> str:
             ts = match.group(1)
-            return f"<{self.default_video_source_id}, {ts}>"
+            if not self.default_video_source_id:
+                # If no video context is active, just return the timestamp text
+                return ts
+
+            seconds = self._time_str_to_seconds(ts)
+            # Format: [MM:SS](video-source://<id>?t=<seconds>)
+            return f"[{ts}](video-source://{self.default_video_source_id}?t={seconds})"
 
         return self._time_pattern.sub(repl, text)
 

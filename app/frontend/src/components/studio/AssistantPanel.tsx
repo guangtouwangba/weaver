@@ -163,9 +163,10 @@ interface MarkdownContentProps {
   citations?: Citation[];
   documents: ProjectDocument[];
   onCitationClick: (citation: Citation) => void;
+  playVideo?: (videoId: string, options?: any) => void;
 }
 
-function MarkdownContent({ content, citations, documents, onCitationClick }: MarkdownContentProps) {
+function MarkdownContent({ content, citations, documents, onCitationClick, playVideo }: MarkdownContentProps) {
   const cleaned = cleanContent(content);
 
   return (
@@ -274,19 +275,57 @@ function MarkdownContent({ content, citations, documents, onCitationClick }: Mar
         // Style emphasis/italic
         em: ({ children }) => <em>{children}</em>,
         // Style links
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: colors.primary[500],
-              textDecoration: 'underline',
-            }}
-          >
-            {children}
-          </a>
-        ),
+        a: ({ href, children }) => {
+          // Handle video timestamps
+          if (href?.startsWith('video-source://')) {
+            return (
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (playVideo) {
+                    try {
+                      // Format: video-source://<videoId>?t=<seconds>
+                      const videoId = href.split('://')[1].split('?')[0];
+                      const params = new URLSearchParams(href.split('?')[1]);
+                      const startTime = parseInt(params.get('t') || '0', 10);
+                      playVideo(videoId, { startTime });
+                    } catch (err) {
+                      console.error('Failed to parse video link', err);
+                    }
+                  }
+                }}
+                style={{
+                  color: colors.primary[500],
+                  textDecoration: 'none',
+                  borderBottom: `1px dashed ${colors.primary[500]}`,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                <span style={{ fontSize: '0.8em' }}>▶</span>
+                {children}
+              </a>
+            );
+          }
+
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: colors.primary[500],
+                textDecoration: 'underline',
+              }}
+            >
+              {children}
+            </a>
+          );
+        },
       }}
     >
       {cleaned}
@@ -317,6 +356,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     // Cross-boundary drag from Konva canvas
     crossBoundaryDragNode,
     setCrossBoundaryDragNode,
+    playVideo,
   } = useStudio();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

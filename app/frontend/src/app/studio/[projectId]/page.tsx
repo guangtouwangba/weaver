@@ -16,6 +16,7 @@ import KonvaCanvas from "@/components/studio/KonvaCanvas";
 import CanvasControls from "@/components/studio/CanvasControls";
 import ImportSourceDialog from "@/components/dialogs/ImportSourceDialog";
 import PDFPreviewModal from "@/components/pdf/PDFPreviewModal";
+import YouTubePlayerModal from "@/components/studio/YouTubePlayerModal";
 import { documentsApi, canvasApi, urlApi } from "@/lib/api";
 import { detectPlatform, type Platform } from '@/lib/platform-icons';
 
@@ -58,6 +59,8 @@ function StudioPageContent() {
     addNodeToCanvas,
     openDocumentPreview,
     navigateToSource,
+    videoPlayerState,
+    closeVideoPlayer,
   } = useStudio();
   const toast = useNotification();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -233,6 +236,19 @@ function StudioPageContent() {
       />
 
       <PDFPreviewModal />
+
+      {/* Global YouTube Player Modal */}
+      <YouTubePlayerModal
+        open={videoPlayerState.isOpen}
+        onClose={closeVideoPlayer}
+        videoId={videoPlayerState.videoId}
+        title={videoPlayerState.title}
+        channelName={videoPlayerState.channelName}
+        viewCount={videoPlayerState.viewCount}
+        publishedAt={videoPlayerState.publishedAt}
+        sourceUrl={videoPlayerState.sourceUrl}
+        startTime={videoPlayerState.startTime}
+      />
     </GlobalLayout>
   );
 }

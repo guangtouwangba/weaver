@@ -21,7 +21,7 @@ import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
 import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
 import DocumentPreviewCard from '@/components/studio/DocumentPreviewCard';
-import YouTubePlayerModal from './YouTubePlayerModal';
+// YouTubePlayerModal is now global in StudioPage
 import WebPageReaderModal from '@/components/studio/WebPageReaderModal';
 
 interface ResourceSidebarProps {
@@ -110,7 +110,8 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
     urlContents,
     addUrlContent,
     removeUrlContent,
-    deleteDocument
+    deleteDocument,
+    playVideo, // <--- Add this
   } = useStudio();
 
   // Subscribe to document status updates
@@ -138,16 +139,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   // URL extraction state
   const [pendingUrlExtractions, setPendingUrlExtractions] = useState<PendingUrlExtraction[]>([]);
 
-  // YouTube player modal state
-  const [youtubeModal, setYoutubeModal] = useState<{
-    open: boolean;
-    videoId: string;
-    title: string;
-    channelName?: string;
-    viewCount?: string;
-    publishedAt?: string;
-    sourceUrl?: string;
-  } | null>(null);
+  // Removed local youtubeModal state
 
   // Web Page Reader Modal state
   const [webPageReader, setWebPageReader] = useState<{
@@ -464,9 +456,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                 onClick={() => {
                   // Open YouTube player modal for completed YouTube extractions
                   if (extraction.status === 'completed' && extraction.platform === 'youtube' && extraction.metadata?.videoId) {
-                    setYoutubeModal({
-                      open: true,
-                      videoId: extraction.metadata.videoId,
+                    playVideo(extraction.metadata.videoId, {
                       title: extraction.title || 'YouTube Video',
                       channelName: extraction.metadata.channelName,
                       viewCount: extraction.metadata.viewCount,
@@ -603,9 +593,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   onClick={() => {
                     // Open YouTube player modal for YouTube content
                     if (platform === 'youtube' && metadata?.video_id) {
-                      setYoutubeModal({
-                        open: true,
-                        videoId: metadata.video_id,
+                      playVideo(metadata.video_id, {
                         title: urlContent.title || 'YouTube Video',
                         channelName: metadata.channel_name,
                         viewCount: metadata.view_count,
@@ -710,7 +698,6 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         </Collapse>
       </div>
 
-      {/* Import Dialog */}
       <ImportSourceDialog
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
@@ -718,19 +705,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
         onUrlImport={handleUrlImport}
       />
 
-      {/* YouTube Player Modal */}
-      {youtubeModal && (
-        <YouTubePlayerModal
-          open={youtubeModal.open}
-          onClose={() => setYoutubeModal(null)}
-          videoId={youtubeModal.videoId}
-          title={youtubeModal.title}
-          channelName={youtubeModal.channelName}
-          viewCount={youtubeModal.viewCount}
-          publishedAt={youtubeModal.publishedAt}
-          sourceUrl={youtubeModal.sourceUrl}
-        />
-      )}
+      {/* YouTube Player Modal - Now Global */}
 
       {/* Web Page Reader Modal */}
       {webPageReader && (

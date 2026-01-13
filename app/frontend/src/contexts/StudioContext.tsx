@@ -193,6 +193,27 @@ interface StudioContextType {
   setMindmapResult: (result: { data: MindmapData; title: string } | null) => void;
   showMindmapOverlay: boolean;
   setShowMindmapOverlay: (show: boolean) => void;
+
+  // === Global Video Player ===
+  videoPlayerState: {
+    isOpen: boolean;
+    videoId: string;
+    startTime?: number;
+    title?: string;
+    channelName?: string;
+    viewCount?: string;
+    publishedAt?: string;
+    sourceUrl?: string;
+  };
+  playVideo: (videoId: string, options?: {
+    startTime?: number;
+    title?: string;
+    channelName?: string;
+    viewCount?: string;
+    publishedAt?: string;
+    sourceUrl?: string;
+  }) => void;
+  closeVideoPlayer: () => void;
 }
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
@@ -339,6 +360,40 @@ export function StudioProvider({
     setPreviewDocumentId(null);
   }, []);
 
+  // === Global Video Player State ===
+  const [videoPlayerState, setVideoPlayerState] = useState<{
+    isOpen: boolean;
+    videoId: string;
+    startTime?: number;
+    title?: string;
+    channelName?: string;
+    viewCount?: string;
+    publishedAt?: string;
+    sourceUrl?: string;
+  }>({
+    isOpen: false,
+    videoId: '',
+  });
+
+  const playVideo = useCallback((videoId: string, options?: {
+    startTime?: number;
+    title?: string;
+    channelName?: string;
+    viewCount?: string;
+    publishedAt?: string;
+    sourceUrl?: string;
+  }) => {
+    setVideoPlayerState({
+      isOpen: true,
+      videoId,
+      ...options,
+    });
+  }, []);
+
+  const closeVideoPlayer = useCallback(() => {
+    setVideoPlayerState(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
   // === Concurrent Generation Tasks State ===
   const [generationTasks, setGenerationTasks] = useState<Map<string, GenerationTask>>(new Map());
 
@@ -394,7 +449,7 @@ export function StudioProvider({
   // Complete a generation task with result - converts to CanvasNode (unified model)
   const completeGeneration = useCallback(async (taskId: string, result: unknown, title?: string) => {
     console.log(`[StudioContext] completeGeneration called: taskId=${taskId}, title=${title}`);
-    
+
     // Access current tasks via ref to avoid dependency cycles and stale closures
     const task = generationTasksRef.current.get(taskId);
 
@@ -1137,6 +1192,9 @@ export function StudioProvider({
     setMindmapResult,
     showMindmapOverlay,
     setShowMindmapOverlay,
+    videoPlayerState,
+    playVideo,
+    closeVideoPlayer,
   };
 
   return (
