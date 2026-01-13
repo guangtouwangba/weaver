@@ -9,7 +9,17 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prepare": "cd ../.. && husky app/frontend/.husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@chakra-ui/react": "^2.10.9",
@@ -50,7 +60,11 @@
     "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.4",
+    "eslint-config-prettier": "^10.1.8",
     "fast-check": "^3.22.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
     "vitest": "^2.1.0"
   }
 }
