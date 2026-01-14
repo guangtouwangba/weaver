@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 
@@ -16,11 +15,11 @@ class PendingCleanup:
     storage_type: str  # "local", "supabase", or "both"
     attempts: int
     max_attempts: int
-    last_error: Optional[str]
+    last_error: str | None
     created_at: datetime
-    last_attempt_at: Optional[datetime]
-    document_id: Optional[UUID]
-    project_id: Optional[UUID]
+    last_attempt_at: datetime | None
+    document_id: UUID | None
+    project_id: UUID | None
 
 
 class PendingCleanupRepository(ABC):
@@ -31,25 +30,25 @@ class PendingCleanupRepository(ABC):
         self,
         file_path: str,
         storage_type: str = "both",
-        document_id: Optional[UUID] = None,
-        project_id: Optional[UUID] = None,
+        document_id: UUID | None = None,
+        project_id: UUID | None = None,
     ) -> PendingCleanup:
         """Add a new pending cleanup record."""
         pass
 
     @abstractmethod
-    async def find_by_id(self, cleanup_id: UUID) -> Optional[PendingCleanup]:
+    async def find_by_id(self, cleanup_id: UUID) -> PendingCleanup | None:
         """Find pending cleanup by ID."""
         pass
 
     @abstractmethod
-    async def find_pending(self, limit: int = 100) -> List[PendingCleanup]:
+    async def find_pending(self, limit: int = 100) -> list[PendingCleanup]:
         """Find pending cleanups that haven't exceeded max attempts."""
         pass
 
     @abstractmethod
     async def increment_attempt(
-        self, cleanup_id: UUID, error: Optional[str] = None
+        self, cleanup_id: UUID, error: str | None = None
     ) -> bool:
         """Increment attempt count and record error if any."""
         pass

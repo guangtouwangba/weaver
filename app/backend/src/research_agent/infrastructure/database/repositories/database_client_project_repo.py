@@ -1,6 +1,5 @@
 """Project repository implementation using DatabaseClient interface."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from research_agent.domain.entities.project import Project
@@ -53,12 +52,12 @@ class DatabaseClientProjectRepository(ProjectRepository):
 
         return project
 
-    async def find_by_id(self, project_id: UUID) -> Optional[Project]:
+    async def find_by_id(self, project_id: UUID) -> Project | None:
         """Find project by ID."""
         row = await self._client.select_one("projects", {"id": str(project_id)})
         return self._to_entity(row) if row else None
 
-    async def find_all(self) -> List[Project]:
+    async def find_all(self) -> list[Project]:
         """Find all projects."""
         rows = await self._client.select("projects")
         # Sort by updated_at descending (most recent first)

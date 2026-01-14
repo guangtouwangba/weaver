@@ -1,6 +1,6 @@
 """SQLAlchemy implementation of Tag repository."""
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,19 +19,19 @@ class SQLAlchemyTagRepository:
         await self.session.refresh(tag)
         return tag
 
-    async def get_by_id(self, tag_id: UUID) -> Optional[TagModel]:
+    async def get_by_id(self, tag_id: UUID) -> TagModel | None:
         stmt = select(TagModel).where(TagModel.id == tag_id)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def get_by_name(self, name: str, user_id: Optional[str] = None) -> Optional[TagModel]:
+    async def get_by_name(self, name: str, user_id: str | None = None) -> TagModel | None:
         stmt = select(TagModel).where(TagModel.name == name)
         if user_id:
             stmt = stmt.where(TagModel.user_id == user_id)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def list_all(self, user_id: Optional[str] = None) -> Sequence[TagModel]:
+    async def list_all(self, user_id: str | None = None) -> Sequence[TagModel]:
         stmt = select(TagModel)
         if user_id:
             stmt = stmt.where(TagModel.user_id == user_id)

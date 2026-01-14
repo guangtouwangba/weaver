@@ -1,45 +1,45 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 from research_agent.application.dto.tag import TagResponse
 
 
 class InboxItemBase(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
     type: str  # link, pdf, note, video, article
-    source_url: Optional[str] = None
-    content: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    source_url: str | None = None
+    content: str | None = None
+    thumbnail_url: str | None = None
     source_type: str  # extension, manual, upload
-    meta_data: Dict[str, Any] = {}
+    meta_data: dict[str, Any] = {}
     is_read: bool = False
     is_processed: bool = False
 
 
 class InboxItemCreate(InboxItemBase):
-    tag_ids: List[UUID] = []
+    tag_ids: list[UUID] = []
 
 
 class InboxItemUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    is_read: Optional[bool] = None
-    is_processed: Optional[bool] = None
-    tag_ids: Optional[List[UUID]] = None
+    title: str | None = None
+    content: str | None = None
+    is_read: bool | None = None
+    is_processed: bool | None = None
+    tag_ids: list[UUID] | None = None
 
 
 class InboxItemResponse(InboxItemBase):
     id: UUID
     collected_at: datetime
-    tags: List[TagResponse] = []
+    tags: list[TagResponse] = []
 
     class Config:
         from_attributes = True
 
 
 class InboxItemListResponse(BaseModel):
-    items: List[InboxItemResponse]
+    items: list[InboxItemResponse]
     total: int

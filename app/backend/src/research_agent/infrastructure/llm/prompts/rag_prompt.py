@@ -147,7 +147,7 @@ Current question: {query}
 
 Instructions:
 - Answer the current question based on the context above.
-- If the question uses pronouns or references previous topics (e.g., "it", "that", "this topic"), 
+- If the question uses pronouns or references previous topics (e.g., "it", "that", "this topic"),
   resolve them using the previous conversation context.
 - Provide a detailed and comprehensive answer.
 - Cite your sources:
@@ -408,7 +408,7 @@ Citation Format Requirements (MUST be strictly followed):
    Correct Examples:
    - <cite doc_id="doc_01" quote="Q4 2023 gross margin was 45.2%, an increase of 2.3 percentage points from the previous quarter">According to the financial report, gross margin improved significantly</cite>
    - <cite doc_id="doc_02" quote="Revenue increased by 15%, mainly driven by new product contributions">Revenue growth was primarily due to new product lines</cite>
-   
+
    Incorrect Examples (Do NOT use):
    - "Gross margin was 45.2% [doc_01]" ❌ Not using XML format
    - <cite doc_id="doc_01">Gross margin improved</cite> ❌ Missing quote attribute

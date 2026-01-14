@@ -1,7 +1,8 @@
 """Article generation agent for Magic Cursor."""
 
 import json
-from typing import Any, AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
+from typing import Any
 
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
 from research_agent.domain.entities.output import ArticleData, ArticleSection, SourceRef
@@ -31,7 +32,7 @@ class ArticleAgent(BaseOutputAgent):
         self,
         llm_service: LLMService,
         max_tokens_per_request: int = 4000,
-        skills: List[Any] = None,
+        skills: list[Any] = None,
     ):
         super().__init__(llm_service, max_tokens_per_request)
         self._skills = skills or []
@@ -44,8 +45,8 @@ class ArticleAgent(BaseOutputAgent):
     async def generate(
         self,
         document_content: str,
-        document_title: Optional[str] = None,
-        skills: List[Any] = None,
+        document_title: str | None = None,
+        skills: list[Any] = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -61,14 +62,13 @@ class ArticleAgent(BaseOutputAgent):
         Yields:
             OutputEvent instances as generation progresses
         """
-        node_data: List[Dict[str, Any]] = kwargs.get("node_data", [])
-        snapshot_context: Optional[Dict[str, Any]] = kwargs.get("snapshot_context")
+        node_data: list[dict[str, Any]] = kwargs.get("node_data", [])
+        snapshot_context: dict[str, Any] | None = kwargs.get("snapshot_context")
         current_skills = skills if skills is not None else self._skills
 
-        title = document_title or "Generated Article"
         logger.info(f"[ArticleAgent] Starting article generation from {len(node_data)} nodes")
 
-        yield self._emit_started(f"Starting article generation...")
+        yield self._emit_started("Starting article generation...")
 
         try:
             # Format node content for the prompt
@@ -125,7 +125,7 @@ class ArticleAgent(BaseOutputAgent):
             logger.error(f"[ArticleAgent] Generation failed: {e}", exc_info=True)
             yield self._emit_error(f"Article generation failed: {str(e)}")
 
-    def _format_node_content(self, node_data: List[Dict[str, Any]], fallback_content: str) -> str:
+    def _format_node_content(self, node_data: list[dict[str, Any]], fallback_content: str) -> str:
         """Format node data for the prompt."""
         if not node_data:
             return fallback_content
@@ -147,8 +147,8 @@ class ArticleAgent(BaseOutputAgent):
     def _parse_article_response(
         self,
         response: str,
-        snapshot_context: Optional[Dict[str, Any]],
-    ) -> Optional[ArticleData]:
+        snapshot_context: dict[str, Any] | None,
+    ) -> ArticleData | None:
         """Parse the LLM response into ArticleData."""
         try:
             response_text = response.strip()

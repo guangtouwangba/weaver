@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from research_agent.domain.entities.resource import ResourceType
@@ -34,17 +34,17 @@ class ResourceChunk:
     """
 
     id: UUID = field(default_factory=uuid4)
-    resource_id: Optional[UUID] = None
+    resource_id: UUID | None = None
     resource_type: ResourceType = ResourceType.DOCUMENT
-    project_id: Optional[UUID] = None
-    user_id: Optional[str] = None
+    project_id: UUID | None = None
+    user_id: str | None = None
     chunk_index: int = 0
     content: str = ""
-    embedding: Optional[List[float]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    embedding: list[float] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
 
-    def set_embedding(self, embedding: List[float]) -> None:
+    def set_embedding(self, embedding: list[float]) -> None:
         """Set the embedding vector."""
         self.embedding = embedding
 
@@ -64,17 +64,17 @@ class ResourceChunk:
         return self.metadata.get("platform", "local")
 
     @property
-    def page_number(self) -> Optional[int]:
+    def page_number(self) -> int | None:
         """Get page number (for documents)."""
         return self.metadata.get("page_number")
 
     @property
-    def start_time(self) -> Optional[float]:
+    def start_time(self) -> float | None:
         """Get start time in seconds (for video/audio)."""
         return self.metadata.get("start_time")
 
     @property
-    def end_time(self) -> Optional[float]:
+    def end_time(self) -> float | None:
         """Get end time in seconds (for video/audio)."""
         return self.metadata.get("end_time")
 

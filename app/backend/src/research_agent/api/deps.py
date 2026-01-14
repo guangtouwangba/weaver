@@ -1,7 +1,7 @@
 """API dependencies for dependency injection."""
 
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
@@ -26,7 +26,7 @@ DB_CONNECT_MAX_RETRIES = 3
 DB_CONNECT_RETRY_DELAY = 2.0  # seconds
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     """
     Get database session for FastAPI dependency injection.
 
@@ -44,7 +44,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             # Test that the connection is actually available by starting a transaction
             # This will fail fast if the pool is exhausted
             break
-        except (TimeoutError, asyncio.TimeoutError) as e:
+        except TimeoutError as e:
             last_error = e
             if attempt < DB_CONNECT_MAX_RETRIES:
                 logger.warning(
@@ -72,7 +72,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
         # ✅ Commit on success
         await session.commit()
-    except (TimeoutError, asyncio.TimeoutError) as e:
+    except TimeoutError as e:
         # Log timeout errors with more context
         logger.warning(f"⚠️  Database operation timed out: {type(e).__name__}: {e}")
         await session.rollback()
@@ -165,8 +165,6 @@ async def get_verified_project(
         HTTPException 404: Project not found
         HTTPException 403: User not authorized to access project
     """
-    from research_agent.api.auth.supabase import UserContext, get_optional_user
-    from research_agent.domain.entities.project import Project
     from research_agent.infrastructure.database.repositories.sqlalchemy_project_repo import (
         SQLAlchemyProjectRepository,
     )

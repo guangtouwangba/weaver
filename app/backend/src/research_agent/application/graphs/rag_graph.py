@@ -16,6 +16,9 @@ from pydantic import BaseModel, Field
 
 from research_agent.domain.services.conversation_context import ConversationContext
 from research_agent.infrastructure.llm.prompts import render_prompt
+from research_agent.infrastructure.llm.prompts.rag_prompt import (
+    CITATION_FORMAT_INSTRUCTIONS,
+)
 from research_agent.infrastructure.vector_store.langchain_pgvector import PGVectorRetriever
 from research_agent.shared.utils.logger import logger
 from research_agent.shared.utils.rag_trace import rag_log
@@ -58,10 +61,6 @@ class GenerationStrategy:
     max_length: int  # Maximum response length in tokens (approximate)
     system_prompt: str  # Custom system prompt for this intent
 
-
-from research_agent.infrastructure.llm.prompts.rag_prompt import (
-    CITATION_FORMAT_INSTRUCTIONS,
-)
 
 # Default strategies for each intent type
 # We append CITATION_FORMAT_INSTRUCTIONS to each prompt to ensure the LLM always knows how to cite sources

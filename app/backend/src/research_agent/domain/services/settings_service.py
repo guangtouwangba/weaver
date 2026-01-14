@@ -5,9 +5,8 @@ Business logic for managing application settings.
 Handles encryption, validation, and priority resolution.
 """
 
-import re
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -372,7 +371,7 @@ class SettingsService:
     def __init__(
         self,
         repository: ISettingsRepository,
-        encryption_service: Optional[EncryptionService] = None,
+        encryption_service: EncryptionService | None = None,
     ):
         """
         Initialize settings service.
@@ -391,10 +390,10 @@ class SettingsService:
     async def get_setting(
         self,
         key: str,
-        user_id: Optional[UUID] = None,
-        project_id: Optional[UUID] = None,
+        user_id: UUID | None = None,
+        project_id: UUID | None = None,
         decrypt: bool = True,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         Get a setting value with priority resolution.
 
@@ -444,10 +443,10 @@ class SettingsService:
 
     async def get_all_settings(
         self,
-        project_id: Optional[UUID] = None,
-        category: Optional[str] = None,
+        project_id: UUID | None = None,
+        category: str | None = None,
         include_encrypted: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get all effective settings as a dictionary.
 
@@ -479,7 +478,7 @@ class SettingsService:
 
         return result
 
-    async def get_global_setting(self, key: str, decrypt: bool = True) -> Optional[Any]:
+    async def get_global_setting(self, key: str, decrypt: bool = True) -> Any | None:
         """Get a global setting value."""
         setting = await self._repo.get_global_setting(key)
         if setting:
@@ -497,7 +496,7 @@ class SettingsService:
         project_id: UUID,
         key: str,
         decrypt: bool = True,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """Get a project-specific setting value."""
         setting = await self._repo.get_project_setting(project_id, key)
         if setting:
@@ -515,7 +514,7 @@ class SettingsService:
         user_id: UUID,
         key: str,
         decrypt: bool = True,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """Get a user-specific setting value."""
         setting = await self._repo.get_user_setting(user_id, key)
         if setting:
@@ -531,9 +530,9 @@ class SettingsService:
     async def get_all_user_settings(
         self,
         user_id: UUID,
-        category: Optional[str] = None,
+        category: str | None = None,
         include_encrypted: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get all settings for a user as a dictionary.
 
@@ -571,8 +570,8 @@ class SettingsService:
         self,
         key: str,
         value: Any,
-        category: Optional[str] = None,
-        description: Optional[str] = None,
+        category: str | None = None,
+        description: str | None = None,
     ) -> SettingDTO:
         """
         Set a global setting.
@@ -612,8 +611,8 @@ class SettingsService:
         project_id: UUID,
         key: str,
         value: Any,
-        category: Optional[str] = None,
-        description: Optional[str] = None,
+        category: str | None = None,
+        description: str | None = None,
     ) -> SettingDTO:
         """
         Set a project-specific setting.
@@ -655,8 +654,8 @@ class SettingsService:
         user_id: UUID,
         key: str,
         value: Any,
-        category: Optional[str] = None,
-        description: Optional[str] = None,
+        category: str | None = None,
+        description: str | None = None,
     ) -> SettingDTO:
         """
         Set a user-specific setting.
@@ -744,7 +743,7 @@ class SettingsService:
     # API Key Validation
     # -------------------------------------------------------------------------
 
-    async def validate_api_key(self, api_key: str, provider: str = "openrouter") -> Dict[str, Any]:
+    async def validate_api_key(self, api_key: str, provider: str = "openrouter") -> dict[str, Any]:
         """
         Validate an API key by making a test request.
 
@@ -762,7 +761,7 @@ class SettingsService:
         else:
             return {"valid": False, "message": f"Unknown provider: {provider}"}
 
-    async def _validate_openrouter_key(self, api_key: str) -> Dict[str, Any]:
+    async def _validate_openrouter_key(self, api_key: str) -> dict[str, Any]:
         """Validate OpenRouter API key."""
         # Check format
         if not api_key.startswith("sk-or-"):
@@ -801,7 +800,7 @@ class SettingsService:
             logger.error(f"[SettingsService] API key validation error: {e}")
             return {"valid": False, "message": f"Validation error: {str(e)}"}
 
-    async def _validate_openai_key(self, api_key: str) -> Dict[str, Any]:
+    async def _validate_openai_key(self, api_key: str) -> dict[str, Any]:
         """Validate OpenAI API key."""
         # Check format
         if not api_key.startswith("sk-"):

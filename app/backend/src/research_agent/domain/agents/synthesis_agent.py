@@ -8,7 +8,8 @@ Implements a multi-step reasoning pipeline:
 """
 
 import json
-from typing import Any, AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
+from typing import Any
 from uuid import uuid4
 
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
@@ -57,7 +58,7 @@ class SynthesisAgent(BaseOutputAgent):
     async def generate(
         self,
         document_content: str,
-        document_title: Optional[str] = None,
+        document_title: str | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -69,8 +70,8 @@ class SynthesisAgent(BaseOutputAgent):
 
     async def synthesize(
         self,
-        input_contents: List[str],
-        source_ids: Optional[List[str]] = None,
+        input_contents: list[str],
+        source_ids: list[str] | None = None,
         mode: str = "connect",
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -189,7 +190,7 @@ class SynthesisAgent(BaseOutputAgent):
 
     async def _draft_synthesis(
         self, formatted_inputs: str, reasoning: str, mode: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Step 2: Generate initial synthesis based on reasoning.
 
@@ -208,7 +209,7 @@ class SynthesisAgent(BaseOutputAgent):
         response = await self._generate_text(prompt)
         return self._parse_response(response)
 
-    async def _review_draft(self, formatted_inputs: str, draft: Dict[str, Any]) -> str:
+    async def _review_draft(self, formatted_inputs: str, draft: dict[str, Any]) -> str:
         """
         Step 3: Self-critique the draft for quality.
 
@@ -224,7 +225,7 @@ class SynthesisAgent(BaseOutputAgent):
         prompt = self._truncate_content(prompt)
         return await self._generate_text(prompt)
 
-    async def _refine_draft(self, draft: Dict[str, Any], critique: str) -> Optional[Dict[str, Any]]:
+    async def _refine_draft(self, draft: dict[str, Any], critique: str) -> dict[str, Any] | None:
         """
         Step 4: Improve the draft based on critique.
 
@@ -256,7 +257,7 @@ class SynthesisAgent(BaseOutputAgent):
     # Helper Methods
     # =========================================================================
 
-    def _format_inputs(self, contents: List[str]) -> str:
+    def _format_inputs(self, contents: list[str]) -> str:
         """Format input contents for the prompt."""
         formatted = []
         for i, content in enumerate(contents, 1):
@@ -265,7 +266,7 @@ class SynthesisAgent(BaseOutputAgent):
             formatted.append(f"--- INPUT {i} ---\n{truncated}\n")
         return "\n".join(formatted)
 
-    def _parse_response(self, response: str) -> Optional[Dict[str, Any]]:
+    def _parse_response(self, response: str) -> dict[str, Any] | None:
         """Parse the LLM response as JSON."""
         try:
             # Try to extract JSON from the response (handle markdown code blocks)
@@ -287,7 +288,7 @@ class SynthesisAgent(BaseOutputAgent):
             logger.debug(f"[SynthesisAgent] Raw response: {response[:500]}")
             return None
 
-    def _format_node_content(self, synthesis_data: Dict[str, Any]) -> str:
+    def _format_node_content(self, synthesis_data: dict[str, Any]) -> str:
         """Format synthesis data as Markdown content for the node."""
         parts = []
 

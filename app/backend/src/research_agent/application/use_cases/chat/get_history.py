@@ -1,7 +1,7 @@
 """Get chat history use case."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from research_agent.infrastructure.database.repositories.sqlalchemy_chat_repo import (
@@ -16,8 +16,8 @@ class ChatMessageDTO:
     id: UUID
     role: str
     content: str
-    sources: Optional[List[Dict[str, Any]]]
-    context_refs: Optional[List[Dict[str, Any]]]
+    sources: list[dict[str, Any]] | None
+    context_refs: list[dict[str, Any]] | None
     created_at: str
 
 
@@ -27,14 +27,14 @@ class GetHistoryInput:
 
     project_id: UUID
     limit: int = 50
-    user_id: Optional[str] = None
+    user_id: str | None = None
 
 
 @dataclass
 class GetHistoryOutput:
     """Output for get history use case."""
 
-    messages: List[ChatMessageDTO]
+    messages: list[ChatMessageDTO]
 
 
 class GetHistoryUseCase:

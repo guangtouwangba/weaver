@@ -1,6 +1,5 @@
 """SQLAlchemy repository for Output entity."""
 
-from typing import List, Optional, Tuple
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -34,7 +33,7 @@ class SQLAlchemyOutputRepository:
         await self._session.refresh(model)
         return self._to_entity(model)
 
-    async def find_by_id(self, output_id: UUID) -> Optional[Output]:
+    async def find_by_id(self, output_id: UUID) -> Output | None:
         """Find output by ID."""
         result = await self._session.execute(select(OutputModel).where(OutputModel.id == output_id))
         model = result.scalar_one_or_none()
@@ -43,11 +42,11 @@ class SQLAlchemyOutputRepository:
     async def find_by_project(
         self,
         project_id: UUID,
-        output_type: Optional[str] = None,
+        output_type: str | None = None,
         limit: int = 20,
         offset: int = 0,
-        user_id: Optional[str] = None,
-    ) -> Tuple[List[Output], int]:
+        user_id: str | None = None,
+    ) -> tuple[list[Output], int]:
         """
         Find outputs by project ID with optional filtering.
 

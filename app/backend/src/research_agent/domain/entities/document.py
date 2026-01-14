@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -59,8 +59,8 @@ class Document:
     """Document entity - represents an uploaded document (PDF, Word, PPT, Audio, Video)."""
 
     id: UUID = field(default_factory=uuid4)
-    project_id: Optional[UUID] = None
-    user_id: Optional[str] = None
+    project_id: UUID | None = None
+    user_id: str | None = None
     filename: str = ""
     original_filename: str = ""
     file_path: str = ""
@@ -68,18 +68,18 @@ class Document:
     mime_type: str = "application/pdf"
     page_count: int = 0
     status: DocumentStatus = DocumentStatus.PENDING
-    summary: Optional[str] = None  # Generated summary of the document
+    summary: str | None = None  # Generated summary of the document
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
     # Long context mode fields
-    full_content: Optional[str] = None  # Full document content for long context
-    content_token_count: Optional[int] = None  # Cached token count
-    parsing_metadata: Optional[Dict[str, Any]] = None  # Parsing metadata (layout, OCR, etc.)
+    full_content: str | None = None  # Full document content for long context
+    content_token_count: int | None = None  # Cached token count
+    parsing_metadata: dict[str, Any] | None = None  # Parsing metadata (layout, OCR, etc.)
 
     # Thumbnail fields for PDF preview
-    thumbnail_path: Optional[str] = None  # Path to generated thumbnail image
-    thumbnail_status: Optional[str] = None  # pending, processing, ready, error
+    thumbnail_path: str | None = None  # Path to generated thumbnail image
+    thumbnail_status: str | None = None  # pending, processing, ready, error
 
     def mark_processing(self) -> None:
         """Mark document as processing."""
@@ -118,7 +118,7 @@ class Document:
         return doc_type in (DocumentType.AUDIO, DocumentType.VIDEO)
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         """Get duration for audio/video documents."""
         if self.parsing_metadata and self.is_audio_video:
             return self.parsing_metadata.get("duration_seconds")

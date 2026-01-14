@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
 from uuid import UUID
 
 from research_agent.domain.repositories.project_repo import ProjectRepository
@@ -23,7 +22,7 @@ class ProjectItem:
 class ListProjectsOutput:
     """Output for list projects use case."""
 
-    items: List[ProjectItem]
+    items: list[ProjectItem]
     total: int
 
 

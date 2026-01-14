@@ -1,13 +1,12 @@
 """Thumbnail generator task - generates PDF first-page thumbnails."""
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.domain.entities.document import DocumentType
 from research_agent.infrastructure.database.models import DocumentModel
 from research_agent.infrastructure.websocket.notification_service import (
     document_notification_service,
@@ -23,7 +22,7 @@ class ThumbnailGeneratorTask(BaseTask):
     def task_type(self) -> str:
         return "thumbnail_generator"
 
-    async def execute(self, payload: Dict[str, Any], session: AsyncSession) -> None:
+    async def execute(self, payload: dict[str, Any], session: AsyncSession) -> None:
         """
         Generate thumbnail for a PDF document.
 

@@ -1,7 +1,6 @@
 """API Key authentication dependency for external API access."""
 
 import hashlib
-from datetime import datetime, timezone
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession

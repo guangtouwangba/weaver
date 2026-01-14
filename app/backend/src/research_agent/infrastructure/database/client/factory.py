@@ -1,6 +1,5 @@
 """Factory for creating database client instances."""
 
-from typing import Optional
 
 from research_agent.config import get_settings
 from research_agent.infrastructure.database.client.base import DatabaseClient
@@ -15,7 +14,7 @@ from research_agent.shared.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # Singleton instance
-_database_client_instance: Optional[DatabaseClient] = None
+_database_client_instance: DatabaseClient | None = None
 
 
 def get_database_client() -> DatabaseClient:

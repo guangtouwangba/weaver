@@ -8,9 +8,8 @@ This script:
 3. Returns the revision ID for the startup script
 """
 
-import sys
-import os
 import subprocess
+import sys
 from pathlib import Path
 
 # Add src to Python path
@@ -31,12 +30,12 @@ def get_available_revisions():
         alembic_ini = backend_dir / "alembic.ini"
         config = Config(str(alembic_ini))
         script = ScriptDirectory.from_config(config)
-        
+
         # Get all revisions in order
         revisions = []
         for rev in script.walk_revisions():
             revisions.append(rev.revision)
-        
+
         return revisions
     except Exception as e:
         print(f"ERROR: Failed to get available revisions: {e}", file=sys.stderr)
@@ -53,7 +52,7 @@ def get_database_revision():
             timeout=10,
             cwd=str(backend_dir)
         )
-        
+
         if result.returncode == 0 and result.stdout.strip():
             # Parse output: "20241204_000001 (head)" -> "20241204_000001"
             output = result.stdout.strip().split()[0]
@@ -74,11 +73,11 @@ def set_database_revision(revision):
             timeout=30,
             cwd=str(backend_dir)
         )
-        
+
         if result.returncode != 0:
             print(f"ERROR: alembic stamp failed: {result.stderr}", file=sys.stderr)
             return False
-        
+
         return True
     except Exception as e:
         print(f"ERROR: Failed to set database revision: {e}", file=sys.stderr)
@@ -89,22 +88,22 @@ def main():
     """Main function to auto-fix migration version."""
     # Get available revisions
     available_revisions = get_available_revisions()
-    
+
     if not available_revisions:
         print("ERROR: No migration files found", file=sys.stderr)
         sys.exit(1)
-    
+
     # Get the last available revision (head)
     # walk_revisions returns revisions from head to base, so first is head
     last_revision = available_revisions[0] if available_revisions else None
-    
+
     if not last_revision:
         print("ERROR: No migration files found", file=sys.stderr)
         sys.exit(1)
-    
+
     # Get current database revision
     db_revision = get_database_revision()
-    
+
     # Determine target revision:
     # - If DB revision exists and is in available list, keep it (might be older but valid)
     # - If DB revision doesn't exist or is not in available list, use last available (head)
@@ -121,7 +120,7 @@ def main():
             print(f"INFO: Auto-fixing to last available revision: {target_revision}", file=sys.stderr)
         else:
             print(f"INFO: No database revision found, setting to: {target_revision}", file=sys.stderr)
-    
+
     # Set database revision
     if set_database_revision(target_revision):
         print(target_revision)  # Output revision for shell script

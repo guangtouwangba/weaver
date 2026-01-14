@@ -4,7 +4,8 @@ Long Context Generation Strategy.
 Uses full document content with citation grounding (Mega-Prompt approach).
 """
 
-from typing import Any, AsyncIterator, List
+from collections.abc import AsyncIterator
+from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -70,7 +71,7 @@ class LongContextGenerationStrategy(IGenerationStrategy):
     def _build_prompt(
         self,
         query: str,
-        documents: List[dict],
+        documents: list[dict],
         citation_format: CitationFormat,
     ) -> str:
         """
@@ -120,7 +121,7 @@ Question: {query}
 
 Please provide a comprehensive answer with citations."""
 
-    def _parse_citations(self, text: str) -> List[dict]:
+    def _parse_citations(self, text: str) -> list[dict]:
         """
         Parse citations from generated text.
 
@@ -249,7 +250,7 @@ Please provide a comprehensive answer with citations."""
         """
         documents = kwargs.get("documents", [])
 
-        logger.info(f"[LongContextGeneration] Streaming response...")
+        logger.info("[LongContextGeneration] Streaming response...")
 
         llm = self._get_llm(llm_config)
 

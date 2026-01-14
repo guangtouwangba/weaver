@@ -6,7 +6,7 @@ document references and quoted text for source attribution.
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any
 
 from research_agent.shared.utils.logger import logger
 
@@ -46,7 +46,7 @@ class XMLCitationParser:
     # Pattern for detecting incomplete tags (for streaming)
     INCOMPLETE_TAG_PATTERN = re.compile(r"<cite[^>]*$", re.DOTALL)
 
-    def parse(self, text: str) -> List[ParsedCitation]:
+    def parse(self, text: str) -> list[ParsedCitation]:
         """
         Parse all citation tags from text.
 
@@ -77,7 +77,7 @@ class XMLCitationParser:
         logger.debug(f"[XMLCitationParser] Parsed {len(citations)} citations from text")
         return citations
 
-    def parse_streaming(self, buffer: str) -> Tuple[List[ParsedCitation], str, Optional[str]]:
+    def parse_streaming(self, buffer: str) -> tuple[list[ParsedCitation], str, str | None]:
         """
         Parse citations from streaming buffer.
 
@@ -144,7 +144,7 @@ class XMLCitationParser:
         clean = self.CITE_PATTERN.sub(r"\3", text)
         return clean
 
-    def get_citation_positions(self, text: str) -> List[Dict[str, Any]]:
+    def get_citation_positions(self, text: str) -> list[dict[str, Any]]:
         """
         Get positions of citations for rendering.
 
@@ -192,7 +192,7 @@ class XMLCitationParser:
 
         return positions
 
-    def validate_citation(self, citation: ParsedCitation) -> Tuple[bool, List[str]]:
+    def validate_citation(self, citation: ParsedCitation) -> tuple[bool, list[str]]:
         """
         Validate a parsed citation.
 
@@ -237,7 +237,7 @@ class XMLCitationParser:
 # Convenience functions
 
 
-def parse_citations(text: str) -> List[ParsedCitation]:
+def parse_citations(text: str) -> list[ParsedCitation]:
     """Parse citations from text using default parser."""
     parser = XMLCitationParser()
     return parser.parse(text)
@@ -251,7 +251,7 @@ def extract_clean_text(text: str) -> str:
 
 def parse_streaming_buffer(
     buffer: str,
-) -> Tuple[List[ParsedCitation], str, Optional[str]]:
+) -> tuple[list[ParsedCitation], str, str | None]:
     """Parse citations from streaming buffer."""
     parser = XMLCitationParser()
     return parser.parse_streaming(buffer)

@@ -1,7 +1,6 @@
 """Douyin video content extractor."""
 
 import re
-from typing import Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
 from research_agent.infrastructure.url_extractor.utils import PLATFORM_PATTERNS
@@ -28,7 +27,7 @@ class DouyinExtractor(URLExtractor):
                 return True
         return False
 
-    def _extract_video_id(self, url: str) -> Optional[str]:
+    def _extract_video_id(self, url: str) -> str | None:
         """Extract video ID from Douyin URL."""
         for pattern in PLATFORM_PATTERNS.get("douyin", []):
             match = re.search(pattern, url, re.IGNORECASE)
@@ -186,7 +185,7 @@ class DouyinExtractor(URLExtractor):
 
         return {}
 
-    def _extract_from_html(self, html: str, patterns: list[str]) -> Optional[str]:
+    def _extract_from_html(self, html: str, patterns: list[str]) -> str | None:
         """Try multiple regex patterns to extract content from HTML."""
         for pattern in patterns:
             match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)

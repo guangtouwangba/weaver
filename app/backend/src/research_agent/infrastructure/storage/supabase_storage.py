@@ -2,8 +2,8 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import BinaryIO, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
 import httpx
 
@@ -74,7 +74,7 @@ class SupabaseStorageService:
         self.supabase_url = supabase_url.rstrip("/")
         self.service_role_key = service_role_key
         self.bucket_name = bucket_name
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     @property
     def storage_url(self) -> str:
@@ -140,7 +140,7 @@ class SupabaseStorageService:
         # See: https://supabase.com/docs/reference/python/storage-from-createsigneduploadurl
         url = f"{self.storage_url}/object/upload/sign/{self.bucket_name}/{file_path}"
 
-        logger.info(f"[Supabase Storage] Creating signed upload URL")
+        logger.info("[Supabase Storage] Creating signed upload URL")
         logger.info(f"[Supabase Storage] Request URL: {url}")
         logger.info(f"[Supabase Storage] Bucket: {self.bucket_name}")
         logger.info(f"[Supabase Storage] File path: {file_path}")
@@ -193,7 +193,7 @@ class SupabaseStorageService:
         logger.info(f"Token (first 20 chars): {token[:20]}...")
 
         # Signed URLs are valid for 2 hours by default
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=2)
+        expires_at = datetime.now(UTC) + timedelta(hours=2)
 
         return PresignedUrlResponse(
             upload_url=upload_url,
@@ -253,7 +253,7 @@ class SupabaseStorageService:
         data = response.json()
         signed_url = f"{self.supabase_url}/storage/v1{data['signedURL']}"
 
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+        expires_at = datetime.now(UTC) + timedelta(seconds=expires_in_seconds)
 
         return SignedDownloadUrlResponse(
             signed_url=signed_url,
@@ -279,7 +279,7 @@ class SupabaseStorageService:
 
         return response.status_code == 200
 
-    async def get_file_info(self, file_path: str) -> Optional[dict]:
+    async def get_file_info(self, file_path: str) -> dict | None:
         """
         Get file metadata from storage.
 

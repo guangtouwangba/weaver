@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -45,9 +45,9 @@ class SourceRef:
     source_id: str  # ID of the source entity (document_id, node_id, etc.)
     quote: str  # Exact quoted text or transcript segment
     source_type: str = "document"  # 'document', 'node', 'video', 'audio', 'web'
-    location: Optional[str] = None  # Page number, timestamp, URL fragment, etc.
+    location: str | None = None  # Page number, timestamp, URL fragment, etc.
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "sourceId": self.source_id,
@@ -57,7 +57,7 @@ class SourceRef:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SourceRef":
+    def from_dict(cls, data: dict[str, Any]) -> "SourceRef":
         """Create from dictionary."""
         return cls(
             source_id=data.get("sourceId", data.get("source_id", "")),
@@ -75,17 +75,17 @@ class MindmapNode:
     label: str
     content: str = ""
     depth: int = 0
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     x: float = 0
     y: float = 0
     width: float = 200
     height: float = 100
     color: str = "default"
     status: str = "complete"  # "generating" | "complete" | "error"
-    source_refs: List["SourceRef"] = field(default_factory=list)  # Source references for drilldown
+    source_refs: list["SourceRef"] = field(default_factory=list)  # Source references for drilldown
     collapsed: bool = False  # Whether this node's children are collapsed
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "id": self.id,
@@ -104,7 +104,7 @@ class MindmapNode:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MindmapNode":
+    def from_dict(cls, data: dict[str, Any]) -> "MindmapNode":
         """Create from dictionary."""
         source_refs_data = data.get("sourceRefs", data.get("source_refs", []))
         return cls(
@@ -133,7 +133,7 @@ class MindmapEdge:
     target: str
     label: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "id": self.id,
@@ -143,7 +143,7 @@ class MindmapEdge:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MindmapEdge":
+    def from_dict(cls, data: dict[str, Any]) -> "MindmapEdge":
         """Create from dictionary."""
         return cls(
             id=data["id"],
@@ -157,11 +157,11 @@ class MindmapEdge:
 class MindmapData:
     """Data structure for a mindmap output."""
 
-    nodes: List[MindmapNode] = field(default_factory=list)
-    edges: List[MindmapEdge] = field(default_factory=list)
-    root_id: Optional[str] = None
+    nodes: list[MindmapNode] = field(default_factory=list)
+    edges: list[MindmapEdge] = field(default_factory=list)
+    root_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "nodes": [n.to_dict() for n in self.nodes],
@@ -170,7 +170,7 @@ class MindmapData:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MindmapData":
+    def from_dict(cls, data: dict[str, Any]) -> "MindmapData":
         """Create from dictionary."""
         return cls(
             nodes=[MindmapNode.from_dict(n) for n in data.get("nodes", [])],
@@ -188,11 +188,11 @@ class MindmapData:
         """Add an edge to the mindmap."""
         self.edges.append(edge)
 
-    def find_node(self, node_id: str) -> Optional[MindmapNode]:
+    def find_node(self, node_id: str) -> MindmapNode | None:
         """Find a node by ID."""
         return next((n for n in self.nodes if n.id == node_id), None)
 
-    def get_children(self, node_id: str) -> List[MindmapNode]:
+    def get_children(self, node_id: str) -> list[MindmapNode]:
         """Get child nodes of a given node."""
         return [n for n in self.nodes if n.parent_id == node_id]
 
@@ -209,7 +209,7 @@ class KeyFinding:
     label: str
     content: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "label": self.label,
@@ -217,7 +217,7 @@ class KeyFinding:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "KeyFinding":
+    def from_dict(cls, data: dict[str, Any]) -> "KeyFinding":
         """Create from dictionary."""
         return cls(
             label=data["label"],
@@ -230,10 +230,10 @@ class SummaryData:
     """Data structure for a summary output."""
 
     summary: str
-    key_findings: List[KeyFinding] = field(default_factory=list)
+    key_findings: list[KeyFinding] = field(default_factory=list)
     document_title: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "summary": self.summary,
@@ -242,7 +242,7 @@ class SummaryData:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SummaryData":
+    def from_dict(cls, data: dict[str, Any]) -> "SummaryData":
         """Create from dictionary."""
         return cls(
             summary=data.get("summary", ""),
@@ -262,9 +262,9 @@ class Flashcard:
 
     front: str
     back: str
-    notes: Optional[str] = None
+    notes: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "front": self.front,
@@ -273,7 +273,7 @@ class Flashcard:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Flashcard":
+    def from_dict(cls, data: dict[str, Any]) -> "Flashcard":
         """Create from dictionary."""
         return cls(
             front=data["front"],
@@ -286,10 +286,10 @@ class Flashcard:
 class FlashcardData:
     """Data structure for flashcards output."""
 
-    cards: List[Flashcard] = field(default_factory=list)
+    cards: list[Flashcard] = field(default_factory=list)
     document_title: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "cards": [c.to_dict() for c in self.cards],
@@ -297,7 +297,7 @@ class FlashcardData:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FlashcardData":
+    def from_dict(cls, data: dict[str, Any]) -> "FlashcardData":
         """Create from dictionary."""
         return cls(
             cards=[Flashcard.from_dict(c) for c in data.get("cards", [])],
@@ -317,7 +317,7 @@ class ArticleSection:
     heading: str
     content: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "heading": self.heading,
@@ -325,7 +325,7 @@ class ArticleSection:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ArticleSection":
+    def from_dict(cls, data: dict[str, Any]) -> "ArticleSection":
         """Create from dictionary."""
         return cls(
             heading=data["heading"],
@@ -338,11 +338,11 @@ class ArticleData:
     """Data structure for an article output (Magic Cursor: Draft Article)."""
 
     title: str = ""
-    sections: List[ArticleSection] = field(default_factory=list)
-    source_refs: List[SourceRef] = field(default_factory=list)
-    snapshot_context: Optional[Dict[str, Any]] = None  # Selection box coordinates
+    sections: list[ArticleSection] = field(default_factory=list)
+    source_refs: list[SourceRef] = field(default_factory=list)
+    snapshot_context: dict[str, Any] | None = None  # Selection box coordinates
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "title": self.title,
@@ -352,7 +352,7 @@ class ArticleData:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ArticleData":
+    def from_dict(cls, data: dict[str, Any]) -> "ArticleData":
         """Create from dictionary."""
         return cls(
             title=data.get("title", ""),
@@ -376,7 +376,7 @@ class ActionItem:
     done: bool = False
     priority: str = "medium"  # "high", "medium", "low"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "id": self.id,
@@ -386,7 +386,7 @@ class ActionItem:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ActionItem":
+    def from_dict(cls, data: dict[str, Any]) -> "ActionItem":
         """Create from dictionary."""
         return cls(
             id=data["id"],
@@ -401,11 +401,11 @@ class ActionListData:
     """Data structure for action list output (Magic Cursor: Action List)."""
 
     title: str = "Action Items"
-    items: List[ActionItem] = field(default_factory=list)
-    source_refs: List[SourceRef] = field(default_factory=list)
-    snapshot_context: Optional[Dict[str, Any]] = None  # Selection box coordinates
+    items: list[ActionItem] = field(default_factory=list)
+    source_refs: list[SourceRef] = field(default_factory=list)
+    snapshot_context: dict[str, Any] | None = None  # Selection box coordinates
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         return {
             "title": self.title,
@@ -415,7 +415,7 @@ class ActionListData:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ActionListData":
+    def from_dict(cls, data: dict[str, Any]) -> "ActionListData":
         """Create from dictionary."""
         return cls(
             title=data.get("title", "Action Items"),
@@ -430,18 +430,18 @@ class Output:
     """Output entity - represents a generated output (mindmap, summary, etc.)."""
 
     id: UUID = field(default_factory=uuid4)
-    project_id: Optional[UUID] = None
-    user_id: Optional[str] = None
+    project_id: UUID | None = None
+    user_id: str | None = None
     output_type: OutputType = OutputType.MINDMAP
-    source_ids: List[UUID] = field(default_factory=list)
+    source_ids: list[UUID] = field(default_factory=list)
     status: OutputStatus = OutputStatus.GENERATING
-    title: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    title: str | None = None
+    data: dict[str, Any] | None = None
+    error_message: str | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
-    def mark_complete(self, data: Dict[str, Any]) -> None:
+    def mark_complete(self, data: dict[str, Any]) -> None:
         """Mark output as complete with data."""
         self.status = OutputStatus.COMPLETE
         self.data = data
@@ -468,31 +468,31 @@ class Output:
         """Check if output is still being generated."""
         return self.status == OutputStatus.GENERATING
 
-    def get_mindmap_data(self) -> Optional[MindmapData]:
+    def get_mindmap_data(self) -> MindmapData | None:
         """Get mindmap data if this is a mindmap output."""
         if self.output_type != OutputType.MINDMAP or not self.data:
             return None
         return MindmapData.from_dict(self.data)
 
-    def get_summary_data(self) -> Optional[SummaryData]:
+    def get_summary_data(self) -> SummaryData | None:
         """Get summary data if this is a summary output."""
         if self.output_type != OutputType.SUMMARY or not self.data:
             return None
         return SummaryData.from_dict(self.data)
 
-    def get_flashcard_data(self) -> Optional[FlashcardData]:
+    def get_flashcard_data(self) -> FlashcardData | None:
         """Get flashcard data if this is a flashcard output."""
         if self.output_type != OutputType.FLASHCARDS or not self.data:
             return None
         return FlashcardData.from_dict(self.data)
 
-    def get_article_data(self) -> Optional[ArticleData]:
+    def get_article_data(self) -> ArticleData | None:
         """Get article data if this is an article output."""
         if self.output_type != OutputType.ARTICLE or not self.data:
             return None
         return ArticleData.from_dict(self.data)
 
-    def get_action_list_data(self) -> Optional[ActionListData]:
+    def get_action_list_data(self) -> ActionListData | None:
         """Get action list data if this is an action list output."""
         if self.output_type != OutputType.ACTION_LIST or not self.data:
             return None

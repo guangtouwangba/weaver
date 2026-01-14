@@ -136,6 +136,7 @@ class TestGetCurrentUser:
     async def test_missing_authorization(self, setup_settings):
         """Test 401 when authorization header is missing."""
         from fastapi import HTTPException
+
         from research_agent.api.auth.supabase import get_current_user
 
         with pytest.raises(HTTPException) as exc_info:
@@ -148,6 +149,7 @@ class TestGetCurrentUser:
     async def test_invalid_authorization_format(self, setup_settings):
         """Test 401 when authorization header has wrong format."""
         from fastapi import HTTPException
+
         from research_agent.api.auth.supabase import get_current_user
 
         with pytest.raises(HTTPException) as exc_info:

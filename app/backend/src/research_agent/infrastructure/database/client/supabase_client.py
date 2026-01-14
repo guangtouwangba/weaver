@@ -1,7 +1,6 @@
 """Supabase database client implementation using Supabase Python SDK."""
 
 import asyncio
-from typing import Dict, List, Optional
 
 from supabase import Client, create_client
 
@@ -24,7 +23,7 @@ class SupabaseDatabaseClient(DatabaseClient):
         """
         self.url = url
         self.key = key
-        self._client: Optional[Client] = None
+        self._client: Client | None = None
 
     @property
     def client(self) -> Client:
@@ -34,7 +33,7 @@ class SupabaseDatabaseClient(DatabaseClient):
             logger.info(f"Created Supabase client for {self.url}")
         return self._client
 
-    def _convert_filters_to_supabase_query(self, query, filters: Optional[Dict]):
+    def _convert_filters_to_supabase_query(self, query, filters: dict | None):
         """Apply filters to Supabase query builder."""
         if not filters:
             return query
@@ -45,8 +44,8 @@ class SupabaseDatabaseClient(DatabaseClient):
         return query
 
     async def select(
-        self, table: str, filters: Optional[Dict] = None, limit: Optional[int] = None
-    ) -> List[Dict]:
+        self, table: str, filters: dict | None = None, limit: int | None = None
+    ) -> list[dict]:
         """Select rows from table."""
         query = self.client.table(table).select("*")
 
@@ -63,12 +62,12 @@ class SupabaseDatabaseClient(DatabaseClient):
         data = await asyncio.to_thread(_execute)
         return data
 
-    async def select_one(self, table: str, filters: Optional[Dict] = None) -> Optional[Dict]:
+    async def select_one(self, table: str, filters: dict | None = None) -> dict | None:
         """Select a single row from table."""
         results = await self.select(table, filters, limit=1)
         return results[0] if results else None
 
-    async def insert(self, table: str, data: Dict) -> Dict:
+    async def insert(self, table: str, data: dict) -> dict:
         """Insert a row into table."""
         query = self.client.table(table).insert(data)
 
@@ -81,7 +80,7 @@ class SupabaseDatabaseClient(DatabaseClient):
         result = await asyncio.to_thread(_execute)
         return result
 
-    async def update(self, table: str, filters: Dict, data: Dict) -> Optional[Dict]:
+    async def update(self, table: str, filters: dict, data: dict) -> dict | None:
         """Update rows in table."""
         query = self.client.table(table).update(data)
         query = self._convert_filters_to_supabase_query(query, filters)
@@ -98,9 +97,9 @@ class SupabaseDatabaseClient(DatabaseClient):
     async def upsert(
         self,
         table: str,
-        data: Dict,
-        conflict_target: Optional[str] = None,
-    ) -> Dict:
+        data: dict,
+        conflict_target: str | None = None,
+    ) -> dict:
         """
         Insert or update a row.
 
@@ -126,7 +125,7 @@ class SupabaseDatabaseClient(DatabaseClient):
         result = await asyncio.to_thread(_execute)
         return result
 
-    async def delete(self, table: str, filters: Dict) -> bool:
+    async def delete(self, table: str, filters: dict) -> bool:
         """Delete rows from table."""
         query = self.client.table(table).delete()
         query = self._convert_filters_to_supabase_query(query, filters)

@@ -1,10 +1,10 @@
 """DTOs for URL content extraction."""
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, HttpUrl, field_validator
+from pydantic import BaseModel, field_validator
 
 
 class URLExtractRequest(BaseModel):
@@ -12,7 +12,7 @@ class URLExtractRequest(BaseModel):
 
     url: str
     force: bool = False  # Force re-extraction even if cached
-    project_id: Optional[UUID] = None  # Associate with a project for persistence
+    project_id: UUID | None = None  # Associate with a project for persistence
 
     @field_validator("url")
     @classmethod
@@ -37,24 +37,24 @@ class URLExtractResponse(BaseModel):
     content_type: str  # video, article, link
 
     # Extracted content
-    title: Optional[str] = None
-    content: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    title: str | None = None
+    content: str | None = None
+    thumbnail_url: str | None = None
 
     # Metadata
-    meta_data: Dict[str, Any] = {}
+    meta_data: dict[str, Any] = {}
 
     # Status
     status: str  # pending, processing, completed, failed
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     # Timestamps
     created_at: datetime
     updated_at: datetime
-    extracted_at: Optional[datetime] = None
+    extracted_at: datetime | None = None
 
     # Project association
-    project_id: Optional[UUID] = None
+    project_id: UUID | None = None
 
     class Config:
         from_attributes = True
@@ -72,7 +72,7 @@ class URLExtractStatusResponse(BaseModel):
 
     id: UUID
     status: str
-    error_message: Optional[str] = None
-    title: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    error_message: str | None = None
+    title: str | None = None
+    thumbnail_url: str | None = None
 

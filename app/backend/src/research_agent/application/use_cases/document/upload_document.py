@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import BinaryIO, Optional
+from typing import BinaryIO
 from uuid import UUID
 
 from research_agent.config import get_settings
@@ -28,7 +28,7 @@ class UploadDocumentInput:
     file_content: BinaryIO
     file_size: int
     user_id: str
-    storage_path: Optional[str] = field(
+    storage_path: str | None = field(
         default=None
     )  # Supabase Storage path if using cloud storage
 
@@ -41,7 +41,7 @@ class UploadDocumentOutput:
     filename: str
     page_count: int
     status: str
-    thumbnail_status: Optional[str] = None
+    thumbnail_status: str | None = None
 
 
 class UploadDocumentUseCase:

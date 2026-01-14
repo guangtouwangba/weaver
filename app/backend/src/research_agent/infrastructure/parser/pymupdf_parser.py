@@ -6,7 +6,6 @@ and doesn't require system dependencies like libGL.
 
 import asyncio
 from pathlib import Path
-from typing import List
 
 from research_agent.infrastructure.parser.base import (
     DocumentParser,
@@ -34,11 +33,11 @@ class PyMuPDFDocumentParser(DocumentParser):
     SUPPORTED_MIME_TYPES = ["application/pdf"]
     SUPPORTED_EXTENSIONS = [".pdf"]
 
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         """Return list of supported MIME types."""
         return self.SUPPORTED_MIME_TYPES.copy()
 
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """Return list of supported file extensions."""
         return self.SUPPORTED_EXTENSIONS.copy()
 
@@ -99,7 +98,7 @@ class PyMuPDFDocumentParser(DocumentParser):
                 cause=e,
             )
 
-    def _extract_pages_sync(self, file_path: str, fitz) -> List[ParsedPage]:
+    def _extract_pages_sync(self, file_path: str, fitz) -> list[ParsedPage]:
         """Synchronous page extraction."""
         pages = []
         doc = fitz.open(file_path)

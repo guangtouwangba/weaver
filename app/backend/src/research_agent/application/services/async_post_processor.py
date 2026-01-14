@@ -12,10 +12,11 @@ Supported tasks:
 import asyncio
 import traceback
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from research_agent.shared.utils.logger import logger
@@ -44,7 +45,7 @@ class PostProcessTask:
 
     task_type: PostProcessTaskType
     task_id: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     priority: TaskPriority = TaskPriority.NORMAL
     created_at: datetime = field(default_factory=datetime.utcnow)
     max_retries: int = 2
@@ -71,7 +72,7 @@ class TaskResult:
     task_type: PostProcessTaskType
     success: bool
     duration_ms: float
-    error: Optional[str] = None
+    error: str | None = None
     retries_used: int = 0
 
 
@@ -79,7 +80,7 @@ class TaskHandler(ABC):
     """Abstract base class for task handlers."""
 
     @abstractmethod
-    async def execute(self, payload: Dict[str, Any]) -> bool:
+    async def execute(self, payload: dict[str, Any]) -> bool:
         """Execute the task with the given payload.
 
         Args:
@@ -116,10 +117,10 @@ class AsyncPostProcessor:
         """
         self._max_concurrent = max_concurrent_tasks
         self._enable_logging = enable_logging
-        self._handlers: Dict[PostProcessTaskType, TaskHandler] = {}
-        self._custom_handlers: Dict[str, Callable[..., Coroutine]] = {}
-        self._active_tasks: Dict[str, asyncio.Task] = {}
-        self._results: List[TaskResult] = []
+        self._handlers: dict[PostProcessTaskType, TaskHandler] = {}
+        self._custom_handlers: dict[str, Callable[..., Coroutine]] = {}
+        self._active_tasks: dict[str, asyncio.Task] = {}
+        self._results: list[TaskResult] = []
         self._semaphore = asyncio.Semaphore(max_concurrent_tasks)
 
     def register_handler(self, handler: TaskHandler) -> None:
@@ -149,9 +150,9 @@ class AsyncPostProcessor:
 
     def schedule(
         self,
-        tasks: List[PostProcessTask],
-        context_id: Optional[str] = None,
-    ) -> List[str]:
+        tasks: list[PostProcessTask],
+        context_id: str | None = None,
+    ) -> list[str]:
         """Schedule tasks for background execution.
 
         This method returns immediately without waiting for tasks to complete.
@@ -203,7 +204,7 @@ class AsyncPostProcessor:
         """
         start_time = datetime.utcnow()
         retries = 0
-        last_error: Optional[str] = None
+        last_error: str | None = None
 
         async with self._semaphore:
             while retries <= task.max_retries:
@@ -233,7 +234,7 @@ class AsyncPostProcessor:
                     self._results.append(result)
                     return result
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     last_error = f"Timeout after {task.timeout_seconds}s"
                     retries += 1
                     if self._enable_logging:
@@ -314,7 +315,7 @@ class AsyncPostProcessor:
                 f"[AsyncPostProcessor] Unhandled exception in task {task_key}: {task.exception()}"
             )
 
-    async def wait_all(self, timeout: Optional[float] = None) -> List[TaskResult]:
+    async def wait_all(self, timeout: float | None = None) -> list[TaskResult]:
         """Wait for all active tasks to complete.
 
         Args:
@@ -333,7 +334,7 @@ class AsyncPostProcessor:
                 asyncio.gather(*tasks, return_exceptions=True),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if self._enable_logging:
                 logger.warning(
                     f"[AsyncPostProcessor] wait_all timed out with "
@@ -346,7 +347,7 @@ class AsyncPostProcessor:
         """Get the number of active tasks."""
         return len(self._active_tasks)
 
-    def get_results(self) -> List[TaskResult]:
+    def get_results(self) -> list[TaskResult]:
         """Get all task results."""
         return self._results.copy()
 
@@ -375,7 +376,7 @@ class MemoryStorageHandler(TaskHandler):
     def task_type(self) -> PostProcessTaskType:
         return PostProcessTaskType.MEMORY_STORAGE
 
-    async def execute(self, payload: Dict[str, Any]) -> bool:
+    async def execute(self, payload: dict[str, Any]) -> bool:
         """Store a memory entry."""
         try:
             await self._memory_service.store(
@@ -405,7 +406,7 @@ class WebSocketNotifyHandler(TaskHandler):
     def task_type(self) -> PostProcessTaskType:
         return PostProcessTaskType.WEBSOCKET_NOTIFY
 
-    async def execute(self, payload: Dict[str, Any]) -> bool:
+    async def execute(self, payload: dict[str, Any]) -> bool:
         """Send a WebSocket notification."""
         try:
             await self._notification_service.notify(
@@ -454,7 +455,7 @@ def create_memory_task(
     project_id: UUID,
     question: str,
     answer: str,
-    session_id: Optional[UUID] = None,
+    session_id: UUID | None = None,
     priority: TaskPriority = TaskPriority.NORMAL,
 ) -> PostProcessTask:
     """Create a memory storage task.

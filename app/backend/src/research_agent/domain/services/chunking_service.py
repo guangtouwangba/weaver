@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from langchain_text_splitters import (
     Language,
@@ -49,7 +49,7 @@ class ChunkingStrategy(ABC):
         self.config = config
 
     @abstractmethod
-    def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def chunk_text(self, text: str, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Chunk text into smaller pieces.
 
@@ -66,7 +66,7 @@ class ChunkingStrategy(ABC):
 class NoChunkingStrategy(ChunkingStrategy):
     """Strategy for short texts that don't need chunking."""
 
-    def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def chunk_text(self, text: str, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         """Return the entire text as a single chunk."""
         if not text.strip():
             return []
@@ -78,7 +78,7 @@ class NoChunkingStrategy(ChunkingStrategy):
 class RecursiveChunkingStrategy(ChunkingStrategy):
     """Strategy for long documents (PDF/Markdown) using recursive character splitting."""
 
-    def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def chunk_text(self, text: str, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         """Chunk text using recursive character splitting."""
         if not text.strip():
             return []
@@ -104,7 +104,7 @@ class RecursiveChunkingStrategy(ChunkingStrategy):
 class MarkdownChunkingStrategy(ChunkingStrategy):
     """Strategy for Markdown documents with header-aware splitting."""
 
-    def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def chunk_text(self, text: str, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         """Chunk Markdown text preserving structure."""
         if not text.strip():
             return []
@@ -132,7 +132,7 @@ class CodeChunkingStrategy(ChunkingStrategy):
         super().__init__(config)
         self.language = language
 
-    def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def chunk_text(self, text: str, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         """Chunk code using language-specific splitter."""
         if not text.strip():
             return []
@@ -171,7 +171,7 @@ class SemanticChunkingStrategy(ChunkingStrategy):
     Uses simpler recursive splitting since true semantic chunking requires embeddings.
     """
 
-    def chunk_text(self, text: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def chunk_text(self, text: str, metadata: dict[str, Any]) -> list[dict[str, Any]]:
         """Chunk unstructured text with smaller chunks for better semantic coherence."""
         if not text.strip():
             return []
@@ -271,10 +271,10 @@ class ChunkingService:
 
     def chunk_pages(
         self,
-        pages: List[PageLike],
+        pages: list[PageLike],
         mime_type: str = "application/pdf",
         filename: str = "document.pdf",
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Chunk PDF pages into smaller pieces using dynamic strategy selection.
 
@@ -326,8 +326,8 @@ class ChunkingService:
         text: str,
         mime_type: str = "text/plain",
         filename: str = "document.txt",
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[dict]:
+        metadata: dict[str, Any] | None = None,
+    ) -> list[dict]:
         """
         Chunk arbitrary text using dynamic strategy selection.
 

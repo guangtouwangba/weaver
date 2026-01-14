@@ -83,10 +83,10 @@ class ClearCanvasUseCase:
 
             if input.view_type:
                 # Clear only specific view type (async-friendly)
-                previous_generation = canvas.clear_view(input.view_type)
+                canvas.clear_view(input.view_type)
             else:
                 # Clear all data (async-friendly)
-                previous_generation = canvas.clear()
+                canvas.clear()
 
             # Count items pending cleanup
             pending_cleanup = canvas.get_old_items_count()

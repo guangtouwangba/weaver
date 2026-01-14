@@ -2,7 +2,8 @@
 
 import asyncio
 import random
-from typing import Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from research_agent.shared.utils.logger import logger
 
@@ -14,14 +15,14 @@ class YouTubeRateLimiter:
 
     def __init__(self, min_delay: float = 1.0, max_delay: float = 60.0):
         """Initialize rate limiter.
-        
+
         Args:
             min_delay: Minimum delay between requests (seconds)
             max_delay: Maximum delay for exponential backoff (seconds)
         """
         self._min_delay = min_delay
         self._max_delay = max_delay
-        self._last_request_time: Optional[float] = None
+        self._last_request_time: float | None = None
         self._consecutive_failures = 0
         self._lock = asyncio.Lock()
 
@@ -30,14 +31,14 @@ class YouTubeRateLimiter:
         func: Callable[[], T],
         max_retries: int = 3,
         operation_name: str = "YouTube API call",
-    ) -> tuple[Optional[T], bool]:
+    ) -> tuple[T | None, bool]:
         """Execute a function with rate limiting and retry logic.
-        
+
         Args:
             func: Function to execute
             max_retries: Maximum number of retry attempts
             operation_name: Name of the operation for logging
-            
+
         Returns:
             Tuple of (result, success)
         """
@@ -54,14 +55,14 @@ class YouTubeRateLimiter:
 
                 try:
                     # Execute the function
-                    import asyncio
+                    # import asyncio # Removed inner import to fix F823
                     loop = asyncio.get_event_loop()
                     result = await loop.run_in_executor(None, func)
-                    
+
                     # Success - reset failure counter
                     self._consecutive_failures = 0
                     self._last_request_time = asyncio.get_event_loop().time()
-                    
+
                     return result, True
 
                 except Exception as e:
@@ -79,7 +80,7 @@ class YouTubeRateLimiter:
 
                     if is_rate_limit:
                         self._consecutive_failures += 1
-                        
+
                         if attempt < max_retries:
                             backoff_delay = self._calculate_backoff_delay(attempt)
                             logger.warning(
@@ -115,10 +116,10 @@ class YouTubeRateLimiter:
 
         # Add jitter to avoid thundering herd
         jitter = random.uniform(0, base_delay * 0.3)
-        
+
         elapsed = asyncio.get_event_loop().time() - self._last_request_time
         remaining = base_delay + jitter - elapsed
-        
+
         return max(0.0, remaining)
 
     def _calculate_backoff_delay(self, attempt: int) -> float:
@@ -126,10 +127,10 @@ class YouTubeRateLimiter:
         # Exponential backoff: 2^attempt * base_delay
         delay = (2 ** attempt) * self._min_delay
         delay = min(delay, self._max_delay)
-        
+
         # Add jitter
         jitter = random.uniform(0, delay * 0.3)
-        
+
         return delay + jitter
 
 
@@ -137,20 +138,20 @@ class YouTubeRateLimiter:
 _rate_limiter = YouTubeRateLimiter(min_delay=2.0, max_delay=60.0)
 
 
-async def execute_youtube_api_call(
+async def execute_youtube_api_call[T](
     func: Callable[[], T],
     operation_name: str = "YouTube API call",
     max_retries: int = 3,
-) -> tuple[Optional[T], bool]:
+) -> tuple[T | None, bool]:
     """Execute a YouTube API call with rate limiting and retry logic.
-    
+
     This is a convenience function that uses the global rate limiter.
-    
+
     Args:
         func: Function to execute
         operation_name: Name of the operation for logging
         max_retries: Maximum number of retry attempts
-        
+
     Returns:
         Tuple of (result, success)
     """

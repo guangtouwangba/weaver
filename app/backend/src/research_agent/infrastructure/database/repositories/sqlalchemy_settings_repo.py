@@ -4,7 +4,7 @@ SQLAlchemy Settings Repository Implementation.
 Provides persistence for global and project-level settings.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -36,7 +36,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
     # Global Settings
     # -------------------------------------------------------------------------
 
-    async def get_global_setting(self, key: str) -> Optional[SettingDTO]:
+    async def get_global_setting(self, key: str) -> SettingDTO | None:
         """Get a global setting by key."""
         stmt = select(GlobalSettingModel).where(GlobalSettingModel.key == key)
         result = await self._session.execute(stmt)
@@ -46,7 +46,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
             return self._global_model_to_dto(model)
         return None
 
-    async def get_all_global_settings(self, category: Optional[str] = None) -> List[SettingDTO]:
+    async def get_all_global_settings(self, category: str | None = None) -> list[SettingDTO]:
         """Get all global settings, optionally filtered by category."""
         stmt = select(GlobalSettingModel)
         if category:
@@ -63,7 +63,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
         key: str,
         value: Any,
         category: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_encrypted: bool = False,
     ) -> SettingDTO:
         """Create or update a global setting using upsert."""
@@ -110,7 +110,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
     # Project Settings
     # -------------------------------------------------------------------------
 
-    async def get_project_setting(self, project_id: UUID, key: str) -> Optional[SettingDTO]:
+    async def get_project_setting(self, project_id: UUID, key: str) -> SettingDTO | None:
         """Get a project setting by project ID and key."""
         stmt = select(ProjectSettingModel).where(
             ProjectSettingModel.project_id == project_id,
@@ -124,8 +124,8 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
         return None
 
     async def get_all_project_settings(
-        self, project_id: UUID, category: Optional[str] = None
-    ) -> List[SettingDTO]:
+        self, project_id: UUID, category: str | None = None
+    ) -> list[SettingDTO]:
         """Get all settings for a project, optionally filtered by category."""
         stmt = select(ProjectSettingModel).where(ProjectSettingModel.project_id == project_id)
         if category:
@@ -143,7 +143,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
         key: str,
         value: Any,
         category: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_encrypted: bool = False,
     ) -> SettingDTO:
         """Create or update a project setting using upsert."""
@@ -193,8 +193,8 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
     # -------------------------------------------------------------------------
 
     async def get_effective_setting(
-        self, key: str, project_id: Optional[UUID] = None
-    ) -> Optional[SettingDTO]:
+        self, key: str, project_id: UUID | None = None
+    ) -> SettingDTO | None:
         """
         Get the effective setting value with priority resolution.
 
@@ -210,8 +210,8 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
         return await self.get_global_setting(key)
 
     async def get_all_effective_settings(
-        self, project_id: Optional[UUID] = None, category: Optional[str] = None
-    ) -> List[SettingDTO]:
+        self, project_id: UUID | None = None, category: str | None = None
+    ) -> list[SettingDTO]:
         """
         Get all effective settings with priority resolution.
 
@@ -219,7 +219,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
         """
         # Get all global settings
         global_settings = await self.get_all_global_settings(category)
-        settings_dict: Dict[str, SettingDTO] = {s.key: s for s in global_settings}
+        settings_dict: dict[str, SettingDTO] = {s.key: s for s in global_settings}
 
         # Overlay project settings if project_id is provided
         if project_id:
@@ -233,7 +233,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
     # User Settings
     # -------------------------------------------------------------------------
 
-    async def get_user_setting(self, user_id: UUID, key: str) -> Optional[SettingDTO]:
+    async def get_user_setting(self, user_id: UUID, key: str) -> SettingDTO | None:
         """Get a user setting by user ID and key."""
         stmt = select(UserSettingModel).where(
             UserSettingModel.user_id == user_id,
@@ -247,8 +247,8 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
         return None
 
     async def get_all_user_settings(
-        self, user_id: UUID, category: Optional[str] = None
-    ) -> List[SettingDTO]:
+        self, user_id: UUID, category: str | None = None
+    ) -> list[SettingDTO]:
         """Get all settings for a user, optionally filtered by category."""
         stmt = select(UserSettingModel).where(UserSettingModel.user_id == user_id)
         if category:
@@ -266,7 +266,7 @@ class SQLAlchemySettingsRepository(ISettingsRepository):
         key: str,
         value: Any,
         category: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_encrypted: bool = False,
     ) -> SettingDTO:
         """Create or update a user setting using upsert."""

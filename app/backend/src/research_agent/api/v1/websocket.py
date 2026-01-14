@@ -1,6 +1,5 @@
 """WebSocket API endpoints for real-time notifications."""
 
-from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -157,7 +156,7 @@ async def project_canvas_websocket(
 async def project_outputs_websocket(
     websocket: WebSocket,
     project_id: str,
-    task_id: Optional[str] = None,
+    task_id: str | None = None,
 ) -> None:
     """
     WebSocket endpoint for receiving output generation updates.

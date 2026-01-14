@@ -2,7 +2,7 @@
 
 import json
 import time
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -15,7 +15,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         start_time = time.time()
-        
+
         # Note: We don't read request body here because it conflicts with
         # BaseHTTPMiddleware's internal state, especially for streaming endpoints.
         # The question content will be logged at the endpoint level if needed.
@@ -28,7 +28,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Log response with structured JSON data for Grafana parsing
         duration = time.time() - start_time
         duration_ms = round(duration * 1000, 2)
-        
+
         # Build structured log data as JSON
         log_data = {
             "method": request.method,
@@ -37,13 +37,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             "duration_seconds": round(duration, 3),
             "duration_ms": duration_ms,
         }
-        
+
         # Mark chat endpoints for filtering in Grafana
         if "/chat" in str(request.url.path):
             log_data["endpoint_type"] = "chat"
             if "/stream" in str(request.url.path):
                 log_data["endpoint_type"] = "chat_stream"
-        
+
         # Log as JSON for easier parsing in Grafana
         logger.info(
             f"Response: {request.method} {request.url.path} "

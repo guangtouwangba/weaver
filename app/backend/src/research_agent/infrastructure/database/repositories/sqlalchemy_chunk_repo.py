@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of ChunkRepository for unified resource chunks."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, text
@@ -15,7 +14,7 @@ from research_agent.shared.utils.logger import logger
 
 class SQLAlchemyChunkRepository(ChunkRepository):
     """SQLAlchemy implementation of chunk repository using pgvector.
-    
+
     This implementation stores both embeddings and metadata in PostgreSQL,
     supporting vector similarity search and hybrid search with tsvector.
     """
@@ -23,7 +22,7 @@ class SQLAlchemyChunkRepository(ChunkRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def save_batch(self, chunks: List[ResourceChunk]) -> List[ResourceChunk]:
+    async def save_batch(self, chunks: list[ResourceChunk]) -> list[ResourceChunk]:
         """Save multiple resource chunks to PostgreSQL."""
         if not chunks:
             return chunks
@@ -35,7 +34,7 @@ class SQLAlchemyChunkRepository(ChunkRepository):
         logger.info(f"[SQLAlchemyChunkRepo] Saved {len(chunks)} chunks to PostgreSQL")
         return chunks
 
-    async def find_by_resource(self, resource_id: UUID) -> List[ResourceChunk]:
+    async def find_by_resource(self, resource_id: UUID) -> list[ResourceChunk]:
         """Find all chunks for a resource."""
         result = await self._session.execute(
             select(ResourceChunkModel)
@@ -57,12 +56,12 @@ class SQLAlchemyChunkRepository(ChunkRepository):
 
     async def search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         project_id: UUID,
         limit: int = 5,
-        resource_type: Optional[ResourceType] = None,
-        resource_id: Optional[UUID] = None,
-    ) -> List[ChunkSearchResult]:
+        resource_type: ResourceType | None = None,
+        resource_id: UUID | None = None,
+    ) -> list[ChunkSearchResult]:
         """Search for similar chunks using pgvector cosine similarity."""
         # Build base query with vector similarity
         query = (
@@ -108,17 +107,17 @@ class SQLAlchemyChunkRepository(ChunkRepository):
 
     async def hybrid_search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         query_text: str,
         project_id: UUID,
         limit: int = 5,
         vector_weight: float = 0.7,
         keyword_weight: float = 0.3,
-        resource_type: Optional[ResourceType] = None,
-        resource_id: Optional[UUID] = None,
-    ) -> List[ChunkSearchResult]:
+        resource_type: ResourceType | None = None,
+        resource_id: UUID | None = None,
+    ) -> list[ChunkSearchResult]:
         """Hybrid search using Reciprocal Rank Fusion (RRF).
-        
+
         Combines vector similarity search and full-text keyword search,
         then fuses results using RRF for better retrieval quality.
         """

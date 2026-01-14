@@ -1,7 +1,6 @@
 """Local file storage implementation."""
 
 import asyncio
-import os
 import shutil
 from pathlib import Path
 from typing import BinaryIO

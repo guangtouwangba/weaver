@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of chat repository."""
 
-from typing import List
 from uuid import UUID
 
 from sqlalchemy import select
@@ -36,7 +35,7 @@ class SQLAlchemyChatRepository:
         project_id: UUID,
         limit: int = 50,
         user_id: str | None = None,
-    ) -> List[ChatMessage]:
+    ) -> list[ChatMessage]:
         """
         Get chat history for a project.
 

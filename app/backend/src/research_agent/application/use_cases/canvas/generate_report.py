@@ -1,7 +1,6 @@
 """Generate canvas report use case."""
 
 from dataclasses import dataclass
-from typing import List, Optional
 from uuid import UUID
 
 from research_agent.domain.repositories.canvas_repo import CanvasRepository
@@ -15,7 +14,7 @@ class GenerateReportInput:
     """Input for generate report use case."""
 
     project_id: UUID
-    node_ids: Optional[List[str]] = None
+    node_ids: list[str] | None = None
     prompt_instruction: str = "Write a comprehensive summary report based on these notes."
 
 
@@ -24,7 +23,7 @@ class GenerateReportOutput:
     """Output for generate report use case."""
 
     report_content: str
-    node_order: List[str]  # IDs of nodes in the order they were used
+    node_order: list[str]  # IDs of nodes in the order they were used
 
 
 class GenerateCanvasReportUseCase:

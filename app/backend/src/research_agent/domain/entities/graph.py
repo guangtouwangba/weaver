@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -46,16 +46,16 @@ class Entity:
     """Entity - represents a node in the knowledge graph."""
 
     id: UUID = field(default_factory=uuid4)
-    project_id: Optional[UUID] = None
-    document_id: Optional[UUID] = None
+    project_id: UUID | None = None
+    document_id: UUID | None = None
     name: str = ""
     entity_type: EntityType = EntityType.CONCEPT
-    description: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    description: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
-    def to_canvas_node(self, x: float = 0, y: float = 0) -> Dict[str, Any]:
+    def to_canvas_node(self, x: float = 0, y: float = 0) -> dict[str, Any]:
         """Convert entity to canvas node format."""
         # Map entity types to colors
         color_map = {
@@ -70,7 +70,7 @@ class Entity:
             EntityType.TOPIC: "pink",
             EntityType.OTHER: "default",
         }
-        
+
         return {
             "id": f"entity_{self.id}",
             "type": "card",
@@ -92,16 +92,16 @@ class Relation:
     """Relation - represents an edge in the knowledge graph."""
 
     id: UUID = field(default_factory=uuid4)
-    project_id: Optional[UUID] = None
-    source_entity_id: Optional[UUID] = None
-    target_entity_id: Optional[UUID] = None
+    project_id: UUID | None = None
+    source_entity_id: UUID | None = None
+    target_entity_id: UUID | None = None
     relation_type: RelationType = RelationType.RELATED_TO
-    description: Optional[str] = None
+    description: str | None = None
     weight: float = 1.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
 
-    def to_canvas_edge(self) -> Dict[str, Any]:
+    def to_canvas_edge(self) -> dict[str, Any]:
         """Convert relation to canvas edge format."""
         return {
             "id": f"relation_{self.id}",
@@ -115,8 +115,8 @@ class Relation:
 class KnowledgeGraph:
     """Knowledge graph containing entities and relations."""
 
-    entities: List[Entity] = field(default_factory=list)
-    relations: List[Relation] = field(default_factory=list)
+    entities: list[Entity] = field(default_factory=list)
+    relations: list[Relation] = field(default_factory=list)
 
     def add_entity(self, entity: Entity) -> None:
         """Add an entity to the graph."""
@@ -126,7 +126,7 @@ class KnowledgeGraph:
         """Add a relation to the graph."""
         self.relations.append(relation)
 
-    def get_entity_by_name(self, name: str) -> Optional[Entity]:
+    def get_entity_by_name(self, name: str) -> Entity | None:
         """Find an entity by name (case-insensitive)."""
         name_lower = name.lower()
         for entity in self.entities:

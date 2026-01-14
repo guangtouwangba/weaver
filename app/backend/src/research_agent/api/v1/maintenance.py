@@ -6,7 +6,6 @@ This module provides endpoints for system maintenance tasks like:
 - Health checks
 """
 
-from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -36,7 +35,7 @@ class CleanupStatus(BaseModel):
 
     pending_count: int
     message: str
-    task_id: Optional[str] = None
+    task_id: str | None = None
 
 
 class PendingCleanupInfo(BaseModel):
@@ -47,7 +46,7 @@ class PendingCleanupInfo(BaseModel):
     storage_type: str
     attempts: int
     max_attempts: int
-    last_error: Optional[str]
+    last_error: str | None
     created_at: str
 
 
@@ -214,7 +213,7 @@ class DatabaseDiagnostics(BaseModel):
 
     database_url_prefix: str
     tables_exist: dict
-    alembic_version: Optional[str]
+    alembic_version: str | None
     message: str
 
 

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass
@@ -11,21 +11,21 @@ class ExtractionResult:
 
     # Status
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
     # Core content
-    title: Optional[str] = None
-    content: Optional[str] = None  # Article text or transcript
-    thumbnail_url: Optional[str] = None
+    title: str | None = None
+    content: str | None = None  # Article text or transcript
+    thumbnail_url: str | None = None
 
     # Platform info
     platform: str = "web"  # youtube, bilibili, douyin, web
     content_type: str = "link"  # video, article, link
 
     # Platform-specific metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "success": self.success,
@@ -39,7 +39,7 @@ class ExtractionResult:
         }
 
     @classmethod
-    def failure(cls, error: str, title: Optional[str] = None) -> "ExtractionResult":
+    def failure(cls, error: str, title: str | None = None) -> "ExtractionResult":
         """Create a failure result."""
         return cls(
             success=False,

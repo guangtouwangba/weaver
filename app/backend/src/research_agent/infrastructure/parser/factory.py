@@ -13,7 +13,7 @@ The factory supports multiple OCR modes via the `ocr_mode` setting:
 - "gemini": Always uses Google Gemini Vision for PDF OCR
 """
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from typing import TYPE_CHECKING
 
 from research_agent.config import get_settings
 from research_agent.infrastructure.parser.base import (
@@ -28,9 +28,9 @@ if TYPE_CHECKING:
     from research_agent.infrastructure.parser.base import ParseResult
 
 # Lazy imports for optional parsers to avoid loading heavy dependencies
-_gemini_parser_instance: Optional[DocumentParser] = None
-_docling_parser_instance: Optional[DocumentParser] = None
-_modal_parser_instance: Optional[DocumentParser] = None
+_gemini_parser_instance: DocumentParser | None = None
+_docling_parser_instance: DocumentParser | None = None
+_modal_parser_instance: DocumentParser | None = None
 
 
 def _get_gemini_parser() -> DocumentParser:
@@ -92,7 +92,7 @@ def _get_modal_parser() -> DocumentParser:
     return _modal_parser_instance
 
 
-def _is_pdf_format(mime_type: Optional[str], extension: Optional[str]) -> bool:
+def _is_pdf_format(mime_type: str | None, extension: str | None) -> bool:
     """Check if the format is PDF."""
     if mime_type == "application/pdf":
         return True
@@ -114,11 +114,11 @@ class ParserRegistry:
     """
 
     def __init__(self):
-        self._mime_parsers: Dict[str, Type[DocumentParser]] = {}
-        self._extension_parsers: Dict[str, Type[DocumentParser]] = {}
-        self._parser_instances: Dict[str, DocumentParser] = {}
+        self._mime_parsers: dict[str, type[DocumentParser]] = {}
+        self._extension_parsers: dict[str, type[DocumentParser]] = {}
+        self._parser_instances: dict[str, DocumentParser] = {}
 
-    def register(self, parser_class: Type[DocumentParser]) -> None:
+    def register(self, parser_class: type[DocumentParser]) -> None:
         """
         Register a parser class for its supported formats.
 
@@ -140,8 +140,8 @@ class ParserRegistry:
             logger.debug(f"Registered parser {parser_class.__name__} for extension: {ext}")
 
     def get_parser_class(
-        self, mime_type: Optional[str] = None, extension: Optional[str] = None
-    ) -> Optional[Type[DocumentParser]]:
+        self, mime_type: str | None = None, extension: str | None = None
+    ) -> type[DocumentParser] | None:
         """
         Get parser class for given MIME type or extension.
 
@@ -165,8 +165,8 @@ class ParserRegistry:
         return None
 
     def get_parser(
-        self, mime_type: Optional[str] = None, extension: Optional[str] = None
-    ) -> Optional[DocumentParser]:
+        self, mime_type: str | None = None, extension: str | None = None
+    ) -> DocumentParser | None:
         """
         Get or create a parser instance for given MIME type or extension.
 
@@ -188,16 +188,16 @@ class ParserRegistry:
 
         return self._parser_instances[class_name]
 
-    def supported_mime_types(self) -> List[str]:
+    def supported_mime_types(self) -> list[str]:
         """Return all supported MIME types."""
         return list(self._mime_parsers.keys())
 
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """Return all supported file extensions."""
         return list(self._extension_parsers.keys())
 
     def is_supported(
-        self, mime_type: Optional[str] = None, extension: Optional[str] = None
+        self, mime_type: str | None = None, extension: str | None = None
     ) -> bool:
         """
         Check if a format is supported.
@@ -238,7 +238,7 @@ class ParserFactory:
 
     @staticmethod
     def get_parser(
-        mime_type: Optional[str] = None, extension: Optional[str] = None
+        mime_type: str | None = None, extension: str | None = None
     ) -> DocumentParser:
         """
         Get a parser for the given MIME type or extension.
@@ -290,8 +290,8 @@ class ParserFactory:
     @staticmethod
     async def parse_with_auto_ocr(
         file_path: str,
-        mime_type: Optional[str] = None,
-        extension: Optional[str] = None,
+        mime_type: str | None = None,
+        extension: str | None = None,
     ) -> "ParseResult":
         """
         Smart parsing with automatic OCR fallback for scanned PDFs.
@@ -406,8 +406,8 @@ class ParserFactory:
     async def parse_with_mode(
         file_path: str,
         mode: str,
-        mime_type: Optional[str] = None,
-        extension: Optional[str] = None,
+        mime_type: str | None = None,
+        extension: str | None = None,
     ) -> "ParseResult":
         """
         Parse document with specified processing mode.
@@ -488,7 +488,7 @@ class ParserFactory:
         raise ValueError(f"Unhandled processing mode: {mode}")
 
     @staticmethod
-    def is_supported(mime_type: Optional[str] = None, extension: Optional[str] = None) -> bool:
+    def is_supported(mime_type: str | None = None, extension: str | None = None) -> bool:
         """
         Check if a format is supported.
 
@@ -502,17 +502,17 @@ class ParserFactory:
         return _registry.is_supported(mime_type, extension)
 
     @staticmethod
-    def supported_mime_types() -> List[str]:
+    def supported_mime_types() -> list[str]:
         """Return all supported MIME types."""
         return _registry.supported_mime_types()
 
     @staticmethod
-    def supported_extensions() -> List[str]:
+    def supported_extensions() -> list[str]:
         """Return all supported file extensions."""
         return _registry.supported_extensions()
 
     @staticmethod
-    def register_parser(parser_class: Type[DocumentParser]) -> None:
+    def register_parser(parser_class: type[DocumentParser]) -> None:
         """
         Register a new parser class.
 

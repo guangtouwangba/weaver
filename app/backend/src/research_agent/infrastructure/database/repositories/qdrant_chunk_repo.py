@@ -1,6 +1,5 @@
 """Qdrant implementation of ChunkRepository for unified resource chunks."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -21,7 +20,7 @@ from research_agent.shared.utils.logger import logger
 
 class QdrantChunkRepository(ChunkRepository):
     """Qdrant + PostgreSQL hybrid chunk repository.
-    
+
     - Embeddings stored in Qdrant for fast vector search
     - Metadata stored in PostgreSQL for relational queries
     - PostgreSQL embedding column set to None to save space
@@ -41,7 +40,7 @@ class QdrantChunkRepository(ChunkRepository):
             vector_size=vector_size,
         )
 
-    async def save_batch(self, chunks: List[ResourceChunk]) -> List[ResourceChunk]:
+    async def save_batch(self, chunks: list[ResourceChunk]) -> list[ResourceChunk]:
         """Save chunks to both Qdrant (embeddings) and PostgreSQL (metadata)."""
         if not chunks:
             return chunks
@@ -86,7 +85,7 @@ class QdrantChunkRepository(ChunkRepository):
         logger.info(f"[QdrantChunkRepo] Saved {len(chunks)} metadata to PostgreSQL")
         return chunks
 
-    async def find_by_resource(self, resource_id: UUID) -> List[ResourceChunk]:
+    async def find_by_resource(self, resource_id: UUID) -> list[ResourceChunk]:
         """Find all chunks for a resource from PostgreSQL."""
         result = await self._session.execute(
             select(ResourceChunkModel)
@@ -116,12 +115,12 @@ class QdrantChunkRepository(ChunkRepository):
 
     async def search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         project_id: UUID,
         limit: int = 5,
-        resource_type: Optional[ResourceType] = None,
-        resource_id: Optional[UUID] = None,
-    ) -> List[ChunkSearchResult]:
+        resource_type: ResourceType | None = None,
+        resource_id: UUID | None = None,
+    ) -> list[ChunkSearchResult]:
         """Search for similar chunks using Qdrant vector search."""
         results = await self._qdrant_store.search_resource_chunks(
             query_embedding=query_embedding,
@@ -134,15 +133,15 @@ class QdrantChunkRepository(ChunkRepository):
 
     async def hybrid_search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         query_text: str,
         project_id: UUID,
         limit: int = 5,
         vector_weight: float = 0.7,
         keyword_weight: float = 0.3,
-        resource_type: Optional[ResourceType] = None,
-        resource_id: Optional[UUID] = None,
-    ) -> List[ChunkSearchResult]:
+        resource_type: ResourceType | None = None,
+        resource_id: UUID | None = None,
+    ) -> list[ChunkSearchResult]:
         """Hybrid search - falls back to vector-only for Qdrant."""
         logger.info("[QdrantChunkRepo] Hybrid search falling back to vector-only")
         return await self.search(

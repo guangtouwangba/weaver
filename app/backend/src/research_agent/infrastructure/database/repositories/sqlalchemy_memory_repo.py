@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, text
@@ -19,7 +19,7 @@ class MemorySearchResult:
     id: UUID
     content: str
     similarity: float
-    metadata: Optional[Dict[str, Any]]
+    metadata: dict[str, Any] | None
     created_at: datetime
 
 
@@ -42,9 +42,9 @@ class SQLAlchemyMemoryRepository:
         self,
         project_id: UUID,
         content: str,
-        embedding: List[float],
-        metadata: Optional[Dict[str, Any]] = None,
-        user_id: Optional[str] = None,
+        embedding: list[float],
+        metadata: dict[str, Any] | None = None,
+        user_id: str | None = None,
     ) -> ChatMemoryModel:
         """
         Add a new memory (Q&A pair) to the episodic memory store.
@@ -76,11 +76,11 @@ class SQLAlchemyMemoryRepository:
     async def search_memories(
         self,
         project_id: UUID,
-        query_embedding: List[float],
+        query_embedding: list[float],
         limit: int = 5,
         min_similarity: float = 0.5,
-        user_id: Optional[str] = None,
-    ) -> List[MemorySearchResult]:
+        user_id: str | None = None,
+    ) -> list[MemorySearchResult]:
         """
         Search for similar memories using vector similarity.
 
@@ -150,8 +150,8 @@ class SQLAlchemyMemoryRepository:
         self,
         project_id: UUID,
         limit: int = 10,
-        user_id: Optional[str] = None,
-    ) -> List[ChatMemoryModel]:
+        user_id: str | None = None,
+    ) -> list[ChatMemoryModel]:
         """
         Get the most recent memories for a project.
 
@@ -179,7 +179,7 @@ class SQLAlchemyMemoryRepository:
         return list(result.scalars().all())
 
     async def delete_memories_for_project(
-        self, project_id: UUID, user_id: Optional[str] = None
+        self, project_id: UUID, user_id: str | None = None
     ) -> int:
         """
         Delete all memories for a project.
@@ -207,8 +207,8 @@ class SQLAlchemyMemoryRepository:
     # ==========================================================================
 
     async def get_session_summary(
-        self, project_id: UUID, user_id: Optional[str] = None
-    ) -> Optional[ChatSummaryModel]:
+        self, project_id: UUID, user_id: str | None = None
+    ) -> ChatSummaryModel | None:
         """
         Get the session summary for a project.
 
@@ -233,7 +233,7 @@ class SQLAlchemyMemoryRepository:
         project_id: UUID,
         summary: str,
         summarized_message_count: int,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> ChatSummaryModel:
         """
         Update or create the session summary for a project.
@@ -269,7 +269,7 @@ class SQLAlchemyMemoryRepository:
             logger.debug(f"[Memory] Created session summary for project {project_id}")
             return new_summary
 
-    async def clear_session_summary(self, project_id: UUID, user_id: Optional[str] = None) -> bool:
+    async def clear_session_summary(self, project_id: UUID, user_id: str | None = None) -> bool:
         """
         Clear the session summary for a project.
 

@@ -1,7 +1,6 @@
 """Document DTOs for API requests/responses."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -16,10 +15,10 @@ class DocumentResponse(BaseModel):
     file_size: int
     page_count: int
     status: str
-    graph_status: Optional[str] = None
-    summary: Optional[str] = None  # Document summary (generated during processing)
-    thumbnail_url: Optional[str] = None  # URL for PDF thumbnail image
-    thumbnail_status: Optional[str] = None  # pending, processing, ready, error
+    graph_status: str | None = None
+    summary: str | None = None  # Document summary (generated during processing)
+    thumbnail_url: str | None = None  # URL for PDF thumbnail image
+    thumbnail_status: str | None = None  # pending, processing, ready, error
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -40,5 +39,5 @@ class DocumentUploadResponse(BaseModel):
     page_count: int
     status: str
     message: str
-    task_id: Optional[UUID] = None  # Async task ID for tracking processing status
-    thumbnail_url: Optional[str] = None
+    task_id: UUID | None = None  # Async task ID for tracking processing status
+    thumbnail_url: str | None = None

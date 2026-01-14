@@ -1,7 +1,6 @@
 """PyMuPDF PDF parser implementation."""
 
 import asyncio
-from typing import List
 
 import fitz  # PyMuPDF
 
@@ -12,7 +11,7 @@ from research_agent.shared.exceptions import PDFProcessingError
 class PyMuPDFParser(PDFParser):
     """PyMuPDF-based PDF parser."""
 
-    async def extract_text(self, file_path: str) -> List[PDFPage]:
+    async def extract_text(self, file_path: str) -> list[PDFPage]:
         """Extract text from PDF file."""
         try:
             # Run in thread pool to avoid blocking
@@ -20,7 +19,7 @@ class PyMuPDFParser(PDFParser):
         except Exception as e:
             raise PDFProcessingError(f"Failed to extract text from PDF: {e}")
 
-    def _extract_text_sync(self, file_path: str) -> List[PDFPage]:
+    def _extract_text_sync(self, file_path: str) -> list[PDFPage]:
         """Synchronous text extraction."""
         pages = []
         doc = fitz.open(file_path)

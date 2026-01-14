@@ -1,6 +1,6 @@
 """Unified chunking service for all resource types."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from research_agent.domain.entities.resource import Resource, ResourceType
@@ -10,7 +10,7 @@ from research_agent.shared.utils.logger import logger
 
 class ResourceChunker:
     """Unified chunking service for all resource types.
-    
+
     This service handles chunking of content from any resource type
     (documents, videos, web pages, notes) with appropriate strategies
     and metadata preservation.
@@ -23,7 +23,7 @@ class ResourceChunker:
         media_chunk_duration: float = 60.0,  # seconds for video/audio
     ):
         """Initialize the chunker.
-        
+
         Args:
             chunk_size: Target size for text chunks (characters)
             chunk_overlap: Overlap between consecutive chunks
@@ -36,14 +36,14 @@ class ResourceChunker:
     def chunk_resource(
         self,
         resource: Resource,
-        content: Optional[str] = None,
-    ) -> List[ResourceChunk]:
+        content: str | None = None,
+    ) -> list[ResourceChunk]:
         """Chunk a resource based on its type.
-        
+
         Args:
             resource: The resource to chunk
             content: Optional content override (uses resource.content if not provided)
-            
+
         Returns:
             List of ResourceChunk entities
         """
@@ -67,19 +67,19 @@ class ResourceChunker:
         resource_id: UUID,
         resource_type: ResourceType,
         project_id: UUID,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[ResourceChunk]:
+        metadata: dict[str, Any] | None = None,
+    ) -> list[ResourceChunk]:
         """Chunk raw text content.
-        
+
         Lower-level API for chunking text without a Resource object.
-        
+
         Args:
             text: Text content to chunk
             resource_id: Parent resource ID
             resource_type: Type of resource
             project_id: Project ID
             metadata: Optional metadata to include in all chunks
-            
+
         Returns:
             List of ResourceChunk entities
         """
@@ -102,9 +102,9 @@ class ResourceChunker:
             for i, chunk_text in enumerate(chunks)
         ]
 
-    def _chunk_document(self, resource: Resource, text: str) -> List[ResourceChunk]:
+    def _chunk_document(self, resource: Resource, text: str) -> list[ResourceChunk]:
         """Chunk document content, preserving page numbers if available.
-        
+
         For documents with page structure, chunks are created per page.
         For documents without page info, standard text chunking is used.
         """
@@ -136,9 +136,9 @@ class ResourceChunker:
     def _chunk_by_pages(
         self,
         resource: Resource,
-        pages: List[Dict[str, Any]],
-        base_metadata: Dict[str, Any],
-    ) -> List[ResourceChunk]:
+        pages: list[dict[str, Any]],
+        base_metadata: dict[str, Any],
+    ) -> list[ResourceChunk]:
         """Chunk document by pages, preserving page numbers."""
         all_chunks = []
         chunk_index = 0
@@ -170,9 +170,9 @@ class ResourceChunker:
 
         return all_chunks
 
-    def _chunk_media(self, resource: Resource, text: str) -> List[ResourceChunk]:
+    def _chunk_media(self, resource: Resource, text: str) -> list[ResourceChunk]:
         """Chunk video/audio transcript, preserving timestamps.
-        
+
         For transcripts with timestamp data, chunks are created by time windows.
         For plain transcripts, standard text chunking is used.
         """
@@ -204,9 +204,9 @@ class ResourceChunker:
     def _chunk_by_timestamps(
         self,
         resource: Resource,
-        segments: List[Dict[str, Any]],
-        base_metadata: Dict[str, Any],
-    ) -> List[ResourceChunk]:
+        segments: list[dict[str, Any]],
+        base_metadata: dict[str, Any],
+    ) -> list[ResourceChunk]:
         """Chunk transcript by time windows, preserving start/end times."""
         all_chunks = []
         chunk_index = 0
@@ -271,7 +271,7 @@ class ResourceChunker:
 
         return all_chunks
 
-    def _chunk_webpage(self, resource: Resource, text: str) -> List[ResourceChunk]:
+    def _chunk_webpage(self, resource: Resource, text: str) -> list[ResourceChunk]:
         """Chunk webpage content by paragraphs or sections."""
         base_metadata = {
             "title": resource.title,
@@ -293,7 +293,7 @@ class ResourceChunker:
             for i, chunk_text in enumerate(chunks)
         ]
 
-    def _chunk_generic(self, resource: Resource, text: str) -> List[ResourceChunk]:
+    def _chunk_generic(self, resource: Resource, text: str) -> list[ResourceChunk]:
         """Generic chunking for other resource types."""
         base_metadata = {
             "title": resource.title,
@@ -314,9 +314,9 @@ class ResourceChunker:
             for i, chunk_text in enumerate(chunks)
         ]
 
-    def _split_text(self, text: str) -> List[str]:
+    def _split_text(self, text: str) -> list[str]:
         """Split text into chunks with overlap.
-        
+
         Uses a simple character-based splitting with sentence boundary awareness.
         """
         if not text:
@@ -342,7 +342,7 @@ class ResourceChunker:
 
             # Try to find a good break point (sentence boundary)
             chunk_text = text[start:end]
-            
+
             # Look for sentence endings
             for sep in [". ", "。", "! ", "? ", "\n\n", "\n"]:
                 last_sep = chunk_text.rfind(sep)

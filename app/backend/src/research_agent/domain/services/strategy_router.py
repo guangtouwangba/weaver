@@ -9,7 +9,6 @@ Supports multiple strategy paths:
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from research_agent.domain.services.query_classifier import (
     QueryClassification,
@@ -169,7 +168,7 @@ class StrategyRouter:
     def _create_strategy(
         self,
         strategy_type: RAGStrategyType,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         reasoning: str = "",
     ) -> RAGStrategy:
         """Create a strategy configuration.
@@ -221,7 +220,7 @@ class StrategyRouter:
 
 
 # Singleton instance
-_router_instance: Optional[StrategyRouter] = None
+_router_instance: StrategyRouter | None = None
 
 
 def get_strategy_router(

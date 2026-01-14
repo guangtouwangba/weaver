@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -12,7 +12,7 @@ class CanvasNode:
 
     id: str
     type: str = "card"
-    sub_type: Optional[str] = None  # 'source' for PDF documents
+    sub_type: str | None = None  # 'source' for PDF documents
     title: str = ""
     content: str = ""
     x: float = 0
@@ -20,14 +20,14 @@ class CanvasNode:
     width: float = 200
     height: float = 150
     color: str = "default"
-    tags: List[str] = field(default_factory=list)
-    source_id: Optional[str] = None  # Document ID if from PDF
-    source_page: Optional[int] = None  # Page number if from PDF
-    file_metadata: Optional[Dict[str, Any]] = None  # Metadata including thumbnail URL
+    tags: list[str] = field(default_factory=list)
+    source_id: str | None = None  # Document ID if from PDF
+    source_page: int | None = None  # Page number if from PDF
+    file_metadata: dict[str, Any] | None = None  # Metadata including thumbnail URL
     # New fields for view system
     view_type: str = "free"  # 'free' | 'thinking'
-    section_id: Optional[str] = None
-    promoted_from: Optional[str] = None  # Weak reference to original node
+    section_id: str | None = None
+    promoted_from: str | None = None  # Weak reference to original node
     generation: int = 1  # Generation ID for async clear support
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -39,7 +39,7 @@ class CanvasEdge:
 
     source: str
     target: str
-    id: Optional[str] = None
+    id: str | None = None
     generation: int = 1  # Generation ID for async clear support
 
 
@@ -60,13 +60,13 @@ class CanvasSection:
     title: str
     view_type: str = "free"  # 'free' | 'thinking'
     is_collapsed: bool = False
-    node_ids: List[str] = field(default_factory=list)
+    node_ids: list[str] = field(default_factory=list)
     x: float = 0
     y: float = 0
-    width: Optional[float] = None  # Auto-calculated from nodes
-    height: Optional[float] = None  # Auto-calculated from nodes
-    conversation_id: Optional[str] = None  # For thinking path sections
-    question: Optional[str] = None  # For thinking path sections
+    width: float | None = None  # Auto-calculated from nodes
+    height: float | None = None  # Auto-calculated from nodes
+    conversation_id: str | None = None  # For thinking path sections
+    question: str | None = None  # For thinking path sections
     generation: int = 1  # Generation ID for async clear support
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -78,8 +78,8 @@ class CanvasViewState:
 
     view_type: str  # 'free' | 'thinking'
     viewport: CanvasViewport
-    selected_node_ids: List[str] = field(default_factory=list)
-    collapsed_section_ids: List[str] = field(default_factory=list)
+    selected_node_ids: list[str] = field(default_factory=list)
+    collapsed_section_ids: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -87,15 +87,15 @@ class Canvas:
     """Canvas entity - represents the knowledge canvas for a project."""
 
     id: UUID = field(default_factory=uuid4)
-    project_id: Optional[UUID] = None
-    user_id: Optional[str] = None
-    nodes: List[CanvasNode] = field(default_factory=list)
-    edges: List[CanvasEdge] = field(default_factory=list)
-    sections: List[CanvasSection] = field(default_factory=list)
+    project_id: UUID | None = None
+    user_id: str | None = None
+    nodes: list[CanvasNode] = field(default_factory=list)
+    edges: list[CanvasEdge] = field(default_factory=list)
+    sections: list[CanvasSection] = field(default_factory=list)
     viewport: CanvasViewport = field(
         default_factory=CanvasViewport
     )  # Legacy: default viewport for backward compatibility
-    view_states: Dict[str, CanvasViewState] = field(
+    view_states: dict[str, CanvasViewState] = field(
         default_factory=dict
     )  # Key: 'free' | 'thinking'
     version: int = 1  # Version for optimistic locking
@@ -169,7 +169,7 @@ class Canvas:
                 return True
         return False
 
-    def find_node(self, node_id: str, current_only: bool = True) -> Optional[CanvasNode]:
+    def find_node(self, node_id: str, current_only: bool = True) -> CanvasNode | None:
         """Find a node by ID.
 
         Args:
@@ -183,15 +183,15 @@ class Canvas:
                 return node
         return None
 
-    def get_visible_nodes(self) -> List[CanvasNode]:
+    def get_visible_nodes(self) -> list[CanvasNode]:
         """Get all nodes in the current generation."""
         return [n for n in self.nodes if n.generation == self.current_generation]
 
-    def get_visible_edges(self) -> List[CanvasEdge]:
+    def get_visible_edges(self) -> list[CanvasEdge]:
         """Get all edges in the current generation."""
         return [e for e in self.edges if e.generation == self.current_generation]
 
-    def get_visible_sections(self) -> List[CanvasSection]:
+    def get_visible_sections(self) -> list[CanvasSection]:
         """Get all sections in the current generation."""
         return [s for s in self.sections if s.generation == self.current_generation]
 
@@ -202,7 +202,7 @@ class Canvas:
         old_sections = sum(1 for s in self.sections if s.generation < self.current_generation)
         return old_nodes + old_edges + old_sections
 
-    def remove_old_items(self, generation_threshold: Optional[int] = None) -> int:
+    def remove_old_items(self, generation_threshold: int | None = None) -> int:
         """Remove items from generations below the threshold.
 
         Args:
@@ -228,7 +228,7 @@ class Canvas:
 
         return removed_count
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert canvas to dictionary for storage."""
         result = {
             "currentGeneration": self.current_generation,
@@ -313,7 +313,7 @@ class Canvas:
 
         return result
 
-    def to_visible_dict(self) -> Dict[str, Any]:
+    def to_visible_dict(self) -> dict[str, Any]:
         """Convert canvas to dictionary, only including current generation items.
 
         This is used for API responses where old (cleared) items should be hidden.
@@ -407,7 +407,7 @@ class Canvas:
 
     @classmethod
     def from_dict(
-        cls, data: Dict[str, Any], project_id: UUID, user_id: Optional[str] = None
+        cls, data: dict[str, Any], project_id: UUID, user_id: str | None = None
     ) -> "Canvas":
         """Create canvas from dictionary."""
         current_generation = data.get("currentGeneration", 1)
@@ -513,7 +513,7 @@ class Canvas:
         )
 
     @classmethod
-    def create_empty(cls, project_id: UUID, user_id: Optional[str] = None) -> "Canvas":
+    def create_empty(cls, project_id: UUID, user_id: str | None = None) -> "Canvas":
         """Create an empty canvas for a project."""
         return cls(
             project_id=project_id,

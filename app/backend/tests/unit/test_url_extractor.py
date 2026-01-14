@@ -1,6 +1,5 @@
 """Unit tests for URL extractor module."""
 
-import pytest
 
 from research_agent.infrastructure.url_extractor.utils import (
     detect_platform,

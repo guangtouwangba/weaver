@@ -1,10 +1,9 @@
 """SQLAlchemy implementation of PendingCleanupRepository."""
 
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, delete, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.domain.repositories.pending_cleanup_repo import (
@@ -24,8 +23,8 @@ class SQLAlchemyPendingCleanupRepository(PendingCleanupRepository):
         self,
         file_path: str,
         storage_type: str = "both",
-        document_id: Optional[UUID] = None,
-        project_id: Optional[UUID] = None,
+        document_id: UUID | None = None,
+        project_id: UUID | None = None,
     ) -> PendingCleanup:
         """Add a new pending cleanup record."""
         model = PendingCleanupModel(
@@ -41,12 +40,12 @@ class SQLAlchemyPendingCleanupRepository(PendingCleanupRepository):
         await self._session.flush()
         return self._to_entity(model)
 
-    async def find_by_id(self, cleanup_id: UUID) -> Optional[PendingCleanup]:
+    async def find_by_id(self, cleanup_id: UUID) -> PendingCleanup | None:
         """Find pending cleanup by ID."""
         model = await self._session.get(PendingCleanupModel, cleanup_id)
         return self._to_entity(model) if model else None
 
-    async def find_pending(self, limit: int = 100) -> List[PendingCleanup]:
+    async def find_pending(self, limit: int = 100) -> list[PendingCleanup]:
         """Find pending cleanups that haven't exceeded max attempts."""
         result = await self._session.execute(
             select(PendingCleanupModel)
@@ -58,7 +57,7 @@ class SQLAlchemyPendingCleanupRepository(PendingCleanupRepository):
         return [self._to_entity(m) for m in models]
 
     async def increment_attempt(
-        self, cleanup_id: UUID, error: Optional[str] = None
+        self, cleanup_id: UUID, error: str | None = None
     ) -> bool:
         """Increment attempt count and record error if any."""
         result = await self._session.execute(

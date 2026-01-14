@@ -4,20 +4,18 @@ Settings API Endpoints.
 Provides REST API for managing global and project-level configuration.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.domain.repositories.settings_repo import SettingDTO
 from research_agent.domain.services.settings_service import SETTING_METADATA, SettingsService
 from research_agent.infrastructure.database.repositories.sqlalchemy_settings_repo import (
     SQLAlchemySettingsRepository,
 )
 from research_agent.infrastructure.database.session import get_session
-from research_agent.shared.utils.logger import logger
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -31,7 +29,7 @@ class SettingValue(BaseModel):
     """Setting value for create/update."""
 
     value: Any = Field(..., description="Setting value (JSON compatible)")
-    description: Optional[str] = Field(None, description="Optional description")
+    description: str | None = Field(None, description="Optional description")
 
 
 class SettingResponse(BaseModel):
@@ -40,7 +38,7 @@ class SettingResponse(BaseModel):
     key: str
     value: Any
     category: str
-    description: Optional[str] = None
+    description: str | None = None
     is_encrypted: bool = False
     is_project_override: bool = False
     is_user_override: bool = False
@@ -49,8 +47,8 @@ class SettingResponse(BaseModel):
 class AllSettingsResponse(BaseModel):
     """Response for all settings."""
 
-    settings: Dict[str, Any]
-    metadata: Dict[str, Dict[str, Any]] = Field(
+    settings: dict[str, Any]
+    metadata: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Setting metadata (types, defaults, etc.)"
     )
 
@@ -67,7 +65,7 @@ class ApiKeyValidationResponse(BaseModel):
 
     valid: bool
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 
 
 # -----------------------------------------------------------------------------
@@ -90,7 +88,7 @@ async def get_settings_service(
 
 @router.get("/global", response_model=AllSettingsResponse)
 async def get_all_global_settings(
-    category: Optional[str] = None,
+    category: str | None = None,
     service: SettingsService = Depends(get_settings_service),
 ):
     """
@@ -160,7 +158,7 @@ async def update_global_setting(
             description=setting.description,
         )
 
-        metadata = SETTING_METADATA.get(key, {})
+        SETTING_METADATA.get(key, {})
         return SettingResponse(
             key=result.key,
             value=result.value if not result.is_encrypted else "********",
@@ -194,7 +192,7 @@ async def delete_global_setting(
 @router.get("/projects/{project_id}", response_model=AllSettingsResponse)
 async def get_all_project_settings(
     project_id: UUID,
-    category: Optional[str] = None,
+    category: str | None = None,
     service: SettingsService = Depends(get_settings_service),
 ):
     """
@@ -276,7 +274,7 @@ async def update_project_setting(
             description=setting.description,
         )
 
-        metadata = SETTING_METADATA.get(key, {})
+        SETTING_METADATA.get(key, {})
         return SettingResponse(
             key=result.key,
             value=result.value if not result.is_encrypted else "********",
@@ -314,7 +312,7 @@ async def delete_project_setting(
 @router.get("/users/{user_id}", response_model=AllSettingsResponse)
 async def get_all_user_settings(
     user_id: UUID,
-    category: Optional[str] = None,
+    category: str | None = None,
     service: SettingsService = Depends(get_settings_service),
 ):
     """

@@ -1,7 +1,6 @@
 """Canvas repository interface."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 from uuid import UUID
 
 from research_agent.domain.entities.canvas import Canvas
@@ -17,13 +16,13 @@ class CanvasRepository(ABC):
 
     @abstractmethod
     async def save_with_version(
-        self, canvas: Canvas, expected_version: Optional[int] = None
+        self, canvas: Canvas, expected_version: int | None = None
     ) -> Canvas:
         """Save canvas data with version check (optimistic locking)."""
         pass
 
     @abstractmethod
-    async def find_by_project(self, project_id: UUID) -> Optional[Canvas]:
+    async def find_by_project(self, project_id: UUID) -> Canvas | None:
         """Find canvas by project ID."""
         pass
 

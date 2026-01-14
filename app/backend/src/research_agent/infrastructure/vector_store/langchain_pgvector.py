@@ -1,6 +1,5 @@
 """LangChain retriever wrapper for PGVector with hybrid search support."""
 
-from typing import List
 from uuid import UUID
 
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
@@ -38,7 +37,7 @@ class PGVectorRetriever(BaseRetriever):
         query: str,
         *,
         run_manager: CallbackManagerForRetrieverRun | None = None,
-    ) -> List[LangChainDocument]:
+    ) -> list[LangChainDocument]:
         """Sync method - not implemented for async-only retriever."""
         raise NotImplementedError("Use async method _aget_relevant_documents")
 
@@ -47,7 +46,7 @@ class PGVectorRetriever(BaseRetriever):
         query: str,
         *,
         run_manager: CallbackManagerForRetrieverRun | None = None,
-    ) -> List[LangChainDocument]:
+    ) -> list[LangChainDocument]:
         """Retrieve relevant documents for a query using vector or hybrid search."""
         # Get query embedding
         query_embedding = await self.embedding_service.embed(query)

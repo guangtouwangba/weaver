@@ -1,8 +1,8 @@
 """FastAPI application entry point."""
 
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,7 +32,7 @@ from research_agent.worker.worker import BackgroundWorker
 settings = get_settings()
 
 # Global worker instance
-_background_worker: Optional[BackgroundWorker] = None
+_background_worker: BackgroundWorker | None = None
 
 
 def create_task_dispatcher() -> TaskDispatcher:
@@ -49,7 +49,7 @@ def create_task_dispatcher() -> TaskDispatcher:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Application lifespan handler."""
     global _background_worker
 

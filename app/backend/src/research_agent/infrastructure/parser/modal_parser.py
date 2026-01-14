@@ -7,7 +7,6 @@ for large documents.
 
 import asyncio
 from pathlib import Path
-from typing import List, Optional
 
 from research_agent.config import get_settings
 from research_agent.infrastructure.parser.base import (
@@ -107,11 +106,11 @@ class ModalParser(DocumentParser):
 
         return self._function
 
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         """Return list of supported MIME types."""
         return self.SUPPORTED_MIME_TYPES.copy()
 
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """Return list of supported file extensions."""
         return self.SUPPORTED_EXTENSIONS.copy()
 
@@ -258,7 +257,7 @@ class ModalParser(DocumentParser):
         self,
         content: str,
         expected_page_count: int,
-    ) -> List[ParsedPage]:
+    ) -> list[ParsedPage]:
         """Split parsed content into individual pages.
 
         Marker uses page markers in paginated output.

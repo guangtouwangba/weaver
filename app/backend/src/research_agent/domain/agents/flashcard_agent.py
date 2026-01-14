@@ -1,7 +1,8 @@
 """Flashcard generation agent."""
 
 import json
-from typing import Any, AsyncIterator, Dict, Optional
+from collections.abc import AsyncIterator
+from typing import Any
 
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
@@ -25,7 +26,7 @@ class FlashcardAgent(BaseOutputAgent):
     async def generate(
         self,
         document_content: str,
-        document_title: Optional[str] = None,
+        document_title: str | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -119,7 +120,7 @@ Content:
             logger.error(f"Flashcard generation failed: {e}", exc_info=True)
             yield self._emit_error(str(e))
 
-    def _parse_json_response(self, response: str) -> Optional[Dict[str, Any]]:
+    def _parse_json_response(self, response: str) -> dict[str, Any] | None:
         """Parse JSON from LLM response, handling markdown code blocks."""
         content = response.strip()
 

@@ -1,9 +1,8 @@
 """WebSocket notification service for document processing status updates."""
 
 import asyncio
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Set
-from uuid import UUID
+from dataclasses import dataclass
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -16,12 +15,12 @@ class DocumentStatusUpdate:
 
     document_id: str
     status: str  # "pending" | "processing" | "ready" | "error"
-    summary: Optional[str] = None
-    page_count: Optional[int] = None
-    graph_status: Optional[str] = None
-    error_message: Optional[str] = None
+    summary: str | None = None
+    page_count: int | None = None
+    graph_status: str | None = None
+    error_message: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {
             "type": "document_status",
@@ -49,9 +48,9 @@ class DocumentNotificationService:
 
     def __init__(self):
         # Map: project_id -> Set[WebSocket]
-        self._project_connections: Dict[str, Set[WebSocket]] = {}
+        self._project_connections: dict[str, set[WebSocket]] = {}
         # Map: document_id -> Set[WebSocket]
-        self._document_connections: Dict[str, Set[WebSocket]] = {}
+        self._document_connections: dict[str, set[WebSocket]] = {}
         # Lock for thread-safe connection management
         self._lock = asyncio.Lock()
 
@@ -59,7 +58,7 @@ class DocumentNotificationService:
         self,
         websocket: WebSocket,
         project_id: str,
-        document_id: Optional[str] = None,
+        document_id: str | None = None,
     ) -> None:
         """
         Register a WebSocket connection for a project (and optionally a specific document).
@@ -91,7 +90,7 @@ class DocumentNotificationService:
         self,
         websocket: WebSocket,
         project_id: str,
-        document_id: Optional[str] = None,
+        document_id: str | None = None,
     ) -> None:
         """
         Unregister a WebSocket connection.
@@ -123,10 +122,10 @@ class DocumentNotificationService:
         project_id: str,
         document_id: str,
         status: str,
-        summary: Optional[str] = None,
-        page_count: Optional[int] = None,
-        graph_status: Optional[str] = None,
-        error_message: Optional[str] = None,
+        summary: str | None = None,
+        page_count: int | None = None,
+        graph_status: str | None = None,
+        error_message: str | None = None,
     ) -> int:
         """
         Send document status update to all connected clients.
@@ -156,7 +155,7 @@ class DocumentNotificationService:
         notified_count = 0
 
         # Collect all relevant connections
-        connections_to_notify: Set[WebSocket] = set()
+        connections_to_notify: set[WebSocket] = set()
 
         async with self._lock:
             # Get project-level subscribers
@@ -168,7 +167,7 @@ class DocumentNotificationService:
                 connections_to_notify.update(self._document_connections[document_id])
 
         # Send notifications
-        disconnected: Set[WebSocket] = set()
+        disconnected: set[WebSocket] = set()
         for websocket in connections_to_notify:
             try:
                 await websocket.send_json(message)
@@ -196,7 +195,7 @@ class DocumentNotificationService:
     async def broadcast_to_project(
         self,
         project_id: str,
-        message: Dict[str, Any],
+        message: dict[str, Any],
     ) -> int:
         """
         Broadcast a message to all clients connected to a project.
@@ -213,7 +212,7 @@ class DocumentNotificationService:
         async with self._lock:
             connections = self._project_connections.get(project_id, set()).copy()
 
-        disconnected: Set[WebSocket] = set()
+        disconnected: set[WebSocket] = set()
         for websocket in connections:
             try:
                 await websocket.send_json(message)
@@ -234,7 +233,7 @@ class DocumentNotificationService:
     @property
     def connection_count(self) -> int:
         """Get total number of active connections."""
-        all_connections: Set[WebSocket] = set()
+        all_connections: set[WebSocket] = set()
         for conns in self._project_connections.values():
             all_connections.update(conns)
         return len(all_connections)
@@ -264,7 +263,7 @@ class DocumentNotificationService:
         }
 
         # Collect all relevant connections
-        connections_to_notify: Set[WebSocket] = set()
+        connections_to_notify: set[WebSocket] = set()
 
         async with self._lock:
             if project_id in self._project_connections:

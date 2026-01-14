@@ -1,11 +1,11 @@
 """Unit tests for source annotation service."""
 
-import pytest
 from dataclasses import dataclass
+
 from research_agent.domain.services.source_annotator import (
     annotate_pdf_pages,
-    annotate_video_transcript,
     annotate_plain_text,
+    annotate_video_transcript,
     format_timestamp,
     remove_annotations,
 )
@@ -49,7 +49,7 @@ class TestAnnotatePdfPages:
         """Should annotate a single page."""
         pages = [MockPage(page_number=1, content="Hello world")]
         result = annotate_pdf_pages(pages)
-        
+
         assert result.source_type == "pdf"
         assert "[PAGE:1]" in result.text
         assert "Hello world" in result.text
@@ -63,7 +63,7 @@ class TestAnnotatePdfPages:
             MockPage(page_number=3, content="Page three"),
         ]
         result = annotate_pdf_pages(pages)
-        
+
         assert "[PAGE:1]" in result.text
         assert "[PAGE:2]" in result.text
         assert "[PAGE:3]" in result.text
@@ -77,7 +77,7 @@ class TestAnnotatePdfPages:
             MockPage(page_number=3, content="More content"),
         ]
         result = annotate_pdf_pages(pages)
-        
+
         assert "[PAGE:1]" in result.text
         assert "[PAGE:2]" not in result.text
         assert "[PAGE:3]" in result.text
@@ -94,7 +94,7 @@ class TestAnnotateVideoTranscript:
             MockSegment(start_time=30, end_time=60, content="Main topic"),
         ]
         result = annotate_video_transcript(segments, interval_seconds=30)
-        
+
         assert result.source_type == "video"
         assert "[TIME:00:00]" in result.text
         assert "[TIME:00:30]" in result.text
@@ -109,7 +109,7 @@ class TestAnnotateVideoTranscript:
             MockSegment(start_time=20, end_time=30, content="Part 3"),
         ]
         result = annotate_video_transcript(segments, interval_seconds=30)
-        
+
         # Only first segment should have marker
         assert result.text.count("[TIME:") == 1
 
@@ -119,7 +119,7 @@ class TestAnnotateVideoTranscript:
             MockSegment(start_time=3600, end_time=3630, content="After one hour"),
         ]
         result = annotate_video_transcript(segments, interval_seconds=30)
-        
+
         assert "[TIME:01:00:00]" in result.text
 
 
@@ -130,7 +130,7 @@ class TestAnnotatePlainText:
         """Should split text into virtual pages."""
         text = "\n".join([f"Line {i}" for i in range(100)])
         result = annotate_plain_text(text, lines_per_page=50)
-        
+
         assert result.source_type == "document"
         assert "[PAGE:1]" in result.text
         assert "[PAGE:2]" in result.text
@@ -140,7 +140,7 @@ class TestAnnotatePlainText:
         """Should handle text shorter than one page."""
         text = "Short text\nWith few lines"
         result = annotate_plain_text(text, lines_per_page=50)
-        
+
         assert "[PAGE:1]" in result.text
         assert len(result.pages) == 1
 
@@ -152,7 +152,7 @@ class TestRemoveAnnotations:
         """Should remove [PAGE:X] markers."""
         text = "[PAGE:1]\nContent here\n\n[PAGE:2]\nMore content"
         result = remove_annotations(text)
-        
+
         assert "[PAGE:" not in result
         assert "Content here" in result
         assert "More content" in result
@@ -161,7 +161,7 @@ class TestRemoveAnnotations:
         """Should remove [TIME:MM:SS] markers."""
         text = "[TIME:00:00]\nIntro\n\n[TIME:05:30]\nMain"
         result = remove_annotations(text)
-        
+
         assert "[TIME:" not in result
         assert "Intro" in result
         assert "Main" in result
@@ -170,7 +170,7 @@ class TestRemoveAnnotations:
         """Should remove both page and time markers."""
         text = "[PAGE:1] Content [TIME:10:30] More"
         result = remove_annotations(text)
-        
+
         assert "[PAGE:" not in result
         assert "[TIME:" not in result
         assert "Content" in result

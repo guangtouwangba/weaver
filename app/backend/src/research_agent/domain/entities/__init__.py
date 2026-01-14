@@ -16,7 +16,6 @@ from research_agent.domain.entities.config import (
     RetrievalStrategyType,
 )
 from research_agent.domain.entities.document import Document, DocumentStatus
-from research_agent.domain.entities.resource import Resource, ResourceType
 from research_agent.domain.entities.graph import (
     Entity,
     EntityType,
@@ -25,6 +24,7 @@ from research_agent.domain.entities.graph import (
     RelationType,
 )
 from research_agent.domain.entities.project import Project
+from research_agent.domain.entities.resource import Resource, ResourceType
 from research_agent.domain.entities.task import Task, TaskStatus, TaskType
 
 __all__ = [

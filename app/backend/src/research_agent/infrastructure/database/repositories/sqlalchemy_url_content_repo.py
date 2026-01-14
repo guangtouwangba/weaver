@@ -1,7 +1,7 @@
 """SQLAlchemy implementation of URL Content repository."""
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import desc, select
@@ -23,19 +23,19 @@ class SQLAlchemyUrlContentRepository:
         await self.session.refresh(item)
         return item
 
-    async def get_by_id(self, item_id: UUID) -> Optional[UrlContentModel]:
+    async def get_by_id(self, item_id: UUID) -> UrlContentModel | None:
         """Get URL content by ID."""
         stmt = select(UrlContentModel).where(UrlContentModel.id == item_id)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def get_by_url(self, url: str) -> Optional[UrlContentModel]:
+    async def get_by_url(self, url: str) -> UrlContentModel | None:
         """Get URL content by original URL (for deduplication)."""
         stmt = select(UrlContentModel).where(UrlContentModel.url == url)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def get_by_normalized_url(self, normalized_url: str) -> Optional[UrlContentModel]:
+    async def get_by_normalized_url(self, normalized_url: str) -> UrlContentModel | None:
         """Get URL content by normalized URL (for deduplication with variants)."""
         stmt = select(UrlContentModel).where(
             UrlContentModel.normalized_url == normalized_url
@@ -47,10 +47,10 @@ class SQLAlchemyUrlContentRepository:
         self,
         skip: int = 0,
         limit: int = 20,
-        status: Optional[str] = None,
-        platform: Optional[str] = None,
-        user_id: Optional[str] = None,
-        project_id: Optional[UUID] = None,
+        status: str | None = None,
+        platform: str | None = None,
+        user_id: str | None = None,
+        project_id: UUID | None = None,
     ) -> Sequence[UrlContentModel]:
         """List URL content with optional filters."""
         stmt = select(UrlContentModel)
@@ -102,9 +102,9 @@ class SQLAlchemyUrlContentRepository:
         self,
         item_id: UUID,
         status: str,
-        error_message: Optional[str] = None,
-        extracted_at: Optional[datetime] = None,
-    ) -> Optional[UrlContentModel]:
+        error_message: str | None = None,
+        extracted_at: datetime | None = None,
+    ) -> UrlContentModel | None:
         """Update the status of a URL content record."""
         item = await self.get_by_id(item_id)
         if item:
@@ -118,11 +118,11 @@ class SQLAlchemyUrlContentRepository:
     async def update_content(
         self,
         item_id: UUID,
-        title: Optional[str] = None,
-        content: Optional[str] = None,
-        thumbnail_url: Optional[str] = None,
-        meta_data: Optional[dict] = None,
-    ) -> Optional[UrlContentModel]:
+        title: str | None = None,
+        content: str | None = None,
+        thumbnail_url: str | None = None,
+        meta_data: dict | None = None,
+    ) -> UrlContentModel | None:
         """Update the extracted content of a URL content record."""
         item = await self.get_by_id(item_id)
         if item:

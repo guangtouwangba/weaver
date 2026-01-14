@@ -5,7 +5,7 @@ memory operations for the RAG system.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from langchain_core.output_parsers import StrOutputParser
@@ -47,8 +47,8 @@ class MemoryContext:
     """Context assembled from memory for RAG generation."""
 
     session_summary: str  # Short-term: summarized older conversation
-    recent_history: List[tuple[str, str]]  # Short-term: recent (human, ai) pairs
-    relevant_memories: List[MemorySearchResult]  # Long-term: semantically similar past discussions
+    recent_history: list[tuple[str, str]]  # Short-term: recent (human, ai) pairs
+    relevant_memories: list[MemorySearchResult]  # Long-term: semantically similar past discussions
 
 
 class MemoryService:
@@ -64,7 +64,7 @@ class MemoryService:
         self,
         session: AsyncSession,
         embedding_service: EmbeddingService,
-        llm: Optional[ChatOpenAI] = None,
+        llm: ChatOpenAI | None = None,
     ):
         self._session = session
         self._embedding_service = embedding_service
@@ -80,8 +80,8 @@ class MemoryService:
         project_id: UUID,
         question: str,
         answer: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        user_id: Optional[str] = None,
+        metadata: dict[str, Any] | None = None,
+        user_id: str | None = None,
     ) -> None:
         """
         Store a Q&A interaction as a memory for future retrieval.
@@ -123,8 +123,8 @@ class MemoryService:
         query: str,
         limit: int = DEFAULT_MEMORY_SEARCH_LIMIT,
         min_similarity: float = DEFAULT_MEMORY_MIN_SIMILARITY,
-        user_id: Optional[str] = None,
-    ) -> List[MemorySearchResult]:
+        user_id: str | None = None,
+    ) -> list[MemorySearchResult]:
         """
         Retrieve memories relevant to the current query.
 
@@ -164,7 +164,7 @@ class MemoryService:
     # Short-Term Working Memory
     # ==========================================================================
 
-    async def get_session_summary(self, project_id: UUID, user_id: Optional[str] = None) -> str:
+    async def get_session_summary(self, project_id: UUID, user_id: str | None = None) -> str:
         """
         Get the current session summary for a project.
 
@@ -183,7 +183,7 @@ class MemoryService:
         project_id: UUID,
         current_message_count: int,
         threshold: int = 10,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> bool:
         """
         Determine if the conversation should be summarized.
@@ -207,9 +207,9 @@ class MemoryService:
     async def summarize_history(
         self,
         project_id: UUID,
-        messages: List[tuple[str, str]],
+        messages: list[tuple[str, str]],
         keep_recent: int = 3,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> str:
         """
         Summarize older conversation history.
@@ -280,10 +280,10 @@ class MemoryService:
         self,
         project_id: UUID,
         query: str,
-        chat_history: List[tuple[str, str]],
+        chat_history: list[tuple[str, str]],
         recent_history_count: int = 3,
         memory_search_limit: int = DEFAULT_MEMORY_SEARCH_LIMIT,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> MemoryContext:
         """
         Assemble complete memory context for RAG generation.

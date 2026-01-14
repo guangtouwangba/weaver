@@ -5,9 +5,8 @@ This module provides JWT verification and user extraction for Supabase Auth toke
 
 import hashlib
 import time
-from typing import Optional, Tuple
 
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Header, HTTPException, Request
 from pydantic import BaseModel
 
 from research_agent.config import get_settings
@@ -86,7 +85,7 @@ def _verify_jwt_signature(token: str, secret: str) -> bool:
         return False
 
 
-def verify_supabase_jwt(token: str) -> Tuple[bool, Optional[dict], Optional[str]]:
+def verify_supabase_jwt(token: str) -> tuple[bool, dict | None, str | None]:
     """Verify a Supabase JWT and return the payload.
 
     Returns:
@@ -123,7 +122,7 @@ def _generate_anon_session_id(request: Request) -> str:
 
 
 async def get_current_user(
-    authorization: Optional[str] = Header(None, alias="Authorization"),
+    authorization: str | None = Header(None, alias="Authorization"),
 ) -> str:
     """FastAPI dependency to get authenticated user ID from JWT.
 
@@ -156,7 +155,7 @@ async def get_current_user(
 
 async def get_optional_user(
     request: Request,
-    authorization: Optional[str] = Header(None, alias="Authorization"),
+    authorization: str | None = Header(None, alias="Authorization"),
 ) -> UserContext:
     """FastAPI dependency to get user context, allowing anonymous users.
 
@@ -185,7 +184,7 @@ async def get_optional_user(
 
 
 # Re-export existing API key auth for backward compatibility
-from research_agent.api.auth import get_api_key, hash_api_key
+from research_agent.api.auth import get_api_key, hash_api_key  # noqa: E402
 
 __all__ = [
     "UserContext",

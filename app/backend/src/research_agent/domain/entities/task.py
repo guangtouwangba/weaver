@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -33,15 +33,15 @@ class Task:
 
     id: UUID = field(default_factory=uuid4)
     task_type: TaskType = TaskType.PROCESS_DOCUMENT
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     status: TaskStatus = TaskStatus.PENDING
     priority: int = 0
     attempts: int = 0
     max_attempts: int = 3
-    error_message: Optional[str] = None
+    error_message: str | None = None
     scheduled_at: datetime = field(default_factory=datetime.utcnow)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 

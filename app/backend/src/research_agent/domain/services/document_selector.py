@@ -1,10 +1,9 @@
 """Document selection service for long context mode."""
 
 from dataclasses import dataclass
-from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.domain.entities.document import DocumentStatus
@@ -18,8 +17,8 @@ from research_agent.shared.utils.logger import logger
 class DocumentSelectionResult:
     """Result of document selection for long context mode."""
 
-    long_context_docs: List[DocumentModel]  # Documents to use with long context
-    retrieval_docs: List[DocumentModel]  # Documents to use with traditional retrieval
+    long_context_docs: list[DocumentModel]  # Documents to use with long context
+    retrieval_docs: list[DocumentModel]  # Documents to use with traditional retrieval
     strategy: str  # "long_context" | "traditional" | "hybrid"
     total_tokens: int  # Total tokens for selected documents
     reason: str  # Selection reason for logging
@@ -207,7 +206,7 @@ class DocumentSelectorService:
 
         # Get top 5 chunks for this document and average their similarities
         query = text("""
-            SELECT 
+            SELECT
                 1 - (embedding <=> cast(:embedding as vector)) AS similarity
             FROM resource_chunks
             WHERE resource_id = cast(:document_id as uuid)
@@ -229,7 +228,7 @@ class DocumentSelectorService:
         # Return average similarity
         return sum(similarities) / len(similarities)
 
-    def calculate_total_context_size(self, documents: List[DocumentModel]) -> int:
+    def calculate_total_context_size(self, documents: list[DocumentModel]) -> int:
         """
         Calculate total context size in tokens.
 

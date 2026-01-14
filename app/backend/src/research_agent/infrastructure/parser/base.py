@@ -7,7 +7,7 @@ multiple formats including PDF, Word, PPT, and Audio/Video files.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class DocumentType(str, Enum):
@@ -32,20 +32,20 @@ class ParsedPage:
 
     page_number: int
     content: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # Optional fields for different document types
     # Audio/Video specific
-    start_time: Optional[float] = None  # Start time in seconds
-    end_time: Optional[float] = None  # End time in seconds
-    speaker: Optional[str] = None  # Speaker identification
+    start_time: float | None = None  # Start time in seconds
+    end_time: float | None = None  # End time in seconds
+    speaker: str | None = None  # Speaker identification
 
     # OCR specific
-    ocr_confidence: Optional[float] = None  # OCR confidence score (0-1)
+    ocr_confidence: float | None = None  # OCR confidence score (0-1)
     has_ocr: bool = False  # Whether OCR was applied
 
     # Layout specific
-    layout_type: Optional[str] = None  # e.g., "single_column", "multi_column", "table"
+    layout_type: str | None = None  # e.g., "single_column", "multi_column", "table"
 
 
 @dataclass
@@ -54,13 +54,13 @@ class ParseResult:
     Complete parsing result containing all pages and document-level metadata.
     """
 
-    pages: List[ParsedPage]
+    pages: list[ParsedPage]
     document_type: DocumentType
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # Document-level properties
     page_count: int = 0
-    total_duration: Optional[float] = None  # For audio/video, duration in seconds
+    total_duration: float | None = None  # For audio/video, duration in seconds
     has_ocr: bool = False  # Whether any page required OCR
     parser_name: str = ""  # Name of parser used
 
@@ -95,7 +95,7 @@ class DocumentParser(ABC):
         pass
 
     @abstractmethod
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         """
         Return list of supported MIME types.
 
@@ -105,7 +105,7 @@ class DocumentParser(ABC):
         pass
 
     @abstractmethod
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """
         Return list of supported file extensions.
 

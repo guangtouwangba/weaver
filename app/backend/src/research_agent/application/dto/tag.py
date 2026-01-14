@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -23,4 +22,4 @@ class TagResponse(TagBase):
 
 
 class TagListResponse(BaseModel):
-    items: List[TagResponse]
+    items: list[TagResponse]

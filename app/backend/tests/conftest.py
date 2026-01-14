@@ -1,24 +1,22 @@
 """Pytest configuration and fixtures."""
 
 import asyncio
-import json
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from pgvector.sqlalchemy import Vector
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID, ARRAY, TSVECTOR
-from sqlalchemy import Text
 from sqlalchemy.pool import StaticPool
-from pgvector.sqlalchemy import Vector
 
+from research_agent.api.deps import get_db
 from research_agent.infrastructure.database.models import Base
 from research_agent.infrastructure.database.session import get_session
-from research_agent.api.deps import get_db
 from research_agent.main import app
-
 
 # ==============================================================================
 # SQLite Compatibility Layer for PostgreSQL Types
@@ -113,7 +111,7 @@ async def db_engine(mock_env_vars):
 
 
 @pytest.fixture(scope="function")
-async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(db_engine) -> AsyncGenerator[AsyncSession]:
     """Create a new database session for a test function."""
     connection = await db_engine.connect()
     transaction = await connection.begin()
@@ -137,7 +135,7 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture(scope="function")
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Create a test client with overridden dependencies."""
     if not hasattr(app, "state"):
         app.state = MagicMock()

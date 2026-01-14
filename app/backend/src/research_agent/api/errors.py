@@ -73,16 +73,16 @@ def setup_error_handlers(app: FastAPI) -> None:
             status_code=500,
             content={"detail": exc.message, "type": "internal_error"},
         )
-    
+
     # Catch-all for unhandled exceptions
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         from research_agent.config import get_settings
         settings = get_settings()
-        
+
         error_type = type(exc).__name__
         error_message = str(exc)
-        
+
         # Log full exception with stack trace
         logger.exception(
             f"Unhandled exception: {error_type}: {error_message} - "
@@ -90,7 +90,7 @@ def setup_error_handlers(app: FastAPI) -> None:
             f"Method: {request.method}, "
             f"Path: {request.url.path}"
         )
-        
+
         # In development, return more detailed error information
         if settings.is_development:
             detail = (
@@ -99,7 +99,7 @@ def setup_error_handlers(app: FastAPI) -> None:
             )
         else:
             detail = "Internal server error"
-        
+
         return JSONResponse(
             status_code=500,
             content={

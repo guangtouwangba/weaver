@@ -1,8 +1,9 @@
 """Unit tests for delete project use case."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
+import pytest
 
 from research_agent.application.use_cases.project.delete_project import (
     DeleteProjectInput,
@@ -42,8 +43,8 @@ def sample_project():
 
 @pytest.mark.asyncio
 async def test_delete_project_success(
-    mock_project_repo, 
-    mock_storage_service, 
+    mock_project_repo,
+    mock_storage_service,
     mock_supabase_storage,
     sample_project,
 ):
@@ -53,17 +54,17 @@ async def test_delete_project_success(
     mock_project_repo.delete = AsyncMock(return_value=True)
     mock_storage_service.delete_directory = AsyncMock(return_value=True)
     mock_supabase_storage.delete_directory = AsyncMock(return_value=True)
-    
+
     use_case = DeleteProjectUseCase(
         mock_project_repo,
         storage_service=mock_storage_service,
         supabase_storage_service=mock_supabase_storage,
     )
-    
+
     # Execute
     input_data = DeleteProjectInput(project_id=sample_project.id)
     result = await use_case.execute(input_data)
-    
+
     # Assert
     assert result.success is True
     mock_project_repo.find_by_id.assert_called_once_with(sample_project.id)
@@ -82,14 +83,14 @@ async def test_delete_project_not_found(mock_project_repo):
     # Setup
     project_id = uuid4()
     mock_project_repo.find_by_id = AsyncMock(return_value=None)
-    
+
     use_case = DeleteProjectUseCase(mock_project_repo)
-    
+
     # Execute and Assert
     input_data = DeleteProjectInput(project_id=project_id)
     with pytest.raises(NotFoundError) as exc_info:
         await use_case.execute(input_data)
-    
+
     assert "Project" in str(exc_info.value)
     assert str(project_id) in str(exc_info.value)
 
@@ -103,13 +104,13 @@ async def test_delete_project_without_storage_services(
     # Setup
     mock_project_repo.find_by_id = AsyncMock(return_value=sample_project)
     mock_project_repo.delete = AsyncMock(return_value=True)
-    
+
     use_case = DeleteProjectUseCase(mock_project_repo)
-    
+
     # Execute
     input_data = DeleteProjectInput(project_id=sample_project.id)
     result = await use_case.execute(input_data)
-    
+
     # Assert
     assert result.success is True
     mock_project_repo.delete.assert_called_once_with(sample_project.id)
@@ -128,16 +129,16 @@ async def test_delete_project_storage_failure(
     mock_storage_service.delete_directory = AsyncMock(
         side_effect=Exception("Storage error")
     )
-    
+
     use_case = DeleteProjectUseCase(
         mock_project_repo,
         storage_service=mock_storage_service,
     )
-    
+
     # Execute - should not raise exception
     input_data = DeleteProjectInput(project_id=sample_project.id)
     result = await use_case.execute(input_data)
-    
+
     # Assert - deletion should still succeed
     assert result.success is True
     mock_project_repo.delete.assert_called_once_with(sample_project.id)

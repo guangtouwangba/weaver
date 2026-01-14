@@ -1,7 +1,7 @@
 """pgvector implementation for vector search with hybrid search support."""
 
 import asyncio
-from typing import Any, Dict, List
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import bindparam, text
@@ -38,12 +38,12 @@ class PgVectorStore(VectorStore):
 
     async def search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         project_id: UUID,
         limit: int = 5,
         document_id: UUID | None = None,
         user_id: str | None = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """
         Search for similar chunks using pgvector.
         This is the original vector-only search for backward compatibility.
@@ -79,7 +79,7 @@ class PgVectorStore(VectorStore):
 
         # Use explicit parameter binding for asyncpg compatibility
         query = text(f"""
-            SELECT 
+            SELECT
                 id,
                 resource_id as document_id,
                 content,
@@ -117,7 +117,7 @@ class PgVectorStore(VectorStore):
 
     async def hybrid_search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         query_text: str,
         project_id: UUID,
         limit: int = 5,
@@ -126,7 +126,7 @@ class PgVectorStore(VectorStore):
         k: int = 20,  # Retrieve top-k from each method before fusion
         document_id: UUID | None = None,
         user_id: str | None = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """
         Hybrid search combining vector similarity and full-text search using RRF.
 
@@ -170,12 +170,12 @@ class PgVectorStore(VectorStore):
 
     async def _vector_search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         project_id: UUID,
         limit: int,
         document_id: UUID | None = None,
         user_id: str | None = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Vector similarity search returning raw results."""
         embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
 
@@ -195,7 +195,7 @@ class PgVectorStore(VectorStore):
             params["document_id"] = str(document_id)
 
         query = text(f"""
-            SELECT 
+            SELECT
                 id,
                 resource_id as document_id,
                 content,
@@ -241,7 +241,7 @@ class PgVectorStore(VectorStore):
         limit: int,
         document_id: UUID | None = None,
         user_id: str | None = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Full-text search using PostgreSQL TSVector."""
         # Sanitize query text for tsquery
         # Replace special characters and prepare for websearch_to_tsquery
@@ -263,7 +263,7 @@ class PgVectorStore(VectorStore):
             params["document_id"] = str(document_id)
 
         query = text(f"""
-            SELECT 
+            SELECT
                 id,
                 resource_id as document_id,
                 content,
@@ -304,13 +304,13 @@ class PgVectorStore(VectorStore):
 
     def _reciprocal_rank_fusion(
         self,
-        vector_results: List[Dict[str, Any]],
-        keyword_results: List[Dict[str, Any]],
+        vector_results: list[dict[str, Any]],
+        keyword_results: list[dict[str, Any]],
         vector_weight: float,
         keyword_weight: float,
         limit: int,
         k: int = 60,  # RRF constant
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """
         Combine results using Reciprocal Rank Fusion (RRF).
 

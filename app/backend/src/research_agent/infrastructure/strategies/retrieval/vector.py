@@ -4,7 +4,7 @@ Vector Retrieval Strategy.
 Standard vector similarity search using PGVector.
 """
 
-from typing import Any, List
+from typing import Any
 from uuid import UUID
 
 from langchain_core.documents import Document
@@ -110,10 +110,10 @@ class VectorRetrievalStrategy(IRetrievalStrategy):
     async def rerank(
         self,
         query: str,
-        documents: List[Document],
+        documents: list[Document],
         config: RetrievalConfig,
         **kwargs: Any,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """
         Rerank documents by similarity score.
 

@@ -10,13 +10,12 @@ Design Pattern: Fire-and-Forget + Scheduled Cleanup
 """
 
 import asyncio
-from typing import Optional
 from uuid import UUID
 
-from research_agent.infrastructure.database.session import get_async_session
 from research_agent.infrastructure.database.repositories.sqlalchemy_pending_cleanup_repo import (
     SQLAlchemyPendingCleanupRepository,
 )
+from research_agent.infrastructure.database.session import get_async_session
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import (
     SupabaseStorageService,
@@ -27,9 +26,9 @@ from research_agent.shared.utils.logger import logger
 
 async def cleanup_file_async(
     file_path: str,
-    local_storage: Optional[LocalStorageService] = None,
-    supabase_storage: Optional[SupabaseStorageService] = None,
-    cleanup_id: Optional[UUID] = None,
+    local_storage: LocalStorageService | None = None,
+    supabase_storage: SupabaseStorageService | None = None,
+    cleanup_id: UUID | None = None,
 ) -> bool:
     """
     Asynchronously clean up a file from storage.
@@ -104,9 +103,9 @@ async def cleanup_file_async(
 
 def fire_and_forget_cleanup(
     file_path: str,
-    local_storage: Optional[LocalStorageService] = None,
-    supabase_storage: Optional[SupabaseStorageService] = None,
-    cleanup_id: Optional[UUID] = None,
+    local_storage: LocalStorageService | None = None,
+    supabase_storage: SupabaseStorageService | None = None,
+    cleanup_id: UUID | None = None,
 ) -> None:
     """
     Fire-and-forget file cleanup.

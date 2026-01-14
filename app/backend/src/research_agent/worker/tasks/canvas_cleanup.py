@@ -1,6 +1,6 @@
 """Canvas cleanup task - removes old generation items from canvas."""
 
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,7 @@ class CanvasCleanupTask(BaseTask):
     def task_type(self) -> str:
         return "cleanup_canvas"
 
-    async def execute(self, payload: Dict[str, Any], session: AsyncSession) -> None:
+    async def execute(self, payload: dict[str, Any], session: AsyncSession) -> None:
         """
         Execute the canvas cleanup task.
 

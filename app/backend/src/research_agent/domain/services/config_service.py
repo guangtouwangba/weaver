@@ -9,7 +9,7 @@ Responsible for resolving configuration from multiple sources:
 Priority: Request > Project DB > Global DB > Environment Variables
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID
 
 from research_agent.domain.entities.config import (
@@ -52,9 +52,9 @@ class ConfigurationService:
 
     def get_config(
         self,
-        project_id: Optional[UUID] = None,
-        user_id: Optional[UUID] = None,
-        overrides: Optional[dict] = None,
+        project_id: UUID | None = None,
+        user_id: UUID | None = None,
+        overrides: dict | None = None,
     ) -> RAGConfig:
         """
         Get resolved RAG configuration (sync - env only).
@@ -85,8 +85,8 @@ class ConfigurationService:
     def get_config_for_intent(
         self,
         intent_type: IntentType,
-        project_id: Optional[UUID] = None,
-        user_id: Optional[UUID] = None,
+        project_id: UUID | None = None,
+        user_id: UUID | None = None,
     ) -> RAGConfig:
         """
         Get configuration optimized for a specific intent type.
@@ -218,9 +218,9 @@ class AsyncConfigurationService:
 
     async def get_config_async(
         self,
-        user_id: Optional[UUID] = None,
-        project_id: Optional[UUID] = None,
-        overrides: Optional[dict] = None,
+        user_id: UUID | None = None,
+        project_id: UUID | None = None,
+        overrides: dict | None = None,
     ) -> RAGConfig:
         """
         Get resolved RAG configuration from database and environment.
@@ -256,8 +256,8 @@ class AsyncConfigurationService:
     async def get_config_for_intent_async(
         self,
         intent_type: IntentType,
-        user_id: Optional[UUID] = None,
-        project_id: Optional[UUID] = None,
+        user_id: UUID | None = None,
+        project_id: UUID | None = None,
     ) -> RAGConfig:
         """
         Get configuration optimized for a specific intent type.
@@ -329,9 +329,9 @@ class AsyncConfigurationService:
 
     async def _load_from_db(
         self,
-        user_id: Optional[UUID] = None,
-        project_id: Optional[UUID] = None,
-    ) -> Optional[Dict[str, Any]]:
+        user_id: UUID | None = None,
+        project_id: UUID | None = None,
+    ) -> dict[str, Any] | None:
         """
         Load configuration overrides from database.
 
@@ -366,7 +366,7 @@ class AsyncConfigurationService:
                 return None
 
             # Map flat settings to nested RAGConfig structure
-            overrides: Dict[str, Any] = {}
+            overrides: dict[str, Any] = {}
 
             # LLM config
             if "llm_model" in settings:
@@ -465,7 +465,7 @@ class AsyncConfigurationService:
 
 
 # Singleton instance for sync access (env only)
-_config_service: Optional[ConfigurationService] = None
+_config_service: ConfigurationService | None = None
 
 
 def get_config_service() -> ConfigurationService:

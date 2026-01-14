@@ -26,7 +26,7 @@ import json
 import time
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from research_agent.shared.utils.logger import logger
@@ -58,8 +58,8 @@ class StageMetrics:
 
     stage: str
     start_time: float
-    end_time: Optional[float] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    end_time: float | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
 
     @property
     def latency_ms(self) -> float:
@@ -88,8 +88,8 @@ class RAGTrace:
         self,
         query: str,
         project_id: str,
-        session_id: Optional[str] = None,
-        extra_context: Optional[Dict[str, Any]] = None,
+        session_id: str | None = None,
+        extra_context: dict[str, Any] | None = None,
     ):
         """Initialize a new trace.
 
@@ -107,10 +107,10 @@ class RAGTrace:
         self.extra_context = extra_context or {}
 
         self.start_time = time.time()
-        self.stages: List[StageMetrics] = []
-        self.current_stage: Optional[StageMetrics] = None
-        self.metrics: Dict[str, Any] = {}
-        self._error: Optional[Exception] = None
+        self.stages: list[StageMetrics] = []
+        self.current_stage: StageMetrics | None = None
+        self.metrics: dict[str, Any] = {}
+        self._error: Exception | None = None
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -279,7 +279,7 @@ class RAGTrace:
         )
 
 
-def get_trace() -> Optional[RAGTrace]:
+def get_trace() -> RAGTrace | None:
     """Get current trace from context.
 
     Returns:

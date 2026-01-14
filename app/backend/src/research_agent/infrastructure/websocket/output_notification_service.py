@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, Optional, Set
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -26,9 +26,9 @@ class OutputNotificationService:
 
     def __init__(self):
         # Map: project_id -> Set[WebSocket]
-        self._project_connections: Dict[str, Set[WebSocket]] = {}
+        self._project_connections: dict[str, set[WebSocket]] = {}
         # Map: task_id -> Set[WebSocket] (for task-specific subscriptions)
-        self._task_connections: Dict[str, Set[WebSocket]] = {}
+        self._task_connections: dict[str, set[WebSocket]] = {}
         # Lock for thread-safe connection management
         self._lock = asyncio.Lock()
 
@@ -36,7 +36,7 @@ class OutputNotificationService:
         self,
         websocket: WebSocket,
         project_id: str,
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
     ) -> None:
         """
         Register a WebSocket connection for output updates.
@@ -68,7 +68,7 @@ class OutputNotificationService:
         self,
         websocket: WebSocket,
         project_id: str,
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
     ) -> None:
         """
         Unregister a WebSocket connection.
@@ -96,7 +96,7 @@ class OutputNotificationService:
     async def _broadcast_to_project(
         self,
         project_id: str,
-        message: Dict[str, Any],
+        message: dict[str, Any],
     ) -> int:
         """
         Broadcast a message to all clients connected to a project.
@@ -113,7 +113,7 @@ class OutputNotificationService:
         async with self._lock:
             connections = self._project_connections.get(project_id, set()).copy()
 
-        disconnected: Set[WebSocket] = set()
+        disconnected: set[WebSocket] = set()
         for websocket in connections:
             try:
                 await websocket.send_json(message)
@@ -134,7 +134,7 @@ class OutputNotificationService:
     async def _broadcast_to_task(
         self,
         task_id: str,
-        message: Dict[str, Any],
+        message: dict[str, Any],
     ) -> int:
         """
         Broadcast a message to all clients subscribed to a specific task.
@@ -151,7 +151,7 @@ class OutputNotificationService:
         async with self._lock:
             connections = self._task_connections.get(task_id, set()).copy()
 
-        disconnected: Set[WebSocket] = set()
+        disconnected: set[WebSocket] = set()
         for websocket in connections:
             try:
                 await websocket.send_json(message)
@@ -236,7 +236,7 @@ class OutputNotificationService:
         project_id: str,
         task_id: str,
         progress: float,
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> int:
         """Notify generation progress update."""
         event_message = {
@@ -289,7 +289,7 @@ class OutputNotificationService:
         project_id: str,
         task_id: str,
         node_id: str,
-        node_data: Dict[str, Any],
+        node_data: dict[str, Any],
     ) -> int:
         """Notify that a mindmap node was added."""
         event_message = {
@@ -306,7 +306,7 @@ class OutputNotificationService:
         project_id: str,
         task_id: str,
         edge_id: str,
-        edge_data: Dict[str, Any],
+        edge_data: dict[str, Any],
     ) -> int:
         """Notify that a mindmap edge was added."""
         event_message = {
@@ -346,7 +346,7 @@ class OutputNotificationService:
     @property
     def connection_count(self) -> int:
         """Get total number of active project connections."""
-        all_connections: Set[WebSocket] = set()
+        all_connections: set[WebSocket] = set()
         for conns in self._project_connections.values():
             all_connections.update(conns)
         return len(all_connections)

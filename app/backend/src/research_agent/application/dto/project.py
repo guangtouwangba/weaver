@@ -1,7 +1,6 @@
 """Project DTOs for API requests/responses."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -11,14 +10,14 @@ class ProjectCreate(BaseModel):
     """Request DTO for creating a project."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class ProjectUpdate(BaseModel):
     """Request DTO for updating a project."""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -26,7 +25,7 @@ class ProjectResponse(BaseModel):
 
     id: UUID
     name: str
-    description: Optional[str]
+    description: str | None
     created_at: datetime
     updated_at: datetime
 

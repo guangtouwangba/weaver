@@ -6,7 +6,6 @@ with advanced features including OCR support, layout analysis, and table extract
 
 import asyncio
 from pathlib import Path
-from typing import List
 
 from research_agent.infrastructure.parser.base import (
     DocumentParser,
@@ -74,11 +73,11 @@ class DoclingParser(DocumentParser):
                 )
         return self._converter
 
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         """Return list of supported MIME types."""
         return self.SUPPORTED_MIME_TYPES.copy()
 
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """Return list of supported file extensions."""
         return self.SUPPORTED_EXTENSIONS.copy()
 
@@ -157,7 +156,7 @@ class DoclingParser(DocumentParser):
             parser_name=self.parser_name,
         )
 
-    def _extract_pages(self, doc, doc_type: DocumentType) -> List[ParsedPage]:
+    def _extract_pages(self, doc, doc_type: DocumentType) -> list[ParsedPage]:
         """
         Extract pages from Docling document object.
 
@@ -200,7 +199,7 @@ class DoclingParser(DocumentParser):
 
         return pages
 
-    def _split_pdf_pages(self, doc, full_content: str) -> List[ParsedPage]:
+    def _split_pdf_pages(self, doc, full_content: str) -> list[ParsedPage]:
         """
         Split PDF content into pages.
 
@@ -262,7 +261,7 @@ class DoclingParser(DocumentParser):
 
         return pages
 
-    def _split_document_sections(self, doc, full_content: str) -> List[ParsedPage]:
+    def _split_document_sections(self, doc, full_content: str) -> list[ParsedPage]:
         """
         Split Word/PPT content into sections.
 

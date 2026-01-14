@@ -6,7 +6,6 @@ based on actual needs rather than using maximum capacity for all queries.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 from research_agent.domain.services.query_classifier import (
     QueryClassification,
@@ -22,7 +21,7 @@ class ContextAllocation:
 
     allocated_tokens: int  # Tokens allocated for this query
     max_documents: int  # Maximum number of documents to include
-    priority_order: List[str]  # Document IDs in priority order
+    priority_order: list[str]  # Document IDs in priority order
     reasoning: str
     utilization_ratio: float  # allocated / available
 
@@ -80,7 +79,7 @@ class ContextBudgetManager:
     def allocate(
         self,
         classification: QueryClassification,
-        available_documents: List[DocumentModel],
+        available_documents: list[DocumentModel],
         max_tokens: int,
         force_minimum: bool = False,
     ) -> ContextAllocation:
@@ -147,9 +146,9 @@ class ContextBudgetManager:
 
     def _calculate_document_allocation(
         self,
-        documents: List[DocumentModel],
+        documents: list[DocumentModel],
         token_budget: int,
-    ) -> tuple[int, List[str]]:
+    ) -> tuple[int, list[str]]:
         """Calculate how many documents fit in the budget.
 
         Args:
@@ -235,7 +234,7 @@ class ContextBudgetManager:
 
 
 # Singleton instance
-_budget_manager: Optional[ContextBudgetManager] = None
+_budget_manager: ContextBudgetManager | None = None
 
 
 def get_context_budget_manager(

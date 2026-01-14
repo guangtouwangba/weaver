@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from research_agent.domain.repositories.document_repo import DocumentRepository
@@ -19,8 +18,8 @@ class DocumentItem:
     page_count: int
     status: str
     created_at: datetime
-    thumbnail_status: Optional[str] = None
-    thumbnail_path: Optional[str] = None
+    thumbnail_status: str | None = None
+    thumbnail_path: str | None = None
 
 
 @dataclass
@@ -28,14 +27,14 @@ class ListDocumentsInput:
     """Input for list documents use case."""
 
     project_id: UUID
-    user_id: Optional[str] = None
+    user_id: str | None = None
 
 
 @dataclass
 class ListDocumentsOutput:
     """Output for list documents use case."""
 
-    items: List[DocumentItem]
+    items: list[DocumentItem]
     total: int
 
 

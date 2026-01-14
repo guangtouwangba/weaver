@@ -1,7 +1,6 @@
 """Database client abstract interface."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
 
 
 class DatabaseClient(ABC):
@@ -9,8 +8,8 @@ class DatabaseClient(ABC):
 
     @abstractmethod
     async def select(
-        self, table: str, filters: Optional[Dict] = None, limit: Optional[int] = None
-    ) -> List[Dict]:
+        self, table: str, filters: dict | None = None, limit: int | None = None
+    ) -> list[dict]:
         """
         Select rows from table.
 
@@ -25,7 +24,7 @@ class DatabaseClient(ABC):
         pass
 
     @abstractmethod
-    async def select_one(self, table: str, filters: Optional[Dict] = None) -> Optional[Dict]:
+    async def select_one(self, table: str, filters: dict | None = None) -> dict | None:
         """
         Select a single row from table.
 
@@ -39,7 +38,7 @@ class DatabaseClient(ABC):
         pass
 
     @abstractmethod
-    async def insert(self, table: str, data: Dict) -> Dict:
+    async def insert(self, table: str, data: dict) -> dict:
         """
         Insert a row into table.
 
@@ -53,7 +52,7 @@ class DatabaseClient(ABC):
         pass
 
     @abstractmethod
-    async def update(self, table: str, filters: Dict, data: Dict) -> Optional[Dict]:
+    async def update(self, table: str, filters: dict, data: dict) -> dict | None:
         """
         Update rows in table.
 
@@ -71,9 +70,9 @@ class DatabaseClient(ABC):
     async def upsert(
         self,
         table: str,
-        data: Dict,
-        conflict_target: Optional[str] = None,
-    ) -> Dict:
+        data: dict,
+        conflict_target: str | None = None,
+    ) -> dict:
         """
         Insert or update a row.
 
@@ -88,7 +87,7 @@ class DatabaseClient(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, table: str, filters: Dict) -> bool:
+    async def delete(self, table: str, filters: dict) -> bool:
         """
         Delete rows from table.
 

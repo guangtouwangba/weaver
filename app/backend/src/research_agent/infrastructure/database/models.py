@@ -1,14 +1,13 @@
 """SQLAlchemy ORM models."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     DateTime,
-    Float,
     ForeignKey,
     Integer,
     String,
@@ -33,25 +32,25 @@ class ProjectModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
 
     # Relationships
-    documents: Mapped[List["DocumentModel"]] = relationship(
+    documents: Mapped[list["DocumentModel"]] = relationship(
         "DocumentModel", back_populates="project", cascade="all, delete-orphan"
     )
     canvas: Mapped[Optional["CanvasModel"]] = relationship(
         "CanvasModel", back_populates="project", uselist=False, cascade="all, delete-orphan"
     )
-    chat_messages: Mapped[List["ChatMessageModel"]] = relationship(
+    chat_messages: Mapped[list["ChatMessageModel"]] = relationship(
         "ChatMessageModel", back_populates="project", cascade="all, delete-orphan"
     )
-    chat_memories: Mapped[List["ChatMemoryModel"]] = relationship(
+    chat_memories: Mapped[list["ChatMemoryModel"]] = relationship(
         "ChatMemoryModel", back_populates="project", cascade="all, delete-orphan"
     )
     chat_summary: Mapped[Optional["ChatSummaryModel"]] = relationship(
@@ -69,16 +68,16 @@ class DocumentModel(Base):
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False, default="application/pdf")
-    page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
     graph_status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
-    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -87,30 +86,30 @@ class DocumentModel(Base):
     )
 
     # Long context mode fields
-    full_content: Mapped[Optional[str]] = mapped_column(
+    full_content: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )  # Full document content for long context
-    content_token_count: Mapped[Optional[int]] = mapped_column(
+    content_token_count: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )  # Cached token count
-    parsing_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    parsing_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True
     )  # Parsing metadata (layout, tables, etc.)
 
     # Thumbnail fields for PDF preview
-    thumbnail_path: Mapped[Optional[str]] = mapped_column(
+    thumbnail_path: Mapped[str | None] = mapped_column(
         String(512), nullable=True
     )  # Path to generated thumbnail image
-    thumbnail_status: Mapped[Optional[str]] = mapped_column(
+    thumbnail_status: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )  # pending, processing, ready, error
 
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="documents")
-    highlights: Mapped[List["HighlightModel"]] = relationship(
+    highlights: Mapped[list["HighlightModel"]] = relationship(
         "HighlightModel", back_populates="document", cascade="all, delete-orphan"
     )
-    comments: Mapped[List["CommentModel"]] = relationship(
+    comments: Mapped[list["CommentModel"]] = relationship(
         "CommentModel", back_populates="document", cascade="all, delete-orphan"
     )
 
@@ -139,14 +138,14 @@ class ResourceChunkModel(Base):
         index=True,
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
-    chunk_metadata: Mapped[Dict[str, Any]] = mapped_column(
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
+    chunk_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSONB, server_default="{}", nullable=False
     )
-    content_tsvector: Mapped[Optional[Any]] = mapped_column(TSVECTOR, nullable=True)
+    content_tsvector: Mapped[Any | None] = mapped_column(TSVECTOR, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -162,7 +161,7 @@ class HighlightModel(Base):
         UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -172,9 +171,9 @@ class HighlightModel(Base):
     type: Mapped[str] = mapped_column(
         String(20), nullable=False, default="highlight"
     )  # highlight, underline, strike, pen, etc.
-    text_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Selected text
-    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    rects: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    text_content: Mapped[str | None] = mapped_column(Text, nullable=True)  # Selected text
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rects: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True
     )  # Store rect positions for rendering
     created_at: Mapped[datetime] = mapped_column(
@@ -198,18 +197,18 @@ class CommentModel(Base):
         UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    parent_id: Mapped[Optional[UUID]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    parent_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("comments.id", ondelete="CASCADE"), nullable=True
     )  # For threaded replies
-    page_number: Mapped[Optional[int]] = mapped_column(
+    page_number: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )  # Optional page anchor
-    highlight_id: Mapped[Optional[UUID]] = mapped_column(
+    highlight_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("highlights.id", ondelete="SET NULL"), nullable=True
     )  # Optional annotation anchor
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    author_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # For future auth
+    author_id: Mapped[str | None] = mapped_column(String(255), nullable=True)  # For future auth
     author_name: Mapped[str] = mapped_column(String(255), nullable=False, default="Anonymous")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -223,7 +222,7 @@ class CommentModel(Base):
     parent: Mapped[Optional["CommentModel"]] = relationship(
         "CommentModel", remote_side="CommentModel.id", back_populates="replies"
     )
-    replies: Mapped[List["CommentModel"]] = relationship(
+    replies: Mapped[list["CommentModel"]] = relationship(
         "CommentModel", back_populates="parent", cascade="all, delete-orphan"
     )
 
@@ -241,8 +240,8 @@ class CanvasModel(Base):
         unique=True,
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    data: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )  # Version for optimistic locking
@@ -267,12 +266,12 @@ class ChatMessageModel(Base):
         index=True,
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # 'user' or 'ai'
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    sources: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=True)
+    sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     # Context references for user messages: {url_ids: [], node_ids: [], nodes: []}
-    context_refs: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    context_refs: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -297,13 +296,13 @@ class ChatMemoryModel(Base):
         index=True,
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     # The content stores the formatted Q&A pair: "User: <question>\nAssistant: <answer>"
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # Vector embedding for semantic search (1536 dimensions for OpenAI embeddings)
-    embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1536), nullable=True)
     # Metadata for filtering and context (named memory_metadata to avoid SQLAlchemy reserved name)
-    memory_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    memory_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True, default=dict
     )
     # Timestamp for temporal ordering and decay
@@ -332,7 +331,7 @@ class ChatSummaryModel(Base):
         index=True,
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     # The summarized content of older conversation turns
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # Number of messages that have been summarized
@@ -353,12 +352,12 @@ class TaskQueueModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     task_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    payload: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # ✅ Environment isolation: tasks are only processed by workers in the same environment
     environment: Mapped[str] = mapped_column(
         String(50), nullable=False, default="development", index=True
@@ -366,8 +365,8 @@ class TaskQueueModel(Base):
     scheduled_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -380,25 +379,25 @@ class EvaluationLogModel(Base):
     __tablename__ = "evaluation_logs"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    project_id: Mapped[Optional[UUID]] = mapped_column(
+    project_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True
     )
 
     # Test case information
-    test_case_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    test_case_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
-    ground_truth: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ground_truth: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Retrieval information
-    chunking_strategy: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    retrieval_mode: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    retrieved_contexts: Mapped[List[str]] = mapped_column(JSONB, nullable=False, default=list)
+    chunking_strategy: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    retrieval_mode: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    retrieved_contexts: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     # Generation information
-    generated_answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    generated_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Evaluation metrics (Ragas)
-    metrics: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Metadata
     evaluation_type: Mapped[str] = mapped_column(String(50), nullable=False, default="realtime")
@@ -425,11 +424,11 @@ class GlobalSettingModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    value: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     category: Mapped[str] = mapped_column(
         String(100), nullable=False, index=True
     )  # model, api_key, rag_strategy, advanced
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -455,11 +454,11 @@ class ProjectSettingModel(Base):
         index=True,
     )
     key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    value: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     category: Mapped[str] = mapped_column(
         String(100), nullable=False
     )  # model, api_key, rag_strategy, advanced
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -492,11 +491,11 @@ class UserSettingModel(Base):
         index=True,
     )
     key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    value: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     category: Mapped[str] = mapped_column(
         String(100), nullable=False
     )  # model, api_key, rag_strategy, advanced
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -538,16 +537,16 @@ class PendingCleanupModel(Base):
     # Maximum retry attempts before giving up
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     # Last error message if cleanup failed
-    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     # When this cleanup was scheduled
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # When the last attempt was made
-    last_attempt_at: Mapped[Optional[datetime]] = mapped_column(
+    last_attempt_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     # Optional: reference to original document (for debugging)
-    document_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    project_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    document_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    project_id: Mapped[UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
 # =============================================================================
@@ -573,21 +572,21 @@ class OutputModel(Base):
         index=True,
     )
     # User ownership for multi-tenant isolation
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     # Output type: 'mindmap', 'summary', 'custom', etc.
     output_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     # Source document IDs that this output was generated from
-    source_ids: Mapped[List[UUID]] = mapped_column(
+    source_ids: Mapped[list[UUID]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), nullable=False, server_default="{}"
     )
     # Status: 'generating', 'complete', 'error', 'cancelled'
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="generating")
     # Optional title for the output
-    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Output data stored as JSONB (nodes, edges for mindmap, content for summary, etc.)
-    data: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     # Error message if generation failed
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -612,7 +611,7 @@ class TagModel(Base):
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     color: Mapped[str] = mapped_column(String(20), nullable=False, default="blue")
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -620,7 +619,7 @@ class TagModel(Base):
     __table_args__ = (UniqueConstraint("name", "user_id", name="uq_tags_name_user"),)
 
     # Relationships
-    inbox_items: Mapped[List["InboxItemModel"]] = relationship(
+    inbox_items: Mapped[list["InboxItemModel"]] = relationship(
         "InboxItemModel", secondary="inbox_item_tags", back_populates="tags"
     )
 
@@ -631,15 +630,15 @@ class InboxItemModel(Base):
     __tablename__ = "inbox_items"
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     type: Mapped[str] = mapped_column(String(50), nullable=False)  # link, pdf, note, video, article
-    source_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    thumbnail_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_type: Mapped[str] = mapped_column(
         String(50), nullable=False
     )  # extension, manual, upload
-    meta_data: Mapped[Dict[str, Any]] = mapped_column(
+    meta_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB, server_default="{}", nullable=False, default=dict
     )
     collected_at: Mapped[datetime] = mapped_column(
@@ -647,10 +646,10 @@ class InboxItemModel(Base):
     )
     is_read: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     is_processed: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Relationships
-    tags: Mapped[List["TagModel"]] = relationship(
+    tags: Mapped[list["TagModel"]] = relationship(
         "TagModel", secondary="inbox_item_tags", back_populates="inbox_items"
     )
 
@@ -682,14 +681,14 @@ class UrlContentModel(Base):
     content_type: Mapped[str] = mapped_column(String(50), nullable=False)  # video, article, link
 
     # Extracted content
-    title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    content: Mapped[Optional[str]] = mapped_column(
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )  # Article text or transcript
-    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    thumbnail_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Platform-specific metadata
-    meta_data: Mapped[Dict[str, Any]] = mapped_column(
+    meta_data: Mapped[dict[str, Any]] = mapped_column(
         JSONB, server_default="{}", nullable=False, default=dict
     )
 
@@ -697,7 +696,7 @@ class UrlContentModel(Base):
     status: Mapped[str] = mapped_column(
         String(20), server_default="pending", nullable=False
     )  # pending, processing, completed, failed
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -706,15 +705,15 @@ class UrlContentModel(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
-    extracted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    extracted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Project association (for studio sidebar persistence)
-    project_id: Mapped[Optional[UUID]] = mapped_column(
+    project_id: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
     # Optional: User ownership (for multi-tenant)
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class ApiKeyModel(Base):
@@ -726,9 +725,9 @@ class ApiKeyModel(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     key_prefix: Mapped[str] = mapped_column(String(10), nullable=False)
     key_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

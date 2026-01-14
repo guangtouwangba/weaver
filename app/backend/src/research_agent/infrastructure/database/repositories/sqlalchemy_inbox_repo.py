@@ -1,7 +1,6 @@
 """SQLAlchemy implementation of Inbox repository."""
 
-from datetime import datetime
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import desc, select
@@ -21,7 +20,7 @@ class SQLAlchemyInboxRepository:
         await self.session.refresh(item, attribute_names=["tags"])
         return item
 
-    async def get_by_id(self, item_id: UUID) -> Optional[InboxItemModel]:
+    async def get_by_id(self, item_id: UUID) -> InboxItemModel | None:
         stmt = (
             select(InboxItemModel)
             .where(InboxItemModel.id == item_id)
@@ -34,10 +33,10 @@ class SQLAlchemyInboxRepository:
         self,
         skip: int = 0,
         limit: int = 20,
-        is_processed: Optional[bool] = None,
-        item_type: Optional[str] = None,
-        tag_id: Optional[UUID] = None,
-        search_query: Optional[str] = None,
+        is_processed: bool | None = None,
+        item_type: str | None = None,
+        tag_id: UUID | None = None,
+        search_query: str | None = None,
     ) -> Sequence[InboxItemModel]:
         stmt = select(InboxItemModel).options(selectinload(InboxItemModel.tags))
 

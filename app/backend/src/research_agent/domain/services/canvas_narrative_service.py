@@ -5,7 +5,6 @@ This service acts as the "Writer" for the canvas, planning a logical path throug
 the knowledge graph and generating coherent reports.
 """
 
-from typing import Dict, List, Optional, Set
 
 from research_agent.domain.entities.canvas import CanvasEdge, CanvasNode
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
@@ -20,9 +19,9 @@ class CanvasNarrativeService:
 
     def plan_narrative_path(
         self,
-        nodes: List[CanvasNode],
-        edges: List[CanvasEdge],
-    ) -> List[CanvasNode]:
+        nodes: list[CanvasNode],
+        edges: list[CanvasEdge],
+    ) -> list[CanvasNode]:
         """
         Plan a reading order for the nodes using topological sort.
         Handles cycles by tracking visited nodes.
@@ -31,8 +30,8 @@ class CanvasNarrativeService:
             return []
 
         # 1. Build Adjacency List & In-Degree
-        adj: Dict[str, List[str]] = {n.id: [] for n in nodes}
-        in_degree: Dict[str, int] = {n.id: 0 for n in nodes}
+        adj: dict[str, list[str]] = {n.id: [] for n in nodes}
+        in_degree: dict[str, int] = {n.id: 0 for n in nodes}
         node_map = {n.id: n for n in nodes}
 
         # Only consider edges between selected nodes
@@ -77,8 +76,8 @@ class CanvasNarrativeService:
 
     async def generate_report(
         self,
-        ordered_nodes: List[CanvasNode],
-        edges: List[CanvasEdge],
+        ordered_nodes: list[CanvasNode],
+        edges: list[CanvasEdge],
         prompt_instruction: str = "Write a comprehensive summary report based on these notes.",
     ) -> str:
         """
@@ -96,7 +95,7 @@ class CanvasNarrativeService:
         # source -> [(target, relation_label?)]
         # Since CanvasEdge is minimal, we assume simple connection or check `label` if added later.
         # For now, just "connected to".
-        connections: Dict[str, List[str]] = {n.id: [] for n in ordered_nodes}
+        connections: dict[str, list[str]] = {n.id: [] for n in ordered_nodes}
         for edge in edges:
             if edge.source in valid_ids and edge.target in valid_ids:
                 target_title = node_map[edge.target].title
@@ -126,10 +125,10 @@ class CanvasNarrativeService:
 
         user_prompt = f"""
         {prompt_instruction}
-        
+
         Here are the research notes in logical order:
         {full_context}
-        
+
         Report:
         """
 

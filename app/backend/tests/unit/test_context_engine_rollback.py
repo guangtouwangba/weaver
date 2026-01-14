@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+
 from research_agent.application.use_cases.chat.context_engine import ContextEngine
 
 

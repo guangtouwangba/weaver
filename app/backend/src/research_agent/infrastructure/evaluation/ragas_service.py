@@ -1,7 +1,6 @@
 """Ragas evaluation service for real-time RAG quality assessment."""
 
 import asyncio
-from typing import Dict, List, Optional
 
 from datasets import Dataset
 from langchain_openai import ChatOpenAI
@@ -75,9 +74,9 @@ class RagasEvaluationService:
         self,
         question: str,
         answer: str,
-        contexts: List[str],
-        ground_truth: Optional[str] = None,
-    ) -> Dict[str, float]:
+        contexts: list[str],
+        ground_truth: str | None = None,
+    ) -> dict[str, float]:
         """
         Evaluate a single RAG query/answer pair.
 
@@ -153,11 +152,11 @@ class RagasEvaluationService:
 
     async def evaluate_batch(
         self,
-        questions: List[str],
-        answers: List[str],
-        contexts_list: List[List[str]],
-        ground_truths: Optional[List[str]] = None,
-    ) -> Dict[str, float]:
+        questions: list[str],
+        answers: list[str],
+        contexts_list: list[list[str]],
+        ground_truths: list[str] | None = None,
+    ) -> dict[str, float]:
         """
         Evaluate a batch of queries (for offline evaluation).
 

@@ -1,6 +1,5 @@
 """Integration tests for prompt migration to Jinja2 templates."""
 
-import pytest
 from research_agent.infrastructure.llm.prompts import render_prompt
 from research_agent.infrastructure.llm.prompts.rag_prompt import SYSTEM_PROMPT
 
@@ -17,7 +16,7 @@ class TestRagPromptMigration:
         new_prompt = render_prompt("rag/system.j2", memory_aware=False).strip()
 
         # Normalize whitespace for comparison
-        legacy_normalized = " ".join(legacy_prompt.split())
+        " ".join(legacy_prompt.split())
         new_normalized = " ".join(new_prompt.split())
 
         # Assert they are semantically similar (content matches)

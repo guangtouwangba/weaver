@@ -5,7 +5,7 @@ Defines the contract for settings persistence operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 
@@ -17,10 +17,10 @@ class SettingDTO:
         key: str,
         value: Any,
         category: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_encrypted: bool = False,
-        project_id: Optional[UUID] = None,
-        user_id: Optional[UUID] = None,
+        project_id: UUID | None = None,
+        user_id: UUID | None = None,
     ):
         self.key = key
         self.value = value
@@ -30,7 +30,7 @@ class SettingDTO:
         self.project_id = project_id
         self.user_id = user_id
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "key": self.key,
             "value": self.value,
@@ -54,7 +54,7 @@ class ISettingsRepository(ABC):
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    async def get_global_setting(self, key: str) -> Optional[SettingDTO]:
+    async def get_global_setting(self, key: str) -> SettingDTO | None:
         """
         Get a global setting by key.
 
@@ -67,7 +67,7 @@ class ISettingsRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_all_global_settings(self, category: Optional[str] = None) -> List[SettingDTO]:
+    async def get_all_global_settings(self, category: str | None = None) -> list[SettingDTO]:
         """
         Get all global settings, optionally filtered by category.
 
@@ -85,7 +85,7 @@ class ISettingsRepository(ABC):
         key: str,
         value: Any,
         category: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_encrypted: bool = False,
     ) -> SettingDTO:
         """
@@ -121,7 +121,7 @@ class ISettingsRepository(ABC):
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    async def get_project_setting(self, project_id: UUID, key: str) -> Optional[SettingDTO]:
+    async def get_project_setting(self, project_id: UUID, key: str) -> SettingDTO | None:
         """
         Get a project setting by project ID and key.
 
@@ -136,8 +136,8 @@ class ISettingsRepository(ABC):
 
     @abstractmethod
     async def get_all_project_settings(
-        self, project_id: UUID, category: Optional[str] = None
-    ) -> List[SettingDTO]:
+        self, project_id: UUID, category: str | None = None
+    ) -> list[SettingDTO]:
         """
         Get all settings for a project, optionally filtered by category.
 
@@ -157,7 +157,7 @@ class ISettingsRepository(ABC):
         key: str,
         value: Any,
         category: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_encrypted: bool = False,
     ) -> SettingDTO:
         """
@@ -196,8 +196,8 @@ class ISettingsRepository(ABC):
 
     @abstractmethod
     async def get_effective_setting(
-        self, key: str, project_id: Optional[UUID] = None
-    ) -> Optional[SettingDTO]:
+        self, key: str, project_id: UUID | None = None
+    ) -> SettingDTO | None:
         """
         Get the effective setting value with priority resolution.
 
@@ -214,8 +214,8 @@ class ISettingsRepository(ABC):
 
     @abstractmethod
     async def get_all_effective_settings(
-        self, project_id: Optional[UUID] = None, category: Optional[str] = None
-    ) -> List[SettingDTO]:
+        self, project_id: UUID | None = None, category: str | None = None
+    ) -> list[SettingDTO]:
         """
         Get all effective settings with priority resolution.
 
@@ -233,7 +233,7 @@ class ISettingsRepository(ABC):
     # -------------------------------------------------------------------------
 
     @abstractmethod
-    async def get_user_setting(self, user_id: UUID, key: str) -> Optional[SettingDTO]:
+    async def get_user_setting(self, user_id: UUID, key: str) -> SettingDTO | None:
         """
         Get a user setting by user ID and key.
 
@@ -248,8 +248,8 @@ class ISettingsRepository(ABC):
 
     @abstractmethod
     async def get_all_user_settings(
-        self, user_id: UUID, category: Optional[str] = None
-    ) -> List[SettingDTO]:
+        self, user_id: UUID, category: str | None = None
+    ) -> list[SettingDTO]:
         """
         Get all settings for a user, optionally filtered by category.
 
@@ -269,7 +269,7 @@ class ISettingsRepository(ABC):
         key: str,
         value: Any,
         category: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         is_encrypted: bool = False,
     ) -> SettingDTO:
         """

@@ -7,8 +7,6 @@ The encryption key should be stored in environment variable ENCRYPTION_KEY.
 
 import base64
 import os
-import secrets
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -22,7 +20,7 @@ class EncryptionService:
     Uses Fernet (AES 128-bit in CBC mode with HMAC-SHA256).
     """
 
-    def __init__(self, encryption_key: Optional[str] = None):
+    def __init__(self, encryption_key: str | None = None):
         """
         Initialize encryption service.
 
@@ -34,7 +32,7 @@ class EncryptionService:
         self._key = self._resolve_key(encryption_key)
         self._fernet = Fernet(self._key)
 
-    def _resolve_key(self, provided_key: Optional[str]) -> bytes:
+    def _resolve_key(self, provided_key: str | None) -> bytes:
         """Resolve the encryption key from various sources."""
         # Priority: provided_key > env var > generate new
         if provided_key:
@@ -141,7 +139,7 @@ class EncryptionService:
 
 
 # Singleton instance
-_encryption_service: Optional[EncryptionService] = None
+_encryption_service: EncryptionService | None = None
 
 
 def get_encryption_service() -> EncryptionService:

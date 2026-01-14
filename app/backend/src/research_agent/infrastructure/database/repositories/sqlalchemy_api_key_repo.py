@@ -1,7 +1,7 @@
 """SQLAlchemy implementation of API Key repository."""
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import select
@@ -20,12 +20,12 @@ class SQLAlchemyApiKeyRepository:
         await self.session.refresh(api_key)
         return api_key
 
-    async def get_by_hash(self, key_hash: str) -> Optional[ApiKeyModel]:
+    async def get_by_hash(self, key_hash: str) -> ApiKeyModel | None:
         stmt = select(ApiKeyModel).where(ApiKeyModel.key_hash == key_hash)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def get_valid_by_hash(self, key_hash: str) -> Optional[ApiKeyModel]:
+    async def get_valid_by_hash(self, key_hash: str) -> ApiKeyModel | None:
         stmt = select(ApiKeyModel).where(
             ApiKeyModel.key_hash == key_hash, ApiKeyModel.revoked_at.is_(None)
         )

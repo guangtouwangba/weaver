@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from typing import Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -85,7 +84,7 @@ class SafeLokiHandler(logging.Handler):
             self.handleError(record)
 
 
-def setup_logger(name: Optional[str] = None) -> logging.Logger:
+def setup_logger(name: str | None = None) -> logging.Logger:
     """Set up and return a logger instance with optional Loki handler."""
     settings = get_settings()
 

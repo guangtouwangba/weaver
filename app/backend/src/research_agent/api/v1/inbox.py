@@ -1,7 +1,6 @@
-from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.auth import get_api_key
@@ -10,9 +9,8 @@ from research_agent.application.dto.inbox import (
     InboxItemCreate,
     InboxItemListResponse,
     InboxItemResponse,
-    InboxItemUpdate,
 )
-from research_agent.infrastructure.database.models import InboxItemModel, ProjectModel, TagModel
+from research_agent.infrastructure.database.models import InboxItemModel
 from research_agent.infrastructure.database.repositories.sqlalchemy_inbox_repo import (
     SQLAlchemyInboxRepository,
 )
@@ -31,10 +29,10 @@ def get_repo(session: AsyncSession = Depends(get_db)) -> SQLAlchemyInboxReposito
 async def list_inbox_items(
     skip: int = 0,
     limit: int = 50,
-    is_processed: Optional[bool] = None,
-    type: Optional[str] = None,
-    tag_id: Optional[UUID] = None,
-    q: Optional[str] = None,
+    is_processed: bool | None = None,
+    type: str | None = None,
+    tag_id: UUID | None = None,
+    q: str | None = None,
     repo: SQLAlchemyInboxRepository = Depends(get_repo),
 ):
     """List inbox items with filtering."""
@@ -145,9 +143,9 @@ async def collect_item(
     return created_item
 
 
-@router.post("/collect/batch", response_model=List[InboxItemResponse], status_code=201)
+@router.post("/collect/batch", response_model=list[InboxItemResponse], status_code=201)
 async def batch_collect_items(
-    payloads: List[InboxItemCreate],
+    payloads: list[InboxItemCreate],
     api_key=Depends(get_api_key),
     repo: SQLAlchemyInboxRepository = Depends(get_repo),
     session: AsyncSession = Depends(get_db),

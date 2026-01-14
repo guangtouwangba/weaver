@@ -1,7 +1,6 @@
 """Document repository interface."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 from uuid import UUID
 
 from research_agent.domain.entities.document import Document
@@ -16,12 +15,12 @@ class DocumentRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_id(self, document_id: UUID) -> Optional[Document]:
+    async def find_by_id(self, document_id: UUID) -> Document | None:
         """Find document by ID."""
         pass
 
     @abstractmethod
-    async def find_by_project(self, project_id: UUID) -> List[Document]:
+    async def find_by_project(self, project_id: UUID) -> list[Document]:
         """Find all documents for a project."""
         pass
 

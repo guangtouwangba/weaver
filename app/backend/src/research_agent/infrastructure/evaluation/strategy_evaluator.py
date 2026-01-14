@@ -1,7 +1,6 @@
 """Strategy evaluator for comparing different chunking and retrieval strategies."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +11,8 @@ from research_agent.infrastructure.evaluation.evaluation_logger import Evaluatio
 from research_agent.infrastructure.evaluation.ragas_service import RagasEvaluationService
 from research_agent.infrastructure.evaluation.retrieval_metrics import (
     RetrievalMetrics,
-    RetrievalMetricsResult,
 )
-from research_agent.infrastructure.evaluation.test_dataset import TestCase, TestDataset
+from research_agent.infrastructure.evaluation.test_dataset import TestDataset
 from research_agent.infrastructure.vector_store.factory import get_vector_store
 from research_agent.infrastructure.vector_store.langchain_pgvector import create_pgvector_retriever
 from research_agent.shared.utils.logger import logger
@@ -41,7 +39,7 @@ class StrategyResult:
 
     # Additional info
     num_test_cases: int = 0
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
 
 class StrategyEvaluator:
@@ -220,7 +218,7 @@ class StrategyEvaluator:
     async def evaluate_all_strategies(
         self,
         project_id: UUID,
-    ) -> List[StrategyResult]:
+    ) -> list[StrategyResult]:
         """
         Evaluate all strategy combinations.
 
@@ -244,7 +242,7 @@ class StrategyEvaluator:
         return results
 
     @staticmethod
-    def print_comparison(results: List[StrategyResult]):
+    def print_comparison(results: list[StrategyResult]):
         """
         Print comparison table of all strategy results.
 
@@ -295,7 +293,7 @@ class StrategyEvaluator:
         print()
 
     @staticmethod
-    def export_to_csv(results: List[StrategyResult], file_path: str):
+    def export_to_csv(results: list[StrategyResult], file_path: str):
         """Export results to CSV file."""
         import csv
 

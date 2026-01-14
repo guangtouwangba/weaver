@@ -266,7 +266,7 @@ def receive_connect(dbapi_conn, connection_record):
 def receive_invalidate(dbapi_conn, connection_record, exception):
     """
     Log when a connection is invalidated.
-    
+
     Note: This is NORMAL behavior when pool_pre_ping=True detects a dead connection.
     The pool will automatically create a new connection. Only log as warning if
     it happens frequently or with specific error types.
@@ -274,7 +274,7 @@ def receive_invalidate(dbapi_conn, connection_record, exception):
     if exception:
         error_type = type(exception).__name__
         error_msg = str(exception)
-        
+
         # InvalidatePoolError is normal - connection was detected as dead by pre_ping
         # and will be replaced automatically. Only log at debug level.
         if "InvalidatePoolError" in error_type or "InvalidatePoolError" in error_msg:
@@ -324,7 +324,7 @@ async_session_maker = async_sessionmaker(
 async def init_db() -> None:
     """
     Initialize database connection with retry logic.
-    
+
     Note: This function will NOT raise exceptions on failure.
     The application will start even if the database is temporarily unavailable.
     Individual requests will fail gracefully until the database is available.
@@ -341,7 +341,7 @@ async def init_db() -> None:
                     await conn.run_sync(lambda _: None)
             logger.info("✅ Database connected successfully")
             return
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"⚠️  Database connection timeout on attempt {attempt}/{max_retries}")
             if attempt < max_retries:
                 logger.info(f"Retrying in {retry_delay} seconds...")
@@ -414,12 +414,12 @@ async def get_async_session(max_retries: int = 3):
     """
     session = None
     last_error = None
-    
+
     # Retry logic for session creation
     for attempt in range(1, max_retries + 1):
         try:
             session = async_session_maker()
-            
+
             # Test connection with a simple query
             # This ensures the connection is alive before we yield it
             try:
@@ -431,7 +431,7 @@ async def get_async_session(max_retries: int = 3):
                 except Exception:
                     pass
                 session = None
-                
+
                 # Check if this is a connection error that we should retry
                 error_str = str(conn_test_error)
                 if any(keyword in error_str for keyword in [
@@ -454,10 +454,10 @@ async def get_async_session(max_retries: int = 3):
                 else:
                     # Non-connection error, don't retry
                     raise conn_test_error
-            
+
             # Connection is good, break out of retry loop
             break
-            
+
         except Exception as e:
             if session:
                 try:
@@ -465,7 +465,7 @@ async def get_async_session(max_retries: int = 3):
                 except Exception:
                     pass
                 session = None
-            
+
             error_str = str(e)
             if any(keyword in error_str for keyword in [
                 "ConnectionDoesNotExistError",
@@ -487,7 +487,7 @@ async def get_async_session(max_retries: int = 3):
             else:
                 # Non-connection error, don't retry
                 raise
-    
+
     if session is None:
         if last_error:
             logger.error(f"❌ Failed to create database session after {max_retries} attempts: {last_error}")
@@ -511,7 +511,7 @@ async def get_async_session(max_retries: int = 3):
                 "connection was closed",
                 "connection closed",
             ]):
-                logger.warning(f"⚠️ Commit failed due to connection error, retrying commit...")
+                logger.warning("⚠️ Commit failed due to connection error, retrying commit...")
                 # Invalidate the connection and try again with a fresh session
                 try:
                     conn = await session.connection()
@@ -540,7 +540,7 @@ async def get_async_session(max_retries: int = 3):
                 pass
         else:
             logger.error(f"Session error, rolling back: {e}")
-        
+
         try:
             await session.rollback()
         except Exception as rollback_error:
@@ -592,12 +592,12 @@ async def get_session():
     session = None
     last_error = None
     max_retries = 3
-    
+
     # Retry logic for session creation
     for attempt in range(1, max_retries + 1):
         try:
             session = async_session_maker()
-            
+
             # Test connection with a simple query
             try:
                 await session.execute(text("SELECT 1"))
@@ -607,7 +607,7 @@ async def get_session():
                 except Exception:
                     pass
                 session = None
-                
+
                 error_str = str(conn_test_error)
                 if any(keyword in error_str for keyword in [
                     "ConnectionDoesNotExistError",
@@ -626,9 +626,9 @@ async def get_session():
                         break
                 else:
                     raise conn_test_error
-            
+
             break
-            
+
         except Exception as e:
             if session:
                 try:
@@ -636,7 +636,7 @@ async def get_session():
                 except Exception:
                     pass
                 session = None
-            
+
             error_str = str(e)
             if any(keyword in error_str for keyword in [
                 "ConnectionDoesNotExistError",
@@ -655,7 +655,7 @@ async def get_session():
                     break
             else:
                 raise
-    
+
     if session is None:
         if last_error:
             logger.error(f"❌ Failed to create database session after {max_retries} attempts: {last_error}")
@@ -677,7 +677,7 @@ async def get_session():
                 "connection was closed",
                 "connection closed",
             ]):
-                logger.warning(f"⚠️ Commit failed due to connection error, retrying...")
+                logger.warning("⚠️ Commit failed due to connection error, retrying...")
                 try:
                     conn = await session.connection()
                     conn.invalidate()
@@ -702,7 +702,7 @@ async def get_session():
                 pass
         else:
             logger.error(f"Session error, rolling back: {e}")
-        
+
         try:
             await session.rollback()
         except Exception as rollback_error:

@@ -13,8 +13,8 @@ from uuid import UUID
 
 async def main():
     from research_agent.infrastructure.database.session import get_async_session
-    from research_agent.worker.tasks.document_processor import DocumentProcessorTask
     from research_agent.shared.utils.logger import logger
+    from research_agent.worker.tasks.document_processor import DocumentProcessorTask
 
     document_id = UUID("0fb2e133-354c-4cec-9ae4-2bb96610fa3a")
     project_id = UUID("2d604d5f-93a4-4125-bca8-9daec9b24490")

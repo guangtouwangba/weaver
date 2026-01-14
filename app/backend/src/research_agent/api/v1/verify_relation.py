@@ -1,7 +1,6 @@
 """Verify relation API endpoints."""
 
 import json
-from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel

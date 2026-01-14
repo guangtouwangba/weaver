@@ -1,7 +1,7 @@
 """Task queue service for managing background jobs."""
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -28,10 +28,10 @@ class TaskQueueService:
     async def push(
         self,
         task_type: TaskType,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         priority: int = 0,
         max_attempts: int = 3,
-        environment: Optional[str] = None,
+        environment: str | None = None,
     ) -> Task:
         """
         Push a new task to the queue.
@@ -76,7 +76,7 @@ class TaskQueueService:
         )
         return task
 
-    async def pop(self, environment: Optional[str] = None) -> Optional[Task]:
+    async def pop(self, environment: str | None = None) -> Task | None:
         """
         Pop the next pending task from the queue.
 
@@ -168,7 +168,7 @@ class TaskQueueService:
 
         await self._session.flush()
 
-    async def get_by_id(self, task_id: UUID) -> Optional[Task]:
+    async def get_by_id(self, task_id: UUID) -> Task | None:
         """Get a task by ID."""
         stmt = select(TaskQueueModel).where(TaskQueueModel.id == task_id)
         result = await self._session.execute(stmt)
@@ -179,7 +179,7 @@ class TaskQueueService:
 
         return self._to_entity(model)
 
-    async def get_pending_count(self, environment: Optional[str] = None) -> int:
+    async def get_pending_count(self, environment: str | None = None) -> int:
         """Get the number of pending tasks in the current environment."""
         from sqlalchemy import func
 
@@ -198,8 +198,8 @@ class TaskQueueService:
         self,
         status: TaskStatus,
         limit: int = 100,
-        environment: Optional[str] = None,
-    ) -> List[Task]:
+        environment: str | None = None,
+    ) -> list[Task]:
         """Get tasks by status in the current environment."""
         task_environment = environment or settings.environment
 
@@ -215,7 +215,7 @@ class TaskQueueService:
 
         return [self._to_entity(m) for m in models]
 
-    async def recover_stuck_tasks(self, environment: Optional[str] = None) -> int:
+    async def recover_stuck_tasks(self, environment: str | None = None) -> int:
         """
         Recover tasks that were stuck in 'processing' state.
 

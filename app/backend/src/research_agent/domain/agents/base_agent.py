@@ -1,11 +1,11 @@
 """Base class for output generation agents."""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, AsyncIterator, Dict, List, Optional
-from uuid import UUID
+from typing import Any
 
 from research_agent.infrastructure.llm.base import LLMService
 from research_agent.infrastructure.llm.prompts import PromptLoader
@@ -40,34 +40,34 @@ class OutputEvent:
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
     # Node-related fields
-    node_id: Optional[str] = None
-    node_data: Optional[Dict[str, Any]] = None
+    node_id: str | None = None
+    node_data: dict[str, Any] | None = None
 
     # Edge-related fields
-    edge_id: Optional[str] = None
-    edge_data: Optional[Dict[str, Any]] = None
+    edge_id: str | None = None
+    edge_data: dict[str, Any] | None = None
 
     # Progress-related fields
-    progress: Optional[float] = None  # 0.0 - 1.0
-    current_level: Optional[int] = None
-    total_levels: Optional[int] = None
+    progress: float | None = None  # 0.0 - 1.0
+    current_level: int | None = None
+    total_levels: int | None = None
 
     # Token streaming
-    token: Optional[str] = None
+    token: str | None = None
 
     # Error-related fields
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     # Generic message
-    message: Optional[str] = None
+    message: str | None = None
 
     # Mindmap batch generation fields
-    markdown_content: Optional[str] = None  # Raw markdown for mindmap
-    document_id: Optional[str] = None  # For source reference linking
+    markdown_content: str | None = None  # Raw markdown for mindmap
+    document_id: str | None = None  # For source reference linking
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary for serialization."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "type": self.type.value,
             "timestamp": self.timestamp.isoformat(),
         }
@@ -140,7 +140,7 @@ class BaseOutputAgent(ABC):
     async def generate(
         self,
         document_content: str,
-        document_title: Optional[str] = None,
+        document_title: str | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -159,8 +159,8 @@ class BaseOutputAgent(ABC):
     async def expand_node(
         self,
         node_id: str,
-        node_data: Dict[str, Any],
-        existing_children: List[Dict[str, Any]],
+        node_data: dict[str, Any],
+        existing_children: list[dict[str, Any]],
         document_content: str,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -223,9 +223,9 @@ class BaseOutputAgent(ABC):
     def _emit_progress(
         self,
         progress: float,
-        current_level: Optional[int] = None,
-        total_levels: Optional[int] = None,
-        message: Optional[str] = None,
+        current_level: int | None = None,
+        total_levels: int | None = None,
+        message: str | None = None,
     ) -> OutputEvent:
         """Create a progress event."""
         return OutputEvent(
@@ -250,7 +250,7 @@ class BaseOutputAgent(ABC):
     def _emit_node_generating(
         self,
         node_id: str,
-        node_data: Dict[str, Any],
+        node_data: dict[str, Any],
     ) -> OutputEvent:
         """Create a node generating event."""
         return OutputEvent(
@@ -262,7 +262,7 @@ class BaseOutputAgent(ABC):
     def _emit_node_added(
         self,
         node_id: str,
-        node_data: Dict[str, Any],
+        node_data: dict[str, Any],
     ) -> OutputEvent:
         """Create a node added event."""
         return OutputEvent(
@@ -274,7 +274,7 @@ class BaseOutputAgent(ABC):
     def _emit_edge_added(
         self,
         edge_id: str,
-        edge_data: Dict[str, Any],
+        edge_data: dict[str, Any],
     ) -> OutputEvent:
         """Create an edge added event."""
         return OutputEvent(

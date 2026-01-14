@@ -6,7 +6,6 @@ PDF is NOT supported here - use PyMuPDF for PDF to avoid libGL/cv2 dependencies.
 
 import asyncio
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from research_agent.infrastructure.parser.base import (
     DocumentParser,
@@ -80,11 +79,11 @@ class UnstructuredParser(DocumentParser):
                 cause=e,
             )
 
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         """Return list of supported MIME types."""
         return self.SUPPORTED_MIME_TYPES.copy()
 
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """Return list of supported file extensions."""
         return self.SUPPORTED_EXTENSIONS.copy()
 
@@ -119,7 +118,7 @@ class UnstructuredParser(DocumentParser):
             )
 
             # Group elements by page
-            pages_dict: Dict[int, List[str]] = {}
+            pages_dict: dict[int, list[str]] = {}
             for element in elements:
                 # Get page number from metadata (default to 1)
                 page_num = 1

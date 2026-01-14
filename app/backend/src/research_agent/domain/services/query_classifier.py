@@ -12,7 +12,6 @@ Complexity Levels:
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional
 
 from research_agent.shared.utils.logger import logger
 
@@ -34,7 +33,7 @@ class QueryClassification:
     estimated_tokens_needed: int
     confidence: float
     reasoning: str
-    detected_patterns: List[str]
+    detected_patterns: list[str]
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -129,7 +128,7 @@ class QueryClassifierService:
     def classify(
         self,
         query: str,
-        chat_history: Optional[List[str]] = None,
+        chat_history: list[str] | None = None,
         document_count: int = 0,
     ) -> QueryClassification:
         """Classify a query by complexity.
@@ -143,8 +142,7 @@ class QueryClassifierService:
             QueryClassification with complexity and metadata
         """
         query = query.strip()
-        detected_patterns: List[str] = []
-        confidence = 0.8  # Base confidence
+        detected_patterns: list[str] = []
 
         # Check for greeting patterns (simple)
         if self._matches_any(query, self._greeting_patterns):
@@ -237,11 +235,11 @@ class QueryClassifierService:
             detected_patterns=detected_patterns,
         )
 
-    def _matches_any(self, text: str, patterns: List[re.Pattern]) -> bool:
+    def _matches_any(self, text: str, patterns: list[re.Pattern]) -> bool:
         """Check if text matches any of the patterns."""
         return any(p.search(text) for p in patterns)
 
-    def _count_matches(self, text: str, patterns: List[re.Pattern]) -> int:
+    def _count_matches(self, text: str, patterns: list[re.Pattern]) -> int:
         """Count how many patterns match the text."""
         return sum(1 for p in patterns if p.search(text))
 
@@ -251,7 +249,7 @@ class QueryClassifierService:
         requires_context: bool,
         confidence: float,
         reasoning: str,
-        detected_patterns: List[str],
+        detected_patterns: list[str],
     ) -> QueryClassification:
         """Create a classification result."""
         estimated_tokens = self.TOKEN_BUDGETS.get(complexity, -1)
@@ -287,7 +285,7 @@ class QueryClassifierService:
 
 
 # Singleton instance
-_classifier_instance: Optional[QueryClassifierService] = None
+_classifier_instance: QueryClassifierService | None = None
 
 
 def get_query_classifier() -> QueryClassifierService:

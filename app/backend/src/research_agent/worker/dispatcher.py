@@ -1,6 +1,5 @@
 """Task dispatcher for routing tasks to handlers."""
 
-from typing import Any, Dict, Type
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,9 +12,9 @@ class TaskDispatcher:
     """Dispatcher that routes tasks to appropriate handlers."""
 
     def __init__(self):
-        self._handlers: Dict[str, Type[BaseTask]] = {}
+        self._handlers: dict[str, type[BaseTask]] = {}
 
-    def register(self, task_type: TaskType, handler_class: Type[BaseTask]) -> None:
+    def register(self, task_type: TaskType, handler_class: type[BaseTask]) -> None:
         """
         Register a handler for a task type.
 

@@ -1,6 +1,6 @@
 """OpenRouter LLM service implementation."""
 
-from typing import AsyncIterator, List, Optional
+from collections.abc import AsyncIterator
 
 from langchain_openai import ChatOpenAI
 from openai import AsyncOpenAI
@@ -25,8 +25,8 @@ def create_langchain_llm(
     model: str = "openai/gpt-4o-mini",
     temperature: float = 0.0,
     streaming: bool = False,
-    site_url: Optional[str] = None,
-    site_name: Optional[str] = None,
+    site_url: str | None = None,
+    site_name: str | None = None,
 ) -> ChatOpenAI:
     """
     Create a LangChain ChatOpenAI instance configured for OpenRouter.
@@ -94,9 +94,9 @@ class OpenRouterLLMService(LLMService):
         self,
         api_key: str,
         model: str = "openai/gpt-4o-mini",
-        site_url: Optional[str] = None,
-        site_name: Optional[str] = None,
-        trace_name: Optional[str] = None,  # For Langfuse tracing
+        site_url: str | None = None,
+        site_name: str | None = None,
+        trace_name: str | None = None,  # For Langfuse tracing
     ):
         self._api_key = api_key
         self._model = model
@@ -122,25 +122,25 @@ class OpenRouterLLMService(LLMService):
 
     def _prepare_content_for_logging(self, content: str) -> str:
         """Prepare content for Langfuse logging based on configuration.
-        
+
         Args:
             content: The content to prepare for logging
-            
+
         Returns:
             Full content if langfuse_log_full_content is True,
             otherwise truncated content based on langfuse_max_content_length
         """
         settings = get_settings()
-        
+
         if settings.langfuse_log_full_content:
             return content
-        
+
         max_len = settings.langfuse_max_content_length
         if len(content) > max_len:
             return content[:max_len] + "..."
         return content
 
-    async def chat(self, messages: List[ChatMessage]) -> ChatResponse:
+    async def chat(self, messages: list[ChatMessage]) -> ChatResponse:
         """Send chat messages and get response with optional Langfuse tracing."""
         langfuse = _get_langfuse_client()
         generation = None
@@ -216,7 +216,7 @@ class OpenRouterLLMService(LLMService):
                     pass
             raise
 
-    async def chat_stream(self, messages: List[ChatMessage]) -> AsyncIterator[str]:
+    async def chat_stream(self, messages: list[ChatMessage]) -> AsyncIterator[str]:
         """Send chat messages and get streaming response."""
         stream = await self._client.chat.completions.create(
             model=self._model,

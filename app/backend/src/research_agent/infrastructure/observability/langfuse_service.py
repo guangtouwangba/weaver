@@ -9,7 +9,6 @@ Langfuse is an open-source LLM engineering platform that provides:
 See: https://langfuse.com/docs/integrations/langchain
 """
 
-from typing import Optional
 
 from langchain_core.callbacks import BaseCallbackHandler
 
@@ -17,7 +16,7 @@ from research_agent.config import get_settings
 from research_agent.shared.utils.logger import logger
 
 
-def create_langfuse_callback() -> Optional[BaseCallbackHandler]:
+def create_langfuse_callback() -> BaseCallbackHandler | None:
     """
     Create a Langfuse callback handler for LangChain integration.
 

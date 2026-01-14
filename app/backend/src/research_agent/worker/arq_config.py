@@ -4,7 +4,7 @@ ARQ is a lightweight async task queue built on Redis.
 This module configures the worker settings and task definitions.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from arq import cron
 from arq.connections import RedisSettings
@@ -49,7 +49,7 @@ def get_redis_settings() -> RedisSettings:
 # ARQ tasks are simple async functions that receive a context dict as first arg
 
 
-async def process_document(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
+async def process_document(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     """
     Process an uploaded document through the full pipeline.
 
@@ -115,7 +115,7 @@ async def process_document(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None
             raise  # Re-raise to let ARQ handle retry
 
 
-async def cleanup_files(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
+async def cleanup_files(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     """
     Clean up orphaned files from storage.
 
@@ -140,7 +140,7 @@ async def cleanup_files(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
             raise
 
 
-async def cleanup_canvas(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
+async def cleanup_canvas(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     """
     Clean up orphaned canvas nodes.
 
@@ -165,7 +165,7 @@ async def cleanup_canvas(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
             raise
 
 
-async def generate_thumbnail(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
+async def generate_thumbnail(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     """
     Generate PDF thumbnail image.
 
@@ -195,7 +195,7 @@ async def generate_thumbnail(ctx: Dict[str, Any], payload: Dict[str, Any]) -> No
             raise
 
 
-async def process_url(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
+async def process_url(ctx: dict[str, Any], payload: dict[str, Any]) -> None:
     """
     Extract content from a URL.
 
@@ -229,7 +229,7 @@ async def process_url(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
 # =============================================================================
 
 
-async def scheduled_cleanup(ctx: Dict[str, Any]) -> None:
+async def scheduled_cleanup(ctx: dict[str, Any]) -> None:
     """
     Scheduled task to clean up failed file cleanups.
     Runs every hour to retry any failed cleanup operations.
@@ -287,21 +287,21 @@ class WorkerSettings:
 
     # Logging
     @staticmethod
-    async def on_startup(ctx: Dict[str, Any]) -> None:
+    async def on_startup(ctx: dict[str, Any]) -> None:
         """Called when worker starts."""
         from research_agent.shared.utils.logger import logger
 
         logger.info(f"🚀 ARQ Worker started - environment={settings.environment}")
 
     @staticmethod
-    async def on_shutdown(ctx: Dict[str, Any]) -> None:
+    async def on_shutdown(ctx: dict[str, Any]) -> None:
         """Called when worker shuts down."""
         from research_agent.shared.utils.logger import logger
 
         logger.info("🛑 ARQ Worker shutting down")
 
     @staticmethod
-    async def on_job_start(ctx: Dict[str, Any]) -> None:
+    async def on_job_start(ctx: dict[str, Any]) -> None:
         """Called when a job starts."""
         from research_agent.shared.utils.logger import logger
 
@@ -309,7 +309,7 @@ class WorkerSettings:
         logger.debug(f"▶️  Job {job_id} starting")
 
     @staticmethod
-    async def on_job_end(ctx: Dict[str, Any]) -> None:
+    async def on_job_end(ctx: dict[str, Any]) -> None:
         """Called when a job ends."""
         from research_agent.shared.utils.logger import logger
 
@@ -338,9 +338,9 @@ async def get_redis_pool():
 
 async def enqueue_task(
     task_name: str,
-    payload: Dict[str, Any],
-    job_id: Optional[str] = None,
-    defer_by: Optional[int] = None,
+    payload: dict[str, Any],
+    job_id: str | None = None,
+    defer_by: int | None = None,
 ) -> str:
     """
     Enqueue a task to the Redis queue.

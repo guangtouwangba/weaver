@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of DocumentRepository."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -17,7 +16,7 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def save(self, document: Document, user_id: Optional[str] = None) -> Document:
+    async def save(self, document: Document, user_id: str | None = None) -> Document:
         """Save a document."""
         # Check if exists
         existing = await self._session.get(DocumentModel, document.id)
@@ -48,14 +47,14 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
         await self._session.flush()
         return document
 
-    async def find_by_id(self, document_id: UUID) -> Optional[Document]:
+    async def find_by_id(self, document_id: UUID) -> Document | None:
         """Find document by ID."""
         model = await self._session.get(DocumentModel, document_id)
         return self._to_entity(model) if model else None
 
     async def find_by_project(
-        self, project_id: UUID, user_id: Optional[str] = None
-    ) -> List[Document]:
+        self, project_id: UUID, user_id: str | None = None
+    ) -> list[Document]:
         """Find all documents for a project."""
         query = select(DocumentModel).where(DocumentModel.project_id == project_id)
         if user_id:

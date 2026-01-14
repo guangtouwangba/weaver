@@ -4,7 +4,7 @@ Hybrid Retrieval Strategy.
 Combines vector similarity search with keyword search for improved recall.
 """
 
-from typing import Any, List
+from typing import Any
 from uuid import UUID
 
 from langchain_core.documents import Document
@@ -127,10 +127,10 @@ class HybridRetrievalStrategy(IRetrievalStrategy):
     async def rerank(
         self,
         query: str,
-        documents: List[Document],
+        documents: list[Document],
         config: RetrievalConfig,
         **kwargs: Any,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """
         Rerank documents.
 

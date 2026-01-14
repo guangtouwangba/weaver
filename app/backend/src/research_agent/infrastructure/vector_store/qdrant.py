@@ -1,6 +1,6 @@
 """Qdrant vector store implementation."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from qdrant_client import AsyncQdrantClient
@@ -304,8 +304,8 @@ class QdrantVectorStore(VectorStore):
         project_id: UUID,
         chunk_index: int,
         content: str,
-        embedding: List[float],
-        metadata: Dict[str, Any],
+        embedding: list[float],
+        metadata: dict[str, Any],
     ) -> None:
         """Upsert a resource chunk with unified payload schema.
 
@@ -357,12 +357,12 @@ class QdrantVectorStore(VectorStore):
 
     async def search_resource_chunks(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         project_id: UUID,
         limit: int = 5,
-        resource_type: Optional[ResourceType] = None,
-        resource_id: Optional[UUID] = None,
-    ) -> List[ChunkSearchResult]:
+        resource_type: ResourceType | None = None,
+        resource_id: UUID | None = None,
+    ) -> list[ChunkSearchResult]:
         """Search for similar resource chunks with type filtering.
 
         Args:

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -14,8 +13,8 @@ class ApiKeyResponse(BaseModel):
     name: str
     key_prefix: str
     created_at: datetime
-    last_used_at: Optional[datetime] = None
-    revoked_at: Optional[datetime] = None
+    last_used_at: datetime | None = None
+    revoked_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -26,4 +25,4 @@ class ApiKeyGeneratedResponse(ApiKeyResponse):
 
 
 class ApiKeyListResponse(BaseModel):
-    items: List[ApiKeyResponse]
+    items: list[ApiKeyResponse]

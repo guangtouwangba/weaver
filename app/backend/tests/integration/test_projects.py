@@ -1,7 +1,7 @@
 """Integration tests for project operations."""
 
+
 import pytest
-import uuid
 from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,6 @@ async def test_create_project(client: AsyncClient, db_session: AsyncSession):
     # Note: SQLite storage of UUID might vary (hex vs string with dashes), so we check both or generic
     project_id = data['id']
     # Try querying with the ID as is (dashes) or without dashes
-    query_id = project_id
 
     # In the debug output we saw the DB has no dashes: '5894b1dea7c8481b93be12167b455cd1'
     # API returned: '5894b1de-a7c8-481b-93be-12167b455cd1'

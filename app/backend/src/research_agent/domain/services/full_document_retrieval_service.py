@@ -4,10 +4,9 @@ This service supports retrieving complete document content for the Mega-Prompt
 approach, with automatic context size management to prevent token overflow.
 """
 
-import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -49,11 +48,11 @@ class DocumentContent:
     full_content: str
     token_count: int
     page_count: int
-    summary: Optional[str] = None
-    parsing_metadata: Optional[Dict[str, Any]] = None
+    summary: str | None = None
+    parsing_metadata: dict[str, Any] | None = None
 
     @property
-    def page_map(self) -> List[Dict[str, Any]]:
+    def page_map(self) -> list[dict[str, Any]]:
         """Get page map from parsing metadata."""
         if self.parsing_metadata:
             return self.parsing_metadata.get("page_map", [])
@@ -64,12 +63,12 @@ class DocumentContent:
 class RetrievalResult:
     """Result of full document retrieval."""
 
-    documents: List[DocumentContent]
+    documents: list[DocumentContent]
     mode_used: RetrievalMode
     total_tokens: int
     was_truncated: bool = False
-    truncation_reason: Optional[str] = None
-    chunk_results: Optional[List[SearchResult]] = None  # Fallback chunk results
+    truncation_reason: str | None = None
+    chunk_results: list[SearchResult] | None = None  # Fallback chunk results
 
 
 class FullDocumentRetrievalService:
@@ -88,7 +87,7 @@ class FullDocumentRetrievalService:
         self,
         vector_store: VectorStore,
         embedding_service: EmbeddingService,
-        config: Optional[FullDocumentRetrievalConfig] = None,
+        config: FullDocumentRetrievalConfig | None = None,
     ):
         self.vector_store = vector_store
         self.embedding_service = embedding_service
@@ -101,8 +100,8 @@ class FullDocumentRetrievalService:
         query: str,
         project_id: UUID,
         session: AsyncSession,
-        mode: Optional[RetrievalMode] = None,
-        top_k: Optional[int] = None,
+        mode: RetrievalMode | None = None,
+        top_k: int | None = None,
     ) -> RetrievalResult:
         """
         Retrieve documents for RAG based on the specified mode.
@@ -198,7 +197,7 @@ class FullDocumentRetrievalService:
             chunk_results=chunk_results,
         )
 
-    async def _search_chunks(self, query: str, project_id: UUID, limit: int) -> List[SearchResult]:
+    async def _search_chunks(self, query: str, project_id: UUID, limit: int) -> list[SearchResult]:
         """Search for relevant chunks using vector store."""
         try:
             # Generate query embedding
@@ -221,7 +220,7 @@ class FullDocumentRetrievalService:
             logger.error(f"[FullDocRetrieval] Chunk search failed: {e}")
             return []
 
-    def _get_top_document_ids(self, chunk_results: List[SearchResult], top_k: int) -> List[UUID]:
+    def _get_top_document_ids(self, chunk_results: list[SearchResult], top_k: int) -> list[UUID]:
         """Extract top-K unique document IDs from chunk results, ordered by relevance."""
         seen = set()
         doc_ids = []
@@ -237,8 +236,8 @@ class FullDocumentRetrievalService:
         return doc_ids
 
     async def _fetch_documents(
-        self, doc_ids: List[UUID], session: AsyncSession
-    ) -> List[DocumentContent]:
+        self, doc_ids: list[UUID], session: AsyncSession
+    ) -> list[DocumentContent]:
         """Fetch full document content from database."""
         if not doc_ids:
             return []
@@ -275,9 +274,9 @@ class FullDocumentRetrievalService:
 
     async def _apply_degradation(
         self,
-        documents: List[DocumentContent],
-        chunk_results: List[SearchResult],
-    ) -> Tuple[List[DocumentContent], bool, str]:
+        documents: list[DocumentContent],
+        chunk_results: list[SearchResult],
+    ) -> tuple[list[DocumentContent], bool, str]:
         """
         Apply adaptive context degradation strategy.
 

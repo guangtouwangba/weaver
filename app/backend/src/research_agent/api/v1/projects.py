@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.api.auth.supabase import UserContext, get_current_user, get_optional_user
@@ -114,7 +114,7 @@ async def delete_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Create storage services
-    local_storage = LocalStorageService(settings.upload_dir)
+    LocalStorageService(settings.upload_dir)
 
     supabase_storage = None
     if settings.supabase_url and settings.supabase_service_role_key:

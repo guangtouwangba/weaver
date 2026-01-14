@@ -14,7 +14,6 @@ from research_agent.api.v1 import (
     settings,
     tags,
     url,
-    verify_relation,
 )
 
 api_router = APIRouter()

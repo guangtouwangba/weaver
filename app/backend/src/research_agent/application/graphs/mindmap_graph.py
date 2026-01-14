@@ -9,7 +9,8 @@ with a much simpler approach that leverages large context window LLMs.
 """
 
 import re
-from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict
+from collections.abc import Awaitable, Callable
+from typing import Any, TypedDict
 from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
@@ -43,16 +44,16 @@ class MindmapState(TypedDict):
     # Input
     document_content: str
     document_title: str
-    document_id: Optional[str]  # Document ID for source references
+    document_id: str | None  # Document ID for source references
     max_depth: int
     language: str  # "zh", "en", or "auto"
-    skills: List[Any]  # Available skills for the agent
+    skills: list[Any]  # Available skills for the agent
 
     # Output accumulation
     markdown_output: str  # Raw markdown from generation
-    nodes: Dict[str, Dict[str, Any]]  # node_id -> node_data
-    edges: List[Dict[str, Any]]  # edge data list
-    root_id: Optional[str]
+    nodes: dict[str, dict[str, Any]]  # node_id -> node_data
+    edges: list[dict[str, Any]]  # edge data list
+    root_id: str | None
 
     # Streaming callback (injected)
     emit_event: EventCallback
@@ -61,7 +62,7 @@ class MindmapState(TypedDict):
     llm_service: LLMService
 
     # Error handling
-    error: Optional[str]
+    error: str | None
 
 
 # =============================================================================
@@ -164,7 +165,7 @@ def _validate_marker_preservation(original: str, refined: str) -> tuple[bool, st
     )
 
 
-def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
+def _parse_source_marker(text: str) -> tuple[str, list[SourceRef]]:
     """Parse source markers from text and return (clean_text, source_refs).
 
     Supports multiple formats for compatibility:
@@ -173,7 +174,7 @@ def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
     - [TIME:MM:SS] or [TIME:HH:MM:SS] (source annotator format)
     - [MM:SS] or [HH:MM:SS] (LLM may output this format)
     """
-    source_refs: List[SourceRef] = []
+    source_refs: list[SourceRef] = []
 
     # Pattern for page markers: [PAGE:15], [PAGE:15-17], [Page 15], [Page 15-17]
     # Supports both [PAGE:X] and [Page X] formats
@@ -217,16 +218,16 @@ def _parse_source_marker(text: str) -> tuple[str, List[SourceRef]]:
 
 def _parse_markdown_to_nodes(
     markdown: str,
-    document_id: Optional[str] = None,
-) -> tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+    document_id: str | None = None,
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], str | None]:
     """Parse markdown outline to MindmapNode and MindmapEdge structures.
 
     Returns:
         Tuple of (nodes_dict, edges_list, root_id)
     """
-    nodes: Dict[str, Dict[str, Any]] = {}
-    edges: List[Dict[str, Any]] = []
-    root_id: Optional[str] = None
+    nodes: dict[str, dict[str, Any]] = {}
+    edges: list[dict[str, Any]] = []
+    root_id: str | None = None
 
     lines = markdown.strip().split("\n")
     logger.info(f"[_parse_markdown_to_nodes] Parsing {len(lines)} lines of markdown")
@@ -235,7 +236,7 @@ def _parse_markdown_to_nodes(
 
     # Stack to track parent nodes at each depth level
     # Each entry: (node_id, depth)
-    parent_stack: List[tuple[str, int]] = []
+    parent_stack: list[tuple[str, int]] = []
 
     # Track the depth of the most recent header to anchor bullet points
     # Start at -1 so top level bullets (if valid) start at 0
@@ -493,8 +494,8 @@ async def refine_output(state: MindmapState) -> MindmapState:
 
         if not is_valid:
             logger.warning(
-                f"[MindmapGraph] Source markers lost during refinement! "
-                f"Falling back to original content to preserve navigation functionality."
+                "[MindmapGraph] Source markers lost during refinement! "
+                "Falling back to original content to preserve navigation functionality."
             )
             # Use original content to preserve source markers
             refined = markdown

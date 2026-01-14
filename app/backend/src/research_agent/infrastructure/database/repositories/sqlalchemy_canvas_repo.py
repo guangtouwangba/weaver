@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of CanvasRepository."""
 
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -65,7 +64,7 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         return canvas
 
     async def save_with_version(
-        self, canvas: Canvas, expected_version: Optional[int] = None
+        self, canvas: Canvas, expected_version: int | None = None
     ) -> Canvas:
         """Save canvas data with version check (optimistic locking)."""
         # Use SELECT FOR UPDATE NOWAIT to lock the row without waiting
@@ -135,8 +134,8 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         return canvas
 
     async def find_by_project(
-        self, project_id: UUID, user_id: Optional[str] = None
-    ) -> Optional[Canvas]:
+        self, project_id: UUID, user_id: str | None = None
+    ) -> Canvas | None:
         """Find canvas by project ID."""
         query = select(CanvasModel).where(CanvasModel.project_id == project_id)
         if user_id:
@@ -166,7 +165,7 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
 
         return None
 
-    async def delete_by_project(self, project_id: UUID, user_id: Optional[str] = None) -> bool:
+    async def delete_by_project(self, project_id: UUID, user_id: str | None = None) -> bool:
         """Delete canvas for a project."""
         query = select(CanvasModel).where(CanvasModel.project_id == project_id)
         if user_id:

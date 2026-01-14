@@ -4,7 +4,6 @@ Falls back to Gemini audio transcription when no transcript is available.
 """
 
 import re
-from typing import List, Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
 from research_agent.infrastructure.url_extractor.handlers.youtube_retry import (
@@ -19,11 +18,11 @@ from research_agent.shared.utils.logger import logger
 
 class YouTubeExtractor(URLExtractor):
     """Extractor for YouTube videos.
-    
+
     Uses a two-stage transcript extraction:
     1. Try youtube-transcript-api for existing subtitles
     2. Fall back to Gemini audio transcription if no subtitles available
-    
+
     This ensures transcripts are extracted at upload time, avoiding
     repeated downloads during content generation.
     """
@@ -39,7 +38,7 @@ class YouTubeExtractor(URLExtractor):
                 return True
         return False
 
-    def _extract_video_id(self, url: str) -> Optional[str]:
+    def _extract_video_id(self, url: str) -> str | None:
         """Extract video ID from YouTube URL."""
         for pattern in PLATFORM_PATTERNS.get("youtube", []):
             match = re.search(pattern, url, re.IGNORECASE)
@@ -49,7 +48,7 @@ class YouTubeExtractor(URLExtractor):
 
     async def extract(self, url: str) -> ExtractionResult:
         """Extract transcript and metadata from YouTube video.
-        
+
         Extraction strategy:
         1. Get video metadata via oEmbed API
         2. Try to get transcript from YouTube's built-in subtitles
@@ -127,7 +126,7 @@ class YouTubeExtractor(URLExtractor):
                 title=f"YouTube Video ({video_id})",
             )
 
-    async def _get_transcript(self, video_id: str) -> tuple[Optional[str], bool]:
+    async def _get_transcript(self, video_id: str) -> tuple[str | None, bool]:
         """
         Get transcript for a YouTube video.
 
@@ -145,7 +144,7 @@ class YouTubeExtractor(URLExtractor):
         try:
             from youtube_transcript_api import YouTubeTranscriptApi
             from youtube_transcript_api._proxy_config import GenericProxyConfig
-            
+
             from research_agent.config import get_settings
 
             settings = get_settings()
@@ -153,7 +152,7 @@ class YouTubeExtractor(URLExtractor):
             # Configure proxy if available
             proxy_config = None
             if settings.youtube_proxy_url:
-                logger.info(f"[YouTubeExtractor] Using proxy for transcript API")
+                logger.info("[YouTubeExtractor] Using proxy for transcript API")
                 proxy_config = GenericProxyConfig(
                     http_proxy=settings.youtube_proxy_url,
                     https_proxy=settings.youtube_proxy_url,
@@ -169,13 +168,13 @@ class YouTubeExtractor(URLExtractor):
             try:
                 def fetch_transcript():
                     return ytt_api.fetch(video_id, languages=preferred_languages)
-                
+
                 result, success = await execute_youtube_api_call(
                     func=fetch_transcript,
                     operation_name=f"fetch transcript for {video_id}",
                     max_retries=2,
                 )
-                
+
                 if success and result:
                     # Convert FetchedTranscript to list of dicts
                     transcript_list = [
@@ -200,13 +199,13 @@ class YouTubeExtractor(URLExtractor):
             try:
                 def list_transcripts():
                     return ytt_api.list(video_id)
-                
+
                 transcript_list_obj, success = await execute_youtube_api_call(
                     func=list_transcripts,
                     operation_name=f"list transcripts for {video_id}",
                     max_retries=2,
                 )
-                
+
                 if not success or not transcript_list_obj:
                     return None, False
 
@@ -261,7 +260,7 @@ class YouTubeExtractor(URLExtractor):
         logger.warning(f"[YouTubeExtractor] No usable transcript found for {video_id}")
         return None, False
 
-    def _format_transcript(self, transcript_list: List[dict]) -> str:
+    def _format_transcript(self, transcript_list: list[dict]) -> str:
         """Format transcript segments into readable paragraphs with time markers.
 
         Adds [TIME:MM:SS] markers at the start of each paragraph to enable
@@ -322,7 +321,6 @@ class YouTubeExtractor(URLExtractor):
         Returns:
             Dict with title, channel_name, etc.
         """
-        import asyncio
 
         import httpx
 
@@ -342,16 +340,16 @@ class YouTubeExtractor(URLExtractor):
 
         return {}
 
-    async def _transcribe_with_gemini(self, video_id: str) -> Optional[str]:
+    async def _transcribe_with_gemini(self, video_id: str) -> str | None:
         """
         Transcribe video audio using Gemini when no YouTube subtitles are available.
-        
+
         This is called during URL extraction (upload time) to ensure transcripts
         are available immediately, avoiding repeated downloads during content generation.
-        
+
         Args:
             video_id: YouTube video ID
-            
+
         Returns:
             Transcript text with [TIME:MM:SS] markers, or None if transcription fails
         """
@@ -360,7 +358,7 @@ class YouTubeExtractor(URLExtractor):
             from research_agent.infrastructure.llm.gemini_audio import transcribe_youtube_video
 
             settings = get_settings()
-            
+
             # Check if OpenRouter API key is available
             if not settings.openrouter_api_key:
                 logger.warning(

@@ -1,7 +1,6 @@
 """Bilibili video content extractor."""
 
 import re
-from typing import Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
 from research_agent.infrastructure.url_extractor.utils import (
@@ -25,7 +24,7 @@ class BilibiliExtractor(URLExtractor):
                 return True
         return False
 
-    def _extract_video_id(self, url: str) -> Optional[str]:
+    def _extract_video_id(self, url: str) -> str | None:
         """Extract video ID (BV number) from Bilibili URL."""
         for pattern in PLATFORM_PATTERNS.get("bilibili", []):
             match = re.search(pattern, url, re.IGNORECASE)
@@ -101,9 +100,8 @@ class BilibiliExtractor(URLExtractor):
     async def _get_video_metadata(self, video_id: str) -> dict:
         """Get video metadata using bilibili-api-python."""
         try:
-            from bilibili_api import video
 
-            import asyncio
+            from bilibili_api import video
 
             v = video.Video(bvid=video_id)
             info = await v.get_info()
@@ -165,7 +163,7 @@ class BilibiliExtractor(URLExtractor):
 
         return {"success": False}
 
-    async def _get_subtitles(self, video_id: str) -> tuple[Optional[str], bool]:
+    async def _get_subtitles(self, video_id: str) -> tuple[str | None, bool]:
         """
         Try to get subtitles for a Bilibili video.
 

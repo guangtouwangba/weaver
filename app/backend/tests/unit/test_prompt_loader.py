@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+
 from research_agent.infrastructure.llm.prompts import (
     PromptLoader,
     PromptLoaderError,

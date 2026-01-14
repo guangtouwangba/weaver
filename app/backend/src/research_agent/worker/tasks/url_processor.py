@@ -1,7 +1,7 @@
 """URL content extraction task for ARQ worker."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from research_agent.config import get_settings
 from research_agent.domain.entities.resource import ResourceType
 from research_agent.domain.entities.resource_chunk import ResourceChunk
-from research_agent.infrastructure.database.models import UrlContentModel
 from research_agent.infrastructure.database.repositories.chunk_repo_factory import (
     get_chunk_repository,
 )
@@ -40,7 +39,7 @@ class URLProcessorTask(BaseTask):
     def task_type(self) -> str:
         return "process_url"
 
-    async def execute(self, payload: Dict[str, Any], session: AsyncSession) -> None:
+    async def execute(self, payload: dict[str, Any], session: AsyncSession) -> None:
         """
         Process URL extraction and embedding.
 
@@ -150,11 +149,11 @@ class URLProcessorTask(BaseTask):
         title: str,
         platform: str,
         content_type: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> None:
         """
         Chunk URL content and generate embeddings.
-        
+
         Args:
             url_content_id: UUID of the URL content record
             project_id: Project ID for chunk association
@@ -233,11 +232,11 @@ class URLProcessorTask(BaseTask):
         project_id: UUID,
         title: str,
         platform: str,
-        metadata: Dict[str, Any],
-    ) -> List[ResourceChunk]:
+        metadata: dict[str, Any],
+    ) -> list[ResourceChunk]:
         """
         Chunk content based on resource type.
-        
+
         For video/audio with timestamps, preserves time information.
         For articles/web pages, uses standard text chunking.
         """
@@ -277,12 +276,12 @@ class URLProcessorTask(BaseTask):
 
     def _chunk_with_timestamps(
         self,
-        segments: List[Dict[str, Any]],
+        segments: list[dict[str, Any]],
         resource_id: UUID,
         resource_type: ResourceType,
         project_id: UUID,
-        base_metadata: Dict[str, Any],
-    ) -> List[ResourceChunk]:
+        base_metadata: dict[str, Any],
+    ) -> list[ResourceChunk]:
         """Chunk transcript segments preserving timestamps."""
         chunks = []
         chunk_duration = 60.0  # seconds per chunk
@@ -347,7 +346,7 @@ class URLProcessorTask(BaseTask):
 
         return chunks
 
-    async def _save_chunks(self, chunks: List[ResourceChunk]) -> None:
+    async def _save_chunks(self, chunks: list[ResourceChunk]) -> None:
         """Save chunks using the chunk repository."""
         if not chunks:
             return

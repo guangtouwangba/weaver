@@ -58,9 +58,9 @@ class LLMConfig(BaseModel):
     # 1. User settings (DB) > 2. Project settings (DB) > 3. Global settings (DB) > 4. Environment (.env)
     model_name: str = Field(default="", description="LLM model identifier")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
-    api_base: Optional[str] = Field(default=None, description="Custom API base URL")
-    api_key: Optional[str] = Field(default=None, description="API key (if not using env var)")
+    max_tokens: int | None = Field(default=None, description="Maximum tokens to generate")
+    api_base: str | None = Field(default=None, description="Custom API base URL")
+    api_key: str | None = Field(default=None, description="API key (if not using env var)")
 
     class Config:
         frozen = True  # Immutable after creation
@@ -72,8 +72,8 @@ class EmbeddingConfig(BaseModel):
     model_name: str = Field(
         default="openai/text-embedding-3-small", description="Embedding model identifier"
     )
-    api_base: Optional[str] = Field(default=None, description="Custom API base URL")
-    api_key: Optional[str] = Field(default=None, description="API key (if not using env var)")
+    api_base: str | None = Field(default=None, description="Custom API base URL")
+    api_key: str | None = Field(default=None, description="API key (if not using env var)")
 
     class Config:
         frozen = True
@@ -104,7 +104,7 @@ class GenerationConfig(BaseModel):
         default="concise", description="Generation style: concise|detailed|structured"
     )
     max_length: int = Field(default=500, ge=50, le=4000, description="Max response length (tokens)")
-    system_prompt: Optional[str] = Field(default=None, description="Custom system prompt override")
+    system_prompt: str | None = Field(default=None, description="Custom system prompt override")
     citation_format: CitationFormat = Field(
         default=CitationFormat.BOTH, description="Citation format in responses"
     )

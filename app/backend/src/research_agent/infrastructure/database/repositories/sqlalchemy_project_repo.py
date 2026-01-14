@@ -1,9 +1,8 @@
 """SQLAlchemy implementation of ProjectRepository."""
 
-from typing import List, Optional, Sequence
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.domain.entities.project import Project
@@ -37,8 +36,8 @@ class SQLAlchemyProjectRepository(ProjectRepository):
         return project
 
     async def find_by_id(
-        self, project_id: UUID, user_id: Optional[str] = None
-    ) -> Optional[Project]:
+        self, project_id: UUID, user_id: str | None = None
+    ) -> Project | None:
         """Find project by ID, optionally filtered by user.
 
         Args:
@@ -58,7 +57,7 @@ class SQLAlchemyProjectRepository(ProjectRepository):
 
         return self._to_entity(model)
 
-    async def find_all(self, user_id: Optional[str] = None) -> List[Project]:
+    async def find_all(self, user_id: str | None = None) -> list[Project]:
         """Find all projects, optionally filtered by user.
 
         Args:
@@ -76,7 +75,7 @@ class SQLAlchemyProjectRepository(ProjectRepository):
         models = result.scalars().all()
         return [self._to_entity(m) for m in models]
 
-    async def delete(self, project_id: UUID, user_id: Optional[str] = None) -> bool:
+    async def delete(self, project_id: UUID, user_id: str | None = None) -> bool:
         """Delete a project.
 
         Args:

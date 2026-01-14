@@ -1,7 +1,5 @@
 """PostgreSQL direct database client implementation using asyncpg."""
 
-import asyncio
-from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 import asyncpg
@@ -13,7 +11,7 @@ from research_agent.shared.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def parse_database_url(url: str) -> Dict[str, str]:
+def parse_database_url(url: str) -> dict[str, str]:
     """
     Parse database URL into connection parameters.
 
@@ -59,7 +57,7 @@ class PostgresDatabaseClient(DatabaseClient):
         self.conn_params = parse_database_url(database_url)
         self.min_size = min_size
         self.max_size = max_size
-        self._pool: Optional[Pool] = None
+        self._pool: Pool | None = None
 
     async def _get_pool(self) -> Pool:
         """Get or create connection pool."""
@@ -79,7 +77,7 @@ class PostgresDatabaseClient(DatabaseClient):
             )
         return self._pool
 
-    def _build_where_clause(self, filters: Optional[Dict]) -> tuple[str, List]:
+    def _build_where_clause(self, filters: dict | None) -> tuple[str, list]:
         """Build WHERE clause and parameters from filters."""
         if not filters:
             return "", []
@@ -97,8 +95,8 @@ class PostgresDatabaseClient(DatabaseClient):
         return where_clause, values
 
     async def select(
-        self, table: str, filters: Optional[Dict] = None, limit: Optional[int] = None
-    ) -> List[Dict]:
+        self, table: str, filters: dict | None = None, limit: int | None = None
+    ) -> list[dict]:
         """Select rows from table."""
         pool = await self._get_pool()
 
@@ -111,12 +109,12 @@ class PostgresDatabaseClient(DatabaseClient):
             rows = await conn.fetch(query, *values)
             return [dict(row) for row in rows]
 
-    async def select_one(self, table: str, filters: Optional[Dict] = None) -> Optional[Dict]:
+    async def select_one(self, table: str, filters: dict | None = None) -> dict | None:
         """Select a single row from table."""
         results = await self.select(table, filters, limit=1)
         return results[0] if results else None
 
-    async def insert(self, table: str, data: Dict) -> Dict:
+    async def insert(self, table: str, data: dict) -> dict:
         """Insert a row into table."""
         pool = await self._get_pool()
 
@@ -134,7 +132,7 @@ class PostgresDatabaseClient(DatabaseClient):
             row = await conn.fetchrow(query, *values)
             return dict(row) if row else {}
 
-    async def update(self, table: str, filters: Dict, data: Dict) -> Optional[Dict]:
+    async def update(self, table: str, filters: dict, data: dict) -> dict | None:
         """Update rows in table."""
         pool = await self._get_pool()
 
@@ -168,9 +166,9 @@ class PostgresDatabaseClient(DatabaseClient):
     async def upsert(
         self,
         table: str,
-        data: Dict,
-        conflict_target: Optional[str] = None,
-    ) -> Dict:
+        data: dict,
+        conflict_target: str | None = None,
+    ) -> dict:
         """
         Insert or update a row.
 
@@ -203,7 +201,7 @@ class PostgresDatabaseClient(DatabaseClient):
             row = await conn.fetchrow(query, *values)
             return dict(row) if row else {}
 
-    async def delete(self, table: str, filters: Dict) -> bool:
+    async def delete(self, table: str, filters: dict) -> bool:
         """Delete rows from table."""
         pool = await self._get_pool()
 

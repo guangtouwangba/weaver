@@ -13,7 +13,6 @@ import socket
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
 
 from research_agent.config import get_settings
 from research_agent.infrastructure.parser.base import (
@@ -51,7 +50,7 @@ class PageResult:
     char_count: int
     api_duration: float
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 # Default OCR prompt following the blog's best practices
@@ -89,13 +88,13 @@ class GeminiParser(DocumentParser):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "gemini-2.0-flash",
         dpi: int = 300,
-        ocr_prompt: Optional[str] = None,
-        concurrency: Optional[int] = None,
-        request_timeout: Optional[int] = None,
-        connection_timeout: Optional[int] = None,
+        ocr_prompt: str | None = None,
+        concurrency: int | None = None,
+        request_timeout: int | None = None,
+        connection_timeout: int | None = None,
     ):
         """
         Initialize the Gemini parser.
@@ -156,7 +155,7 @@ class GeminiParser(DocumentParser):
                     "  - Set OCR_MODE=unstructured to use offline OCR instead\n"
                     "  - Contact your network administrator"
                 )
-        except socket.timeout:
+        except TimeoutError:
             raise DocumentParsingError(
                 f"Connection to Google Gemini API timed out after {self.connection_timeout}s. "
                 f"Cannot reach {GOOGLE_API_HOST}:{GOOGLE_API_PORT}.\n\n"
@@ -220,11 +219,11 @@ class GeminiParser(DocumentParser):
                 )
         return self._client
 
-    def supported_formats(self) -> List[str]:
+    def supported_formats(self) -> list[str]:
         """Return list of supported MIME types."""
         return self.SUPPORTED_MIME_TYPES.copy()
 
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """Return list of supported file extensions."""
         return self.SUPPORTED_EXTENSIONS.copy()
 
@@ -266,7 +265,7 @@ class GeminiParser(DocumentParser):
 
         total_start_time = time.time()
         filename = Path(file_path).name
-        settings = get_settings()
+        get_settings()
 
         logger.info(f"{'=' * 60}")
         logger.info(f"[GeminiOCR] Starting PARALLEL OCR for: {filename}")
@@ -380,7 +379,7 @@ class GeminiParser(DocumentParser):
 
         # Execute all tasks in parallel (limited by semaphore)
         ocr_start = time.time()
-        results: List[PageResult] = await asyncio.gather(*tasks)
+        results: list[PageResult] = await asyncio.gather(*tasks)
         ocr_duration = time.time() - ocr_start
 
         # Sort results by page number (they may complete out of order)
@@ -443,7 +442,7 @@ class GeminiParser(DocumentParser):
             logger.info(f"[GeminiOCR] 🎉 PARALLEL OCR COMPLETE for: {filename}")
 
         logger.info(f"[GeminiOCR] {'=' * 60}")
-        logger.info(f"[GeminiOCR] Summary:")
+        logger.info("[GeminiOCR] Summary:")
         logger.info(f"[GeminiOCR]   • Total pages: {page_count}")
         logger.info(f"[GeminiOCR]   • Successful: {successful_pages} | Failed: {failed_pages}")
         logger.info(f"[GeminiOCR]   • Total characters extracted: {total_chars:,}")

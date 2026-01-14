@@ -9,7 +9,6 @@ import base64
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from research_agent.shared.utils.logger import logger
 
@@ -19,9 +18,9 @@ class TranscriptionResult:
     """Result of audio transcription."""
 
     success: bool
-    transcript: Optional[str] = None  # Transcript with [TIME:MM:SS] markers
-    duration_seconds: Optional[float] = None
-    error: Optional[str] = None
+    transcript: str | None = None  # Transcript with [TIME:MM:SS] markers
+    duration_seconds: float | None = None
+    error: str | None = None
 
     @classmethod
     def failure(cls, error: str) -> "TranscriptionResult":
@@ -50,7 +49,7 @@ class GeminiAudioTranscriber:
     # Token rate: ~32 tokens per second of audio
     TOKENS_PER_SECOND = 32
 
-    def __init__(self, api_key: str, max_duration_minutes: Optional[int] = None):
+    def __init__(self, api_key: str, max_duration_minutes: int | None = None):
         """Initialize transcriber.
 
         Args:
@@ -119,7 +118,7 @@ class GeminiAudioTranscriber:
             # Cleanup temp file
             await self._cleanup(audio_path)
 
-    async def _download_audio(self, video_id: str) -> tuple[Optional[Path], Optional[float]]:
+    async def _download_audio(self, video_id: str) -> tuple[Path | None, float | None]:
         """Download audio from YouTube using yt-dlp.
 
         Returns:
@@ -175,11 +174,11 @@ class GeminiAudioTranscriber:
 
         # Add proxy if configured
         if settings.youtube_proxy_url:
-            logger.info(f"[GeminiTranscriber] Using proxy for yt-dlp")
+            logger.info("[GeminiTranscriber] Using proxy for yt-dlp")
             ydl_opts["proxy"] = settings.youtube_proxy_url
 
         # Add cookies if configured
-        cookie_temp_path: Optional[Path] = None
+        cookie_temp_path: Path | None = None
         try:
             if settings.youtube_cookies_path:
                 cookies_path = Path(settings.youtube_cookies_path)
@@ -242,7 +241,7 @@ class GeminiAudioTranscriber:
                         logger.info(f"[GeminiTranscriber] Downloaded: {file}, duration={duration}s")
                         return file, duration
 
-                logger.error(f"[GeminiTranscriber] Audio file not found after download")
+                logger.error("[GeminiTranscriber] Audio file not found after download")
                 return None, None
 
             except Exception as e:
@@ -257,7 +256,7 @@ class GeminiAudioTranscriber:
                 except Exception as e:
                     logger.warning(f"[GeminiTranscriber] Failed to cleanup temp cookie file: {e}")
 
-    async def _encode_audio(self, audio_path: Path) -> Optional[str]:
+    async def _encode_audio(self, audio_path: Path) -> str | None:
         """Read and base64 encode audio file."""
         try:
             loop = asyncio.get_event_loop()
@@ -279,8 +278,8 @@ class GeminiAudioTranscriber:
             return None
 
     async def _transcribe_with_gemini(
-        self, audio_base64: str, duration: Optional[float]
-    ) -> Optional[str]:
+        self, audio_base64: str, duration: float | None
+    ) -> str | None:
         """Send audio to Gemini for transcription via OpenRouter."""
         from openai import AsyncOpenAI
 
@@ -380,7 +379,7 @@ class GeminiAudioTranscriber:
 async def transcribe_youtube_video(
     video_id: str,
     api_key: str,
-    max_duration_minutes: Optional[int] = None,
+    max_duration_minutes: int | None = None,
 ) -> TranscriptionResult:
     """Convenience function to transcribe a YouTube video.
 

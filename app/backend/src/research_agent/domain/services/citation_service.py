@@ -1,9 +1,8 @@
 """Citation service for grounding references in long context mode."""
 
-import re
 import json
+import re
 from dataclasses import dataclass
-from typing import List, Optional
 from uuid import UUID
 
 from research_agent.shared.utils.logger import logger
@@ -17,8 +16,8 @@ class Citation:
     page_number: int
     char_start: int
     char_end: int
-    paragraph_index: Optional[int] = None
-    sentence_index: Optional[int] = None
+    paragraph_index: int | None = None
+    sentence_index: int | None = None
     snippet: str = ""  # Quoted text snippet
 
 
@@ -39,16 +38,16 @@ class CitationService:
         r"\[([a-f0-9\-]{36}):(\d+):(\d+):(\d+)\]", re.IGNORECASE
     )
 
-    def parse_citation_markers(self, text: str) -> List[CitationMarker]:
+    def parse_citation_markers(self, text: str) -> list[CitationMarker]:
         """
         Parse citation markers from LLM output.
-        
+
         Supports both inline format: [doc_id:page:start:end]
         and structured JSON format.
-        
+
         Args:
             text: LLM output text with citation markers
-        
+
         Returns:
             List of CitationMarker objects
         """
@@ -105,11 +104,11 @@ class CitationService:
     def format_citation(self, citation: Citation, format_type: str = "inline") -> str:
         """
         Format citation as string.
-        
+
         Args:
             citation: Citation object
             format_type: "inline" or "structured"
-        
+
         Returns:
             Formatted citation string
         """
@@ -132,16 +131,16 @@ class CitationService:
             return str(citation)
 
     async def validate_citation(
-        self, citation: Citation, document_id: UUID, max_char: Optional[int] = None
+        self, citation: Citation, document_id: UUID, max_char: int | None = None
     ) -> bool:
         """
         Validate citation against document.
-        
+
         Args:
             citation: Citation to validate
             document_id: Expected document ID
             max_char: Maximum character position in document (optional)
-        
+
         Returns:
             True if citation is valid
         """
@@ -171,18 +170,18 @@ class CitationService:
 
     def generate_citation_metadata(
         self, content: str, document_id: UUID, page_number: int = 0
-    ) -> List[Citation]:
+    ) -> list[Citation]:
         """
         Generate citation metadata for content.
-        
+
         This is a helper method that can be used to pre-generate citations
         during document processing.
-        
+
         Args:
             content: Document content
             document_id: Document ID
             page_number: Page number
-        
+
         Returns:
             List of Citation objects
         """

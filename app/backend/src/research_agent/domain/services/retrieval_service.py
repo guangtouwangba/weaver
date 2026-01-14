@@ -1,7 +1,6 @@
 """Retrieval service for unified resource chunks."""
 
 from dataclasses import dataclass
-from typing import List, Optional
 from uuid import UUID
 
 from research_agent.config import get_settings
@@ -32,7 +31,7 @@ class RetrievalConfig:
 
 class RetrievalService:
     """Service for retrieving relevant resource chunks.
-    
+
     This service supports unified retrieval across all resource types
     (documents, videos, web pages, notes) with optional type filtering.
     """
@@ -53,11 +52,11 @@ class RetrievalService:
         project_id: UUID,
         top_k: int | None = None,
         document_id: UUID | None = None,
-        resource_type: Optional[ResourceType] = None,
-        resource_id: Optional[UUID] = None,
-    ) -> List[SearchResult]:
+        resource_type: ResourceType | None = None,
+        resource_id: UUID | None = None,
+    ) -> list[SearchResult]:
         """Retrieve relevant chunks for a query.
-        
+
         Args:
             query: Search query text
             project_id: Project to search within
@@ -65,7 +64,7 @@ class RetrievalService:
             document_id: Legacy parameter - filter by document ID
             resource_type: Filter by resource type (document, video, etc.)
             resource_id: Filter by specific resource ID
-            
+
         Returns:
             List of SearchResult sorted by similarity
         """
@@ -104,7 +103,7 @@ class RetrievalService:
 
 class UnifiedRetrievalService:
     """Unified retrieval service using ChunkRepository.
-    
+
     This service uses the ChunkRepository interface for retrieval,
     supporting both pgvector and Qdrant backends with unified
     resource chunk storage.
@@ -125,18 +124,18 @@ class UnifiedRetrievalService:
         query: str,
         project_id: UUID,
         top_k: int | None = None,
-        resource_type: Optional[ResourceType] = None,
-        resource_id: Optional[UUID] = None,
-    ) -> List[ChunkSearchResult]:
+        resource_type: ResourceType | None = None,
+        resource_id: UUID | None = None,
+    ) -> list[ChunkSearchResult]:
         """Retrieve relevant chunks for a query.
-        
+
         Args:
             query: Search query text
             project_id: Project to search within
             top_k: Maximum number of results (overrides config)
             resource_type: Filter by resource type (document, video, etc.)
             resource_id: Filter by specific resource ID
-            
+
         Returns:
             List of ChunkSearchResult sorted by similarity
         """
@@ -174,19 +173,19 @@ class UnifiedRetrievalService:
         self,
         query: str,
         project_id: UUID,
-        resource_types: List[ResourceType],
+        resource_types: list[ResourceType],
         top_k: int | None = None,
-    ) -> List[ChunkSearchResult]:
+    ) -> list[ChunkSearchResult]:
         """Retrieve chunks from multiple resource types.
-        
+
         Useful for queries like "search in documents and videos".
-        
+
         Args:
             query: Search query text
             project_id: Project to search within
             resource_types: List of resource types to search
             top_k: Maximum number of results per type
-            
+
         Returns:
             Combined list of ChunkSearchResult sorted by similarity
         """
@@ -206,12 +205,12 @@ class UnifiedRetrievalService:
         all_results.sort(key=lambda r: r.similarity, reverse=True)
         return all_results[: top_k or self.config.top_k]
 
-    def format_context(self, results: List[ChunkSearchResult]) -> str:
+    def format_context(self, results: list[ChunkSearchResult]) -> str:
         """Format search results as context for LLM.
-        
+
         Args:
             results: List of search results
-            
+
         Returns:
             Formatted context string with source attribution
         """

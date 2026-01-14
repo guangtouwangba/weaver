@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -17,7 +16,7 @@ class PDFParser(ABC):
     """Abstract PDF parser interface."""
 
     @abstractmethod
-    async def extract_text(self, file_path: str) -> List[PDFPage]:
+    async def extract_text(self, file_path: str) -> list[PDFPage]:
         """Extract text from PDF file."""
         pass
 

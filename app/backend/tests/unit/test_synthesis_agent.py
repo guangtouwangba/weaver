@@ -4,6 +4,7 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
+
 from research_agent.domain.agents.base_agent import OutputEventType
 from research_agent.domain.agents.synthesis_agent import SynthesisAgent
 from research_agent.infrastructure.llm.base import ChatResponse

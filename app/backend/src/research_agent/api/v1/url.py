@@ -230,7 +230,7 @@ async def list_project_url_contents(
     await verify_project_ownership(project_id, user.user_id, session)
 
     items = await repo.list_by_project(project_id, skip=skip, limit=limit)
-    
+
     return URLContentListResponse(
         items=[URLExtractResponse.model_validate(item) for item in items],
         total=len(items),

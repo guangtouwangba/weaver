@@ -2,7 +2,6 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 from uuid import UUID
 
 from research_agent.domain.repositories.project_repo import ProjectRepository
@@ -30,10 +29,10 @@ class DeleteProjectUseCase:
     """Use case for deleting a project."""
 
     def __init__(
-        self, 
+        self,
         project_repo: ProjectRepository,
-        storage_service: Optional[StorageService] = None,
-        supabase_storage_service: Optional[object] = None,
+        storage_service: StorageService | None = None,
+        supabase_storage_service: object | None = None,
     ):
         self._project_repo = project_repo
         self._storage_service = storage_service

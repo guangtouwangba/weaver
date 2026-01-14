@@ -1,8 +1,8 @@
+# ruff: noqa: N815
 """Canvas DTOs for API requests/responses."""
 
 from datetime import datetime
-from typing import Any, Optional
-from uuid import UUID
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -12,7 +12,7 @@ class CanvasNodeDTO(BaseModel):
 
     id: str
     type: str = "card"
-    subType: Optional[str] = None  # 'source' for PDF documents
+    subType: str | None = None  # 'source' for PDF documents
     title: str = ""
     content: str = ""
     x: float = 0
@@ -21,26 +21,26 @@ class CanvasNodeDTO(BaseModel):
     height: float = 150
     color: str = "default"
     tags: list[str] = []
-    sourceId: Optional[str] = None
-    sourcePage: Optional[int] = None
-    fileMetadata: Optional[dict[str, Any]] = None  # Metadata including thumbnail URL
+    sourceId: str | None = None
+    sourcePage: int | None = None
+    fileMetadata: dict[str, Any] | None = None  # Metadata including thumbnail URL
     # New fields for view system
     viewType: str = "free"  # 'free' | 'thinking'
-    sectionId: Optional[str] = None
-    promotedFrom: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    sectionId: str | None = None
+    promotedFrom: str | None = None
+    createdAt: str | None = None
+    updatedAt: str | None = None
 
 
 class CanvasEdgeDTO(BaseModel):
     """Canvas edge DTO."""
 
-    id: Optional[str] = None
+    id: str | None = None
     source: str
     target: str
-    relationType: Optional[str] = None  # 'structural', 'supports', 'contradicts', 'correlates'
-    label: Optional[str] = None
-    metadata: Optional[dict[str, Any]] = None
+    relationType: str | None = None  # 'structural', 'supports', 'contradicts', 'correlates'
+    label: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class CanvasViewportDTO(BaseModel):
@@ -61,12 +61,12 @@ class CanvasSectionDTO(BaseModel):
     nodeIds: list[str] = []
     x: float = 0
     y: float = 0
-    width: Optional[float] = None
-    height: Optional[float] = None
-    conversationId: Optional[str] = None
-    question: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    width: float | None = None
+    height: float | None = None
+    conversationId: str | None = None
+    question: str | None = None
+    createdAt: str | None = None
+    updatedAt: str | None = None
 
 
 class CanvasViewStateDTO(BaseModel):
@@ -96,8 +96,8 @@ class CanvasDataResponse(BaseModel):
     sections: list[CanvasSectionDTO] = []
     viewport: CanvasViewportDTO  # Legacy: for backward compatibility
     viewStates: dict[str, CanvasViewStateDTO] = {}  # Key: 'free' | 'thinking'
-    updated_at: Optional[datetime] = None
-    version: Optional[int] = None  # Canvas version for optimistic locking
+    updated_at: datetime | None = None
+    version: int | None = None  # Canvas version for optimistic locking
 
 
 class CanvasSaveResponse(BaseModel):
@@ -120,38 +120,38 @@ class CreateCanvasNodeRequest(BaseModel):
     height: float = 150
     color: str = "default"
     tags: list[str] = []
-    sourceId: Optional[str] = None
-    sourcePage: Optional[int] = None
-    fileMetadata: Optional[dict[str, Any]] = None
+    sourceId: str | None = None
+    sourcePage: int | None = None
+    fileMetadata: dict[str, Any] | None = None
     viewType: str = "free"  # 'free' | 'thinking'
-    sectionId: Optional[str] = None
-    promotedFrom: Optional[str] = None
+    sectionId: str | None = None
+    promotedFrom: str | None = None
 
 
 class UpdateCanvasNodeRequest(BaseModel):
     """Request DTO for updating a canvas node."""
 
-    type: Optional[str] = None
-    title: Optional[str] = None
-    content: Optional[str] = None
-    x: Optional[float] = None
-    y: Optional[float] = None
-    width: Optional[float] = None
-    height: Optional[float] = None
-    color: Optional[str] = None
-    tags: Optional[list[str]] = None
-    sourceId: Optional[str] = None
-    sourcePage: Optional[int] = None
-    fileMetadata: Optional[dict[str, Any]] = None
-    viewType: Optional[str] = None
-    sectionId: Optional[str] = None
-    promotedFrom: Optional[str] = None
+    type: str | None = None
+    title: str | None = None
+    content: str | None = None
+    x: float | None = None
+    y: float | None = None
+    width: float | None = None
+    height: float | None = None
+    color: str | None = None
+    tags: list[str] | None = None
+    sourceId: str | None = None
+    sourcePage: int | None = None
+    fileMetadata: dict[str, Any] | None = None
+    viewType: str | None = None
+    sectionId: str | None = None
+    promotedFrom: str | None = None
 
 
 class CanvasNodeOperationResponse(BaseModel):
     """Response DTO for canvas node operations."""
 
     success: bool
-    nodeId: Optional[str] = None
+    nodeId: str | None = None
     updated_at: datetime
     version: int  # Canvas version after operation

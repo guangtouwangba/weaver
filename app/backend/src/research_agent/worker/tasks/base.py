@@ -1,7 +1,7 @@
 """Base task interface."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,14 +16,14 @@ class BaseTask(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, payload: Dict[str, Any], session: AsyncSession) -> None:
+    async def execute(self, payload: dict[str, Any], session: AsyncSession) -> None:
         """
         Execute the task.
-        
+
         Args:
             payload: Task-specific data
             session: Database session for the task
-            
+
         Raises:
             Exception: If task execution fails
         """

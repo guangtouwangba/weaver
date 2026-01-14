@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -38,11 +38,11 @@ class CanvasNodeUpdate:
 
     node_id: str
     event_type: CanvasEventType
-    node_data: Optional[Dict[str, Any]] = None
-    message_ids: Optional[List[str]] = None  # Linked chat message IDs
-    analysis_status: Optional[str] = None  # "pending" | "analyzed" | "error"
+    node_data: dict[str, Any] | None = None
+    message_ids: list[str] | None = None  # Linked chat message IDs
+    analysis_status: str | None = None  # "pending" | "analyzed" | "error"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {
             "type": self.event_type.value,
@@ -66,9 +66,9 @@ class CanvasEdgeUpdate:
     event_type: CanvasEventType
     source_id: str
     target_id: str
-    edge_data: Optional[Dict[str, Any]] = None
+    edge_data: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {
             "type": self.event_type.value,
@@ -96,7 +96,7 @@ class CanvasNotificationService:
 
     def __init__(self):
         # Map: project_id -> Set[WebSocket]
-        self._project_connections: Dict[str, Set[WebSocket]] = {}
+        self._project_connections: dict[str, set[WebSocket]] = {}
         # Lock for thread-safe connection management
         self._lock = asyncio.Lock()
 
@@ -144,8 +144,8 @@ class CanvasNotificationService:
     async def _broadcast(
         self,
         project_id: str,
-        message: Dict[str, Any],
-        exclude_websocket: Optional[WebSocket] = None,
+        message: dict[str, Any],
+        exclude_websocket: WebSocket | None = None,
     ) -> int:
         """
         Broadcast a message to all clients connected to a project.
@@ -163,7 +163,7 @@ class CanvasNotificationService:
         async with self._lock:
             connections = self._project_connections.get(project_id, set()).copy()
 
-        disconnected: Set[WebSocket] = set()
+        disconnected: set[WebSocket] = set()
         for websocket in connections:
             if exclude_websocket and websocket == exclude_websocket:
                 continue
@@ -187,10 +187,10 @@ class CanvasNotificationService:
         self,
         project_id: str,
         node_id: str,
-        node_data: Dict[str, Any],
-        message_ids: Optional[List[str]] = None,
+        node_data: dict[str, Any],
+        message_ids: list[str] | None = None,
         analysis_status: str = "pending",
-        exclude_websocket: Optional[WebSocket] = None,
+        exclude_websocket: WebSocket | None = None,
     ) -> int:
         """
         Notify clients that a new node was added.
@@ -222,10 +222,10 @@ class CanvasNotificationService:
         self,
         project_id: str,
         node_id: str,
-        node_data: Dict[str, Any],
-        message_ids: Optional[List[str]] = None,
-        analysis_status: Optional[str] = None,
-        exclude_websocket: Optional[WebSocket] = None,
+        node_data: dict[str, Any],
+        message_ids: list[str] | None = None,
+        analysis_status: str | None = None,
+        exclude_websocket: WebSocket | None = None,
     ) -> int:
         """
         Notify clients that a node was updated.
@@ -246,7 +246,7 @@ class CanvasNotificationService:
         self,
         project_id: str,
         node_id: str,
-        exclude_websocket: Optional[WebSocket] = None,
+        exclude_websocket: WebSocket | None = None,
     ) -> int:
         """
         Notify clients that a node was deleted.
@@ -266,8 +266,8 @@ class CanvasNotificationService:
         edge_id: str,
         source_id: str,
         target_id: str,
-        edge_data: Optional[Dict[str, Any]] = None,
-        exclude_websocket: Optional[WebSocket] = None,
+        edge_data: dict[str, Any] | None = None,
+        exclude_websocket: WebSocket | None = None,
     ) -> int:
         """
         Notify clients that a new edge was added.
@@ -287,9 +287,9 @@ class CanvasNotificationService:
     async def notify_batch_update(
         self,
         project_id: str,
-        nodes: List[Dict[str, Any]],
-        edges: List[Dict[str, Any]],
-        sections: Optional[List[Dict[str, Any]]] = None,
+        nodes: list[dict[str, Any]],
+        edges: list[dict[str, Any]],
+        sections: list[dict[str, Any]] | None = None,
     ) -> int:
         """
         Send a batch update with multiple nodes/edges.
@@ -314,7 +314,7 @@ class CanvasNotificationService:
     @property
     def connection_count(self) -> int:
         """Get total number of active connections."""
-        all_connections: Set[WebSocket] = set()
+        all_connections: set[WebSocket] = set()
         for conns in self._project_connections.values():
             all_connections.update(conns)
         return len(all_connections)

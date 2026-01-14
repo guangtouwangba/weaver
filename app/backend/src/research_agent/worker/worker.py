@@ -1,12 +1,11 @@
 """Background worker that processes tasks from the queue."""
 
 import asyncio
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from research_agent.domain.entities.task import TaskStatus
 from research_agent.shared.utils.logger import logger
 from research_agent.worker.dispatcher import TaskDispatcher
 from research_agent.worker.service import TaskQueueService
@@ -42,7 +41,7 @@ class BackgroundWorker:
         self._max_concurrent_tasks = max_concurrent_tasks
         self._running = False
         self._current_tasks: set = set()
-        self._shutdown_event: Optional[asyncio.Event] = None
+        self._shutdown_event: asyncio.Event | None = None
         self._connection_error_count = 0
         self._max_connection_error_backoff = 60.0  # Max 60 seconds between retries
 
@@ -140,7 +139,7 @@ class BackgroundWorker:
                 await asyncio.wait_for(self._shutdown_event.wait(), timeout=wait_time)
                 # Shutdown was signaled
                 break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Normal timeout, continue polling
                 pass
 
@@ -164,7 +163,7 @@ class BackgroundWorker:
                 await asyncio.wait_for(
                     asyncio.gather(*self._current_tasks, return_exceptions=True), timeout=30.0
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Timeout waiting for tasks, some tasks may be interrupted")
 
     async def _recover_stuck_tasks(self) -> None:
@@ -207,10 +206,10 @@ class BackgroundWorker:
                         task_future = asyncio.create_task(task_coro)
                         self._current_tasks.add(task_future)
                         task_future.add_done_callback(self._current_tasks.discard)
-                
+
                 # Success, break out of retry loop
                 break
-                
+
             except (OperationalError, ConnectionError, TimeoutError, OSError) as e:
                 error_str = str(e)
                 # Check if this is a connection error that we should retry

@@ -61,14 +61,13 @@ async def run_async_migrations() -> None:
 
     # Check if using Transaction Mode (port 6543) or connection pooler
     database_url = settings.database_url
-    is_using_pooler = "pooler" in database_url
     is_transaction_mode = ":6543/" in database_url
 
     # Always disable prepared statements for asyncpg to be compatible with
     # pgbouncer, supabase pooler, and other connection poolers
     connect_args["statement_cache_size"] = 0
     connect_args["prepared_statement_cache_size"] = 0
-    
+
     # ✅ Increased timeouts for cloud databases (Zeabur internal DB may have latency)
     connect_args["timeout"] = 60  # Connection timeout: 60 seconds
     connect_args["command_timeout"] = 120  # Command timeout: 2 minutes (for large migrations)
@@ -91,7 +90,7 @@ async def run_async_migrations() -> None:
     # Retry logic for connection failures
     max_retries = 3
     retry_delay = 3  # seconds
-    
+
     for attempt in range(1, max_retries + 1):
         try:
             connectable = async_engine_from_config(
@@ -106,8 +105,8 @@ async def run_async_migrations() -> None:
 
             await connectable.dispose()
             return  # Success, exit retry loop
-            
-        except (TimeoutError, asyncio.TimeoutError) as e:
+
+        except TimeoutError as e:
             if attempt < max_retries:
                 print(f"⚠️  Migration connection timeout (attempt {attempt}/{max_retries}): {e}")
                 print(f"   Retrying in {retry_delay} seconds...")

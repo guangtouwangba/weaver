@@ -4,7 +4,8 @@ Basic Generation Strategy.
 Standard RAG generation using retrieved context chunks.
 """
 
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -163,7 +164,7 @@ Use the following context to answer the question. Be clear and organized.""",
         Yields:
             Generated tokens
         """
-        logger.info(f"[BasicGeneration] Streaming response...")
+        logger.info("[BasicGeneration] Streaming response...")
 
         llm = self._get_llm(llm_config)
         system_prompt = self._get_system_prompt(config)

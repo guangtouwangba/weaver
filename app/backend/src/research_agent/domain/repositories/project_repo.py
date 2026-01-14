@@ -1,7 +1,6 @@
 """Project repository interface."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 from uuid import UUID
 
 from research_agent.domain.entities.project import Project
@@ -16,12 +15,12 @@ class ProjectRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_id(self, project_id: UUID) -> Optional[Project]:
+    async def find_by_id(self, project_id: UUID) -> Project | None:
         """Find project by ID."""
         pass
 
     @abstractmethod
-    async def find_all(self) -> List[Project]:
+    async def find_all(self) -> list[Project]:
         """Find all projects."""
         pass
 

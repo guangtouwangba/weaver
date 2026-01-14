@@ -4,7 +4,7 @@ This task is designed to be run periodically (e.g., via cron or scheduled task)
 to clean up files that failed to delete during the async deletion process.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,7 +28,7 @@ class FileCleanupTask(BaseTask):
     def task_type(self) -> str:
         return "file_cleanup"
 
-    async def execute(self, payload: Dict[str, Any], session: AsyncSession) -> None:
+    async def execute(self, payload: dict[str, Any], session: AsyncSession) -> None:
         """
         Execute the file cleanup task.
 

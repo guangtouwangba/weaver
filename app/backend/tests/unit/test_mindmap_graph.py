@@ -4,15 +4,13 @@ Tests the core parsing and extraction functions used in the 2-phase
 direct generation algorithm.
 """
 
-import pytest
 import re
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any
 from uuid import uuid4
 
 # Import directly from the module to avoid circular import issues
 # that occur when going through __init__.py
 from research_agent.domain.entities.output import MindmapEdge, MindmapNode, SourceRef
-
 
 # Re-implement the helper functions here for testing isolation
 # This avoids the circular import while testing the logic
@@ -47,10 +45,10 @@ def _extract_content(text: str) -> str:
     return text
 
 
-def _parse_source_marker(text: str) -> Tuple[str, List[SourceRef]]:
+def _parse_source_marker(text: str) -> tuple[str, list[SourceRef]]:
     """Parse source markers from text and return (clean_text, source_refs)."""
-    source_refs: List[SourceRef] = []
-    
+    source_refs: list[SourceRef] = []
+
     # Pattern for page markers: [Page 15] or [Page 15-17]
     page_pattern = r'\[Page\s*(\d+)(?:\s*-\s*(\d+))?\]'
     page_matches = re.findall(page_pattern, text, re.IGNORECASE)
@@ -63,7 +61,7 @@ def _parse_source_marker(text: str) -> Tuple[str, List[SourceRef]]:
             location=f"Page {page_start}" if page_start == page_end else f"Page {page_start}-{page_end}",
             quote="",
         ))
-    
+
     # Pattern for time markers: [12:30] or [1:23:45]
     time_pattern = r'\[(\d{1,2}:\d{2}(?::\d{2})?)\]'
     time_matches = re.findall(time_pattern, text)
@@ -74,12 +72,12 @@ def _parse_source_marker(text: str) -> Tuple[str, List[SourceRef]]:
             location=timestamp,
             quote="",
         ))
-    
+
     # Remove markers from text
     clean_text = re.sub(page_pattern, '', text, flags=re.IGNORECASE)
     clean_text = re.sub(time_pattern, '', clean_text)
     clean_text = clean_text.strip()
-    
+
     return clean_text, source_refs
 
 
@@ -89,32 +87,32 @@ NODE_HEIGHT = 80
 
 def _parse_markdown_to_nodes(
     markdown: str,
-    document_id: Optional[str] = None,
-) -> Tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+    document_id: str | None = None,
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], str | None]:
     """Parse markdown outline to MindmapNode and MindmapEdge structures."""
-    nodes: Dict[str, Dict[str, Any]] = {}
-    edges: List[Dict[str, Any]] = []
-    root_id: Optional[str] = None
-    
+    nodes: dict[str, dict[str, Any]] = {}
+    edges: list[dict[str, Any]] = []
+    root_id: str | None = None
+
     lines = markdown.strip().split('\n')
     if not lines:
         return nodes, edges, root_id
-    
-    parent_stack: List[Tuple[str, int]] = []
-    
+
+    parent_stack: list[tuple[str, int]] = []
+
     for line in lines:
         if not line.strip():
             continue
-        
+
         if line.startswith('#'):
             heading_match = re.match(r'^#+\s*(.+)$', line)
             if heading_match:
                 label = heading_match.group(1).strip()
                 clean_label, source_refs = _parse_source_marker(label)
-                
+
                 for ref in source_refs:
                     ref.source_id = document_id or ""
-                
+
                 node_id = f"node-{uuid4().hex[:8]}"
                 node = MindmapNode(
                     id=node_id,
@@ -134,23 +132,23 @@ def _parse_markdown_to_nodes(
                 root_id = node_id
                 parent_stack = [(node_id, -1)]
             continue
-        
+
         bullet_match = re.match(r'^(\s*)-\s*(.+)$', line)
         if bullet_match:
             indent = len(bullet_match.group(1))
             label = bullet_match.group(2).strip()
             clean_label, source_refs = _parse_source_marker(label)
-            
+
             for ref in source_refs:
                 ref.source_id = document_id or ""
-            
+
             depth = (indent // 2) + 1
-            
+
             while parent_stack and parent_stack[-1][1] >= indent:
                 parent_stack.pop()
-            
+
             parent_id = parent_stack[-1][0] if parent_stack else root_id
-            
+
             node_id = f"node-{uuid4().hex[:8]}"
             node = MindmapNode(
                 id=node_id,
@@ -167,14 +165,14 @@ def _parse_markdown_to_nodes(
                 source_refs=source_refs,
             )
             nodes[node_id] = node.to_dict()
-            
+
             if parent_id:
                 edge_id = f"edge-{parent_id}-{node_id}"
                 edge = MindmapEdge(id=edge_id, source=parent_id, target=node_id)
                 edges.append(edge.to_dict())
-            
+
             parent_stack.append((node_id, indent))
-    
+
     return nodes, edges, root_id
 
 
@@ -219,7 +217,7 @@ class TestParseSourceMarker:
         """Should extract [Page X] markers."""
         text = "Investment principles [Page 15]"
         clean, refs = _parse_source_marker(text)
-        
+
         assert clean == "Investment principles"
         assert len(refs) == 1
         assert refs[0].source_type == "document"
@@ -229,7 +227,7 @@ class TestParseSourceMarker:
         """Should extract [Page X-Y] markers."""
         text = "Core concepts [Page 15-17]"
         clean, refs = _parse_source_marker(text)
-        
+
         assert clean == "Core concepts"
         assert len(refs) == 1
         assert refs[0].location == "Page 15-17"
@@ -238,7 +236,7 @@ class TestParseSourceMarker:
         """Should extract [MM:SS] markers."""
         text = "Discussion topic [12:30]"
         clean, refs = _parse_source_marker(text)
-        
+
         assert clean == "Discussion topic"
         assert len(refs) == 1
         assert refs[0].source_type == "video"
@@ -248,7 +246,7 @@ class TestParseSourceMarker:
         """Should extract [HH:MM:SS] markers."""
         text = "Long discussion [1:23:45]"
         clean, refs = _parse_source_marker(text)
-        
+
         assert clean == "Long discussion"
         assert len(refs) == 1
         assert refs[0].location == "1:23:45"
@@ -257,7 +255,7 @@ class TestParseSourceMarker:
         """Should handle text without markers."""
         text = "Plain text without markers"
         clean, refs = _parse_source_marker(text)
-        
+
         assert clean == "Plain text without markers"
         assert len(refs) == 0
 
@@ -265,7 +263,7 @@ class TestParseSourceMarker:
         """Should extract multiple markers."""
         text = "Content [Page 5] and video [10:30]"
         clean, refs = _parse_source_marker(text)
-        
+
         # Clean text has markers removed (may have extra spaces)
         assert "Content" in clean
         assert "video" in clean
@@ -284,11 +282,11 @@ class TestParseMarkdownToNodes:
 - Branch 2
 """
         nodes, edges, root_id = _parse_markdown_to_nodes(markdown)
-        
+
         assert root_id is not None
         assert len(nodes) == 3  # 1 root + 2 branches
         assert len(edges) == 2  # 2 edges from root to branches
-        
+
         # Check root node
         root = nodes[root_id]
         assert root["label"] == "Root Title"
@@ -302,10 +300,10 @@ class TestParseMarkdownToNodes:
     - Level 3
 """
         nodes, edges, root_id = _parse_markdown_to_nodes(markdown)
-        
+
         assert len(nodes) == 4
         assert len(edges) == 3
-        
+
         # Check depths
         depths = {n["label"]: n["depth"] for n in nodes.values()}
         assert depths["Root"] == 0
@@ -323,17 +321,17 @@ class TestParseMarkdownToNodes:
   - Sub B1
 """
         nodes, edges, root_id = _parse_markdown_to_nodes(markdown)
-        
+
         assert len(nodes) == 6  # 1 root + 2 branches + 3 subs
-        
+
         # Check structure
         root = nodes[root_id]
         assert root["label"] == "Topic"
-        
+
         # Find Branch A and B
         branch_a = next((n for n in nodes.values() if n["label"] == "Branch A"), None)
         branch_b = next((n for n in nodes.values() if n["label"] == "Branch B"), None)
-        
+
         assert branch_a is not None
         assert branch_b is not None
         assert branch_a["parentId"] == root_id
@@ -346,10 +344,10 @@ class TestParseMarkdownToNodes:
 - Case study [10:30]
 """
         nodes, edges, root_id = _parse_markdown_to_nodes(markdown, document_id="doc-123")
-        
+
         # Find the node with page reference
         page_node = next(
-            (n for n in nodes.values() if "Core principles" in n["label"]), 
+            (n for n in nodes.values() if "Core principles" in n["label"]),
             None
         )
         assert page_node is not None
@@ -364,7 +362,7 @@ class TestParseMarkdownToNodes:
   - Level 2
 """
         nodes, edges, root_id = _parse_markdown_to_nodes(markdown)
-        
+
         colors = {n["depth"]: n["color"] for n in nodes.values()}
         assert colors[0] == "primary"  # Root
         assert colors[1] == "blue"  # Level 1

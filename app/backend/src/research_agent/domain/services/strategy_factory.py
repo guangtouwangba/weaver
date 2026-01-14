@@ -7,7 +7,8 @@ Uses a registry pattern to map strategy names to implementation classes.
 This keeps the RAG graph decoupled from specific strategy implementations.
 """
 
-from typing import Any, Callable, Dict, Optional, Type
+from collections.abc import Callable
+from typing import Any
 
 from research_agent.domain.entities.config import RetrievalStrategyType
 from research_agent.domain.strategies.base import (
@@ -40,14 +41,14 @@ class StrategyFactory:
     """
 
     # Strategy registries
-    _retrieval_strategies: Dict[str, Type[IRetrievalStrategy]] = {}
-    _generation_strategies: Dict[str, Type[IGenerationStrategy]] = {}
-    _query_transform_strategies: Dict[str, Type[IQueryTransformStrategy]] = {}
-    _intent_classifiers: Dict[str, Type[IIntentClassificationStrategy]] = {}
+    _retrieval_strategies: dict[str, type[IRetrievalStrategy]] = {}
+    _generation_strategies: dict[str, type[IGenerationStrategy]] = {}
+    _query_transform_strategies: dict[str, type[IQueryTransformStrategy]] = {}
+    _intent_classifiers: dict[str, type[IIntentClassificationStrategy]] = {}
 
     # Factory functions for strategies that need complex initialization
-    _retrieval_factories: Dict[str, Callable[..., IRetrievalStrategy]] = {}
-    _generation_factories: Dict[str, Callable[..., IGenerationStrategy]] = {}
+    _retrieval_factories: dict[str, Callable[..., IRetrievalStrategy]] = {}
+    _generation_factories: dict[str, Callable[..., IGenerationStrategy]] = {}
 
     # -----------------------------------------------------------------------------
     # Registration Methods
@@ -57,8 +58,8 @@ class StrategyFactory:
     def register_retrieval(
         cls,
         name: str,
-        strategy_class: Optional[Type[IRetrievalStrategy]] = None,
-        factory: Optional[Callable[..., IRetrievalStrategy]] = None,
+        strategy_class: type[IRetrievalStrategy] | None = None,
+        factory: Callable[..., IRetrievalStrategy] | None = None,
     ) -> None:
         """
         Register a retrieval strategy.
@@ -78,8 +79,8 @@ class StrategyFactory:
     def register_generation(
         cls,
         name: str,
-        strategy_class: Optional[Type[IGenerationStrategy]] = None,
-        factory: Optional[Callable[..., IGenerationStrategy]] = None,
+        strategy_class: type[IGenerationStrategy] | None = None,
+        factory: Callable[..., IGenerationStrategy] | None = None,
     ) -> None:
         """Register a generation strategy."""
         if strategy_class:
@@ -92,7 +93,7 @@ class StrategyFactory:
     def register_query_transform(
         cls,
         name: str,
-        strategy_class: Type[IQueryTransformStrategy],
+        strategy_class: type[IQueryTransformStrategy],
     ) -> None:
         """Register a query transformation strategy."""
         cls._query_transform_strategies[name] = strategy_class
@@ -102,7 +103,7 @@ class StrategyFactory:
     def register_intent_classifier(
         cls,
         name: str,
-        strategy_class: Type[IIntentClassificationStrategy],
+        strategy_class: type[IIntentClassificationStrategy],
     ) -> None:
         """Register an intent classification strategy."""
         cls._intent_classifiers[name] = strategy_class
@@ -148,8 +149,8 @@ class StrategyFactory:
         if not available:
             # No strategies registered - provide helpful message
             raise ValueError(
-                f"No retrieval strategies registered. "
-                f"Call 'register_default_strategies()' or register strategies manually."
+                "No retrieval strategies registered. "
+                "Call 'register_default_strategies()' or register strategies manually."
             )
 
         raise ValueError(f"Unknown retrieval strategy: {strategy_name}. Available: {available}")
@@ -182,8 +183,8 @@ class StrategyFactory:
 
         if not available:
             raise ValueError(
-                f"No generation strategies registered. "
-                f"Call 'register_default_strategies()' or register strategies manually."
+                "No generation strategies registered. "
+                "Call 'register_default_strategies()' or register strategies manually."
             )
 
         raise ValueError(f"Unknown generation strategy: {name}. Available: {available}")

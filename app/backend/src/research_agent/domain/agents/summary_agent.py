@@ -1,7 +1,8 @@
 """Summary generation agent."""
 
 import json
-from typing import Any, AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from typing import Any
 
 from research_agent.domain.agents.base_agent import BaseOutputAgent, OutputEvent, OutputEventType
 from research_agent.domain.entities.output import KeyFinding, SummaryData
@@ -51,7 +52,7 @@ class SummaryAgent(BaseOutputAgent):
     async def generate(
         self,
         document_content: str,
-        document_title: Optional[str] = None,
+        document_title: str | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[OutputEvent]:
         """
@@ -126,7 +127,7 @@ class SummaryAgent(BaseOutputAgent):
         self,
         response: str,
         document_title: str,
-    ) -> Optional[SummaryData]:
+    ) -> SummaryData | None:
         """
         Parse the LLM response into SummaryData.
 

@@ -8,17 +8,16 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir / "src"))
 
-from alembic import command
-from alembic.config import Config
+from alembic.config import Config  # noqa: E402
 
 # Load alembic config
 alembic_ini = backend_dir / "alembic.ini"
 config = Config(str(alembic_ini))
 
 # Get current head revision
-from alembic.script import ScriptDirectory
+from alembic.script import ScriptDirectory  # noqa: E402
+
 script = ScriptDirectory.from_config(config)
 head = script.get_current_head()
 
 print(head if head else "")
-

@@ -11,8 +11,9 @@ Design Pattern: Strategy Pattern
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, List, Optional
+from typing import Any
 from uuid import UUID
 
 from langchain_core.documents import Document
@@ -32,11 +33,11 @@ from research_agent.domain.entities.config import (
 class RetrievalResult:
     """Result from a retrieval strategy."""
 
-    documents: List[Document]
+    documents: list[Document]
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # Additional context for long-context mode
-    long_context_content: Optional[str] = None
+    long_context_content: str | None = None
 
     # Strategy info for debugging/logging
     strategy_name: str = "unknown"
@@ -55,18 +56,18 @@ class GenerationResult:
     """Result from a generation strategy."""
 
     content: str
-    citations: List[dict[str, Any]] = field(default_factory=list)
+    citations: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # Token usage (if available)
-    prompt_tokens: Optional[int] = None
-    completion_tokens: Optional[int] = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
 
     # Strategy info
     strategy_name: str = "unknown"
 
     @property
-    def total_tokens(self) -> Optional[int]:
+    def total_tokens(self) -> int | None:
         if self.prompt_tokens is not None and self.completion_tokens is not None:
             return self.prompt_tokens + self.completion_tokens
         return None
@@ -122,10 +123,10 @@ class IRetrievalStrategy(ABC):
     async def rerank(
         self,
         query: str,
-        documents: List[Document],
+        documents: list[Document],
         config: RetrievalConfig,
         **kwargs: Any,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """
         Optional: Rerank retrieved documents.
 
@@ -220,8 +221,8 @@ class IQueryTransformStrategy(ABC):
     async def transform(
         self,
         query: str,
-        chat_history: Optional[List[tuple[str, str]]] = None,
-        llm_config: Optional[LLMConfig] = None,
+        chat_history: list[tuple[str, str]] | None = None,
+        llm_config: LLMConfig | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -262,7 +263,7 @@ class IIntentClassificationStrategy(ABC):
     async def classify(
         self,
         query: str,
-        llm_config: Optional[LLMConfig] = None,
+        llm_config: LLMConfig | None = None,
         **kwargs: Any,
     ) -> tuple[str, float]:
         """

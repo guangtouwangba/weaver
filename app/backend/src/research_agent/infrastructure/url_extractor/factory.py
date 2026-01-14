@@ -1,6 +1,5 @@
 """Factory for creating URL extractors."""
 
-from typing import List, Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
 from research_agent.infrastructure.url_extractor.handlers.bilibili import BilibiliExtractor
@@ -14,7 +13,7 @@ from research_agent.shared.utils.logger import logger
 class URLExtractorFactory:
     """Factory for creating and using URL extractors."""
 
-    _extractors: List[URLExtractor] = []
+    _extractors: list[URLExtractor] = []
     _initialized: bool = False
 
     @classmethod
@@ -31,7 +30,7 @@ class URLExtractorFactory:
             cls._initialized = True
 
     @classmethod
-    def get_extractor(cls, url: str) -> Optional[URLExtractor]:
+    def get_extractor(cls, url: str) -> URLExtractor | None:
         """
         Get the appropriate extractor for a URL.
 

@@ -1,7 +1,6 @@
 """Web page content extractor using trafilatura."""
 
 import asyncio
-from typing import Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
 from research_agent.infrastructure.url_extractor.utils import truncate_content
@@ -131,7 +130,7 @@ class WebPageExtractor(URLExtractor):
 
         return parsed.netloc
 
-    def _extract_title_from_html(self, html: str) -> Optional[str]:
+    def _extract_title_from_html(self, html: str) -> str | None:
         """Extract title from HTML."""
         import re
 
@@ -152,7 +151,7 @@ class WebPageExtractor(URLExtractor):
 
         return None
 
-    def _extract_og_image(self, html: str) -> Optional[str]:
+    def _extract_og_image(self, html: str) -> str | None:
         """Extract og:image from HTML."""
         import re
 
