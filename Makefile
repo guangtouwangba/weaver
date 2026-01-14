@@ -136,11 +136,18 @@ clean-all: clean
 	@echo "✅ Everything cleaned!"
 
 # Run linters
-lint:
-	@echo "🔍 Running linters..."
+lint-backend:
+	@echo "🔍 Running backend linter..."
 	cd app/backend && $(UV) run ruff check .
+	@echo "✅ Backend linting complete!"
+
+lint-frontend:
+	@echo "🔍 Running frontend linter..."
 	cd app/frontend && npm run lint
-	@echo "✅ Linting complete!"
+	@echo "✅ Frontend linting complete!"
+
+lint: lint-backend lint-frontend
+	@echo "✅ All linting complete!"
 
 # Run tests
 test:
