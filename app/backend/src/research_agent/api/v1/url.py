@@ -121,6 +121,7 @@ async def extract_url(
         content_type=content_type,
         status="pending",
         project_id=request.project_id,
+        user_id=user.user_id if user else None,
         meta_data={
             "video_id": video_id,
         } if video_id else {},
@@ -156,6 +157,8 @@ async def extract_url(
 async def get_url_content(
     url_content_id: UUID,
     repo: SQLAlchemyUrlContentRepository = Depends(get_repo),
+    session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> URLExtractResponse:
     """
     Get URL content by ID.
@@ -172,6 +175,13 @@ async def get_url_content(
     if not url_content:
         raise HTTPException(status_code=404, detail="URL content not found")
 
+    # Verify ownership - user must own the content or it must be in their project
+    if url_content.user_id and user and url_content.user_id != user.user_id:
+        if url_content.project_id:
+            await verify_project_ownership(url_content.project_id, user.user_id, session)
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
+
     return URLExtractResponse.model_validate(url_content)
 
 
@@ -179,6 +189,8 @@ async def get_url_content(
 async def get_url_content_status(
     url_content_id: UUID,
     repo: SQLAlchemyUrlContentRepository = Depends(get_repo),
+    session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> URLExtractStatusResponse:
     """
     Get lightweight status for URL content extraction.
@@ -194,6 +206,13 @@ async def get_url_content_status(
     url_content = await repo.get_by_id(url_content_id)
     if not url_content:
         raise HTTPException(status_code=404, detail="URL content not found")
+
+    # Verify ownership
+    if url_content.user_id and user and url_content.user_id != user.user_id:
+        if url_content.project_id:
+            await verify_project_ownership(url_content.project_id, user.user_id, session)
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     return URLExtractStatusResponse(
         id=url_content.id,
@@ -241,6 +260,8 @@ async def list_project_url_contents(
 async def delete_url_content(
     url_content_id: UUID,
     repo: SQLAlchemyUrlContentRepository = Depends(get_repo),
+    session: AsyncSession = Depends(get_db),
+    user: UserContext = Depends(get_optional_user),
 ) -> None:
     """
     Delete a URL content record.
@@ -248,7 +269,17 @@ async def delete_url_content(
     Args:
         url_content_id: UUID of the URL content record to delete
     """
-    deleted = await repo.delete(url_content_id)
-    if not deleted:
+    # First get the content to verify ownership
+    url_content = await repo.get_by_id(url_content_id)
+    if not url_content:
         raise HTTPException(status_code=404, detail="URL content not found")
+
+    # Verify ownership
+    if url_content.user_id and user and url_content.user_id != user.user_id:
+        if url_content.project_id:
+            await verify_project_ownership(url_content.project_id, user.user_id, session)
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    await repo.delete(url_content_id)
 
