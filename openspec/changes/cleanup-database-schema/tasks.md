@@ -1,26 +1,26 @@
 # Tasks: Cleanup Database Schema
 
 ## 1. 删除所有旧 Migrations
-- [ ] 1.1 删除 `alembic/versions/` 下的所有 36 个 migration 文件
-- [ ] 1.2 保留 `__pycache__` 目录结构 (可选)
+- [x] 1.1 删除 `alembic/versions/` 下的所有 36 个 migration 文件
+- [x] 1.2 保留 `__pycache__` 目录结构 (可选)
 
 ## 2. 创建新的 Initial Schema Migration
-- [ ] 2.1 创建 `20260114_000001_initial_schema.py`
-- [ ] 2.2 包含所有保留表的 CREATE TABLE 语句
-- [ ] 2.3 包含所有必要的索引和约束
-- [ ] 2.4 包含 pgvector extension 创建
+- [x] 2.1 创建 `20260114_000001_initial_schema.py`
+- [x] 2.2 包含所有保留表的 CREATE TABLE 语句
+- [x] 2.3 包含所有必要的索引和约束
+- [x] 2.4 包含 pgvector extension 创建
 
 ## 3. 代码清理
-- [ ] 3.1 从 `models.py` 删除 `DocumentChunkModel`
-- [ ] 3.2 从 `models.py` 删除 `EntityModel`
-- [ ] 3.3 从 `models.py` 删除 `RelationModel`
-- [ ] 3.4 更新 `DocumentModel` 移除 `chunks` relationship
+- [x] 3.1 从 `models.py` 删除 `DocumentChunkModel`
+- [x] 3.2 从 `models.py` 删除 `EntityModel`
+- [x] 3.3 从 `models.py` 删除 `RelationModel`
+- [x] 3.4 更新 `DocumentModel` 移除 `chunks` relationship
 
 ## 4. 依赖代码更新
-- [ ] 4.1 更新 `document_selector.py` - 改用 ResourceChunkModel
-- [ ] 4.2 更新 `document_processor.py` - 改用 ResourceChunkModel
-- [ ] 4.3 移除或重构 `graph_extractor.py`
-- [ ] 4.4 移除或重构 `canvas_syncer.py`
+- [x] 4.1 更新 `document_selector.py` - 改用 ResourceChunkModel
+- [x] 4.2 更新 `document_processor.py` - 改用 ResourceChunkModel
+- [x] 4.3 移除或重构 `graph_extractor.py`
+- [x] 4.4 移除或重构 `canvas_syncer.py`
 
 ## 5. 验证
 - [ ] 5.1 清理本地数据库 (DROP ALL + 重建)

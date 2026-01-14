@@ -714,7 +714,7 @@ async def get_document_chunks(
         "chunks": [
             {
                 "chunk_index": chunk.chunk_index,
-                "page_number": chunk.page_number,
+                "page_number": chunk.metadata.get("page_number", 0) if chunk.metadata else 0,
                 "content": chunk.content,
             }
             for chunk in chunks

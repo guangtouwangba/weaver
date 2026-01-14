@@ -115,35 +115,6 @@ async def process_document(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None
             raise  # Re-raise to let ARQ handle retry
 
 
-async def extract_graph(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
-    """
-    Extract knowledge graph from document chunks.
-
-    Args:
-        ctx: ARQ context
-        payload: Task payload containing:
-            - document_id: UUID of the document
-            - project_id: UUID of the project
-    """
-    from research_agent.infrastructure.database.session import get_async_session
-    from research_agent.shared.utils.logger import logger
-    from research_agent.worker.tasks.graph_extractor import GraphExtractorTask
-
-    logger.info(f"📥 ARQ: Starting graph extraction - payload={payload}")
-
-    task = GraphExtractorTask()
-
-    async with get_async_session() as session:
-        try:
-            await task.execute(payload, session)
-            logger.info(
-                f"✅ ARQ: Graph extraction completed - document_id={payload.get('document_id')}"
-            )
-        except Exception as e:
-            logger.error(f"❌ ARQ: Graph extraction failed - {e}", exc_info=True)
-            raise
-
-
 async def cleanup_files(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
     """
     Clean up orphaned files from storage.
@@ -166,31 +137,6 @@ async def cleanup_files(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
             logger.info("✅ ARQ: File cleanup completed")
         except Exception as e:
             logger.error(f"❌ ARQ: File cleanup failed - {e}", exc_info=True)
-            raise
-
-
-async def sync_canvas(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
-    """
-    Sync canvas nodes to database.
-
-    Args:
-        ctx: ARQ context
-        payload: Task payload containing canvas data
-    """
-    from research_agent.infrastructure.database.session import get_async_session
-    from research_agent.shared.utils.logger import logger
-    from research_agent.worker.tasks.canvas_syncer import CanvasSyncerTask
-
-    logger.info(f"📥 ARQ: Starting canvas sync - payload={payload}")
-
-    task = CanvasSyncerTask()
-
-    async with get_async_session() as session:
-        try:
-            await task.execute(payload, session)
-            logger.info("✅ ARQ: Canvas sync completed")
-        except Exception as e:
-            logger.error(f"❌ ARQ: Canvas sync failed - {e}", exc_info=True)
             raise
 
 
@@ -316,9 +262,7 @@ class WorkerSettings:
     # Task functions to register
     functions = [
         process_document,
-        extract_graph,
         cleanup_files,
-        sync_canvas,
         cleanup_canvas,
         generate_thumbnail,
         process_url,

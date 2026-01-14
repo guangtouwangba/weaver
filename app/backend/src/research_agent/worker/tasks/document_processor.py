@@ -13,7 +13,7 @@ from research_agent.config import get_settings
 settings = get_settings()
 from research_agent.domain.entities.document import DocumentStatus
 from research_agent.domain.services.chunking_service import ChunkingService
-from research_agent.infrastructure.database.models import DocumentChunkModel, DocumentModel
+from research_agent.infrastructure.database.models import DocumentModel
 from research_agent.infrastructure.database.session import get_async_session
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
 from research_agent.infrastructure.llm.base import ChatMessage

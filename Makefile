@@ -25,6 +25,7 @@ help:
 	@echo "Database:"
 	@echo "  make migrate           - Run database migrations"
 	@echo "  make migration         - Create new migration (auto-generate)"
+	@echo "  make clean-migration   - Drop all tables and re-run migrations (DESTRUCTIVE!)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean             - Clean build artifacts and caches"
@@ -202,3 +203,14 @@ setup: check-env
 	@echo "  3. Run 'make run-backend' in one terminal"
 	@echo "  4. Run 'make run-frontend' in another terminal"
 	@echo ""
+
+# Clean database and reset migrations (DESTRUCTIVE!)
+clean-migration:
+	@echo "⚠️  WARNING: This will DROP ALL TABLES in your local database!"
+	@echo "Press Ctrl+C to cancel, or wait 3 seconds to continue..."
+	@sleep 3
+	@echo "🗄️  Cleaning database..."
+	@cd app/backend && $(UV) run python ../../scripts/clean_database.py
+	@echo "🗄️  Running migrations..."
+	cd app/backend && $(UV) run alembic upgrade head
+	@echo "✅ Database clean and migrated!"

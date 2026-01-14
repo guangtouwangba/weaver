@@ -21,8 +21,6 @@ class TaskType(str, Enum):
     """Types of background tasks."""
 
     PROCESS_DOCUMENT = "process_document"
-    EXTRACT_GRAPH = "extract_graph"
-    SYNC_CANVAS = "sync_canvas"
     CLEANUP_CANVAS = "cleanup_canvas"  # Async cleanup of old generation canvas items
     FILE_CLEANUP = "file_cleanup"  # Async cleanup of orphan files from storage
     GENERATE_THUMBNAIL = "thumbnail_generator"  # Generate PDF thumbnail image

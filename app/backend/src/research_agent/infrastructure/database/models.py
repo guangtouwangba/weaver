@@ -105,57 +105,12 @@ class DocumentModel(Base):
 
     # Relationships
     project: Mapped["ProjectModel"] = relationship("ProjectModel", back_populates="documents")
-    chunks: Mapped[List["DocumentChunkModel"]] = relationship(
-        "DocumentChunkModel", back_populates="document", cascade="all, delete-orphan"
-    )
     highlights: Mapped[List["HighlightModel"]] = relationship(
         "HighlightModel", back_populates="document", cascade="all, delete-orphan"
     )
     comments: Mapped[List["CommentModel"]] = relationship(
         "CommentModel", back_populates="document", cascade="all, delete-orphan"
     )
-
-
-class DocumentChunkModel(Base):
-    """Document chunk ORM model for RAG.
-    
-    DEPRECATED: Use ResourceChunkModel for new code.
-    This model is kept for backward compatibility during migration.
-    """
-
-    __tablename__ = "document_chunks"
-
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    document_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
-    )
-    project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
-    )
-    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    page_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
-    chunk_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
-    content_tsvector: Mapped[Optional[Any]] = mapped_column(TSVECTOR, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    # Citation and positioning fields
-    char_start: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )  # Character start position in original document
-    char_end: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )  # Character end position
-    paragraph_index: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )  # Paragraph index
-    sentence_index: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )  # Sentence index for precise citation
-
-    # Relationships
-    document: Mapped["DocumentModel"] = relationship("DocumentModel", back_populates="chunks")
 
 
 class ResourceChunkModel(Base):
@@ -392,77 +347,6 @@ class TaskQueueModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-
-class EntityModel(Base):
-    """Entity ORM model for knowledge graph nodes."""
-
-    __tablename__ = "entities"
-
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
-    )
-    document_id: Mapped[Optional[UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=True
-    )
-    name: Mapped[str] = mapped_column(String(500), nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    entity_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        "metadata", JSONB, nullable=True, default=dict
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-    # Relationships
-    project: Mapped["ProjectModel"] = relationship("ProjectModel")
-    document: Mapped[Optional["DocumentModel"]] = relationship("DocumentModel")
-    outgoing_relations: Mapped[List["RelationModel"]] = relationship(
-        "RelationModel",
-        foreign_keys="RelationModel.source_entity_id",
-        back_populates="source_entity",
-    )
-    incoming_relations: Mapped[List["RelationModel"]] = relationship(
-        "RelationModel",
-        foreign_keys="RelationModel.target_entity_id",
-        back_populates="target_entity",
-    )
-
-
-class RelationModel(Base):
-    """Relation ORM model for knowledge graph edges."""
-
-    __tablename__ = "relations"
-
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
-    )
-    source_entity_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
-    )
-    target_entity_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("entities.id", ondelete="CASCADE"), nullable=False
-    )
-    relation_type: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    weight: Mapped[Optional[float]] = mapped_column(nullable=True, default=1.0)
-    relation_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        "metadata", JSONB, nullable=True, default=dict
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    project: Mapped["ProjectModel"] = relationship("ProjectModel")
-    source_entity: Mapped["EntityModel"] = relationship(
-        "EntityModel", foreign_keys=[source_entity_id], back_populates="outgoing_relations"
-    )
-    target_entity: Mapped["EntityModel"] = relationship(
-        "EntityModel", foreign_keys=[target_entity_id], back_populates="incoming_relations"
     )
 
 

@@ -856,7 +856,7 @@ class OutputGenerationService:
         try:
             from sqlalchemy import select
 
-            from research_agent.infrastructure.database.models import DocumentChunkModel
+            from research_agent.infrastructure.database.models import ResourceChunkModel
 
             # Use ResourceResolver to get all resources in order
             resolver = ResourceResolver(session)
@@ -868,18 +868,19 @@ class OutputGenerationService:
                 source_id = resource.id
                 # Check for chunks (primarily for documents)
                 stmt = (
-                    select(DocumentChunkModel)
-                    .where(DocumentChunkModel.document_id == source_id)
-                    .order_by(DocumentChunkModel.page_number, DocumentChunkModel.chunk_index)
+                    select(ResourceChunkModel)
+                    .where(ResourceChunkModel.resource_id == source_id)
+                    .where(ResourceChunkModel.resource_type == "document")
+                    .order_by(ResourceChunkModel.chunk_index)
                 )
                 result = await session.execute(stmt)
                 chunks = result.scalars().all()
 
                 if chunks:
-                    # Group chunks by page number
+                    # Group chunks by page number (from metadata)
                     pages: dict[int, list[str]] = {}
                     for chunk in chunks:
-                        page_num = chunk.page_number or 1
+                        page_num = chunk.chunk_metadata.get("page_number", 1) if chunk.chunk_metadata else 1
                         if page_num not in pages:
                             pages[page_num] = []
                         pages[page_num].append(chunk.content)

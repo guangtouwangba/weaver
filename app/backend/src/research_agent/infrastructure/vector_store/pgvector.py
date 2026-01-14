@@ -69,18 +69,18 @@ class PgVectorStore(VectorStore):
         )
 
         if document_id:
-            where_clause += " AND document_id = cast(:document_id as uuid)"
+            where_clause += " AND resource_id = cast(:document_id as uuid)"
             params["document_id"] = str(document_id)
 
         # Use explicit parameter binding for asyncpg compatibility
         query = text(f"""
             SELECT 
                 id,
-                document_id,
+                resource_id as document_id,
                 content,
-                page_number,
+                (metadata->>'page_number')::int as page_number,
                 1 - (embedding <=> cast(:embedding as vector)) AS similarity
-            FROM document_chunks
+            FROM resource_chunks
             WHERE {where_clause}
             ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT :limit
@@ -179,17 +179,17 @@ class PgVectorStore(VectorStore):
         }
 
         if document_id:
-            where_clause += " AND document_id = cast(:document_id as uuid)"
+            where_clause += " AND resource_id = cast(:document_id as uuid)"
             params["document_id"] = str(document_id)
 
         query = text(f"""
             SELECT 
                 id,
-                document_id,
+                resource_id as document_id,
                 content,
-                page_number,
+                (metadata->>'page_number')::int as page_number,
                 1 - (embedding <=> cast(:embedding as vector)) AS score
-            FROM document_chunks
+            FROM resource_chunks
             WHERE {where_clause}
             ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT :limit
@@ -242,17 +242,17 @@ class PgVectorStore(VectorStore):
         }
 
         if document_id:
-            where_clause += " AND document_id = cast(:document_id as uuid)"
+            where_clause += " AND resource_id = cast(:document_id as uuid)"
             params["document_id"] = str(document_id)
 
         query = text(f"""
             SELECT 
                 id,
-                document_id,
+                resource_id as document_id,
                 content,
-                page_number,
+                (metadata->>'page_number')::int as page_number,
                 ts_rank_cd(content_tsvector, websearch_to_tsquery('english', :query)) AS score
-            FROM document_chunks
+            FROM resource_chunks
             WHERE {where_clause}
             ORDER BY score DESC
             LIMIT :limit

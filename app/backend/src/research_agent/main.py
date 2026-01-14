@@ -23,9 +23,7 @@ from research_agent.shared.utils.logger import logger
 from research_agent.worker.dispatcher import TaskDispatcher
 from research_agent.worker.tasks import (
     CanvasCleanupTask,
-    CanvasSyncerTask,
     DocumentProcessorTask,
-    GraphExtractorTask,
     URLProcessorTask,
 )
 from research_agent.worker.tasks.file_cleanup import FileCleanupTask
@@ -43,8 +41,6 @@ def create_task_dispatcher() -> TaskDispatcher:
 
     # Register task handlers
     dispatcher.register(TaskType.PROCESS_DOCUMENT, DocumentProcessorTask)
-    dispatcher.register(TaskType.EXTRACT_GRAPH, GraphExtractorTask)
-    dispatcher.register(TaskType.SYNC_CANVAS, CanvasSyncerTask)
     dispatcher.register(TaskType.CLEANUP_CANVAS, CanvasCleanupTask)
     dispatcher.register(TaskType.FILE_CLEANUP, FileCleanupTask)
     dispatcher.register(TaskType.PROCESS_URL, URLProcessorTask)

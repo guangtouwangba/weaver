@@ -202,17 +202,16 @@ class DocumentSelectorService:
         """
         from sqlalchemy import bindparam, text
 
-        from research_agent.infrastructure.database.models import DocumentChunkModel
-
-        # Use pgvector distance operator
+        # Use pgvector distance operator with resource_chunks table
         embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
 
         # Get top 5 chunks for this document and average their similarities
         query = text("""
             SELECT 
                 1 - (embedding <=> cast(:embedding as vector)) AS similarity
-            FROM document_chunks
-            WHERE document_id = cast(:document_id as uuid)
+            FROM resource_chunks
+            WHERE resource_id = cast(:document_id as uuid)
+                AND resource_type = 'document'
                 AND embedding IS NOT NULL
             ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT 5
