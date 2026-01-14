@@ -373,6 +373,9 @@ class SettingsService:
         self,
         repository: ISettingsRepository,
         encryption_service: Optional[EncryptionService] = None,
+        custom_model_service: Optional[
+            Any
+        ] = None,  # Type Any to avoid circular import if needed, or import above
     ):
         """
         Initialize settings service.
@@ -380,9 +383,11 @@ class SettingsService:
         Args:
             repository: Settings repository implementation
             encryption_service: Optional encryption service (uses default if not provided)
+            custom_model_service: Optional service for custom models
         """
         self._repo = repository
         self._encryption = encryption_service or get_encryption_service()
+        self._custom_model_service = custom_model_service
 
     # -------------------------------------------------------------------------
     # Get Settings
@@ -747,6 +752,50 @@ class SettingsService:
 
         if max_val is not None and value > max_val:
             raise ValueError(f"Value for {key} must be <= {max_val}")
+
+    async def get_settings_metadata(self, user_id: Optional[UUID] = None) -> Dict[str, Any]:
+        """
+        Get settings metadata including dynamic options.
+
+        Args:
+            user_id: Optional user ID to fetch custom models for
+
+        Returns:
+            Dictionary of setting metadata
+        """
+        import copy
+
+        metadata = copy.deepcopy(SETTING_METADATA)
+
+        # Add custom models if service is available and user is authenticated
+        if self._custom_model_service and user_id:
+            try:
+                custom_models = await self._custom_model_service.get_user_custom_models(
+                    str(user_id)
+                )
+                if custom_models:
+                    # Find llm_model setting
+                    llm_setting = metadata.get("llm_model")
+                    if llm_setting and "options" in llm_setting:
+                        for model in custom_models:
+                            if not model.is_active:
+                                continue
+
+                            llm_setting["options"].append(
+                                {
+                                    "value": model.model_id,
+                                    "label": model.label,
+                                    "description": model.description or "Custom model",
+                                    "cost": "unknown",
+                                    "performance": "unknown",
+                                    "best_for": "Custom use case",
+                                    "is_custom": True,
+                                }
+                            )
+            except Exception as e:
+                logger.error(f"[SettingsService] Failed to load custom models: {e}")
+
+        return metadata
 
     # -------------------------------------------------------------------------
     # API Key Validation

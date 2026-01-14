@@ -408,6 +408,42 @@ class EvaluationLogModel(Base):
     project: Mapped[Optional["ProjectModel"]] = relationship("ProjectModel")
 
 
+class CustomModelModel(Base):
+    """
+    Custom Model ORM model.
+
+    Stores user-defined LLM configurations.
+    """
+
+    __tablename__ = "custom_models"
+
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    # The actual model identifier string (e.g. "openrouter/meta-llama/llama-3.1-70b-instruct")
+    model_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Display label
+    label: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Optional description
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Provider (openrouter, openai, etc.)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False, default="openrouter")
+    # Context window size in tokens (optional override)
+    context_window: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Whether the model is active/selectable
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Unique constraint: user cannot have duplicate model_ids
+    __table_args__ = (
+        UniqueConstraint("user_id", "model_id", name="uq_custom_models_user_model_id"),
+    )
+
+
 # =============================================================================
 # Configuration Center Models
 # =============================================================================

@@ -7,7 +7,7 @@ Provides REST API for managing global and project-level configuration.
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,7 +80,16 @@ async def get_settings_service(
 ) -> SettingsService:
     """Get settings service with repository."""
     repo = SQLAlchemySettingsRepository(session)
-    return SettingsService(repo)
+    # Create custom model service for integration
+    from research_agent.domain.services.custom_model_service import CustomModelService
+    from research_agent.infrastructure.database.repositories.sqlalchemy_custom_model_repo import (
+        SQLAlchemyCustomModelRepository,
+    )
+
+    custom_repo = SQLAlchemyCustomModelRepository(session)
+    custom_service = CustomModelService(custom_repo)
+
+    return SettingsService(repo, custom_model_service=custom_service)
 
 
 # -----------------------------------------------------------------------------
@@ -449,11 +458,22 @@ async def validate_api_key(
     )
 
 
+# Redefine with proper signature
 @router.get("/metadata")
-async def get_settings_metadata():
-    """
-    Get metadata for all known settings.
+async def get_settings_metadata_endpoint(
+    request: Request,
+    service: SettingsService = Depends(get_settings_service),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+):
+    from research_agent.api.auth.supabase import get_optional_user
 
-    Returns information about setting types, defaults, allowed values, etc.
-    """
-    return {"settings": SETTING_METADATA}
+    user = await get_optional_user(request, authorization)
+    user_id = None
+    if user and not user.is_anonymous:
+        try:
+            user_id = UUID(user.user_id)
+        except (ValueError, TypeError):
+            pass
+
+    # Get dynamic metadata
+    return {"settings": await service.get_settings_metadata(user_id)}

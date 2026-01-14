@@ -1076,6 +1076,56 @@ export const settingsApi = {
     }),
 };
 
+// Custom Models Types
+export interface CustomModel {
+  id: string;
+  user_id: string;
+  model_id: string;
+  label: string;
+  description?: string;
+  provider: string;
+  context_window?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Custom Models API
+export const customModelsApi = {
+  list: () => fetchApi<CustomModel[]>('/api/v1/settings/custom-models'),
+
+  create: (data: {
+    model_id: string;
+    label: string;
+    description?: string;
+    provider: string;
+    context_window?: number;
+  }) =>
+    fetchApi<CustomModel>('/api/v1/settings/custom-models', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: string,
+    data: {
+      label?: string;
+      description?: string;
+      is_active?: boolean;
+      context_window?: number;
+    }
+  ) =>
+    fetchApi<CustomModel>(`/api/v1/settings/custom-models/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetchApi<void>(`/api/v1/settings/custom-models/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 // Highlight Types
 export interface HighlightCreateRequest {
   pageNumber: number;

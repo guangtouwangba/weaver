@@ -4,7 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import GlobalLayout from '@/components/layout/GlobalLayout';
 import { StrategyOption } from '@/components/settings/StrategyTooltip';
 import StrategyCard from '@/components/settings/StrategyCard';
-import { settingsApi, SettingMetadata } from '@/lib/api';
+import {
+  settingsApi,
+  SettingMetadata,
+  customModelsApi,
+  CustomModel,
+} from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Stack,
@@ -18,7 +23,7 @@ import {
   Switch,
   Slider,
 } from '@/components/ui/primitives';
-import { TextField } from '@/components/ui/composites';
+import { TextField, Dialog, ConfirmDialog } from '@/components/ui/composites';
 import { colors } from '@/components/ui/tokens';
 import {
   AutoAwesomeIcon,
@@ -36,6 +41,9 @@ import {
   VisibilityOffIcon,
   KeyIcon,
   InfoIcon,
+  AddIcon,
+  EditIcon,
+  DeleteIcon,
 } from '@/components/ui/icons';
 
 // Get user display info
@@ -183,6 +191,20 @@ export default function SettingsPage() {
     severity: 'success',
   });
 
+  // Custom models state
+  const [customModels, setCustomModels] = useState<CustomModel[]>([]);
+  const [isModelModalOpen, setIsModelModalOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<CustomModel | null>(null);
+  const [deletingModel, setDeletingModel] = useState<CustomModel | null>(null);
+  const [modelForm, setModelForm] = useState({
+    model_id: '',
+    label: '',
+    description: '',
+    provider: 'openrouter',
+    context_window: '',
+  });
+  const [savingModel, setSavingModel] = useState(false);
+
   // Get real user ID from auth context
   const { user } = useAuth();
   const userId = user?.id;
@@ -199,6 +221,20 @@ export default function SettingsPage() {
     { id: 'appearance', label: 'Appearance', icon: <PaletteIcon size={20} /> },
   ];
 
+  // Load custom models
+  const loadCustomModels = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const models = await customModelsApi.list();
+      setCustomModels(models);
+      // Refresh metadata to ensure settings page has latest options
+      const metadataRes = await settingsApi.getMetadata();
+      setMetadata(metadataRes.settings);
+    } catch (error) {
+      console.error('Failed to load custom models:', error);
+    }
+  }, [userId]);
+
   // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
@@ -208,9 +244,10 @@ export default function SettingsPage() {
       }
       try {
         setLoading(true);
-        const [settingsRes, metadataRes] = await Promise.all([
+        const [settingsRes, metadataRes, customModelsRes] = await Promise.all([
           settingsApi.getUserSettings(userId),
           settingsApi.getMetadata(),
+          customModelsApi.list(),
         ]);
 
         // Merge with defaults
@@ -219,6 +256,7 @@ export default function SettingsPage() {
           ...(settingsRes.settings as Partial<SettingsState>),
         });
         setMetadata(metadataRes.settings);
+        setCustomModels(customModelsRes);
       } catch (error) {
         console.error('Failed to load settings:', error);
         setSnackbar({
@@ -233,6 +271,111 @@ export default function SettingsPage() {
 
     loadSettings();
   }, [userId]);
+
+  // Custom Model Handlers
+  const handleOpenAdd = () => {
+    setEditingModel(null);
+    setModelForm({
+      model_id: '',
+      label: '',
+      description: '',
+      provider: 'openrouter',
+      context_window: '',
+    });
+    setIsModelModalOpen(true);
+  };
+
+  const handleOpenEdit = (model: CustomModel) => {
+    setEditingModel(model);
+    setModelForm({
+      model_id: model.model_id,
+      label: model.label,
+      description: model.description || '',
+      provider: model.provider,
+      context_window: model.context_window?.toString() || '',
+    });
+    setIsModelModalOpen(true);
+  };
+
+  const handleSaveCustomModel = async () => {
+    try {
+      setSavingModel(true);
+      const data = {
+        label: modelForm.label,
+        description: modelForm.description,
+        provider: modelForm.provider, // provider usually fixed for updates but kept for create
+        context_window: modelForm.context_window
+          ? parseInt(modelForm.context_window)
+          : undefined,
+      };
+
+      if (editingModel) {
+        await customModelsApi.update(editingModel.id, {
+          label: data.label,
+          description: data.description,
+          context_window: data.context_window,
+        });
+        setSnackbar({
+          open: true,
+          message: 'Model updated',
+          severity: 'success',
+        });
+      } else {
+        await customModelsApi.create({
+          model_id: modelForm.model_id,
+          ...data,
+          provider: modelForm.provider,
+        });
+        setSnackbar({
+          open: true,
+          message: 'Model added',
+          severity: 'success',
+        });
+      }
+
+      setIsModelModalOpen(false);
+      loadCustomModels();
+    } catch (error) {
+      console.error('Failed to save model:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to save model',
+        severity: 'error',
+      });
+    } finally {
+      setSavingModel(false);
+    }
+  };
+
+  const handleDeleteCustomModel = async () => {
+    if (!deletingModel) return;
+    try {
+      await customModelsApi.delete(deletingModel.id);
+      setSnackbar({
+        open: true,
+        message: 'Model deleted',
+        severity: 'success',
+      });
+      setDeletingModel(null);
+      loadCustomModels();
+
+      // If deleted model was selected, reset to default
+      if (settings.llm_model === deletingModel.model_id) {
+        saveSetting('llm_model', defaultSettings.llm_model);
+        setSettings((prev) => ({
+          ...prev,
+          llm_model: defaultSettings.llm_model,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to delete model:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete model',
+        severity: 'error',
+      });
+    }
+  };
 
   // Save setting with debounce
   const saveSetting = useCallback(
@@ -302,7 +445,7 @@ export default function SettingsPage() {
       if (result.valid) {
         await saveSetting('openrouter_api_key', settings.openrouter_api_key);
       }
-    } catch (error) {
+    } catch {
       setKeyValidation({ valid: false, message: 'Validation failed' });
     } finally {
       setValidatingKey(false);
@@ -614,27 +757,140 @@ export default function SettingsPage() {
                     }}
                   >
                     <div style={{ width: '100%' }}>
-                      <Text style={{ marginBottom: 16, fontWeight: 600 }}>
-                        LLM Model
-                      </Text>
+                      <Stack
+                        direction="row"
+                        justify="between"
+                        align="center"
+                        style={{ marginBottom: 16 }}
+                      >
+                        <Text fontWeight="600">LLM Model</Text>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          startIcon={<AddIcon size={16} />}
+                          onClick={handleOpenAdd}
+                        >
+                          Add Custom Model
+                        </Button>
+                      </Stack>
+
                       <div
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns:
-                            'repeat(auto-fit, minmax(280px, 1fr))',
-                          gap: 16,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12,
+                          maxHeight: '500px',
+                          overflowY: 'auto',
+                          paddingRight: '4px',
                         }}
                       >
-                        {getOptions('llm_model').map((opt) => (
-                          <StrategyCard
-                            key={opt.value}
-                            option={opt}
-                            selected={settings.llm_model === opt.value}
-                            onClick={() =>
-                              handleSelection('llm_model', opt.value)
-                            }
-                          />
-                        ))}
+                        {getOptions('llm_model').map((opt) => {
+                          const isCustom = (
+                            opt as StrategyOption & { is_custom?: boolean }
+                          ).is_custom;
+                          const customModel = isCustom
+                            ? customModels.find((m) => m.model_id === opt.value)
+                            : null;
+
+                          return (
+                            <div
+                              key={opt.value}
+                              onClick={() =>
+                                handleSelection('llm_model', opt.value)
+                              }
+                              style={{
+                                padding: 16,
+                                borderRadius: 12,
+                                border: `1px solid ${
+                                  settings.llm_model === opt.value
+                                    ? colors.primary[500]
+                                    : colors.border.default
+                                }`,
+                                backgroundColor:
+                                  settings.llm_model === opt.value
+                                    ? colors.primary[50]
+                                    : colors.background.paper,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 16,
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              <div style={{ flex: 1 }}>
+                                <Stack
+                                  direction="row"
+                                  align="center"
+                                  gap={8}
+                                  style={{ marginBottom: 4 }}
+                                >
+                                  <Text
+                                    fontWeight="600"
+                                    color={
+                                      settings.llm_model === opt.value
+                                        ? 'primary'
+                                        : undefined
+                                    }
+                                  >
+                                    {opt.label}
+                                  </Text>
+                                  {isCustom && (
+                                    <Chip
+                                      label="Custom"
+                                      size="sm"
+                                      variant="outlined"
+                                      color="info"
+                                      style={{ height: 20 }}
+                                    />
+                                  )}
+                                </Stack>
+                                <Text variant="bodySmall" color="secondary">
+                                  {opt.description}
+                                </Text>
+                              </div>
+
+                              {/* Actions for custom models */}
+                              {isCustom && customModel && (
+                                <div
+                                  style={{ display: 'flex', gap: 8 }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <IconButton
+                                    size="sm"
+                                    onClick={() => handleOpenEdit(customModel)}
+                                    title="Edit Model"
+                                  >
+                                    <EditIcon size={16} />
+                                  </IconButton>
+                                  <IconButton
+                                    size="sm"
+                                    onClick={() =>
+                                      setDeletingModel(customModel)
+                                    }
+                                    title="Delete Model"
+                                    style={{ color: colors.error[500] }}
+                                  >
+                                    <DeleteIcon size={16} />
+                                  </IconButton>
+                                </div>
+                              )}
+
+                              {/* Checkmark for selection */}
+                              {settings.llm_model === opt.value &&
+                                !isCustom && (
+                                  <div style={{ color: colors.primary[500] }}>
+                                    <CheckIcon size={20} />
+                                  </div>
+                                )}
+                              {settings.llm_model === opt.value && isCustom && (
+                                <div style={{ color: colors.primary[500] }}>
+                                  <CheckIcon size={20} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -1204,6 +1460,104 @@ export default function SettingsPage() {
         message={snackbar.message}
         severity={snackbar.severity}
         onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+      />
+
+      {/* Custom Model Dialog */}
+      <Dialog
+        open={isModelModalOpen}
+        onClose={() => setIsModelModalOpen(false)}
+        title={editingModel ? 'Edit Custom Model' : 'Add Custom Model'}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            padding: '16px 0',
+          }}
+        >
+          <TextField
+            label="Model ID (e.g., provider/model-name)"
+            value={modelForm.model_id}
+            onChange={(
+              e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+            ) => setModelForm({ ...modelForm, model_id: e.target.value })}
+            fullWidth
+            helperText="The exact model identifier string requred by the provider"
+            disabled={!!editingModel}
+          />
+          <TextField
+            label="Display Label"
+            value={modelForm.label}
+            onChange={(
+              e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+            ) => setModelForm({ ...modelForm, label: e.target.value })}
+            fullWidth
+            placeholder="e.g. My Custom Llama"
+          />
+          <TextField
+            label="Description"
+            value={modelForm.description}
+            onChange={(
+              e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+            ) => setModelForm({ ...modelForm, description: e.target.value })}
+            fullWidth
+            multiline
+            rows={2}
+          />
+          <div style={{ display: 'flex', gap: 16 }}>
+            <TextField
+              label="Provider"
+              value={modelForm.provider}
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+              ) => setModelForm({ ...modelForm, provider: e.target.value })}
+              fullWidth
+              disabled // Fixed to openrouter for now
+            />
+            <TextField
+              label="Context Window"
+              value={modelForm.context_window}
+              onChange={(
+                e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+              ) =>
+                setModelForm({ ...modelForm, context_window: e.target.value })
+              }
+              fullWidth
+              type="number"
+              placeholder="e.g. 128000"
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 12,
+            marginTop: 16,
+          }}
+        >
+          <Button variant="ghost" onClick={() => setIsModelModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveCustomModel}
+            disabled={!modelForm.model_id || !modelForm.label || savingModel}
+          >
+            {savingModel ? 'Saving...' : 'Save Model'}
+          </Button>
+        </div>
+      </Dialog>
+
+      <ConfirmDialog
+        open={!!deletingModel}
+        title="Delete Custom Model"
+        message={`Are you sure you want to delete "${deletingModel?.label}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteCustomModel}
+        onClose={() => setDeletingModel(null)}
+        isDanger={true}
       />
     </GlobalLayout>
   );
