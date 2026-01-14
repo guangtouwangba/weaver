@@ -172,15 +172,26 @@ async def get_optional_user(
     # Try to extract authenticated user
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
-        is_valid, payload, _ = verify_supabase_jwt(token)
+        is_valid, payload, error = verify_supabase_jwt(token)
+
+        # Debug logging
+        print(f"[Auth Debug] Token present: True, Token length: {len(token)}")
+        print(f"[Auth Debug] JWT secret configured: {bool(settings.supabase_jwt_secret)}")
+        print(f"[Auth Debug] is_valid: {is_valid}, error: {error}")
 
         if is_valid and payload:
             user_id = payload.get("sub")
+            print(f"[Auth Debug] Extracted user_id from JWT: {user_id}")
             if user_id:
                 return UserContext(user_id=user_id, is_anonymous=False)
+    else:
+        print(
+            f"[Auth Debug] No Bearer token found. Authorization header: {authorization[:50] if authorization else 'None'}..."
+        )
 
     # Fall back to anonymous session
     anon_id = _generate_anon_session_id(request)
+    print(f"[Auth Debug] Falling back to anonymous: {anon_id}")
     return UserContext(user_id=anon_id, is_anonymous=True)
 
 

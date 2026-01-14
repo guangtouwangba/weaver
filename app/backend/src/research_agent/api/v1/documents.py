@@ -457,6 +457,11 @@ async def upload_document(
 
     The new flow supports WebSocket notifications for real-time status updates.
     """
+    # Debug logging
+    logger.info(f"[Upload] Received upload request: project_id={project_id}, filename={file.filename}, content_type={file.content_type}")
+    logger.info(f"[Upload] User context: user_id={user.user_id}, is_anonymous={user.is_anonymous}")
+    logger.info(f"[Upload] Auth bypass enabled: {settings.auth_bypass_enabled}")
+    
     # Verify project ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)

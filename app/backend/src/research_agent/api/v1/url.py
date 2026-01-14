@@ -264,11 +264,15 @@ async def delete_url_content(
     user: UserContext = Depends(get_optional_user),
 ) -> None:
     """
-    Delete a URL content record.
+    Delete a URL content record and its associated chunks.
 
     Args:
         url_content_id: UUID of the URL content record to delete
     """
+    from research_agent.infrastructure.database.repositories.chunk_repo_factory import (
+        get_chunk_repository,
+    )
+
     # First get the content to verify ownership
     url_content = await repo.get_by_id(url_content_id)
     if not url_content:
@@ -281,5 +285,14 @@ async def delete_url_content(
         else:
             raise HTTPException(status_code=403, detail="Access denied")
 
+    # Delete associated chunks first (from both PostgreSQL and Qdrant)
+    try:
+        chunk_repo = get_chunk_repository(session)
+        deleted_chunks = await chunk_repo.delete_by_resource(url_content_id)
+        logger.info(f"[URL API] Deleted {deleted_chunks} chunks for URL content {url_content_id}")
+    except Exception as e:
+        logger.warning(f"[URL API] Failed to delete chunks for URL content {url_content_id}: {e}")
+
+    # Delete the URL content record
     await repo.delete(url_content_id)
 

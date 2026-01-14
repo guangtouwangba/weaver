@@ -5,6 +5,13 @@
 // Cache the API URL after first detection
 let _cachedApiUrl: string | null = null;
 
+declare global {
+  interface Window {
+    __API_URL__?: string;
+    __WS_URL__?: string;
+  }
+}
+
 // Get API URL - supports both build-time and runtime configuration
 function getApiBaseUrl(): string {
   // Return cached value if available
@@ -16,18 +23,23 @@ function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol; // 'https:' or 'http:'
-    console.log('[API] Detecting API URL for hostname:', hostname, 'protocol:', protocol);
+    console.log(
+      '[API] Detecting API URL for hostname:',
+      hostname,
+      'protocol:',
+      protocol
+    );
 
     // If running on Zeabur public domain, auto-detect the API URL
     if (hostname.includes('zeabur.app')) {
       // For deployments using internal backend URL (e.g., weaver.zeabur.app),
       // use relative path and let Next.js rewrite rules proxy to backend
       if (hostname === 'weaver.zeabur.app') {
-        _cachedApiUrl = '';  // Use relative paths, Next.js rewrites will handle /api/* -> backend
+        _cachedApiUrl = ''; // Use relative paths, Next.js rewrites will handle /api/* -> backend
         console.log('[API] Using relative API path (Next.js proxy)');
         return _cachedApiUrl;
       }
-      
+
       // Replace 'web' or 'frontend' with 'api' in the hostname
       const apiHostname = hostname
         .replace('-web-', '-api-')
@@ -46,7 +58,11 @@ function getApiBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
   if (envUrl && envUrl !== 'undefined' && !envUrl.includes('.internal')) {
     // If page is HTTPS but env URL is HTTP, try to upgrade
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && envUrl.startsWith('http://')) {
+    if (
+      typeof window !== 'undefined' &&
+      window.location.protocol === 'https:' &&
+      envUrl.startsWith('http://')
+    ) {
       console.log('[API] Upgrading HTTP env URL to HTTPS');
       _cachedApiUrl = envUrl.replace('http://', 'https://');
     } else {
@@ -57,8 +73,8 @@ function getApiBaseUrl(): string {
   }
 
   // Check runtime window config (can be injected via script tag)
-  if (typeof window !== 'undefined' && (window as any).__API_URL__) {
-    _cachedApiUrl = (window as any).__API_URL__;
+  if (typeof window !== 'undefined' && window.__API_URL__) {
+    _cachedApiUrl = window.__API_URL__;
     console.log('[API] Using window config URL:', _cachedApiUrl);
     return _cachedApiUrl || '';
   }
@@ -94,36 +110,37 @@ export interface ProjectDocument {
   page_count: number;
   status: 'pending' | 'processing' | 'ready' | 'error';
   graph_status?: 'pending' | 'processing' | 'ready' | 'error';
-  summary?: string;  // Document summary (generated during processing)
-  task_id?: string;  // Async task ID for tracking processing status
-  thumbnail_url?: string;  // URL for PDF thumbnail image
-  thumbnail_status?: 'pending' | 'processing' | 'ready' | 'error' | null;  // Thumbnail generation status
+  summary?: string; // Document summary (generated during processing)
+  task_id?: string; // Async task ID for tracking processing status
+  thumbnail_url?: string; // URL for PDF thumbnail image
+  thumbnail_status?: 'pending' | 'processing' | 'ready' | 'error' | null; // Thumbnail generation status
   created_at: string;
 }
 
 // Citation from Mega-Prompt RAG mode
 export interface Citation {
-  doc_id: string;        // Mega-prompt doc ID (doc_01, doc_02, etc.)
-  document_id: string;   // Actual document UUID
-  filename?: string;     // Document filename
-  quote: string;         // Original text quoted from document
-  conclusion?: string;   // LLM's conclusion/statement
-  char_start?: number;   // Character start position in original document
-  char_end?: number;     // Character end position
-  page_number?: number;  // Page number (calculated from page_map)
-  match_score?: number;  // Fuzzy match score (0-100)
+  doc_id: string; // Mega-prompt doc ID (doc_01, doc_02, etc.)
+  document_id: string; // Actual document UUID
+  filename?: string; // Document filename
+  quote: string; // Original text quoted from document
+  conclusion?: string; // LLM's conclusion/statement
+  char_start?: number; // Character start position in original document
+  char_end?: number; // Character end position
+  page_number?: number; // Page number (calculated from page_map)
+  match_score?: number; // Fuzzy match score (0-100)
 }
 
 export interface ChatMessage {
   message: string;
   document_id?: string;
-  context_node_ids?: string[];  // Optional: explicit context from canvas nodes (for DB lookup)
-  context_nodes?: Array<{  // Optional: explicit context content from canvas nodes (direct)
+  context_node_ids?: string[]; // Optional: explicit context from canvas nodes (for DB lookup)
+  context_nodes?: Array<{
+    // Optional: explicit context content from canvas nodes (direct)
     id: string;
     title: string;
     content: string;
   }>;
-  context_url_ids?: string[];  // Optional: URL content IDs for video/article context
+  context_url_ids?: string[]; // Optional: URL content IDs for video/article context
 }
 
 export interface ChatHistoryResponse {
@@ -139,15 +156,18 @@ export interface ChatHistoryResponse {
     }>;
     context_refs?: {
       url_ids?: string[];
-      urls?: Array<{ id: string; title: string; platform?: string; url?: string }>;
+      urls?: Array<{
+        id: string;
+        title: string;
+        platform?: string;
+        url?: string;
+      }>;
       node_ids?: string[];
       nodes?: Array<{ id: string; title: string }>;
     };
     created_at: string;
   }>;
 }
-
-
 
 export interface CanvasNode {
   id: string;
@@ -167,23 +187,31 @@ export interface CanvasNode {
   viewType: 'free' | 'thinking';
   sectionId?: string;
   promotedFrom?: string;
-  generation?: number;  // Generation ID for async clear support
+  generation?: number; // Generation ID for async clear support
   createdAt?: string;
   updatedAt?: string;
   // New fields for thinking path / message linking
-  messageIds?: string[];  // Linked chat message IDs
+  messageIds?: string[]; // Linked chat message IDs
   analysisStatus?: 'pending' | 'analyzed' | 'error';
   isDuplicate?: boolean;
-  duplicateOf?: string;  // Node ID if this is a duplicate
-  isUserModified?: boolean;  // True if user has manually edited this node
+  duplicateOf?: string; // Node ID if this is a duplicate
+  isUserModified?: boolean; // True if user has manually edited this node
   // Phase 1: Source Node support (The Portal)
-  subType?: 'source' | 'note' | 'insight';  // Distinguishes source files from regular notes
+  subType?: 'source' | 'note' | 'insight'; // Distinguishes source files from regular notes
   fileMetadata?: {
-    fileType: 'pdf' | 'markdown' | 'web' | 'text' | 'youtube' | 'video' | 'bilibili' | 'douyin';
+    fileType:
+      | 'pdf'
+      | 'markdown'
+      | 'web'
+      | 'text'
+      | 'youtube'
+      | 'video'
+      | 'bilibili'
+      | 'douyin';
     pageCount?: number;
     author?: string;
     lastModified?: string;
-    thumbnailUrl?: string;  // PDF first page thumbnail or video thumbnail
+    thumbnailUrl?: string; // PDF first page thumbnail or video thumbnail
     // Video-specific metadata
     videoId?: string;
     duration?: number;
@@ -191,23 +219,23 @@ export interface CanvasNode {
     viewCount?: string;
     publishedAt?: string;
     sourceUrl?: string;
-    startTime?: number;  // Start time in seconds for timestamp navigation
+    startTime?: number; // Start time in seconds for timestamp navigation
   };
   // === Thinking Graph Fields (Dynamic Mind Map) ===
-  thinkingStepIndex?: number;  // Step number in the thinking sequence
+  thinkingStepIndex?: number; // Step number in the thinking sequence
   thinkingFields?: {
-    claim: string;      // Main point or question
-    reason: string;     // Why this matters
-    evidence: string;   // Supporting information
+    claim: string; // Main point or question
+    reason: string; // Why this matters
+    evidence: string; // Supporting information
     uncertainty: string; // What's unclear
-    decision: string;   // Conclusion or next step
+    decision: string; // Conclusion or next step
   };
-  branchType?: 'alternative' | 'question' | 'counterargument';  // For branch nodes
-  depth?: number;       // Tree depth for layout (0 for root)
-  parentStepId?: string;  // ID of parent thinking step
-  isDraft?: boolean;    // True while waiting for AI response (optimistic UI)
-  topicId?: string;     // Topic context this node belongs to
-  relatedConcepts?: string[];  // Extracted concepts for linking
+  branchType?: 'alternative' | 'question' | 'counterargument'; // For branch nodes
+  depth?: number; // Tree depth for layout (0 for root)
+  parentStepId?: string; // ID of parent thinking step
+  isDraft?: boolean; // True while waiting for AI response (optimistic UI)
+  topicId?: string; // Topic context this node belongs to
+  relatedConcepts?: string[]; // Extracted concepts for linking
   suggestedBranches?: Array<{
     type: 'question' | 'alternative' | 'counterargument';
     content: string;
@@ -215,11 +243,11 @@ export interface CanvasNode {
 
   // === Unified Node Model: Generation Output Fields ===
   // For nodes created from generation outputs (mindmap, summary, etc.)
-  outputId?: string;        // Backend output ID for persistence
-  outputData?: Record<string, unknown>;  // SummaryData | MindmapData | ArticleData | etc.
+  outputId?: string; // Backend output ID for persistence
+  outputData?: Record<string, unknown>; // SummaryData | MindmapData | ArticleData | etc.
   generatedFrom?: {
     documentIds?: string[];
-    nodeIds?: string[];      // Source nodes for Magic Cursor generation
+    nodeIds?: string[]; // Source nodes for Magic Cursor generation
     snapshotContext?: { x: number; y: number; width: number; height: number };
   };
 }
@@ -228,33 +256,32 @@ export interface CanvasEdge {
   id?: string;
   source: string;
   target: string;
-  generation?: number;  // Generation ID for async clear support
+  generation?: number; // Generation ID for async clear support
 
   // Edge label (AI-generated or user-defined)
   label?: string;
 
   // Semantic relationship type for Thinking Path
-  relationType?:
-  // Core Q&A relationships
-  | 'answers'           // Q→A: Question gets answered
-  | 'prompts_question'  // A→Q': Answer leads to follow-up question
-  | 'derives'           // A→Insight: Answer derives insight
-  // Logical relationships
-  | 'causes'            // A→B: Causal relationship (因果)
-  | 'compares'          // A↔B: Comparison/contrast (对比)
-  | 'supports'          // Evidence supporting a claim
-  | 'contradicts'       // Evidence contradicting a claim
-  // Evolution relationships
-  | 'revises'           // A→A': Correction/update (修正)
-  | 'extends'           // Building on previous point
-  // Organization
-  | 'parks'             // Main→Parking: Temporarily set aside (暂存)
-  | 'groups'            // Grouping relationship
-  | 'belongs_to'        // Legacy: belongs to group
-  | 'related'           // Legacy: generic relation
-  | 'correlates'        // Strong thematic connection
-  // User-defined
-  | 'custom';
+  relationType?: // Core Q&A relationships
+    | 'answers' // Q→A: Question gets answered
+    | 'prompts_question' // A→Q': Answer leads to follow-up question
+    | 'derives' // A→Insight: Answer derives insight
+    // Logical relationships
+    | 'causes' // A→B: Causal relationship (因果)
+    | 'compares' // A↔B: Comparison/contrast (对比)
+    | 'supports' // Evidence supporting a claim
+    | 'contradicts' // Evidence contradicting a claim
+    // Evolution relationships
+    | 'revises' // A→A': Correction/update (修正)
+    | 'extends' // Building on previous point
+    // Organization
+    | 'parks' // Main→Parking: Temporarily set aside (暂存)
+    | 'groups' // Grouping relationship
+    | 'belongs_to' // Legacy: belongs to group
+    | 'related' // Legacy: generic relation
+    | 'correlates' // Strong thematic connection
+    // User-defined
+    | 'custom';
 
   // Edge direction hint (for bidirectional relations like 'compares')
   direction?: 'forward' | 'backward' | 'bidirectional';
@@ -270,9 +297,9 @@ export interface CanvasEdge {
   routingType?: 'straight' | 'bezier' | 'orthogonal';
 
   // === Visual Customization (P1) ===
-  color?: string;           // Override color
-  strokeWidth?: number;     // Override thickness
-  strokeDash?: number[];    // Custom dash pattern e.g. [5, 5]
+  color?: string; // Override color
+  strokeWidth?: number; // Override thickness
+  strokeDash?: number[]; // Custom dash pattern e.g. [5, 5]
   markerStart?: 'arrow' | 'circle' | 'none';
   markerEnd?: 'arrow' | 'circle' | 'none';
 }
@@ -285,7 +312,7 @@ export interface CanvasSection {
   nodeIds: string[];
   x: number;
   y: number;
-  generation?: number;  // Generation ID for async clear support
+  generation?: number; // Generation ID for async clear support
   width?: number;
   height?: number;
   conversationId?: string;
@@ -323,7 +350,10 @@ export interface CanvasData {
 
 // API Error
 class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -353,15 +383,30 @@ async function fetchApi<T>(
   };
 
   // Add Authorization header if we have a token
+  let token: string | null = null;
+
   if (_getAuthToken) {
     try {
-      const token = await _getAuthToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      token = await _getAuthToken();
+    } catch (error) {
+      console.warn('[API] Failed to get auth token from getter:', error);
+    }
+  } else {
+    // Fallback: directly get session from Supabase if token getter not set yet
+    // This handles the race condition where API calls happen before AuthContext initializes
+    try {
+      const { getSession, isAuthConfigured } = await import('@/lib/supabase');
+      if (isAuthConfigured()) {
+        const session = await getSession();
+        token = session?.access_token || null;
       }
     } catch (error) {
-      console.warn('[API] Failed to get auth token:', error);
+      console.warn('[API] Failed to get session directly:', error);
     }
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const response = await fetch(url, {
@@ -370,7 +415,9 @@ async function fetchApi<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    const error = await response
+      .json()
+      .catch(() => ({ detail: 'Unknown error' }));
     throw new ApiError(response.status, error.detail || 'Request failed');
   }
 
@@ -430,11 +477,18 @@ export const documentsApi = {
     `${getApiUrl()}/api/v1/documents/${documentId}/file`,
 
   // Get presigned upload URL (for Supabase Storage direct upload)
-  getPresignedUrl: (projectId: string, filename: string, contentType: string = 'application/pdf') =>
-    fetchApi<PresignResponse>(`/api/v1/projects/${projectId}/documents/presign`, {
-      method: 'POST',
-      body: JSON.stringify({ filename, content_type: contentType }),
-    }),
+  getPresignedUrl: (
+    projectId: string,
+    filename: string,
+    contentType: string = 'application/pdf'
+  ) =>
+    fetchApi<PresignResponse>(
+      `/api/v1/projects/${projectId}/documents/presign`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ filename, content_type: contentType }),
+      }
+    ),
 
   // Confirm upload after direct upload to Supabase Storage
   confirmUpload: (
@@ -444,15 +498,18 @@ export const documentsApi = {
     fileSize: number,
     contentType: string = 'application/pdf'
   ) =>
-    fetchApi<ProjectDocument>(`/api/v1/projects/${projectId}/documents/confirm`, {
-      method: 'POST',
-      body: JSON.stringify({
-        file_path: filePath,
-        filename,
-        file_size: fileSize,
-        content_type: contentType,
-      }),
-    }),
+    fetchApi<ProjectDocument>(
+      `/api/v1/projects/${projectId}/documents/confirm`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          file_path: filePath,
+          filename,
+          file_size: fileSize,
+          content_type: contentType,
+        }),
+      }
+    ),
 
   // Upload with presigned URL (new method - direct to Supabase Storage)
   uploadWithPresignedUrl: async (
@@ -483,8 +540,16 @@ export const documentsApi = {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          console.error('Supabase upload failed:', xhr.status, xhr.responseText);
-          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
+          console.error(
+            'Supabase upload failed:',
+            xhr.status,
+            xhr.responseText
+          );
+          reject(
+            new Error(
+              `Upload failed with status ${xhr.status}: ${xhr.responseText}`
+            )
+          );
         }
       });
 
@@ -516,16 +581,32 @@ export const documentsApi = {
     const formData = new FormData();
     formData.append('file', file);
 
+    // Build headers with auth token (don't set Content-Type, let browser handle multipart boundary)
+    const headers: Record<string, string> = {};
+    if (_getAuthToken) {
+      try {
+        const token = await _getAuthToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.warn('[API] Failed to get auth token for upload:', error);
+      }
+    }
+
     const response = await fetch(
       `${getApiUrl()}/api/v1/projects/${projectId}/documents`,
       {
         method: 'POST',
+        headers,
         body: formData,
       }
     );
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: 'Upload failed' }));
       throw new ApiError(response.status, error.detail);
     }
 
@@ -540,9 +621,7 @@ export const documentsApi = {
 export const chatApi = {
   // Chat History
   getHistory: (projectId: string) =>
-    fetchApi<ChatHistoryResponse>(
-      `/api/v1/projects/${projectId}/chat/history`
-    ),
+    fetchApi<ChatHistoryResponse>(`/api/v1/projects/${projectId}/chat/history`),
 
   // Streaming chat
   stream: async function* (
@@ -551,11 +630,11 @@ export const chatApi = {
   ): AsyncGenerator<{
     type: string;
     content?: string;
-    sources?: ChatResponse['sources'];
-    data?: Citation;  // Single citation event
-    citations?: Citation[];  // All citations at end
-    step?: string;  // For status events: rewriting, memory, analyzing, retrieving, ranking, generating
-    message?: string;  // Human-readable status message
+    sources?: ChatHistoryResponse['messages'][number]['sources'];
+    data?: Citation; // Single citation event
+    citations?: Citation[]; // All citations at end
+    step?: string; // For status events: rewriting, memory, analyzing, retrieving, ranking, generating
+    message?: string; // Human-readable status message
   }> {
     const response = await fetch(
       `${getApiUrl()}/api/v1/projects/${projectId}/chat/stream`,
@@ -568,7 +647,10 @@ export const chatApi = {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
-      throw new ApiError(response.status, `Stream request failed: ${errorText}`);
+      throw new ApiError(
+        response.status,
+        `Stream request failed: ${errorText}`
+      );
     }
 
     const reader = response.body?.getReader();
@@ -626,6 +708,17 @@ export const canvasApi = {
       }
     ),
 
+  createNode: (projectId: string, nodeData: CanvasNode) =>
+    fetchApi<{
+      success: boolean;
+      nodeId: string;
+      updated_at: string;
+      version: number;
+    }>(`/api/v1/projects/${projectId}/canvas/nodes`, {
+      method: 'POST',
+      body: JSON.stringify(nodeData),
+    }),
+
   deleteNode: (projectId: string, nodeId: string) =>
     fetchApi<{ success: boolean; updated_at: string; version: number }>(
       `/api/v1/projects/${projectId}/canvas/nodes/${nodeId}`,
@@ -662,40 +755,49 @@ export const canvasApi = {
 
 // Health check
 export const healthApi = {
-  check: () => fetchApi<{ status: string; environment: string; version: string }>('/health'),
+  check: () =>
+    fetchApi<{ status: string; environment: string; version: string }>(
+      '/health'
+    ),
 };
 
 // WebSocket URL helper
 export function getWebSocketUrl(): string {
   const apiUrl = getApiUrl();
-  
+
   // If apiUrl is empty (using Next.js proxy), we need to construct the WebSocket URL
   // directly to the backend since Next.js rewrites don't support WebSocket
   if (!apiUrl && typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    
+
     // Check for runtime WebSocket URL config
-    if ((window as any).__WS_URL__) {
-      console.log('[WebSocket] Using window config URL:', (window as any).__WS_URL__);
-      return (window as any).__WS_URL__;
+    if (window.__WS_URL__) {
+      console.log('[WebSocket] Using window config URL:', window.__WS_URL__);
+      return window.__WS_URL__;
     }
-    
+
     // Check for NEXT_PUBLIC_WS_URL env var (set at build time)
     const wsEnvUrl = process.env.NEXT_PUBLIC_WS_URL;
     if (wsEnvUrl && wsEnvUrl !== 'undefined') {
       console.log('[WebSocket] Using NEXT_PUBLIC_WS_URL:', wsEnvUrl);
       return wsEnvUrl;
     }
-    
+
     // Try to get API_URL from Next.js build-time config and convert to WebSocket
     // This is set in next.config.ts and used for rewrites
     const apiEnvUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (apiEnvUrl && apiEnvUrl !== 'undefined' && !apiEnvUrl.includes('.internal')) {
-      const wsUrl = apiEnvUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    if (
+      apiEnvUrl &&
+      apiEnvUrl !== 'undefined' &&
+      !apiEnvUrl.includes('.internal')
+    ) {
+      const wsUrl = apiEnvUrl
+        .replace('https://', 'wss://')
+        .replace('http://', 'ws://');
       console.log('[WebSocket] Derived from NEXT_PUBLIC_API_URL:', wsUrl);
       return wsUrl;
     }
-    
+
     // For Zeabur deployments, try to derive API hostname from frontend hostname
     if (hostname.includes('zeabur.app')) {
       const apiHostname = hostname
@@ -703,28 +805,37 @@ export function getWebSocketUrl(): string {
         .replace('-frontend-', '-api-')
         .replace('research-agent-rag-web', 'research-agent-rag-api')
         .replace('research-agent-rag-frontend', 'research-agent-rag-api');
-      
+
       // If hostname didn't change, we can't derive the API URL
       if (apiHostname !== hostname) {
-        console.log('[WebSocket] Constructing Zeabur backend URL for:', apiHostname);
+        console.log(
+          '[WebSocket] Constructing Zeabur backend URL for:',
+          apiHostname
+        );
         return `wss://${apiHostname}`;
       }
-      
+
       // For custom domains like weaver.zeabur.app, log a warning
-      console.warn('[WebSocket] Cannot derive API URL from hostname:', hostname);
-      console.warn('[WebSocket] Please set NEXT_PUBLIC_WS_URL or NEXT_PUBLIC_API_URL environment variable');
+      console.warn(
+        '[WebSocket] Cannot derive API URL from hostname:',
+        hostname
+      );
+      console.warn(
+        '[WebSocket] Please set NEXT_PUBLIC_WS_URL or NEXT_PUBLIC_API_URL environment variable'
+      );
     }
-    
+
     // Fallback to current origin with ws/wss (will likely fail for proxied setups)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    console.log('[WebSocket] Fallback to current origin:', `${protocol}//${window.location.host}`);
+    console.log(
+      '[WebSocket] Fallback to current origin:',
+      `${protocol}//${window.location.host}`
+    );
     return `${protocol}//${window.location.host}`;
   }
-  
+
   // Convert HTTP(S) to WS(S)
-  return apiUrl
-    .replace('https://', 'wss://')
-    .replace('http://', 'ws://');
+  return apiUrl.replace('https://', 'wss://').replace('http://', 'ws://');
 }
 
 // Canvas WebSocket Event Types
@@ -789,7 +900,7 @@ export interface OutputWebSocketEvent {
   timestamp?: string;
   // Generation lifecycle
   outputType?: string;
-  outputId?: string;  // ID of the generated output (for generation_complete)
+  outputId?: string; // ID of the generated output (for generation_complete)
   message?: string;
   progress?: number;
   errorMessage?: string;
@@ -799,8 +910,8 @@ export interface OutputWebSocketEvent {
   edgeId?: string;
   edgeData?: Partial<MindmapEdge>;
   // Mindmap batch generation (new mode)
-  markdownContent?: string;  // Raw markdown for frontend parsing
-  documentId?: string;       // Document ID for source references
+  markdownContent?: string; // Raw markdown for frontend parsing
+  documentId?: string; // Document ID for source references
   // Level progress
   currentLevel?: number;
   totalLevels?: number;
@@ -885,7 +996,9 @@ export const settingsApi = {
 
   // Get settings metadata (for UI rendering)
   getMetadata: () =>
-    fetchApi<{ settings: Record<string, SettingMetadata> }>('/api/v1/settings/metadata'),
+    fetchApi<{ settings: Record<string, SettingMetadata> }>(
+      '/api/v1/settings/metadata'
+    ),
 
   // Validate API key
   validateApiKey: (apiKey: string, provider: string = 'openrouter') =>
@@ -964,16 +1077,26 @@ export const highlightsApi = {
       body: JSON.stringify(data),
     }),
 
-  update: (documentId: string, highlightId: string, data: HighlightUpdateRequest) =>
-    fetchApi<HighlightResponse>(`/api/v1/documents/${documentId}/highlights/${highlightId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
+  update: (
+    documentId: string,
+    highlightId: string,
+    data: HighlightUpdateRequest
+  ) =>
+    fetchApi<HighlightResponse>(
+      `/api/v1/documents/${documentId}/highlights/${highlightId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    ),
 
   delete: (documentId: string, highlightId: string) =>
-    fetchApi<void>(`/api/v1/documents/${documentId}/highlights/${highlightId}`, {
-      method: 'DELETE',
-    }),
+    fetchApi<void>(
+      `/api/v1/documents/${documentId}/highlights/${highlightId}`,
+      {
+        method: 'DELETE',
+      }
+    ),
 };
 
 // Comment Types
@@ -1015,13 +1138,18 @@ export const commentsApi = {
     }),
 
   listReplies: (documentId: string, commentId: string) =>
-    fetchApi<CommentResponse[]>(`/api/v1/documents/${documentId}/comments/${commentId}/replies`),
+    fetchApi<CommentResponse[]>(
+      `/api/v1/documents/${documentId}/comments/${commentId}/replies`
+    ),
 
   update: (documentId: string, commentId: string, content: string) =>
-    fetchApi<CommentResponse>(`/api/v1/documents/${documentId}/comments/${commentId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ content }),
-    }),
+    fetchApi<CommentResponse>(
+      `/api/v1/documents/${documentId}/comments/${commentId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      }
+    ),
 
   delete: (documentId: string, commentId: string) =>
     fetchApi<void>(`/api/v1/documents/${documentId}/comments/${commentId}`, {
@@ -1050,10 +1178,10 @@ export interface SummaryData {
  * - node: Canvas nodes (location = node ID)
  */
 export interface SourceRef {
-  sourceId: string;       // ID of the source entity (document_id, node_id, etc.)
+  sourceId: string; // ID of the source entity (document_id, node_id, etc.)
   sourceType: 'document' | 'node' | 'video' | 'audio' | 'web';
-  location?: string;      // Page number, timestamp, URL fragment, etc.
-  quote: string;          // Exact quoted text or transcript segment
+  location?: string; // Page number, timestamp, URL fragment, etc.
+  quote: string; // Exact quoted text or transcript segment
 }
 
 export interface MindmapNode {
@@ -1068,8 +1196,8 @@ export interface MindmapNode {
   height: number;
   color: string;
   status: 'generating' | 'complete' | 'error';
-  sourceRefs?: SourceRef[];  // Source references for drilldown
-  collapsed?: boolean;  // Whether this node's children are collapsed
+  sourceRefs?: SourceRef[]; // Source references for drilldown
+  collapsed?: boolean; // Whether this node's children are collapsed
 }
 
 export interface MindmapEdge {
@@ -1123,7 +1251,13 @@ export interface ActionListData {
   };
 }
 
-export type OutputType = 'mindmap' | 'summary' | 'flashcards' | 'custom' | 'article' | 'action_list';
+export type OutputType =
+  | 'mindmap'
+  | 'summary'
+  | 'flashcards'
+  | 'custom'
+  | 'article'
+  | 'action_list';
 
 export interface OutputResponse {
   id: string;
@@ -1132,7 +1266,12 @@ export interface OutputResponse {
   source_ids: string[];
   status: 'generating' | 'complete' | 'error' | 'cancelled';
   title?: string;
-  data?: SummaryData | MindmapData | ArticleData | ActionListData | Record<string, unknown>;
+  data?:
+    | SummaryData
+    | MindmapData
+    | ArticleData
+    | ActionListData
+    | Record<string, unknown>;
   error_message?: string;
   created_at: string;
   updated_at: string;
@@ -1159,18 +1298,23 @@ export const outputsApi = {
     title?: string,
     options?: Record<string, unknown>
   ) =>
-    fetchApi<GenerateOutputResponse>(`/api/v1/projects/${projectId}/outputs/generate`, {
-      method: 'POST',
-      body: JSON.stringify({
-        output_type: outputType,
-        source_ids: sourceIds,
-        title,
-        options,
-      }),
-    }),
+    fetchApi<GenerateOutputResponse>(
+      `/api/v1/projects/${projectId}/outputs/generate`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          output_type: outputType,
+          source_ids: sourceIds,
+          title,
+          options,
+        }),
+      }
+    ),
 
   get: (projectId: string, outputId: string) =>
-    fetchApi<OutputResponse>(`/api/v1/projects/${projectId}/outputs/${outputId}`),
+    fetchApi<OutputResponse>(
+      `/api/v1/projects/${projectId}/outputs/${outputId}`
+    ),
 
   list: (
     projectId: string,
@@ -1192,19 +1336,25 @@ export const outputsApi = {
     }),
 
   cancelTask: (projectId: string, taskId: string) =>
-    fetchApi<void>(`/api/v1/projects/${projectId}/outputs/tasks/${taskId}/cancel`, {
-      method: 'POST',
-    }),
+    fetchApi<void>(
+      `/api/v1/projects/${projectId}/outputs/tasks/${taskId}/cancel`,
+      {
+        method: 'POST',
+      }
+    ),
 
   update: (
     projectId: string,
     outputId: string,
     updates: { title?: string; data?: Record<string, unknown> }
   ) =>
-    fetchApi<OutputResponse>(`/api/v1/projects/${projectId}/outputs/${outputId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    }),
+    fetchApi<OutputResponse>(
+      `/api/v1/projects/${projectId}/outputs/${outputId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      }
+    ),
 
   synthesize: (
     projectId: string,
@@ -1277,25 +1427,31 @@ export const inboxApi = {
     q?: string;
   }) => {
     const searchParams = new URLSearchParams();
-    if (params?.skip !== undefined) searchParams.set('skip', params.skip.toString());
-    if (params?.limit !== undefined) searchParams.set('limit', params.limit.toString());
-    if (params?.is_processed !== undefined) searchParams.set('is_processed', params.is_processed.toString());
+    if (params?.skip !== undefined)
+      searchParams.set('skip', params.skip.toString());
+    if (params?.limit !== undefined)
+      searchParams.set('limit', params.limit.toString());
+    if (params?.is_processed !== undefined)
+      searchParams.set('is_processed', params.is_processed.toString());
     if (params?.type) searchParams.set('type', params.type);
     if (params?.tag_id) searchParams.set('tag_id', params.tag_id);
     if (params?.q) searchParams.set('q', params.q);
 
     const query = searchParams.toString();
-    return fetchApi<InboxItemListResponse>(`/api/v1/inbox/items${query ? `?${query}` : ''}`);
+    return fetchApi<InboxItemListResponse>(
+      `/api/v1/inbox/items${query ? `?${query}` : ''}`
+    );
   },
 
-  get: (itemId: string) =>
-    fetchApi<InboxItem>(`/api/v1/inbox/items/${itemId}`),
+  get: (itemId: string) => fetchApi<InboxItem>(`/api/v1/inbox/items/${itemId}`),
 
   delete: (itemId: string) =>
     fetchApi<void>(`/api/v1/inbox/items/${itemId}`, { method: 'DELETE' }),
 
   assignToProject: (itemId: string, projectId: string) =>
-    fetchApi<void>(`/api/v1/inbox/items/${itemId}/assign/${projectId}`, { method: 'POST' }),
+    fetchApi<void>(`/api/v1/inbox/items/${itemId}/assign/${projectId}`, {
+      method: 'POST',
+    }),
 
   // For internal use (manual item creation)
   create: (item: InboxItemCreate) =>
@@ -1307,8 +1463,7 @@ export const inboxApi = {
 
 // Tags API
 export const tagsApi = {
-  list: () =>
-    fetchApi<{ items: InboxTag[] }>('/api/v1/tags'),
+  list: () => fetchApi<{ items: InboxTag[] }>('/api/v1/tags'),
 
   create: (name: string, color: string = 'blue') =>
     fetchApi<InboxTag>('/api/v1/tags', {
@@ -1319,8 +1474,6 @@ export const tagsApi = {
   delete: (tagId: string) =>
     fetchApi<void>(`/api/v1/tags/${tagId}`, { method: 'DELETE' }),
 };
-
-
 
 // =============================================================================
 // URL Content Extraction API
@@ -1363,7 +1516,10 @@ export const urlApi = {
    * Returns immediately with status="pending".
    * Use getStatus() to poll for completion.
    */
-  extract: (url: string, options: { force?: boolean; projectId?: string } = {}) =>
+  extract: (
+    url: string,
+    options: { force?: boolean; projectId?: string } = {}
+  ) =>
     fetchApi<UrlContent>('/api/v1/url/extract', {
       method: 'POST',
       body: JSON.stringify({
@@ -1377,7 +1533,9 @@ export const urlApi = {
    * List all URL contents for a project.
    */
   listByProject: (projectId: string) =>
-    fetchApi<UrlContentListResponse>(`/api/v1/url/projects/${projectId}/contents`),
+    fetchApi<UrlContentListResponse>(
+      `/api/v1/url/projects/${projectId}/contents`
+    ),
 
   /**
    * Delete a URL content record.
@@ -1390,8 +1548,7 @@ export const urlApi = {
   /**
    * Get full URL content by ID.
    */
-  get: (id: string) =>
-    fetchApi<UrlContent>(`/api/v1/url/extract/${id}`),
+  get: (id: string) => fetchApi<UrlContent>(`/api/v1/url/extract/${id}`),
 
   /**
    * Get lightweight status for polling.
@@ -1431,10 +1588,9 @@ export const urlApi = {
       }
 
       // Wait before next poll
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
 
     throw new Error('URL extraction timed out');
   },
 };
-

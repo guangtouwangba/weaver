@@ -1,22 +1,31 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Collapse } from '@/components/ui/primitives';
-import { Stack, Text, IconButton, Tooltip, Spinner, ConfirmDialog } from '@/components/ui';
-import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
-  DescriptionIcon,
+  Stack,
+  Text,
+  IconButton,
+  Tooltip,
+  Spinner,
+  ConfirmDialog,
+} from '@/components/ui';
+import { colors, radii } from '@/components/ui/tokens';
+import {
   ExpandMoreIcon,
   DeleteIcon,
-  CloudUploadIcon,
   UploadFileIcon,
   MenuOpenIcon,
   CloseIcon,
-  ErrorIcon,
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
-import { documentsApi, ProjectDocument, urlApi, UrlContent } from '@/lib/api';
-import { PlatformIcon, detectPlatform, type Platform } from '@/lib/platform-icons';
+import { documentsApi, urlApi, UrlContent } from '@/lib/api';
+import {
+  PlatformIcon,
+  detectPlatform,
+  type Platform,
+} from '@/lib/platform-icons';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
 import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
@@ -50,43 +59,16 @@ interface PendingUrlExtraction {
   };
 }
 
-// Helper function to format file size
-const formatFileSize = (bytes: number | undefined): string => {
-  if (!bytes) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-// Custom PDF Icon Component
-const CustomPdfIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#EF4444" />
-    <path d="M14 2V8H20" fill="#B91C1C" fillOpacity="0.5" />
-    <text x="50%" y="15" fontFamily="sans-serif" fontSize="6" fill="white" fontWeight="bold" textAnchor="middle">PDF</text>
-  </svg>
-);
-
-// Helper function to get icon props based on file extension
-const getFileIconProps = (filename: string) => {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'pdf':
-      return { icon: <CustomPdfIcon size={24} />, bg: '#FEF2F2' }; // Red-50
-    case 'doc':
-    case 'docx':
-      return { icon: <DescriptionIcon size="lg" style={{ color: '#3B82F6' }} />, bg: '#EFF6FF' }; // Blue-500, Blue-50
-    case 'csv':
-    case 'xlsx':
-    case 'xls':
-      return { icon: <DescriptionIcon size="lg" style={{ color: '#10B981' }} />, bg: '#ECFDF5' }; // Emerald-500, Emerald-50
-    default:
-      return { icon: <DescriptionIcon size="lg" style={{ color: '#6B7280' }} />, bg: '#F3F4F6' }; // Gray-500, Gray-100
-  }
-};
-
 // Reusable Skeleton Component
-const SkeletonBar = ({ width, height = 16, style = {} }: { width: string | number, height?: number, style?: React.CSSProperties }) => (
+const SkeletonBar = ({
+  width,
+  height = 16,
+  style = {},
+}: {
+  width: string | number;
+  height?: number;
+  style?: React.CSSProperties;
+}) => (
   <div
     style={{
       width: typeof width === 'number' ? `${width}px` : width,
@@ -94,12 +76,16 @@ const SkeletonBar = ({ width, height = 16, style = {} }: { width: string | numbe
       backgroundColor: 'rgba(0,0,0,0.06)',
       borderRadius: radii.sm,
       animation: 'pulse 1.5s ease-in-out infinite',
-      ...style
+      ...style,
     }}
   />
 );
 
-export default function ResourceSidebar({ width = 300, collapsed = false, onToggle }: ResourceSidebarProps) {
+export default function ResourceSidebar({
+  width = 300,
+  collapsed = false,
+  onToggle,
+}: ResourceSidebarProps) {
   const {
     projectId,
     documents,
@@ -117,9 +103,9 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   // Subscribe to document status updates
   useDocumentWebSocket({
     projectId,
-    onDocumentStatusChange: (event) => {
+    onDocumentStatusChange: () => {
       // Logic for updating document status if needed
-    }
+    },
   });
 
   // UI State
@@ -127,8 +113,8 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   const [isDragging, setIsDragging] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadFileName, setUploadFileName] = useState<string | null>(null);
+  const [, setUploadProgress] = useState(0);
+  const [, setUploadFileName] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   // Delete confirmation state
@@ -137,7 +123,9 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   const [isDeleting, setIsDeleting] = useState(false);
 
   // URL extraction state
-  const [pendingUrlExtractions, setPendingUrlExtractions] = useState<PendingUrlExtraction[]>([]);
+  const [pendingUrlExtractions, setPendingUrlExtractions] = useState<
+    PendingUrlExtraction[]
+  >([]);
 
   // Removed local youtubeModal state
 
@@ -186,7 +174,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
 
     // Simulate upload progress
     const progressInterval = setInterval(() => {
-      setUploadProgress(prev => Math.min(prev + 10, 90));
+      setUploadProgress((prev) => Math.min(prev + 10, 90));
     }, 200);
 
     try {
@@ -209,24 +197,25 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
     }
   };
 
-  const handleDeleteDocument = async (docId: string, e?: React.MouseEvent) => {
+  const handleDeleteDocument = (docId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    // Close dialog immediately
+    setConfirmDeleteDoc(null);
     setIsDeleting(true);
-    setDeletingIds(prev => new Set(prev).add(docId));
+    // Mark as deleting in list
+    setDeletingIds((prev) => new Set(prev).add(docId));
 
-    try {
-      await deleteDocument(docId);
-      setConfirmDeleteDoc(null);
-    } catch (error) {
-      console.error('Delete failed:', error);
-    } finally {
-      setIsDeleting(false);
-      setDeletingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(docId);
-        return newSet;
+    // Delete async in background
+    deleteDocument(docId)
+      .catch((error) => console.error('Delete failed:', error))
+      .finally(() => {
+        setDeletingIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(docId);
+          return newSet;
+        });
+        setIsDeleting(false);
       });
-    }
   };
 
   // Handle URL import
@@ -241,7 +230,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       platform,
       status: 'extracting',
     };
-    setPendingUrlExtractions(prev => [pendingExtraction, ...prev]);
+    setPendingUrlExtractions((prev) => [pendingExtraction, ...prev]);
 
     try {
       // Start extraction - returns immediately with pending status
@@ -249,39 +238,51 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       const pendingContent = await urlApi.extract(url, { projectId });
 
       // Poll for completion in background
-      const completedContent = await urlApi.waitForCompletion(pendingContent.id, {
-        maxAttempts: 120,
-        intervalMs: 1000,
-        onStatusChange: (status) => {
-          // Update title/thumbnail as they become available
-          if (status.title || status.thumbnail_url) {
-            setPendingUrlExtractions(prev =>
-              prev.map(p =>
-                p.id === extractionId
-                  ? { ...p, title: status.title || p.title, thumbnailUrl: status.thumbnail_url || p.thumbnailUrl }
-                  : p
-              )
-            );
-          }
-        },
-      });
+      const completedContent = await urlApi.waitForCompletion(
+        pendingContent.id,
+        {
+          maxAttempts: 120,
+          intervalMs: 1000,
+          onStatusChange: (status) => {
+            // Update title/thumbnail as they become available
+            if (status.title || status.thumbnail_url) {
+              setPendingUrlExtractions((prev) =>
+                prev.map((p) =>
+                  p.id === extractionId
+                    ? {
+                        ...p,
+                        title: status.title || p.title,
+                        thumbnailUrl: status.thumbnail_url || p.thumbnailUrl,
+                      }
+                    : p
+                )
+              );
+            }
+          },
+        }
+      );
 
       // Add to persistent URL contents in context (so it survives page refresh)
       addUrlContent(completedContent);
 
       // Remove from pending extractions (now it's in urlContents)
-      setPendingUrlExtractions(prev => prev.filter(p => p.id !== extractionId));
+      setPendingUrlExtractions((prev) =>
+        prev.filter((p) => p.id !== extractionId)
+      );
     } catch (error) {
       console.error('URL extraction failed:', error);
       // Update to failed
-      setPendingUrlExtractions(prev =>
-        prev.map(p =>
+      setPendingUrlExtractions((prev) =>
+        prev.map((p) =>
           p.id === extractionId
             ? {
-              ...p,
-              status: 'failed',
-              errorMessage: error instanceof Error ? error.message : 'Failed to extract URL',
-            }
+                ...p,
+                status: 'failed',
+                errorMessage:
+                  error instanceof Error
+                    ? error.message
+                    : 'Failed to extract URL',
+              }
             : p
         )
       );
@@ -289,19 +290,30 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
   };
 
   // Remove URL extraction from list (pending or persisted)
-  const handleRemoveUrlExtraction = async (id: string, isPersisted: boolean = false) => {
+  const handleRemoveUrlExtraction = (
+    id: string,
+    isPersisted: boolean = false
+  ) => {
     if (isPersisted) {
+      // Close dialog immediately
+      setConfirmDeleteUrl(null);
       setIsDeleting(true);
-      try {
-        await removeUrlContent(id);
-        setConfirmDeleteUrl(null);
-      } catch (error) {
-        console.error('Failed to delete URL content:', error);
-      } finally {
-        setIsDeleting(false);
-      }
+      // Mark as deleting in list
+      setDeletingIds((prev) => new Set(prev).add(id));
+
+      // Delete async in background
+      removeUrlContent(id)
+        .catch((error) => console.error('Failed to delete URL content:', error))
+        .finally(() => {
+          setDeletingIds((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(id);
+            return newSet;
+          });
+          setIsDeleting(false);
+        });
     } else {
-      setPendingUrlExtractions(prev => prev.filter(p => p.id !== id));
+      setPendingUrlExtractions((prev) => prev.filter((p) => p.id !== id));
     }
   };
 
@@ -380,8 +392,16 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
           style={{ marginBottom: 16, cursor: 'pointer' }}
           onClick={() => setFilesExpanded(!filesExpanded)}
         >
-          <ExpandMoreIcon size="sm" style={{ transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
-          <Text variant="overline" color="secondary" style={{ marginLeft: 8 }}>RECENT UPLOADS</Text>
+          <ExpandMoreIcon
+            size="sm"
+            style={{
+              transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.2s',
+            }}
+          />
+          <Text variant="overline" color="secondary" style={{ marginLeft: 8 }}>
+            RECENT UPLOADS
+          </Text>
         </Stack>
 
         <Collapse in={filesExpanded}>
@@ -411,12 +431,26 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                     flexShrink: 0,
                   }}
                 >
-                  <UploadFileIcon size="lg" style={{ color: colors.neutral[500] }} />
+                  <UploadFileIcon
+                    size="lg"
+                    style={{ color: colors.neutral[500] }}
+                  />
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <SkeletonBar width="80%" height={20} style={{ marginBottom: 8, backgroundColor: 'rgba(0, 0, 0, 0.08)' }} />
-                  <SkeletonBar width="50%" height={16} style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }} />
+                  <SkeletonBar
+                    width="80%"
+                    height={20}
+                    style={{
+                      marginBottom: 8,
+                      backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                    }}
+                  />
+                  <SkeletonBar
+                    width="50%"
+                    height={16}
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}
+                  />
                 </div>
 
                 <Spinner size="sm" style={{ color: colors.primary[500] }} />
@@ -437,7 +471,12 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                     type: 'url',
                     id: extraction.id,
                     platform: extraction.platform,
-                    contentType: extraction.platform === 'youtube' || extraction.platform === 'bilibili' || extraction.platform === 'douyin' ? 'video' : 'article',
+                    contentType:
+                      extraction.platform === 'youtube' ||
+                      extraction.platform === 'bilibili' ||
+                      extraction.platform === 'douyin'
+                        ? 'video'
+                        : 'article',
                     title: extraction.title,
                     url: extraction.url,
                     content: extraction.content?.content,
@@ -450,12 +489,19 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                     viewCount: extraction.metadata?.viewCount,
                     publishedAt: extraction.metadata?.publishedAt,
                   };
-                  e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+                  e.dataTransfer.setData(
+                    'application/json',
+                    JSON.stringify(dragData)
+                  );
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
                 onClick={() => {
                   // Open YouTube player modal for completed YouTube extractions
-                  if (extraction.status === 'completed' && extraction.platform === 'youtube' && extraction.metadata?.videoId) {
+                  if (
+                    extraction.status === 'completed' &&
+                    extraction.platform === 'youtube' &&
+                    extraction.metadata?.videoId
+                  ) {
                     playVideo(extraction.metadata.videoId, {
                       title: extraction.title || 'YouTube Video',
                       channelName: extraction.metadata.channelName,
@@ -463,7 +509,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                       publishedAt: extraction.metadata.publishedAt,
                       sourceUrl: extraction.url,
                     });
-                  } else if (extraction.status === 'completed' && extraction.platform === 'web' && extraction.content) {
+                  } else if (
+                    extraction.status === 'completed' &&
+                    extraction.platform === 'web' &&
+                    extraction.content
+                  ) {
                     // For web pages, open the reader modal preview
                     setWebPageReader({
                       open: true,
@@ -477,8 +527,16 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                   padding: 16,
                   borderRadius: `${radii.lg}px`,
                   border: `1px solid ${extraction.status === 'failed' ? colors.error[200] : colors.neutral[200]}`,
-                  backgroundColor: extraction.status === 'failed' ? colors.error[50] : colors.neutral[50],
-                  cursor: extraction.status === 'completed' ? (extraction.platform === 'youtube' ? 'pointer' : 'grab') : 'default',
+                  backgroundColor:
+                    extraction.status === 'failed'
+                      ? colors.error[50]
+                      : colors.neutral[50],
+                  cursor:
+                    extraction.status === 'completed'
+                      ? extraction.platform === 'youtube'
+                        ? 'pointer'
+                        : 'grab'
+                      : 'default',
                 }}
               >
                 {/* Platform Icon */}
@@ -487,19 +545,26 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                     width: 48,
                     height: 48,
                     borderRadius: radii.md,
-                    backgroundColor: extraction.thumbnailUrl ? 'transparent' : colors.neutral[200],
+                    backgroundColor: extraction.thumbnailUrl
+                      ? 'transparent'
+                      : colors.neutral[200],
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                     overflow: 'hidden',
+                    position: 'relative',
                   }}
                 >
                   {extraction.thumbnailUrl ? (
-                    <img
+                    <Image
                       src={extraction.thumbnailUrl}
                       alt={extraction.title || 'Thumbnail'}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      fill
+                      sizes="48px"
+                      style={{ objectFit: 'cover' }}
+                      unoptimized
+                      loader={({ src }) => src}
                     />
                   ) : (
                     <PlatformIcon platform={extraction.platform} size={24} />
@@ -510,15 +575,33 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {extraction.status === 'extracting' ? (
                     <>
-                      <SkeletonBar width="80%" height={20} style={{ marginBottom: 8, backgroundColor: 'rgba(0, 0, 0, 0.08)' }} />
-                      <SkeletonBar width="50%" height={16} style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }} />
+                      <SkeletonBar
+                        width="80%"
+                        height={20}
+                        style={{
+                          marginBottom: 8,
+                          backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                        }}
+                      />
+                      <SkeletonBar
+                        width="50%"
+                        height={16}
+                        style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}
+                      />
                     </>
                   ) : extraction.status === 'failed' ? (
                     <>
-                      <Text variant="bodySmall" style={{ fontWeight: 500, color: colors.error[700] }}>
+                      <Text
+                        variant="bodySmall"
+                        style={{ fontWeight: 500, color: colors.error[700] }}
+                      >
                         Failed to extract
                       </Text>
-                      <Text variant="caption" color="secondary" style={{ display: 'block', marginTop: 4 }}>
+                      <Text
+                        variant="caption"
+                        color="secondary"
+                        style={{ display: 'block', marginTop: 4 }}
+                      >
                         {extraction.errorMessage || 'Unknown error'}
                       </Text>
                     </>
@@ -527,8 +610,13 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                       <Text variant="bodySmall" style={{ fontWeight: 500 }}>
                         {extraction.title || extraction.url}
                       </Text>
-                      <Text variant="caption" color="secondary" style={{ display: 'block', marginTop: 4 }}>
-                        {extraction.platform.charAt(0).toUpperCase() + extraction.platform.slice(1)}
+                      <Text
+                        variant="caption"
+                        color="secondary"
+                        style={{ display: 'block', marginTop: 4 }}
+                      >
+                        {extraction.platform.charAt(0).toUpperCase() +
+                          extraction.platform.slice(1)}
                       </Text>
                     </>
                   )}
@@ -538,7 +626,10 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                 {extraction.status === 'extracting' ? (
                   <Spinner size="sm" style={{ color: colors.primary[500] }} />
                 ) : extraction.status === 'failed' ? (
-                  <IconButton size="sm" onClick={() => handleRemoveUrlExtraction(extraction.id)}>
+                  <IconButton
+                    size="sm"
+                    onClick={() => handleRemoveUrlExtraction(extraction.id)}
+                  >
                     <CloseIcon size={16} />
                   </IconButton>
                 ) : null}
@@ -548,13 +639,15 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
             {/* Persisted URL Content Cards (loaded from backend) */}
             {urlContents.map((urlContent) => {
               const platform = urlContent.platform as Platform;
-              const metadata = urlContent.meta_data as {
-                video_id?: string;
-                duration?: number;
-                channel_name?: string;
-                view_count?: string;
-                published_at?: string;
-              } | undefined;
+              const metadata = urlContent.meta_data as
+                | {
+                    video_id?: string;
+                    duration?: number;
+                    channel_name?: string;
+                    view_count?: string;
+                    published_at?: string;
+                  }
+                | undefined;
 
               return (
                 <Stack
@@ -587,7 +680,10 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                       viewCount: metadata?.view_count,
                       publishedAt: metadata?.published_at,
                     };
-                    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+                    e.dataTransfer.setData(
+                      'application/json',
+                      JSON.stringify(dragData)
+                    );
                     e.dataTransfer.effectAllowed = 'copy';
                   }}
                   onClick={() => {
@@ -625,19 +721,26 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
                       width: 48,
                       height: 48,
                       borderRadius: radii.md,
-                      backgroundColor: urlContent.thumbnail_url ? 'transparent' : colors.neutral[200],
+                      backgroundColor: urlContent.thumbnail_url
+                        ? 'transparent'
+                        : colors.neutral[200],
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                       overflow: 'hidden',
+                      position: 'relative',
                     }}
                   >
                     {urlContent.thumbnail_url ? (
-                      <img
+                      <Image
                         src={urlContent.thumbnail_url}
                         alt={urlContent.title || 'Thumbnail'}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        fill
+                        sizes="48px"
+                        style={{ objectFit: 'cover' }}
+                        unoptimized
+                        loader={({ src }) => src}
                       />
                     ) : (
                       <PlatformIcon platform={platform} size={24} />
@@ -646,11 +749,24 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
 
                   {/* Content */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <Text variant="bodySmall" style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Text
+                      variant="bodySmall"
+                      style={{
+                        fontWeight: 500,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {urlContent.title || urlContent.url}
                     </Text>
-                    <Text variant="caption" color="secondary" style={{ display: 'block', marginTop: 4 }}>
-                      {urlContent.platform.charAt(0).toUpperCase() + urlContent.platform.slice(1)}
+                    <Text
+                      variant="caption"
+                      color="secondary"
+                      style={{ display: 'block', marginTop: 4 }}
+                    >
+                      {urlContent.platform.charAt(0).toUpperCase() +
+                        urlContent.platform.slice(1)}
                     </Text>
                   </div>
 
@@ -670,7 +786,7 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
             })}
 
             {/* Document Cards */}
-            {documents.map(doc => (
+            {documents.map((doc) => (
               <DocumentPreviewCard
                 key={doc.id}
                 document={doc}
@@ -689,11 +805,18 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
               />
             ))}
 
-            {documents.length === 0 && urlContents.length === 0 && pendingUrlExtractions.length === 0 && !isUploading && (
-              <Text variant="bodySmall" color="secondary" style={{ textAlign: 'center', padding: '16px 0' }}>
-                No documents yet. Import one to get started.
-              </Text>
-            )}
+            {documents.length === 0 &&
+              urlContents.length === 0 &&
+              pendingUrlExtractions.length === 0 &&
+              !isUploading && (
+                <Text
+                  variant="bodySmall"
+                  color="secondary"
+                  style={{ textAlign: 'center', padding: '16px 0' }}
+                >
+                  No documents yet. Import one to get started.
+                </Text>
+              )}
           </Stack>
         </Collapse>
       </div>
@@ -715,7 +838,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
           title={webPageReader.title}
           content={webPageReader.content}
           sourceUrl={webPageReader.sourceUrl}
-          domain={webPageReader.sourceUrl ? new URL(webPageReader.sourceUrl).hostname : undefined}
+          domain={
+            webPageReader.sourceUrl
+              ? new URL(webPageReader.sourceUrl).hostname
+              : undefined
+          }
         />
       )}
 
@@ -723,9 +850,11 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       <ConfirmDialog
         open={confirmDeleteDoc !== null}
         onClose={() => setConfirmDeleteDoc(null)}
-        onConfirm={() => { if (confirmDeleteDoc) handleDeleteDocument(confirmDeleteDoc); }}
+        onConfirm={() => {
+          if (confirmDeleteDoc) handleDeleteDocument(confirmDeleteDoc);
+        }}
         title="Delete Document"
-        message={`Are you sure you want to delete "${documents.find(d => d.id === confirmDeleteDoc)?.filename}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${documents.find((d) => d.id === confirmDeleteDoc)?.filename}"? This action cannot be undone.`}
         confirmLabel="Delete"
         isDanger={true}
         loading={isDeleting}
@@ -735,9 +864,12 @@ export default function ResourceSidebar({ width = 300, collapsed = false, onTogg
       <ConfirmDialog
         open={confirmDeleteUrl !== null}
         onClose={() => setConfirmDeleteUrl(null)}
-        onConfirm={() => { if (confirmDeleteUrl) handleRemoveUrlExtraction(confirmDeleteUrl, true); }}
+        onConfirm={() => {
+          if (confirmDeleteUrl)
+            handleRemoveUrlExtraction(confirmDeleteUrl, true);
+        }}
         title="Remove Link"
-        message={`Are you sure you want to remove "${urlContents.find(u => u.id === confirmDeleteUrl)?.title || 'this link'}"? This action cannot be undone.`}
+        message={`Are you sure you want to remove "${urlContents.find((u) => u.id === confirmDeleteUrl)?.title || 'this link'}"? This action cannot be undone.`}
         confirmLabel="Remove"
         isDanger={true}
         loading={isDeleting}

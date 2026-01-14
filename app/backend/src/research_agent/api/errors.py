@@ -1,6 +1,7 @@
 """Unified error handling for API."""
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from research_agent.shared.exceptions import (
@@ -17,6 +18,21 @@ from research_agent.shared.utils.logger import logger
 
 def setup_error_handlers(app: FastAPI) -> None:
     """Set up error handlers for the FastAPI app."""
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        """Handle FastAPI request validation errors (422) with detailed logging."""
+        errors = exc.errors()
+        logger.warning(
+            f"RequestValidationError: {errors} - "
+            f"URL: {request.url}, "
+            f"Method: {request.method}, "
+            f"Headers: {dict(request.headers)}"
+        )
+        return JSONResponse(
+            status_code=422,
+            content={"detail": errors, "type": "request_validation_error"},
+        )
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request: Request, exc: NotFoundError) -> JSONResponse:

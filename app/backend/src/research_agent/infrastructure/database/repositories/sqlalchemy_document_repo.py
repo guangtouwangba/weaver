@@ -19,6 +19,9 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
 
     async def save(self, document: Document, user_id: Optional[str] = None) -> Document:
         """Save a document."""
+        # Resolve user_id: prefer entity's user_id, fallback to parameter
+        effective_user_id = document.user_id or user_id
+
         # Check if exists
         existing = await self._session.get(DocumentModel, document.id)
 
@@ -37,11 +40,12 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
             existing.parsing_metadata = document.parsing_metadata
             existing.thumbnail_path = document.thumbnail_path
             existing.thumbnail_status = document.thumbnail_status
-            if user_id:
-                existing.user_id = user_id
+            # Always update user_id if we have one
+            if effective_user_id:
+                existing.user_id = effective_user_id
         else:
-            # Create new
-            document.user_id = user_id  # Set in entity
+            # Create new - ensure entity has user_id set
+            document.user_id = effective_user_id
             model = self._to_model(document)
             self._session.add(model)
 

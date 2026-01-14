@@ -19,7 +19,14 @@ const NODE_WIDTH = 200;
 const NODE_HEIGHT = 80;
 
 // Colors by depth level
-const COLORS_BY_LEVEL = ['primary', 'blue', 'green', 'orange', 'purple', 'pink'];
+const COLORS_BY_LEVEL = [
+  'primary',
+  'blue',
+  'green',
+  'orange',
+  'purple',
+  'pink',
+];
 
 function getColorForLevel(level: number): string {
   return COLORS_BY_LEVEL[level % COLORS_BY_LEVEL.length];
@@ -31,7 +38,7 @@ function getColorForLevel(level: number): string {
  * Supports:
  * - [Page X] or [Page X-Y] for PDFs
  * - [MM:SS] or [HH:MM:SS] for videos
- * 
+ *
  * @param text - The text containing source markers
  * @param documentId - Optional document ID for source references
  * @param useTextAsQuote - If true, use the clean text as the quote for each ref
@@ -52,14 +59,23 @@ function parseSourceMarkers(
   // Debug: Check for time markers in input
   const hasTimeMarkers = timePattern.test(text);
   if (hasTimeMarkers) {
-    console.log('[parseSourceMarkers] Found TIME markers in text:', text.substring(0, 100));
-    console.log('[parseSourceMarkers] documentId for sourceRefs:', documentId || 'EMPTY');
+    console.log(
+      '[parseSourceMarkers] Found TIME markers in text:',
+      text.substring(0, 100)
+    );
+    console.log(
+      '[parseSourceMarkers] documentId for sourceRefs:',
+      documentId || 'EMPTY'
+    );
   }
   // Reset regex after test
   timePattern.lastIndex = 0;
 
   // Remove markers from text first to get clean text
-  let cleanText = text.replace(pagePattern, '').replace(timePattern, '').trim();
+  const cleanText = text
+    .replace(pagePattern, '')
+    .replace(timePattern, '')
+    .trim();
 
   // Quote to use for source refs (the clean text content provides context)
   const quoteText = useTextAsQuote ? cleanText : '';
@@ -73,7 +89,10 @@ function parseSourceMarkers(
     sourceRefs.push({
       sourceId: documentId || '',
       sourceType: 'document',
-      location: pageStart === pageEnd ? `Page ${pageStart}` : `Page ${pageStart}-${pageEnd}`,
+      location:
+        pageStart === pageEnd
+          ? `Page ${pageStart}`
+          : `Page ${pageStart}-${pageEnd}`,
       quote: quoteText,
     });
   }
@@ -174,11 +193,17 @@ export function parseMarkdownToMindmap(
         depth = headingLevel - 1;
 
         // Find parent: pop stack until we find a node at smaller depth
-        while (parentStack.length > 0 && parentStack[parentStack.length - 1].indentLevel >= (headingLevel - 2)) {
+        while (
+          parentStack.length > 0 &&
+          parentStack[parentStack.length - 1].indentLevel >= headingLevel - 2
+        ) {
           parentStack.pop();
         }
 
-        parentId = parentStack.length > 0 ? parentStack[parentStack.length - 1].nodeId : rootId;
+        parentId =
+          parentStack.length > 0
+            ? parentStack[parentStack.length - 1].nodeId
+            : rootId;
         parentStack.push({ nodeId, indentLevel: headingLevel - 2 });
       }
 
@@ -222,11 +247,17 @@ export function parseMarkdownToMindmap(
       const depth = Math.floor(indent / 2) + 1;
 
       // Find parent by popping stack until we find smaller indent
-      while (parentStack.length > 0 && parentStack[parentStack.length - 1].indentLevel >= indent) {
+      while (
+        parentStack.length > 0 &&
+        parentStack[parentStack.length - 1].indentLevel >= indent
+      ) {
         parentStack.pop();
       }
 
-      const parentId = parentStack.length > 0 ? parentStack[parentStack.length - 1].nodeId : rootId;
+      const parentId =
+        parentStack.length > 0
+          ? parentStack[parentStack.length - 1].nodeId
+          : rootId;
 
       const nodeId = generateNodeId();
       const node: MindmapNode = {
@@ -261,11 +292,26 @@ export function parseMarkdownToMindmap(
   }
 
   // Summary logging for debugging source references
-  const nodesWithSourceRefs = nodes.filter(n => n.sourceRefs && n.sourceRefs.length > 0);
-  console.log('[MindmapParser] Parsed:', nodes.length, 'nodes,', edges.length, 'edges, rootId:', rootId);
-  console.log('[MindmapParser] Nodes with sourceRefs:', nodesWithSourceRefs.length);
+  const nodesWithSourceRefs = nodes.filter(
+    (n) => n.sourceRefs && n.sourceRefs.length > 0
+  );
+  console.log(
+    '[MindmapParser] Parsed:',
+    nodes.length,
+    'nodes,',
+    edges.length,
+    'edges, rootId:',
+    rootId
+  );
+  console.log(
+    '[MindmapParser] Nodes with sourceRefs:',
+    nodesWithSourceRefs.length
+  );
   if (nodesWithSourceRefs.length > 0) {
-    console.log('[MindmapParser] Sample sourceRef:', JSON.stringify(nodesWithSourceRefs[0].sourceRefs));
+    console.log(
+      '[MindmapParser] Sample sourceRef:',
+      JSON.stringify(nodesWithSourceRefs[0].sourceRefs)
+    );
   }
   return { nodes, edges, rootId };
 }

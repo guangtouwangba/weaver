@@ -1,11 +1,54 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
-import { ProjectDocument, CanvasNode, CanvasEdge, CanvasSection, CanvasViewState, documentsApi, canvasApi, chatApi, outputsApi, projectsApi, urlApi, UrlContent, Citation, SummaryData, MindmapData, OutputResponse } from '@/lib/api';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
+import {
+  ProjectDocument,
+  CanvasNode,
+  CanvasEdge,
+  CanvasSection,
+  CanvasViewState,
+  documentsApi,
+  canvasApi,
+  chatApi,
+  outputsApi,
+  projectsApi,
+  urlApi,
+  UrlContent,
+  Citation,
+  SummaryData,
+  MindmapData,
+  OutputResponse,
+} from '@/lib/api';
 import { useNotification } from '@/contexts/NotificationContext';
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return 'An unexpected error occurred.';
+};
+
 // === Generation Task Types for Concurrent Outputs ===
-export type GenerationType = 'summary' | 'mindmap' | 'podcast' | 'quiz' | 'timeline' | 'compare' | 'flashcards';
+export type GenerationType =
+  | 'summary'
+  | 'mindmap'
+  | 'podcast'
+  | 'quiz'
+  | 'timeline'
+  | 'compare'
+  | 'flashcards';
 
 // Legacy interface - kept for backward compatibility during transition
 export interface GenerationTask {
@@ -26,7 +69,7 @@ export interface GenerationTask {
 export interface PendingGeneration {
   id: string;
   type: GenerationType;
-  status: 'pending' | 'generating';  // Only loading states - no 'complete' or 'error'
+  status: 'pending' | 'generating'; // Only loading states - no 'complete' or 'error'
   position: { x: number; y: number }; // Canvas position where output will appear
   taskId?: string; // Backend task ID
   outputId?: string; // Backend output ID (for cleanup if cancelled)
@@ -43,7 +86,7 @@ interface ChatMessage {
     snippet: string;
     similarity: number;
   }>;
-  citations?: Citation[];  // Mega-Prompt mode citations with quote localization
+  citations?: Citation[]; // Mega-Prompt mode citations with quote localization
   timestamp: Date;
   // Optional: original user query that triggered this AI response
   query?: string;
@@ -56,7 +99,12 @@ interface ChatMessage {
   // Context references from backend (persisted with user messages)
   context_refs?: {
     url_ids?: string[];
-    urls?: Array<{ id: string; title: string; platform?: string; url?: string }>;
+    urls?: Array<{
+      id: string;
+      title: string;
+      platform?: string;
+      url?: string;
+    }>;
     node_ids?: string[];
     nodes?: Array<{ id: string; title: string }>;
   };
@@ -73,25 +121,39 @@ interface StudioContextType {
   activeDocumentId: string | null;
   setActiveDocumentId: (id: string | null) => void;
   selectedDocumentIds: Set<string>;
-  setSelectedDocumentIds: (ids: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+  setSelectedDocumentIds: (
+    ids: Set<string> | ((prev: Set<string>) => Set<string>)
+  ) => void;
   toggleDocumentSelection: (id: string, multiSelect?: boolean) => void;
 
   // URL Contents (YouTube, web links, etc.)
   urlContents: UrlContent[];
-  setUrlContents: (contents: UrlContent[] | ((prev: UrlContent[]) => UrlContent[])) => void;
+  setUrlContents: (
+    contents: UrlContent[] | ((prev: UrlContent[]) => UrlContent[])
+  ) => void;
   addUrlContent: (content: UrlContent) => void;
   removeUrlContent: (id: string) => Promise<void>;
   deleteDocument: (documentId: string) => Promise<void>;
 
   // Canvas
   canvasNodes: CanvasNode[];
-  setCanvasNodes: (nodes: CanvasNode[] | ((prev: CanvasNode[]) => CanvasNode[])) => void;
+  setCanvasNodes: (
+    nodes: CanvasNode[] | ((prev: CanvasNode[]) => CanvasNode[])
+  ) => void;
   canvasEdges: CanvasEdge[];
-  setCanvasEdges: (edges: CanvasEdge[] | ((prev: CanvasEdge[]) => CanvasEdge[])) => void;
+  setCanvasEdges: (
+    edges: CanvasEdge[] | ((prev: CanvasEdge[]) => CanvasEdge[])
+  ) => void;
   canvasSections: CanvasSection[];
-  setCanvasSections: (sections: CanvasSection[] | ((prev: CanvasSection[]) => CanvasSection[])) => void;
+  setCanvasSections: (
+    sections: CanvasSection[] | ((prev: CanvasSection[]) => CanvasSection[])
+  ) => void;
   canvasViewport: { x: number; y: number; scale: number };
-  setCanvasViewport: (viewport: { x: number; y: number; scale: number }) => void;
+  setCanvasViewport: (viewport: {
+    x: number;
+    y: number;
+    scale: number;
+  }) => void;
 
   // View system
   currentView: 'free' | 'thinking';
@@ -100,12 +162,17 @@ interface StudioContextType {
     free: CanvasViewState;
     thinking: CanvasViewState;
   };
-  setViewStates: (viewStates: { free: CanvasViewState; thinking: CanvasViewState }) => void;
+  setViewStates: (viewStates: {
+    free: CanvasViewState;
+    thinking: CanvasViewState;
+  }) => void;
   switchView: (view: 'free' | 'thinking') => void;
 
   // Chat Messages
   chatMessages: ChatMessage[];
-  setChatMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
+  setChatMessages: (
+    messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])
+  ) => void;
 
   // Actions
   addNodeToCanvas: (node: Omit<CanvasNode, 'id'>) => void;
@@ -116,7 +183,11 @@ interface StudioContextType {
   clearCanvas: (viewType?: 'free' | 'thinking') => Promise<void>;
 
   // Navigation
-  navigateToSource: (documentId: string, pageNumber: number, searchText?: string) => void;
+  navigateToSource: (
+    documentId: string,
+    pageNumber: number,
+    searchText?: string
+  ) => void;
   sourceNavigation: {
     documentId: string;
     pageNumber: number;
@@ -125,12 +196,26 @@ interface StudioContextType {
 
   // Drag Preview
   dragPreview: { x: number; y: number; content: string } | null;
-  setDragPreview: (preview: { x: number; y: number; content: string } | null) => void;
+  setDragPreview: (
+    preview: { x: number; y: number; content: string } | null
+  ) => void;
   dragContentRef: React.MutableRefObject<string | null>;
 
   // Cross-boundary drag (for dragging Konva nodes to DOM elements like chat input)
-  crossBoundaryDragNode: { id: string; title: string; content: string; sourceMessageId?: string } | null;
-  setCrossBoundaryDragNode: (node: { id: string; title: string; content: string; sourceMessageId?: string } | null) => void;
+  crossBoundaryDragNode: {
+    id: string;
+    title: string;
+    content: string;
+    sourceMessageId?: string;
+  } | null;
+  setCrossBoundaryDragNode: (
+    node: {
+      id: string;
+      title: string;
+      content: string;
+      sourceMessageId?: string;
+    } | null
+  ) => void;
 
   // Auto Thinking Path
   autoThinkingPathEnabled: boolean;
@@ -145,17 +230,20 @@ interface StudioContextType {
   setHighlightedNodeId: (id: string | null) => void;
 
   // === Thinking Graph (Dynamic Mind Map) ===
-  activeThinkingId: string | null;  // Currently active thinking node (fork point)
+  activeThinkingId: string | null; // Currently active thinking node (fork point)
   setActiveThinkingId: (id: string | null) => void;
   thinkingStepCounter: number;
-  appendThinkingDraftStep: (userMessage: ChatMessage) => string;  // Returns draft node ID
-  finalizeThinkingStep: (messageId: string, backendData: {
-    thinkingFields?: CanvasNode['thinkingFields'];
-    relatedConcepts?: string[];
-    suggestedBranches?: CanvasNode['suggestedBranches'];
-    topicId?: string;
-  }) => void;
-  startNewTopic: () => void;  // Clear activeThinkingId to start a new topic
+  appendThinkingDraftStep: (userMessage: ChatMessage) => string; // Returns draft node ID
+  finalizeThinkingStep: (
+    messageId: string,
+    backendData: {
+      thinkingFields?: CanvasNode['thinkingFields'];
+      relatedConcepts?: string[];
+      suggestedBranches?: CanvasNode['suggestedBranches'];
+      topicId?: string;
+    }
+  ) => void;
+  startNewTopic: () => void; // Clear activeThinkingId to start a new topic
 
   // Inspiration Dock
   isInspirationDockVisible: boolean;
@@ -169,15 +257,28 @@ interface StudioContextType {
 
   // === Concurrent Generation Tasks ===
   generationTasks: Map<string, GenerationTask>;
-  startGeneration: (type: GenerationType, position: { x: number; y: number }) => string; // Returns task ID
-  updateGenerationTask: (taskId: string, updates: Partial<GenerationTask>) => void;
-  updateGenerationTaskPosition: (taskId: string, position: { x: number; y: number }) => void;
+  startGeneration: (
+    type: GenerationType,
+    position: { x: number; y: number }
+  ) => string; // Returns task ID
+  updateGenerationTask: (
+    taskId: string,
+    updates: Partial<GenerationTask>
+  ) => void;
+  updateGenerationTaskPosition: (
+    taskId: string,
+    position: { x: number; y: number }
+  ) => void;
   completeGeneration: (taskId: string, result: unknown, title?: string) => void;
   failGeneration: (taskId: string, error: string) => void;
   removeGenerationTask: (taskId: string) => void;
   getActiveGenerationsOfType: (type: GenerationType) => GenerationTask[];
   hasActiveGenerations: () => boolean;
-  saveGenerationOutput: (taskId: string, data: Record<string, unknown>, title?: string) => Promise<void>;
+  saveGenerationOutput: (
+    taskId: string,
+    data: Record<string, unknown>,
+    title?: string
+  ) => Promise<void>;
 
   // Legacy Generation State (for backward compatibility during transition)
   isGenerating: boolean;
@@ -185,12 +286,16 @@ interface StudioContextType {
   generationError: string | null;
   setGenerationError: (error: string | null) => void;
   summaryResult: { data: SummaryData; title: string } | null;
-  setSummaryResult: (result: { data: SummaryData; title: string } | null) => void;
+  setSummaryResult: (
+    result: { data: SummaryData; title: string } | null
+  ) => void;
   showSummaryOverlay: boolean;
   setShowSummaryOverlay: (show: boolean) => void;
 
   mindmapResult: { data: MindmapData; title: string } | null;
-  setMindmapResult: (result: { data: MindmapData; title: string } | null) => void;
+  setMindmapResult: (
+    result: { data: MindmapData; title: string } | null
+  ) => void;
   showMindmapOverlay: boolean;
   setShowMindmapOverlay: (show: boolean) => void;
 
@@ -205,14 +310,17 @@ interface StudioContextType {
     publishedAt?: string;
     sourceUrl?: string;
   };
-  playVideo: (videoId: string, options?: {
-    startTime?: number;
-    title?: string;
-    channelName?: string;
-    viewCount?: string;
-    publishedAt?: string;
-    sourceUrl?: string;
-  }) => void;
+  playVideo: (
+    videoId: string,
+    options?: {
+      startTime?: number;
+      title?: string;
+      channelName?: string;
+      viewCount?: string;
+      publishedAt?: string;
+      sourceUrl?: string;
+    }
+  ) => void;
   closeVideoPlayer: () => void;
 }
 
@@ -220,70 +328,94 @@ const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 export function StudioProvider({
   children,
-  projectId
+  projectId,
 }: {
   children: ReactNode;
   projectId: string;
 }) {
   const toast = useNotification();
   const [projectTitle, setProjectTitle] = useState<string | null>(null);
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(
+    new Set()
+  );
 
   // URL Contents (YouTube, web links, etc.)
   const [urlContents, setUrlContents] = useState<UrlContent[]>([]);
 
   const addUrlContent = useCallback((content: UrlContent) => {
-    setUrlContents(prev => {
+    setUrlContents((prev) => {
       // Avoid duplicates
-      if (prev.some(c => c.id === content.id)) {
-        return prev.map(c => c.id === content.id ? content : c);
+      if (prev.some((c) => c.id === content.id)) {
+        return prev.map((c) => (c.id === content.id ? content : c));
       }
       return [content, ...prev];
     });
   }, []);
 
-  const removeUrlContent = useCallback(async (id: string) => {
-    try {
-      await urlApi.delete(id);
-      setUrlContents(prev => prev.filter(c => c.id !== id));
-      toast.success('Link Removed', 'The source has been removed from your project.');
-    } catch (error: any) {
-      toast.error('Failed to Remove Link', error.message || 'An unexpected error occurred.');
-    }
-  }, [toast]);
-
-  const deleteDocument = useCallback(async (documentId: string) => {
-    try {
-      await documentsApi.delete(documentId);
-      setDocuments(prev => prev.filter(d => d.id !== documentId));
-      toast.success('Document Deleted', 'The document has been removed from your project.');
-    } catch (error: any) {
-      toast.error('Failed to Delete Document', error.message || 'An unexpected error occurred.');
-    }
-  }, [toast]);
-
-  const toggleDocumentSelection = useCallback((id: string, multiSelect: boolean = false) => {
-    setSelectedDocumentIds(prev => {
-      const newSet = new Set(multiSelect ? prev : []);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
+  const removeUrlContent = useCallback(
+    async (id: string) => {
+      try {
+        await urlApi.delete(id);
+        setUrlContents((prev) => prev.filter((c) => c.id !== id));
+        toast.success(
+          'Link Removed',
+          'The source has been removed from your project.'
+        );
+      } catch (error: unknown) {
+        toast.error('Failed to Remove Link', getErrorMessage(error));
+        throw error; // Re-throw to let caller handle it
       }
-      return newSet;
-    });
-    // Also set as active if selecting (optional, but good UX)
-    if (!multiSelect) {
-      setActiveDocumentId(id);
-    }
-  }, []);
+    },
+    [toast]
+  );
+
+  const deleteDocument = useCallback(
+    async (documentId: string) => {
+      try {
+        await documentsApi.delete(documentId);
+        setDocuments((prev) => prev.filter((d) => d.id !== documentId));
+        toast.success(
+          'Document Deleted',
+          'The document has been removed from your project.'
+        );
+      } catch (error: unknown) {
+        toast.error('Failed to Delete Document', getErrorMessage(error));
+        throw error; // Re-throw to let caller handle it
+      }
+    },
+    [toast]
+  );
+
+  const toggleDocumentSelection = useCallback(
+    (id: string, multiSelect: boolean = false) => {
+      setSelectedDocumentIds((prev) => {
+        const newSet = new Set(multiSelect ? prev : []);
+        if (newSet.has(id)) {
+          newSet.delete(id);
+        } else {
+          newSet.add(id);
+        }
+        return newSet;
+      });
+      // Also set as active if selecting (optional, but good UX)
+      if (!multiSelect) {
+        setActiveDocumentId(id);
+      }
+    },
+    []
+  );
 
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
   const [canvasEdges, setCanvasEdges] = useState<CanvasEdge[]>([]);
   const [canvasSections, setCanvasSections] = useState<CanvasSection[]>([]);
-  const [canvasViewport, setCanvasViewport] = useState({ x: 0, y: 0, scale: 1 });
+  const [canvasViewport, setCanvasViewport] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
   const [currentView, setCurrentView] = useState<'free' | 'thinking'>('free');
   const [viewStates, setViewStates] = useState<{
     free: CanvasViewState;
@@ -308,9 +440,10 @@ export function StudioProvider({
     {
       id: 'welcome',
       role: 'ai',
-      content: "Hello! I'm your research assistant. Upload a document and ask me anything about it.",
+      content:
+        "Hello! I'm your research assistant. Upload a document and ask me anything about it.",
       timestamp: new Date(),
-    }
+    },
   ]);
 
   // Navigation state for source jumping
@@ -321,7 +454,11 @@ export function StudioProvider({
   } | null>(null);
 
   // Drag preview state
-  const [dragPreview, setDragPreview] = useState<{ x: number; y: number; content: string } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{
+    x: number;
+    y: number;
+    content: string;
+  } | null>(null);
   const dragContentRef = useRef<string | null>(null);
 
   // Cross-boundary drag state (for dragging Konva nodes to DOM elements)
@@ -336,8 +473,12 @@ export function StudioProvider({
   const [autoThinkingPathEnabled, setAutoThinkingPathEnabled] = useState(true);
 
   // Message <-> Node Navigation state
-  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<
+    string | null
+  >(null);
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(
+    null
+  );
 
   // === Thinking Graph (Dynamic Mind Map) State ===
   const [activeThinkingId, setActiveThinkingId] = useState<string | null>(null);
@@ -348,7 +489,9 @@ export function StudioProvider({
 
   // === PDF Preview Modal State ===
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(null);
+  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(
+    null
+  );
 
   const openDocumentPreview = useCallback((documentId: string) => {
     setPreviewDocumentId(documentId);
@@ -375,172 +518,230 @@ export function StudioProvider({
     videoId: '',
   });
 
-  const playVideo = useCallback((videoId: string, options?: {
-    startTime?: number;
-    title?: string;
-    channelName?: string;
-    viewCount?: string;
-    publishedAt?: string;
-    sourceUrl?: string;
-  }) => {
-    setVideoPlayerState({
-      isOpen: true,
-      videoId,
-      ...options,
-    });
-  }, []);
+  const playVideo = useCallback(
+    (
+      videoId: string,
+      options?: {
+        startTime?: number;
+        title?: string;
+        channelName?: string;
+        viewCount?: string;
+        publishedAt?: string;
+        sourceUrl?: string;
+      }
+    ) => {
+      setVideoPlayerState({
+        isOpen: true,
+        videoId,
+        ...options,
+      });
+    },
+    []
+  );
 
   const closeVideoPlayer = useCallback(() => {
-    setVideoPlayerState(prev => ({ ...prev, isOpen: false }));
+    setVideoPlayerState((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
   // === Concurrent Generation Tasks State ===
-  const [generationTasks, setGenerationTasks] = useState<Map<string, GenerationTask>>(new Map());
+  const [generationTasks, setGenerationTasks] = useState<
+    Map<string, GenerationTask>
+  >(new Map());
 
   // Ref to access current tasks in callbacks without dependencies
   const generationTasksRef = useRef(generationTasks);
-  generationTasksRef.current = generationTasks;
+  useEffect(() => {
+    generationTasksRef.current = generationTasks;
+  }, [generationTasks]);
 
   // Start a new generation task
-  const startGeneration = useCallback((type: GenerationType, position: { x: number; y: number }): string => {
-    const taskId = `gen-${type}-${crypto.randomUUID()}`;
-    const task: GenerationTask = {
-      id: taskId,
-      type,
-      status: 'pending',
-      position,
-      createdAt: new Date(),
-    };
-    setGenerationTasks(prev => {
-      const next = new Map(prev);
-      next.set(taskId, task);
-      return next;
-    });
-    return taskId;
-  }, []);
+  const startGeneration = useCallback(
+    (type: GenerationType, position: { x: number; y: number }): string => {
+      const taskId = `gen-${type}-${crypto.randomUUID()}`;
+      const task: GenerationTask = {
+        id: taskId,
+        type,
+        status: 'pending',
+        position,
+        createdAt: new Date(),
+      };
+      setGenerationTasks((prev) => {
+        const next = new Map(prev);
+        next.set(taskId, task);
+        return next;
+      });
+      return taskId;
+    },
+    []
+  );
 
   // Update an existing generation task
-  const updateGenerationTask = useCallback((taskId: string, updates: Partial<GenerationTask>) => {
-    setGenerationTasks(prev => {
-      const task = prev.get(taskId);
-      if (!task) return prev;
-      const next = new Map(prev);
-      next.set(taskId, { ...task, ...updates });
-      return next;
-    });
-  }, []);
+  const updateGenerationTask = useCallback(
+    (taskId: string, updates: Partial<GenerationTask>) => {
+      setGenerationTasks((prev) => {
+        const task = prev.get(taskId);
+        if (!task) return prev;
+        const next = new Map(prev);
+        next.set(taskId, { ...task, ...updates });
+        return next;
+      });
+    },
+    []
+  );
 
   // Update position of a generation task (for dragging output cards)
-  const updateGenerationTaskPosition = useCallback((taskId: string, position: { x: number; y: number }) => {
-    const updateStart = performance.now();
-    setGenerationTasks(prev => {
-      const task = prev.get(taskId);
-      if (!task) return prev;
-      const next = new Map(prev);
-      next.set(taskId, { ...task, position });
-      const updateDuration = performance.now() - updateStart;
-      if (updateDuration > 5) {
-        console.log(`[Perf][Context] State update took ${updateDuration.toFixed(2)}ms`);
-      }
-      return next;
-    });
-  }, []);
+  const updateGenerationTaskPosition = useCallback(
+    (taskId: string, position: { x: number; y: number }) => {
+      const updateStart = performance.now();
+      setGenerationTasks((prev) => {
+        const task = prev.get(taskId);
+        if (!task) return prev;
+        const next = new Map(prev);
+        next.set(taskId, { ...task, position });
+        const updateDuration = performance.now() - updateStart;
+        if (updateDuration > 5) {
+          console.log(
+            `[Perf][Context] State update took ${updateDuration.toFixed(2)}ms`
+          );
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   // Complete a generation task with result - converts to CanvasNode (unified model)
-  const completeGeneration = useCallback(async (taskId: string, result: unknown, title?: string) => {
-    console.log(`[StudioContext] completeGeneration called: taskId=${taskId}, title=${title}`);
+  const completeGeneration = useCallback(
+    async (taskId: string, result: unknown, title?: string) => {
+      console.log(
+        `[StudioContext] completeGeneration called: taskId=${taskId}, title=${title}`
+      );
 
-    // Access current tasks via ref to avoid dependency cycles and stale closures
-    const task = generationTasksRef.current.get(taskId);
+      // Access current tasks via ref to avoid dependency cycles and stale closures
+      const task = generationTasksRef.current.get(taskId);
 
-    if (!task) {
-      console.warn(`[StudioContext] completeGeneration: Task ${taskId} not found.`);
-      return;
-    }
-
-    // Get task details for node creation
-    const { type, position, outputId } = task;
-
-    // Create a CanvasNode for the completed output (unified node model)
-    const nodeType = type; // 'mindmap', 'summary', etc.
-    const nodeId = outputId ? `output-${outputId}` : `output-${taskId}`;
-
-    // Determine card dimensions and color based on type
-    const cardConfig: Record<string, { width: number; height: number; color: string }> = {
-      mindmap: { width: 380, height: 280, color: '#10B981' },
-      summary: { width: 380, height: 280, color: '#8B5CF6' },
-      article: { width: 320, height: 200, color: '#667eea' },
-      action_list: { width: 280, height: 180, color: '#f59e0b' },
-      podcast: { width: 320, height: 200, color: '#8B5CF6' },
-      quiz: { width: 320, height: 200, color: '#10B981' },
-      timeline: { width: 320, height: 200, color: '#3B82F6' },
-      compare: { width: 320, height: 200, color: '#6366F1' },
-      flashcards: { width: 320, height: 200, color: '#F43F5E' },
-    };
-
-    const config = cardConfig[type] || { width: 300, height: 200, color: '#6B7280' };
-
-    const newNode: CanvasNode = {
-      id: nodeId,
-      type: nodeType,
-      title: title || `${type} output`,
-      content: JSON.stringify(result),
-      x: position.x,
-      y: position.y,
-      width: config.width,
-      height: config.height,
-      color: config.color,
-      tags: [],
-      viewType: 'free',
-      outputId: outputId,
-      outputData: result as Record<string, unknown>,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    console.log(`[StudioContext] completeGeneration: Creating node ${nodeId}. Type: ${nodeType}, OutputID: ${outputId}, Pos: ${position.x},${position.y}`);
-    console.log(`[StudioContext] Node data preview:`, JSON.stringify(newNode).substring(0, 200));
-
-    // Persist to backend first to ensure data consistency
-    if (projectId) {
-      try {
-        await canvasApi.createNode(projectId, newNode);
-        console.log(`[StudioContext] Node ${nodeId} persisted to backend successfully`);
-      } catch (error) {
-        console.error(`[StudioContext] Failed to persist node ${nodeId}:`, error);
-        // Continue with local state update even if backend fails
+      if (!task) {
+        console.warn(
+          `[StudioContext] completeGeneration: Task ${taskId} not found.`
+        );
+        return;
       }
-    } else {
-      console.warn(`[StudioContext] No projectId, skipping backend persistence`);
-    }
 
-    // Add the node to canvas - Force state update with new array reference
-    console.log(`[StudioContext] Adding node to canvas state...`);
-    setCanvasNodes(prevNodes => {
-      // Filter out any existing node with the same ID to avoid duplicates
-      const filtered = prevNodes.filter(n => n.id !== nodeId);
-      const newNodes = [...filtered, newNode];
-      console.log(`[StudioContext] Canvas nodes updated. Previous count: ${prevNodes.length}, New count: ${newNodes.length}, Added: ${newNode.id}`);
-      return newNodes;
-    });
+      // Get task details for node creation
+      const { type, position, outputId } = task;
 
-    console.log(`[StudioContext] Converted generation task ${taskId} to CanvasNode:`, newNode.id);
+      // Create a CanvasNode for the completed output (unified node model)
+      const nodeType = type; // 'mindmap', 'summary', etc.
+      const nodeId = outputId ? `output-${outputId}` : `output-${taskId}`;
 
-    // Remove the task from generationTasks - INDEPENDENT STATE UPDATE
-    console.log(`[StudioContext] Removing task ${taskId} from generationTasks`);
-    setGenerationTasks(prev => {
-      const next = new Map(prev);
-      const deleted = next.delete(taskId);
-      console.log(`[StudioContext] Task ${taskId} removed: ${deleted}, remaining tasks: ${next.size}`);
-      return next;
-    });
+      // Determine card dimensions and color based on type
+      const cardConfig: Record<
+        string,
+        { width: number; height: number; color: string }
+      > = {
+        mindmap: { width: 380, height: 280, color: '#10B981' },
+        summary: { width: 380, height: 280, color: '#8B5CF6' },
+        article: { width: 320, height: 200, color: '#667eea' },
+        action_list: { width: 280, height: 180, color: '#f59e0b' },
+        podcast: { width: 320, height: 200, color: '#8B5CF6' },
+        quiz: { width: 320, height: 200, color: '#10B981' },
+        timeline: { width: 320, height: 200, color: '#3B82F6' },
+        compare: { width: 320, height: 200, color: '#6366F1' },
+        flashcards: { width: 320, height: 200, color: '#F43F5E' },
+      };
 
-    console.log(`[StudioContext] completeGeneration finished for task ${taskId}`);
-  }, [projectId]);
+      const config = cardConfig[type] || {
+        width: 300,
+        height: 200,
+        color: '#6B7280',
+      };
+
+      const newNode: CanvasNode = {
+        id: nodeId,
+        type: nodeType,
+        title: title || `${type} output`,
+        content: JSON.stringify(result),
+        x: position.x,
+        y: position.y,
+        width: config.width,
+        height: config.height,
+        color: config.color,
+        tags: [],
+        viewType: 'free',
+        outputId: outputId,
+        outputData: result as Record<string, unknown>,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      console.log(
+        `[StudioContext] completeGeneration: Creating node ${nodeId}. Type: ${nodeType}, OutputID: ${outputId}, Pos: ${position.x},${position.y}`
+      );
+      console.log(
+        `[StudioContext] Node data preview:`,
+        JSON.stringify(newNode).substring(0, 200)
+      );
+
+      // Persist to backend first to ensure data consistency
+      if (projectId) {
+        try {
+          await canvasApi.createNode(projectId, newNode);
+          console.log(
+            `[StudioContext] Node ${nodeId} persisted to backend successfully`
+          );
+        } catch (error) {
+          console.error(
+            `[StudioContext] Failed to persist node ${nodeId}:`,
+            error
+          );
+          // Continue with local state update even if backend fails
+        }
+      } else {
+        console.warn(
+          `[StudioContext] No projectId, skipping backend persistence`
+        );
+      }
+
+      // Add the node to canvas - Force state update with new array reference
+      console.log(`[StudioContext] Adding node to canvas state...`);
+      setCanvasNodes((prevNodes) => {
+        // Filter out any existing node with the same ID to avoid duplicates
+        const filtered = prevNodes.filter((n) => n.id !== nodeId);
+        const newNodes = [...filtered, newNode];
+        console.log(
+          `[StudioContext] Canvas nodes updated. Previous count: ${prevNodes.length}, New count: ${newNodes.length}, Added: ${newNode.id}`
+        );
+        return newNodes;
+      });
+
+      console.log(
+        `[StudioContext] Converted generation task ${taskId} to CanvasNode:`,
+        newNode.id
+      );
+
+      // Remove the task from generationTasks - INDEPENDENT STATE UPDATE
+      console.log(
+        `[StudioContext] Removing task ${taskId} from generationTasks`
+      );
+      setGenerationTasks((prev) => {
+        const next = new Map(prev);
+        const deleted = next.delete(taskId);
+        console.log(
+          `[StudioContext] Task ${taskId} removed: ${deleted}, remaining tasks: ${next.size}`
+        );
+        return next;
+      });
+
+      console.log(
+        `[StudioContext] completeGeneration finished for task ${taskId}`
+      );
+    },
+    [projectId]
+  );
 
   // Mark a generation task as failed
   const failGeneration = useCallback((taskId: string, error: string) => {
-    setGenerationTasks(prev => {
+    setGenerationTasks((prev) => {
       const task = prev.get(taskId);
       if (!task) return prev;
       const next = new Map(prev);
@@ -550,81 +751,109 @@ export function StudioProvider({
   }, []);
 
   // Remove a generation task
-  const removeGenerationTask = useCallback(async (taskId: string) => {
-    // 1. Get task details before removing from state
-    const task = generationTasks.get(taskId);
+  const removeGenerationTask = useCallback(
+    async (taskId: string) => {
+      // 1. Get task details before removing from state
+      const task = generationTasks.get(taskId);
 
-    // 2. Optimistically remove from UI immediately
-    setGenerationTasks(prev => {
-      const next = new Map(prev);
-      next.delete(taskId);
-      return next;
-    });
+      // 2. Optimistically remove from UI immediately
+      setGenerationTasks((prev) => {
+        const next = new Map(prev);
+        next.delete(taskId);
+        return next;
+      });
 
-    // 3. If it has a backend ID, delete it from the server
-    if (task?.outputId && projectId) {
-      try {
-        console.log(`[StudioContext] Deleting output ${task.outputId} for task ${taskId}`);
-        await outputsApi.delete(projectId, task.outputId);
-      } catch (error: any) {
-        console.error('[StudioContext] Failed to delete output persistence:', error);
-        toast.error('Failed to delete output from server', error.message);
-        // We don't rollback state here because the user intent was to remove it from view
-        // and we don't want it popping back up.
-        // It's better to fail silently on the backend delete than to have a "zombie" card.
+      // 3. If it has a backend ID, delete it from the server
+      if (task?.outputId && projectId) {
+        try {
+          console.log(
+            `[StudioContext] Deleting output ${task.outputId} for task ${taskId}`
+          );
+          await outputsApi.delete(projectId, task.outputId);
+        } catch (error: unknown) {
+          console.error(
+            '[StudioContext] Failed to delete output persistence:',
+            error
+          );
+          toast.error(
+            'Failed to delete output from server',
+            getErrorMessage(error)
+          );
+          // We don't rollback state here because the user intent was to remove it from view
+          // and we don't want it popping back up.
+          // It's better to fail silently on the backend delete than to have a "zombie" card.
+        }
       }
-    }
-  }, [generationTasks, projectId]);
+    },
+    [generationTasks, projectId, toast]
+  );
 
   // Get active (pending or generating) tasks of a specific type
-  const getActiveGenerationsOfType = useCallback((type: GenerationType): GenerationTask[] => {
-    return Array.from(generationTasks.values()).filter(
-      t => t.type === type && (t.status === 'pending' || t.status === 'generating')
-    );
-  }, [generationTasks]);
+  const getActiveGenerationsOfType = useCallback(
+    (type: GenerationType): GenerationTask[] => {
+      return Array.from(generationTasks.values()).filter(
+        (t) =>
+          t.type === type &&
+          (t.status === 'pending' || t.status === 'generating')
+      );
+    },
+    [generationTasks]
+  );
 
   // Check if there are any active generations
   const hasActiveGenerations = useCallback((): boolean => {
     return Array.from(generationTasks.values()).some(
-      t => t.status === 'pending' || t.status === 'generating'
+      (t) => t.status === 'pending' || t.status === 'generating'
     );
   }, [generationTasks]);
 
   // Save updated output data to the backend and update local state
-  const saveGenerationOutput = useCallback(async (
-    taskId: string,
-    data: Record<string, unknown>,
-    title?: string
-  ): Promise<void> => {
-    const task = generationTasks.get(taskId);
-    if (!task || !task.outputId) {
-      console.warn('[StudioContext] Cannot save output: Task or outputId not found', taskId);
-      return;
-    }
+  const saveGenerationOutput = useCallback(
+    async (
+      taskId: string,
+      data: Record<string, unknown>,
+      title?: string
+    ): Promise<void> => {
+      const task = generationTasks.get(taskId);
+      if (!task || !task.outputId) {
+        console.warn(
+          '[StudioContext] Cannot save output: Task or outputId not found',
+          taskId
+        );
+        return;
+      }
 
-    try {
-      await outputsApi.update(projectId, task.outputId, { data, title });
-      // Update local state
-      setGenerationTasks(prev => {
-        const t = prev.get(taskId);
-        if (!t) return prev;
-        const next = new Map(prev);
-        next.set(taskId, { ...t, result: data, title: title ?? t.title });
-        return next;
-      });
-      console.log('[StudioContext] Successfully saved output', taskId);
-    } catch (error) {
-      console.error('[StudioContext] Failed to save output:', error);
-      // Could show a toast or error state here in the future
-    }
-  }, [generationTasks, projectId]);
+      try {
+        await outputsApi.update(projectId, task.outputId, { data, title });
+        // Update local state
+        setGenerationTasks((prev) => {
+          const t = prev.get(taskId);
+          if (!t) return prev;
+          const next = new Map(prev);
+          next.set(taskId, { ...t, result: data, title: title ?? t.title });
+          return next;
+        });
+        console.log('[StudioContext] Successfully saved output', taskId);
+      } catch (error) {
+        console.error('[StudioContext] Failed to save output:', error);
+        // Could show a toast or error state here in the future
+      }
+    },
+    [generationTasks, projectId]
+  );
 
   // Legacy Generation State (for backward compatibility during transition)
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [summaryResult, setSummaryResult] = useState<{ data: SummaryData; title: string } | null>(null);
+  const [summaryResult, setSummaryResult] = useState<{
+    data: SummaryData;
+    title: string;
+  } | null>(null);
   const [showSummaryOverlay, setShowSummaryOverlay] = useState(false);
-  const [mindmapResult, setMindmapResult] = useState<{ data: MindmapData; title: string } | null>(null);
+  const [mindmapResult, setMindmapResult] = useState<{
+    data: MindmapData;
+    title: string;
+  } | null>(null);
   const [showMindmapOverlay, setShowMindmapOverlay] = useState(false);
 
   const navigateToMessage = useCallback((messageId: string) => {
@@ -634,165 +863,189 @@ export function StudioProvider({
   }, []);
 
   // Define switchView BEFORE navigateToNode since navigateToNode depends on it
-  const switchView = useCallback((view: 'free' | 'thinking') => {
-    // Save current view state before switching
-    setViewStates(prev => ({
-      ...prev,
-      [currentView]: {
-        ...prev[currentView],
-        viewport: canvasViewport,
-      },
-    }));
+  const switchView = useCallback(
+    (view: 'free' | 'thinking') => {
+      // Save current view state before switching
+      setViewStates((prev) => ({
+        ...prev,
+        [currentView]: {
+          ...prev[currentView],
+          viewport: canvasViewport,
+        },
+      }));
 
-    // Switch to new view and restore its viewport
-    setCurrentView(view);
-    setCanvasViewport(viewStates[view].viewport);
-  }, [currentView, canvasViewport, viewStates]);
+      // Switch to new view and restore its viewport
+      setCurrentView(view);
+      setCanvasViewport(viewStates[view].viewport);
+    },
+    [currentView, canvasViewport, viewStates]
+  );
 
-  const navigateToNode = useCallback((nodeId: string) => {
-    setHighlightedNodeId(nodeId);
-    // Switch to thinking view if the node is in thinking view
-    const node = canvasNodes.find(n => n.id === nodeId);
-    if (node?.viewType === 'thinking' && currentView !== 'thinking') {
-      switchView('thinking');
-    }
-    // Auto-clear highlight after 3 seconds
-    setTimeout(() => setHighlightedNodeId(null), 3000);
-  }, [canvasNodes, currentView, switchView]);
+  const navigateToNode = useCallback(
+    (nodeId: string) => {
+      setHighlightedNodeId(nodeId);
+      // Switch to thinking view if the node is in thinking view
+      const node = canvasNodes.find((n) => n.id === nodeId);
+      if (node?.viewType === 'thinking' && currentView !== 'thinking') {
+        switchView('thinking');
+      }
+      // Auto-clear highlight after 3 seconds
+      setTimeout(() => setHighlightedNodeId(null), 3000);
+    },
+    [canvasNodes, currentView, switchView]
+  );
 
   // === Thinking Graph Methods ===
 
   /**
    * Create an optimistic "draft" thinking step node when user sends a message.
    * This provides immediate visual feedback before the backend responds.
-   * 
+   *
    * @param userMessage - The user's chat message
    * @returns The ID of the created draft node
    */
-  const appendThinkingDraftStep = useCallback((userMessage: ChatMessage): string => {
-    const newStepIndex = thinkingStepCounter + 1;
-    setThinkingStepCounter(newStepIndex);
+  const appendThinkingDraftStep = useCallback(
+    (userMessage: ChatMessage): string => {
+      const newStepIndex = thinkingStepCounter + 1;
+      setThinkingStepCounter(newStepIndex);
 
-    const draftNodeId = `tp-draft-${crypto.randomUUID()}`;
+      const draftNodeId = `tp-draft-${crypto.randomUUID()}`;
 
-    // Calculate position based on active thinking node
-    let x = 100;
-    let y = 300;
-    let depth = 0;
-    let parentStepId: string | undefined;
+      // Calculate position based on active thinking node
+      let x = 100;
+      let y = 300;
+      let depth = 0;
+      let parentStepId: string | undefined;
 
-    if (activeThinkingId) {
-      // Find the active node to position relative to it
-      const activeNode = canvasNodes.find(n => n.id === activeThinkingId);
-      if (activeNode) {
-        parentStepId = activeThinkingId;
-        depth = (activeNode.depth || 0) + 1;
-        // Position to the right of the active node (horizontal tree layout)
-        x = activeNode.x + 400;
-        // Offset vertically based on siblings at same depth
-        const siblingsAtDepth = canvasNodes.filter(
-          n => n.parentStepId === activeThinkingId && n.viewType === 'thinking'
-        ).length;
-        y = activeNode.y + (siblingsAtDepth * 220);
+      if (activeThinkingId) {
+        // Find the active node to position relative to it
+        const activeNode = canvasNodes.find((n) => n.id === activeThinkingId);
+        if (activeNode) {
+          parentStepId = activeThinkingId;
+          depth = (activeNode.depth || 0) + 1;
+          // Position to the right of the active node (horizontal tree layout)
+          x = activeNode.x + 400;
+          // Offset vertically based on siblings at same depth
+          const siblingsAtDepth = canvasNodes.filter(
+            (n) =>
+              n.parentStepId === activeThinkingId && n.viewType === 'thinking'
+          ).length;
+          y = activeNode.y + siblingsAtDepth * 220;
+        }
+      } else {
+        // No active node - this is a new root topic
+        const thinkingNodes = canvasNodes.filter(
+          (n) => n.viewType === 'thinking'
+        );
+        if (thinkingNodes.length > 0) {
+          // Find the bottom-most node and place below it
+          const maxY = Math.max(...thinkingNodes.map((n) => n.y));
+          y = maxY + 300;
+        }
       }
-    } else {
-      // No active node - this is a new root topic
-      const thinkingNodes = canvasNodes.filter(n => n.viewType === 'thinking');
-      if (thinkingNodes.length > 0) {
-        // Find the bottom-most node and place below it
-        const maxY = Math.max(...thinkingNodes.map(n => n.y));
-        y = maxY + 300;
+
+      // Create draft node
+      const draftNode: CanvasNode = {
+        id: draftNodeId,
+        type: 'thinking_step',
+        title: `Step ${newStepIndex}`,
+        content:
+          userMessage.content.length > 100
+            ? userMessage.content.substring(0, 100) + '...'
+            : userMessage.content,
+        x,
+        y,
+        width: 320,
+        height: 200,
+        color: 'purple', // Draft nodes are purple
+        tags: ['#thinking-path', '#draft'],
+        viewType: 'thinking',
+        messageIds: [userMessage.id],
+        analysisStatus: 'pending',
+        isDraft: true,
+        thinkingStepIndex: newStepIndex,
+        depth,
+        parentStepId,
+        thinkingFields: {
+          claim:
+            userMessage.content.length > 100
+              ? userMessage.content.substring(0, 100) + '...'
+              : userMessage.content,
+          reason: '',
+          evidence: '',
+          uncertainty: '',
+          decision: '',
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Add the draft node
+      setCanvasNodes((prev) => [...prev, draftNode]);
+
+      // Create edge from parent if exists
+      if (parentStepId) {
+        const edgeId = `edge-${parentStepId}-${draftNodeId}`;
+        setCanvasEdges((prev) => [
+          ...prev,
+          {
+            id: edgeId,
+            source: parentStepId,
+            target: draftNodeId,
+          },
+        ]);
       }
-    }
 
-    // Create draft node
-    const draftNode: CanvasNode = {
-      id: draftNodeId,
-      type: 'thinking_step',
-      title: `Step ${newStepIndex}`,
-      content: userMessage.content.length > 100
-        ? userMessage.content.substring(0, 100) + '...'
-        : userMessage.content,
-      x,
-      y,
-      width: 320,
-      height: 200,
-      color: 'purple',  // Draft nodes are purple
-      tags: ['#thinking-path', '#draft'],
-      viewType: 'thinking',
-      messageIds: [userMessage.id],
-      analysisStatus: 'pending',
-      isDraft: true,
-      thinkingStepIndex: newStepIndex,
-      depth,
-      parentStepId,
-      thinkingFields: {
-        claim: userMessage.content.length > 100
-          ? userMessage.content.substring(0, 100) + '...'
-          : userMessage.content,
-        reason: '',
-        evidence: '',
-        uncertainty: '',
-        decision: '',
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      // Set this as the new active thinking node
+      setActiveThinkingId(draftNodeId);
 
-    // Add the draft node
-    setCanvasNodes(prev => [...prev, draftNode]);
-
-    // Create edge from parent if exists
-    if (parentStepId) {
-      const edgeId = `edge-${parentStepId}-${draftNodeId}`;
-      setCanvasEdges(prev => [...prev, {
-        id: edgeId,
-        source: parentStepId,
-        target: draftNodeId,
-      }]);
-    }
-
-    // Set this as the new active thinking node
-    setActiveThinkingId(draftNodeId);
-
-    return draftNodeId;
-  }, [activeThinkingId, canvasNodes, thinkingStepCounter]);
+      return draftNodeId;
+    },
+    [activeThinkingId, canvasNodes, thinkingStepCounter]
+  );
 
   /**
    * Finalize a draft thinking step with data from the backend.
    * This is called when the backend WebSocket sends the analysis result.
-   * 
+   *
    * @param messageId - The message ID to match (from the draft node's messageIds)
    * @param backendData - Data from the backend to update the node with
    */
-  const finalizeThinkingStep = useCallback((
-    messageId: string,
-    backendData: {
-      thinkingFields?: CanvasNode['thinkingFields'];
-      relatedConcepts?: string[];
-      suggestedBranches?: CanvasNode['suggestedBranches'];
-      topicId?: string;
-    }
-  ) => {
-    setCanvasNodes(prev => prev.map(node => {
-      // Find the draft node that matches this message
-      if (node.isDraft && node.messageIds?.includes(messageId)) {
-        return {
-          ...node,
-          isDraft: false,
-          color: 'blue',  // Finalized nodes are blue
-          analysisStatus: 'analyzed' as const,
-          thinkingFields: backendData.thinkingFields || node.thinkingFields,
-          relatedConcepts: backendData.relatedConcepts,
-          suggestedBranches: backendData.suggestedBranches,
-          topicId: backendData.topicId,
-          tags: node.tags?.filter(t => t !== '#draft') || ['#thinking-path'],
-          updatedAt: new Date().toISOString(),
-        };
+  const finalizeThinkingStep = useCallback(
+    (
+      messageId: string,
+      backendData: {
+        thinkingFields?: CanvasNode['thinkingFields'];
+        relatedConcepts?: string[];
+        suggestedBranches?: CanvasNode['suggestedBranches'];
+        topicId?: string;
       }
-      return node;
-    }));
-  }, []);
+    ) => {
+      setCanvasNodes((prev) =>
+        prev.map((node) => {
+          // Find the draft node that matches this message
+          if (node.isDraft && node.messageIds?.includes(messageId)) {
+            return {
+              ...node,
+              isDraft: false,
+              color: 'blue', // Finalized nodes are blue
+              analysisStatus: 'analyzed' as const,
+              thinkingFields: backendData.thinkingFields || node.thinkingFields,
+              relatedConcepts: backendData.relatedConcepts,
+              suggestedBranches: backendData.suggestedBranches,
+              topicId: backendData.topicId,
+              tags: node.tags?.filter((t) => t !== '#draft') || [
+                '#thinking-path',
+              ],
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return node;
+        })
+      );
+    },
+    []
+  );
 
   /**
    * Start a new topic by clearing the activeThinkingId.
@@ -802,46 +1055,52 @@ export function StudioProvider({
     setActiveThinkingId(null);
   }, []);
 
-  const addNodeToCanvas = useCallback((node: Omit<CanvasNode, 'id'>) => {
-    const newNode: CanvasNode = {
-      ...node,
-      viewType: currentView,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      id: `node-${crypto.randomUUID()}`,
-    };
-    setCanvasNodes(prev => [...prev, newNode]);
-  }, [currentView]);
+  const addNodeToCanvas = useCallback(
+    (node: Omit<CanvasNode, 'id'>) => {
+      const newNode: CanvasNode = {
+        ...node,
+        viewType: currentView,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        id: `node-${crypto.randomUUID()}`,
+      };
+      setCanvasNodes((prev) => [...prev, newNode]);
+    },
+    [currentView]
+  );
 
   const addSection = useCallback((section: CanvasSection) => {
-    setCanvasSections(prev => [...prev, section]);
+    setCanvasSections((prev) => [...prev, section]);
   }, []);
 
-  const promoteNode = useCallback((nodeId: string) => {
-    const node = canvasNodes.find(n => n.id === nodeId);
-    if (!node) return;
+  const promoteNode = useCallback(
+    (nodeId: string) => {
+      const node = canvasNodes.find((n) => n.id === nodeId);
+      if (!node) return;
 
-    // Create a copy in free canvas view
-    const newNode: CanvasNode = {
-      ...node,
-      id: `node-${crypto.randomUUID()}`,
-      viewType: 'free',
-      sectionId: undefined, // Remove section when promoting
-      promotedFrom: nodeId, // Keep reference to original
-      x: node.x + 50, // Slight offset for clarity
-      y: node.y + 50,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      // Create a copy in free canvas view
+      const newNode: CanvasNode = {
+        ...node,
+        id: `node-${crypto.randomUUID()}`,
+        viewType: 'free',
+        sectionId: undefined, // Remove section when promoting
+        promotedFrom: nodeId, // Keep reference to original
+        x: node.x + 50, // Slight offset for clarity
+        y: node.y + 50,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    setCanvasNodes(prev => [...prev, newNode]);
-  }, [canvasNodes]);
+      setCanvasNodes((prev) => [...prev, newNode]);
+    },
+    [canvasNodes]
+  );
 
   const deleteSection = useCallback((sectionId: string) => {
     // Remove section
-    setCanvasSections(prev => prev.filter(s => s.id !== sectionId));
+    setCanvasSections((prev) => prev.filter((s) => s.id !== sectionId));
     // Remove nodes in section (optional, can keep nodes orphaned)
-    setCanvasNodes(prev => prev.filter(n => n.sectionId !== sectionId));
+    setCanvasNodes((prev) => prev.filter((n) => n.sectionId !== sectionId));
   }, []);
 
   const saveCanvas = useCallback(async () => {
@@ -849,87 +1108,76 @@ export function StudioProvider({
     console.log('Saving canvas...');
   }, []);
 
-  const clearCanvas = useCallback(async (viewType?: 'free' | 'thinking') => {
-    // Capture the view type at the moment of calling to handle tab switching edge case
-    const targetViewType = viewType;
+  const clearCanvas = useCallback(
+    async (viewType?: 'free' | 'thinking') => {
+      // Capture the view type at the moment of calling to handle tab switching edge case
+      const targetViewType = viewType;
 
-    try {
-      await canvasApi.clear(projectId, targetViewType);
+      try {
+        await canvasApi.clear(projectId, targetViewType);
 
-      // Clear local state based on the captured view type
-      if (targetViewType) {
-        // Only clear nodes/edges/sections for the specific view type
-        setCanvasNodes(prev => prev.filter(n => n.viewType !== targetViewType));
-        setCanvasEdges(prev => {
-          // Get IDs of nodes being removed
-          const nodesToRemove = new Set(
-            canvasNodes.filter(n => n.viewType === targetViewType).map(n => n.id)
+        // Clear local state based on the captured view type
+        if (targetViewType) {
+          // Only clear nodes/edges/sections for the specific view type
+          setCanvasNodes((prev) =>
+            prev.filter((n) => n.viewType !== targetViewType)
           );
-          // Remove edges connected to removed nodes
-          return prev.filter(e => !nodesToRemove.has(e.source) && !nodesToRemove.has(e.target));
-        });
-        setCanvasSections(prev => prev.filter(s => s.viewType !== targetViewType));
-        console.log(`Canvas view '${targetViewType}' cleared successfully`);
-      } else {
-        // Clear all
-        setCanvasNodes([]);
-        setCanvasEdges([]);
-        setCanvasSections([]);
-        console.log('All canvas cleared successfully');
+          setCanvasEdges((prev) => {
+            // Get IDs of nodes being removed
+            const nodesToRemove = new Set(
+              canvasNodes
+                .filter((n) => n.viewType === targetViewType)
+                .map((n) => n.id)
+            );
+            // Remove edges connected to removed nodes
+            return prev.filter(
+              (e) =>
+                !nodesToRemove.has(e.source) && !nodesToRemove.has(e.target)
+            );
+          });
+          setCanvasSections((prev) =>
+            prev.filter((s) => s.viewType !== targetViewType)
+          );
+          console.log(`Canvas view '${targetViewType}' cleared successfully`);
+        } else {
+          // Clear all
+          setCanvasNodes([]);
+          setCanvasEdges([]);
+          setCanvasSections([]);
+          console.log('All canvas cleared successfully');
+        }
+      } catch (error) {
+        console.error('Failed to clear canvas:', error);
+        throw error;
       }
-    } catch (error) {
-      console.error('Failed to clear canvas:', error);
-      throw error;
-    }
-  }, [projectId, canvasNodes]);
+    },
+    [projectId, canvasNodes]
+  );
 
-  const navigateToSource = useCallback((documentId: string, pageNumber: number, searchText?: string) => {
-    setActiveDocumentId(documentId);
-    setSourceNavigation({ documentId, pageNumber, searchText });
-  }, []);
+  const navigateToSource = useCallback(
+    (documentId: string, pageNumber: number, searchText?: string) => {
+      setActiveDocumentId(documentId);
+      setSourceNavigation({ documentId, pageNumber, searchText });
+    },
+    []
+  );
 
   // Load data on mount and when projectId changes
   useEffect(() => {
     if (!projectId) return;
 
-    // Clear previous project data immediately to prevent showing stale data
-    setDocuments([]);
-    setCanvasNodes([]);
-    setCanvasEdges([]);
-    setCanvasSections([]);
-    setCanvasViewport({ x: 0, y: 0, scale: 1 });
-    setCurrentView('free');
-    setViewStates({
-      free: {
-        viewType: 'free',
-        viewport: { x: 0, y: 0, scale: 1 },
-        selectedNodeIds: [],
-        collapsedSectionIds: [],
-      },
-      thinking: {
-        viewType: 'thinking',
-        viewport: { x: 0, y: 0, scale: 1 },
-        selectedNodeIds: [],
-        collapsedSectionIds: [],
-      },
-    });
-    setChatMessages([
-      {
-        id: 'welcome',
-        role: 'ai',
-        content: "Hello! I'm your research assistant. Upload a document and ask me anything about it.",
-        timestamp: new Date(),
-      }
-    ]);
-    setActiveDocumentId(null);
-    setSelectedDocumentIds(new Set());
-    setSourceNavigation(null);
-    // Clear generation tasks when switching projects
-    setGenerationTasks(new Map());
+    let cancelled = false;
 
     const loadData = async () => {
       try {
-        const [docsRes, canvasRes, outputsRes, projectRes, urlContentsRes, historyRes] = await Promise.all([
+        const [
+          docsRes,
+          canvasRes,
+          outputsRes,
+          projectRes,
+          urlContentsRes,
+          historyRes,
+        ] = await Promise.all([
           documentsApi.list(projectId),
           canvasApi.get(projectId).catch(() => null), // Handle 404 for new canvas
           outputsApi.list(projectId).catch(() => null), // Fetch saved outputs
@@ -937,6 +1185,8 @@ export function StudioProvider({
           urlApi.listByProject(projectId).catch(() => null), // Fetch saved URL contents
           chatApi.getHistory(projectId).catch(() => null), // Fetch chat history
         ]);
+
+        if (cancelled) return;
 
         if (projectRes) {
           setProjectTitle(projectRes.name);
@@ -972,7 +1222,9 @@ export function StudioProvider({
             if (!nodesMap.has(node.id)) {
               nodesMap.set(node.id, node);
             } else {
-              console.warn(`[StudioContext] Duplicate node ID detected and skipped: ${node.id}`);
+              console.warn(
+                `[StudioContext] Duplicate node ID detected and skipped: ${node.id}`
+              );
             }
           });
           setCanvasNodes(Array.from(nodesMap.values()));
@@ -1007,7 +1259,10 @@ export function StudioProvider({
             );
 
             // Pre-extract existing output node positions from canvasRes to preserve them
-            const canvasOutputPositions = new Map<string, { x: number; y: number }>();
+            const canvasOutputPositions = new Map<
+              string,
+              { x: number; y: number }
+            >();
             if (canvasRes && canvasRes.nodes) {
               canvasRes.nodes.forEach((node: CanvasNode) => {
                 if (node.id.startsWith('output-')) {
@@ -1048,7 +1303,12 @@ export function StudioProvider({
                   y: existingPos?.y ?? gridY,
                   width: CARD_WIDTH,
                   height: CARD_HEIGHT,
-                  color: nodeType === 'mindmap' ? '#10B981' : nodeType === 'summary' ? '#8B5CF6' : '#667eea',
+                  color:
+                    nodeType === 'mindmap'
+                      ? '#10B981'
+                      : nodeType === 'summary'
+                        ? '#8B5CF6'
+                        : '#667eea',
                   tags: [],
                   viewType: 'free',
                   outputId: output.id,
@@ -1062,9 +1322,11 @@ export function StudioProvider({
 
             // Merge output nodes with canvas nodes
             if (outputNodes.length > 0) {
-              setCanvasNodes(prev => {
+              setCanvasNodes((prev) => {
                 // Filter out any existing output nodes to avoid duplicates
-                const existingNonOutputNodes = prev.filter(n => !n.id.startsWith('output-'));
+                const existingNonOutputNodes = prev.filter(
+                  (n) => !n.id.startsWith('output-')
+                );
                 return [...existingNonOutputNodes, ...outputNodes];
               });
             }
@@ -1095,36 +1357,47 @@ export function StudioProvider({
             }
           }
         }
+
+        setLoadedProjectId(projectId);
       } catch (error) {
         console.error('Failed to load project data:', error);
       }
     };
 
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]); // Only depend on projectId
+
+  const isCurrentProjectData = loadedProjectId === projectId;
+  const emptyGenerationTasks = useMemo(
+    () => new Map<string, GenerationTask>(),
+    []
+  );
 
   const value: StudioContextType = {
     projectId,
-    projectTitle,
-    documents,
+    projectTitle: isCurrentProjectData ? projectTitle : null,
+    documents: isCurrentProjectData ? documents : [],
     setDocuments,
-    activeDocumentId,
+    activeDocumentId: isCurrentProjectData ? activeDocumentId : null,
     setActiveDocumentId,
-    selectedDocumentIds,
+    selectedDocumentIds: isCurrentProjectData ? selectedDocumentIds : new Set(),
     setSelectedDocumentIds,
     toggleDocumentSelection,
     // URL Contents
-    urlContents,
+    urlContents: isCurrentProjectData ? urlContents : [],
     setUrlContents,
     addUrlContent,
     removeUrlContent,
     deleteDocument,
-    canvasNodes,
+    canvasNodes: isCurrentProjectData ? canvasNodes : [],
     setCanvasNodes,
-    canvasEdges,
+    canvasEdges: isCurrentProjectData ? canvasEdges : [],
     setCanvasEdges,
-    canvasSections,
+    canvasSections: isCurrentProjectData ? canvasSections : [],
     setCanvasSections,
     canvasViewport,
     setCanvasViewport,
@@ -1134,7 +1407,7 @@ export function StudioProvider({
     setViewStates,
     switchView,
     // Chat Messages
-    chatMessages,
+    chatMessages: isCurrentProjectData ? chatMessages : [],
     setChatMessages,
     // Canvas Actions
     addNodeToCanvas,
@@ -1170,7 +1443,9 @@ export function StudioProvider({
     previewDocumentId,
     openDocumentPreview,
     closeDocumentPreview,
-    generationTasks,
+    generationTasks: isCurrentProjectData
+      ? generationTasks
+      : emptyGenerationTasks,
     startGeneration,
     updateGenerationTask,
     updateGenerationTaskPosition,
@@ -1198,9 +1473,7 @@ export function StudioProvider({
   };
 
   return (
-    <StudioContext.Provider value={value}>
-      {children}
-    </StudioContext.Provider>
+    <StudioContext.Provider value={value}>{children}</StudioContext.Provider>
   );
 }
 

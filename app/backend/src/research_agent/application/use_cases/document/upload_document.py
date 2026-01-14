@@ -6,8 +6,9 @@ from typing import BinaryIO, Optional
 from uuid import UUID
 
 from research_agent.config import get_settings
-from research_agent.domain.entities.chunk import DocumentChunk
 from research_agent.domain.entities.document import Document
+from research_agent.domain.entities.resource import ResourceType
+from research_agent.domain.entities.resource_chunk import ResourceChunk
 from research_agent.domain.repositories.chunk_repo import ChunkRepository
 from research_agent.domain.repositories.document_repo import DocumentRepository
 from research_agent.domain.services.chunking_service import ChunkingService
@@ -126,15 +127,19 @@ class UploadDocumentUseCase:
             logger.info(f"Chunking {len(pages)} pages")
             chunk_data = self._chunking_service.chunk_pages(pages)
 
-            # 5. Create chunk entities
+            # 5. Create chunk entities using ResourceChunk
             chunks = [
-                DocumentChunk(
-                    document_id=document.id,
+                ResourceChunk(
+                    resource_id=document.id,
+                    resource_type=ResourceType.DOCUMENT,
                     project_id=input.project_id,
                     user_id=input.user_id,
                     chunk_index=c["chunk_index"],
                     content=c["content"],
-                    page_number=c["page_number"],
+                    metadata={
+                        "page_number": c["page_number"],
+                        "title": input.filename,
+                    },
                 )
                 for c in chunk_data
             ]
