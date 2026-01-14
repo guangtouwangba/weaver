@@ -6,3 +6,8 @@
 2.  Checks if the IP is global (not private, loopback, or link-local).
 3.  Rejects requests to disallowed IPs.
 Note: A robust solution should also handle DNS rebinding (TOCTOU) by validating the IP at the connection level, but pre-validation significantly reduces the attack surface.
+
+## 2026-01-13 - [Unenforced Security Utilities]
+**Vulnerability:** A critical SSRF protection utility (`validate_url`) existed in the codebase but was not used in the `WebPageExtractor`, leaving the application vulnerable despite the presence of security code.
+**Learning:** Security utilities are only effective when consistently applied. The existence of a `security.py` or `utils.py` with validation logic creates a false sense of security if developers forget to call it.
+**Prevention:** Enforce security checks via architectural patterns (e.g., a safe HTTP client wrapper that is mandatory) rather than optional validation functions. Automate checks to ensure security handlers are used.

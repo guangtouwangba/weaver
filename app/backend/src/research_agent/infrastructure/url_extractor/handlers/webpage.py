@@ -4,7 +4,7 @@ import asyncio
 from typing import Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
-from research_agent.infrastructure.url_extractor.utils import truncate_content
+from research_agent.infrastructure.url_extractor.utils import truncate_content, validate_url
 from research_agent.shared.utils.logger import logger
 
 
@@ -21,6 +21,15 @@ class WebPageExtractor(URLExtractor):
 
     async def extract(self, url: str) -> ExtractionResult:
         """Extract article content from a web page."""
+        # Validate URL (SSRF protection)
+        is_valid, error = validate_url(url)
+        if not is_valid:
+            logger.warning(f"[WebPageExtractor] Blocked unsafe URL: {url} - {error}")
+            return ExtractionResult.failure(
+                error=error,
+                title=self._extract_title_from_url(url),
+            )
+
         try:
             import trafilatura
 
