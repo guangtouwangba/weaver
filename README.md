@@ -82,28 +82,51 @@ Unlike NotebookLM's rigid list view, Weaver gives you a **visual thinking space*
 
 ## 🚀 Quick Start
 
-Get Weaver running in 30 seconds:
+Get Weaver running in 5 minutes:
+
+### 1. Clone & Install
 
 ```bash
 # Clone the repository
 git clone https://github.com/guangtouwangba/weaver.git
 cd weaver
 
-# Setup (creates venv, installs deps)
+# Setup (installs uv, system deps, backend & frontend deps)
 make setup
+```
 
-# Configure your API keys
+### 2. Start Infrastructure
+
+```bash
+# Start PostgreSQL, Redis, and Qdrant
+cd app/backend && docker compose up -d
+```
+
+### 3. Configure Environment
+
+```bash
+# Copy example config
 cp env.example .env
-# Edit .env and add OPENROUTER_API_KEY
 
-# Run
-make run-backend   # Terminal 1: API on :8000
-make run-frontend  # Terminal 2: UI on :3000
+# Edit .env and add your API key (required):
+# OPENROUTER_API_KEY=sk-or-v1-your-key
+```
+
+### 4. Run the Application
+
+```bash
+# Terminal 1: Start backend API
+make run-backend
+
+# Terminal 2: Start frontend
+make run-frontend
 ```
 
 > 💡 **Tip**: For quick local testing, set `AUTH_BYPASS_ENABLED=true` in `.env`
 
 **Open http://localhost:3000 and start researching!** 🎉
+
+> 📖 **More Details**: See [Backend README](app/backend/README.md) for configuration, infrastructure, and troubleshooting.
 
 ---
 
