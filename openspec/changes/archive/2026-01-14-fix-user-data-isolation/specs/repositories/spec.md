@@ -1,8 +1,14 @@
 # Spec: Repository Layer User Isolation
 
-## 目标
+## ADDED Requirements
 
-修改所有 Repository 的创建和查询方法，支持 `user_id` 参数。
+### Requirement: Update Repository Methods
+
+The system SHALL support `user_id` parameter in all Repository create and query methods.
+
+#### Scenario: Verify Repository supports user_id
+- **WHEN** a repository method is called with `user_id`
+- **THEN** it SHALL filter or save the data using that `user_id`
 
 ---
 

@@ -1,6 +1,6 @@
 # Fix User Data Isolation (v2)
 
-## Problem Statement
+## Why
 
 当前系统存在用户数据隔离问题：
 
@@ -32,7 +32,7 @@
 3. **管理脚本**: 数据迁移脚本可能泄露数据
 4. **SQL 注入**: 攻击者可能绕过 API 层查询
 
-## Proposed Solution
+## What Changes
 
 ### 方案 A: 数据库层隔离 (已采用)
 

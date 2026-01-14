@@ -1,8 +1,14 @@
 # Spec: Background Tasks User Isolation
 
-## 目标
+## ADDED Requirements
 
-修改所有后台任务，确保创建资源时设置 `user_id`。
+### Requirement: Pass User ID in Background Tasks
+
+The system SHALL use `user_id` in all background tasks when creating or accessing resources.
+
+#### Scenario: Verify Background Task uses user_id
+- **WHEN** a background task is executed
+- **THEN** the `user_id` SHALL be used for resource creation
 
 ---
 

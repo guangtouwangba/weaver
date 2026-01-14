@@ -56,22 +56,33 @@ The backend API SHALL verify Supabase JWT tokens on protected endpoints.
 - **AND** the frontend refreshes the token or redirects to login
 
 ### Requirement: User-Scoped Project Access
-The system SHALL restrict project access to the owning user only.
 
-#### Scenario: Create project with user ownership
-- **WHEN** an authenticated user creates a new project
-- **THEN** the project is created with the user's ID as owner
-- **AND** only that user can access the project
+The system SHALL verify project ownership on every project-scoped endpoint before granting access to resources.
 
-#### Scenario: List only owned projects
-- **WHEN** an authenticated user requests their project list
-- **THEN** only projects owned by that user are returned
-- **AND** projects owned by other users are not visible
-
-#### Scenario: Access denied for non-owned project
-- **WHEN** a user attempts to access a project they do not own
+#### Scenario: Access denied for chat on non-owned project
+- **WHEN** a user sends a chat message to a project they do not own
 - **THEN** the system returns HTTP 403 Forbidden
-- **AND** no project data is disclosed
+- **AND** no chat message is processed
+
+#### Scenario: Access denied for output generation on non-owned project
+- **WHEN** a user requests output generation on a project they do not own
+- **THEN** the system returns HTTP 403 Forbidden
+- **AND** no generation task is started
+
+#### Scenario: Access denied for canvas data on non-owned project
+- **WHEN** a user requests canvas data from a project they do not own
+- **THEN** the system returns HTTP 403 Forbidden
+- **AND** no canvas data is returned
+
+#### Scenario: Access denied for URL extraction on non-owned project
+- **WHEN** a user submits a URL for extraction to a project they do not own
+- **THEN** the system returns HTTP 403 Forbidden
+- **AND** no extraction task is created
+
+#### Scenario: Access denied for document confirmation on non-owned project
+- **WHEN** a user confirms a document upload to a project they do not own
+- **THEN** the system returns HTTP 403 Forbidden
+- **AND** no document record is created
 
 ### Requirement: User-Scoped File Storage
 The system SHALL store user files in isolated storage paths.

@@ -1,8 +1,14 @@
 # Spec: Database Migration for User Isolation
 
-## 目标
+## ADDED Requirements
 
-创建 Alembic migration 文件，为所有核心资源表添加 `user_id` 列。
+### Requirement: Create Migration
+
+The system SHALL include a database migration to add `user_id` column to all core resource tables.
+
+#### Scenario: Verify Migration
+- **WHEN** the migration is applied
+- **THEN** the `user_id` column SHALL exist in the database tables
 
 ## 文件路径
 

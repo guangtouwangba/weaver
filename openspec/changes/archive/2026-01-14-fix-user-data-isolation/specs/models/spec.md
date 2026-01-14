@@ -1,8 +1,14 @@
 # Spec: Database Models User Isolation
 
-## 目标
+## ADDED Requirements
 
-在 `models.py` 中为所有核心资源表添加 `user_id` 字段。
+### Requirement: Add User ID to Models
+
+The system SHALL include `user_id` field in all ORM models for core resource tables.
+
+#### Scenario: Verify Model has user_id
+- **WHEN** an ORM model is inspected
+- **THEN** it SHALL have a `user_id` column definition
 
 ## 文件路径
 
