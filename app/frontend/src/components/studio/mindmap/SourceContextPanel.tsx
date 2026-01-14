@@ -14,7 +14,6 @@ import {
   CloseIcon, 
   DescriptionIcon,
   ExternalLinkIcon,
-  LinkIcon,
 } from '@/components/ui/icons';
 import { Play, FileText, Globe } from 'lucide-react';
 import { MindmapNode, SourceRef } from '@/lib/api';
@@ -332,4 +331,3 @@ export const SourceContextPanel: React.FC<SourceContextPanelProps> = ({
 };
 
 export default SourceContextPanel;
-

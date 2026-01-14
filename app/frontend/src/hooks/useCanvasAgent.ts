@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { parseCommand, isCommand, ParseResult } from '@/lib/commandParser';
+import { parseCommand, isCommand } from '@/lib/commandParser';
 import { CanvasAction } from '@/lib/canvasActions';
 import { useCanvasDispatch } from './useCanvasDispatch';
 
@@ -206,4 +206,3 @@ export function useCanvasAgent(): UseCanvasAgentResult {
     hasPendingActions: pendingActions.some(a => a.status === 'pending'),
   };
 }
-

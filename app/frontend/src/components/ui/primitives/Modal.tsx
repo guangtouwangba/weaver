@@ -2,10 +2,8 @@
 
 import React, { useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { colors, radii, shadows, fontWeight } from '../tokens';
-import { Stack } from '../primitives/Stack';
+import { colors, radii, shadows } from '../tokens';
 import { Text } from '../primitives/Text';
-import { IconButton } from '../primitives/IconButton';
 
 /**
  * Modal Component

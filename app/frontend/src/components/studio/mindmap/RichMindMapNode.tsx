@@ -434,6 +434,7 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
   const handleClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     // Check if click target is the toggle button or its children
     const target = e.target;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let current: any = target;
     while (current) {
       if (current.name() === 'toggle-button') {
@@ -752,4 +753,3 @@ export const RichMindMapNode: React.FC<RichMindMapNodeProps> = ({
 };
 
 export default RichMindMapNode;
-

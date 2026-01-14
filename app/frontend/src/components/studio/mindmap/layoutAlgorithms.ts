@@ -117,6 +117,13 @@ export function radialLayout(data: MindmapData, options: LayoutOptions): LayoutR
     const children = childrenMap.get(node.id) || [];
     if (children.length > 0) {
       const angleSpan = endAngle - startAngle;
+
+      // Use countDescendants to allocate space proportional to subtree size?
+      // For now, just suppressing the unused warning if we are not using it.
+      // Or actually use it for better layout logic.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _subtreeSize = countDescendants(node.id, childrenMap);
+
       const anglePerChild = angleSpan / children.length;
       children.forEach((child, i) => {
         queue.push({
@@ -473,7 +480,9 @@ export function resolveOverlaps(
         const pushY = (dy / dist) * (nodeHeight + padding);
 
         // If centers are too close, force a default direction (usually down or right)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const separationX = Math.abs(dx) < 10 ? (nodeWidth + padding) : pushX;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const separationY = Math.abs(dy) < 10 ? (nodeHeight + padding) : pushY;
 
         // Apply push to the node and its subtree

@@ -24,7 +24,7 @@ export interface ChipProps {
     /** Callback when delete button is clicked (shows delete button when provided) */
     onDelete?: () => void;
     /** Callback when chip is clicked */
-    onClick?: () => void;
+    onClick?: (e?: React.MouseEvent) => void;
     /** Whether the chip is disabled */
     disabled?: boolean;
     /** Additional CSS class */
@@ -108,7 +108,7 @@ export const Chip = React.forwardRef<HTMLDivElement, ChipProps>(
 
         const handleClick = (e: React.MouseEvent) => {
             if (disabled) return;
-            onClick?.(e as any);
+            onClick?.(e);
         };
 
         const handleDelete = (e: React.MouseEvent) => {

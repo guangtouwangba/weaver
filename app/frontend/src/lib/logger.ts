@@ -56,10 +56,10 @@ if (isServer && lokiEnabled && lokiUrl) {
 // Client-side stub (prevents errors when imported in browser)
 if (!isServer) {
   const noopLogger = {
-    info: (...args: any[]) => console.log(...args),
-    warn: (...args: any[]) => console.warn(...args),
-    error: (...args: any[]) => console.error(...args),
-    debug: (...args: any[]) => console.debug(...args),
+    info: (...args: unknown[]) => console.log(...args),
+    warn: (...args: unknown[]) => console.warn(...args),
+    error: (...args: unknown[]) => console.error(...args),
+    debug: (...args: unknown[]) => console.debug(...args),
   };
   
   // Export noop logger for client-side
@@ -69,4 +69,3 @@ if (!isServer) {
 }
 
 export default logger;
-

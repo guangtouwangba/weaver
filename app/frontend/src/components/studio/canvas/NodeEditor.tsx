@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TextField as UiTextField } from '@/components/ui/composites';
 import { Surface, Stack, IconButton } from '@/components/ui';
-import { colors, radii, shadows } from '@/components/ui/tokens';
+import { colors } from '@/components/ui/tokens';
 import { CheckIcon, CloseIcon } from '@/components/ui/icons';
 import { CanvasNode } from '@/lib/api';
 
@@ -15,9 +15,22 @@ interface NodeEditorProps {
 }
 
 export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEditorProps) {
+    // Initialize state from props. The key prop on the parent usage should handle resetting state when node changes.
+    // However, if we want to be safe without relying on key, we can use an effect, but we must avoid the lint error.
+    // The previous implementation used an effect to sync props to state which caused the error.
+    // A better pattern is to use a key on the component instance in the parent.
+    // Assuming the parent handles key={node.id}, we can just initialize state.
     const [title, setTitle] = useState(node.title || '');
     const [content, setContent] = useState(node.content || '');
     const titleInputRef = useRef<HTMLInputElement>(null);
+    const [prevNodeId, setPrevNodeId] = useState(node.id);
+
+    // Sync state if node prop changes (pattern: derived state with mirroring)
+    if (node.id !== prevNodeId) {
+        setTitle(node.title || '');
+        setContent(node.content || '');
+        setPrevNodeId(node.id);
+    }
 
     useEffect(() => {
         // Focus title input on mount
@@ -25,12 +38,6 @@ export default function NodeEditor({ node, viewport, onSave, onCancel }: NodeEdi
             titleInputRef.current.focus();
         }
     }, []);
-
-    // Update state when node changes (in case key is not used or component reused)
-    useEffect(() => {
-        setTitle(node.title || '');
-        setContent(node.content || '');
-    }, [node.id, node.title, node.content]);
 
     const handleSave = () => {
         onSave(node.id, { title, content });

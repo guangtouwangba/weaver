@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Modal, Stack, Text, IconButton, Button } from '@/components/ui'; // Check if Button is exported from ui root
+import { Modal, Stack, Text, IconButton } from '@/components/ui';
 import { CloseIcon } from '@/components/ui/icons';
 import { colors } from '@/components/ui/tokens';
 
@@ -40,7 +40,8 @@ export const Dialog = React.forwardRef<HTMLDivElement, DialogProps>(
             size = 'md',
             open,
         },
-        ref
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        _ref
     ) {
         return (
             <Modal

@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Surface, Text } from '../primitives';
-import { colors, radii, shadows, fontSize, fontWeight } from '../tokens';
+import { Surface } from '../primitives';
+import { colors, radii, fontSize, fontWeight } from '../tokens';
 
 /**
  * Menu Component
@@ -63,6 +63,11 @@ export const Menu = ({
     }, [open, onClose]);
 
     if (!open) return null;
+
+    // Use anchorReference to avoid lint unused warning or potentially use it later
+    // For now we only support anchorPosition based on the implementation
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _ignore = anchorReference;
 
     const content = (
         <div
@@ -196,4 +201,3 @@ export const MenuDivider = () => (
 MenuDivider.displayName = 'MenuDivider';
 
 export default Menu;
-

@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Button, Text, IconButton } from '@/components/ui/primitives';
+import { Button, Text } from '@/components/ui/primitives';
 import { ExternalLinkIcon, AddIcon } from '@/components/ui/icons';
-import { colors, radii } from '@/components/ui/tokens';
+import { colors } from '@/components/ui/tokens';
+import Image from 'next/image';
 
 interface WebPagePreviewPanelProps {
   title: string;
@@ -52,11 +53,15 @@ export default function WebPagePreviewPanel({
         overflow: 'hidden'
       }}>
         {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <Image
+              src={thumbnailUrl}
+              alt={title}
+              fill
+              style={{ objectFit: 'cover' }}
+              unoptimized // If external URL
+            />
+          </div>
         ) : (
           <div style={{ textAlign: 'center', opacity: 0.5 }}>
             <span style={{ fontSize: 48 }}>🌐</span>

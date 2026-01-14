@@ -9,7 +9,8 @@ interface MindMapEdgeProps {
   targetNode?: MindmapNode;
 }
 
-export const MindMapEdge: React.FC<MindMapEdgeProps> = ({ edge, sourceNode, targetNode }) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const MindMapEdge: React.FC<MindMapEdgeProps> = ({ edge: _edge, sourceNode, targetNode }) => {
   const lineRef = useRef<Konva.Line>(null);
 
   useEffect(() => {

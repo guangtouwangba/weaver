@@ -112,6 +112,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         return (
             <button
                 ref={ref}
+                className={className}
                 disabled={disabled}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
@@ -141,6 +142,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
                         const props = child.props as { size?: number | string };
                         return React.cloneElement(child, {
                             size: props.size || sizeStyle.iconSize,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);
                     }
                     return child;

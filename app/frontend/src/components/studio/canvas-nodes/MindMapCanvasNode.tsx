@@ -22,7 +22,7 @@ import React, { useState, useRef, useEffect, memo } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { Surface, Stack, Text, IconButton, Spinner, Modal, Chip } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
-import { CloseIcon, FullscreenIcon, AccountTreeIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
+import { FullscreenIcon, AccountTreeIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
 import { MindmapData } from '@/lib/api';
 import { MindMapNode } from '../mindmap/MindMapNode';
 import { MindMapEdge } from '../mindmap/MindMapEdge';
@@ -40,7 +40,7 @@ interface MindMapCanvasNodeProps {
   isOverlayMode?: boolean;
   onClose: () => void;
   onDragStart?: (e: React.MouseEvent) => void;
-  onDragEnd?: () => void;
+  // onDragEnd?: () => void; // Unused
   /** Callback when mindmap data is saved from editor */
   onDataChange?: (data: MindmapData) => void;
   /** External drag state control from parent (GenerationOutputsOverlay) */
@@ -111,7 +111,7 @@ function MindMapCanvasNodeInner({
   isOverlayMode = false,
   onClose,
   onDragStart,
-  onDragEnd,
+  // onDragEnd, // Unused
   onDataChange,
   isDragging = false, // Controlled by parent (GenerationOutputsOverlay)
   onOpenSourceRef,
@@ -120,9 +120,9 @@ function MindMapCanvasNodeInner({
 
   // Performance: track renders
   const renderCountRef = useRef(0);
-  renderCountRef.current++;
 
   useEffect(() => {
+    renderCountRef.current++;
     if (isDragging && renderCountRef.current % 10 === 0) {
       console.log(`[Perf][MindMapNode ${id}] Render count: ${renderCountRef.current}`);
     }
@@ -406,5 +406,3 @@ const MindMapCanvasNode = memo(MindMapCanvasNodeInner, (prevProps, nextProps) =>
 MindMapCanvasNode.displayName = 'MindMapCanvasNode';
 
 export default MindMapCanvasNode;
-
-

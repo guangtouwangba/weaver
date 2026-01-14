@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { Stack, Text } from '@/components/ui';
+import { Text } from '@/components/ui';
 import { colors } from '@/components/ui/tokens';
 
 // Processing step configuration
@@ -80,10 +80,14 @@ export default function ThinkingIndicator({
   // Trigger transition animation when step changes
   useEffect(() => {
     if (prevStepRef.current !== step && step) {
-      setShowTransition(true);
+      // Use setTimeout to avoid synchronous state update in effect
+      const transitionTimeout = setTimeout(() => setShowTransition(true), 0);
       const timeout = setTimeout(() => setShowTransition(false), 300);
       prevStepRef.current = step;
-      return () => clearTimeout(timeout);
+      return () => {
+        clearTimeout(transitionTimeout);
+        clearTimeout(timeout);
+      };
     }
   }, [step]);
   
@@ -235,4 +239,3 @@ export function ThinkingIndicatorInline({
     </span>
   );
 }
-
