@@ -23,16 +23,16 @@
 - [x] 4.4 移除或重构 `canvas_syncer.py`
 
 ## 5. 验证
-- [ ] 5.1 清理本地数据库 (DROP ALL + 重建)
-- [ ] 5.2 运行 `alembic upgrade head` 验证 schema 创建
-- [ ] 5.3 运行 pytest 确保无测试失败
-- [ ] 5.4 启动应用确认正常工作
+- [x] 5.1 清理本地数据库 (DROP ALL + 重建)
+- [x] 5.2 运行 `alembic upgrade head` 验证 schema 创建
+- [x] 5.3 运行 pytest 确保无测试失败
+- [x] 5.4 启动应用确认正常工作
 
 ## 6. 生产环境部署 (Supabase)
-- [ ] 6.1 备份现有数据库 (如果需要)
-- [ ] 6.2 在 Supabase SQL Editor 执行清理脚本 (`proposal.md` 中的 SQL)
-- [ ] 6.3 部署新版本，触发 `alembic upgrade head`
-- [ ] 6.4 验证应用正常运行
+- [x] 6.1 备份现有数据库 (如果需要)
+- [x] 6.2 在 Supabase SQL Editor 执行清理脚本 (`proposal.md` 中的 SQL)
+- [x] 6.3 部署新版本，触发 `alembic upgrade head`
+- [x] 6.4 验证应用正常运行
 
 ## Dependencies
 - 1.x 无前置依赖

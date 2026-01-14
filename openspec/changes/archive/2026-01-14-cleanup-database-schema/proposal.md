@@ -9,10 +9,10 @@
 ### **BREAKING CHANGE**: 完全重建数据库 Schema
 
 #### 删除所有现有 Migrations
-删除 `alembic/versions/` 下的所有 36 个 migration 文件。
+系统 MUST 删除 `alembic/versions/` 下的所有 36 个 migration 文件。
 
 #### 创建新的 Initial Schema
-创建单一的 `20260114_000001_initial_schema.py`，仅包含当前实际使用的表。
+系统 MUST 创建单一的 `20260114_000001_initial_schema.py`，仅包含当前实际使用的表。
 
 ### 保留的表 (包含在新 Schema 中)
 
@@ -49,8 +49,8 @@
 | `relations` | Knowledge Graph 探索后未使用 |
 
 ### 代码清理
-- 删除 `EntityModel`, `RelationModel`, `DocumentChunkModel` 从 `models.py`
-- 更新相关依赖代码
+- 系统 MUST 删除 `EntityModel`, `RelationModel`, `DocumentChunkModel` 从 `models.py`
+- 系统 MUST 更新相关依赖代码
 
 ### Supabase SQL 清理脚本
 在部署前，需要在 Supabase SQL Editor 中执行以下脚本来清理旧数据库：
@@ -61,10 +61,7 @@
 -- 执行前请确保已备份重要数据！
 -- =============================================================================
 
--- Step 1: 清除 alembic_version 表（防止 migration version 冲突）
-TRUNCATE TABLE IF EXISTS alembic_version;
-
--- Step 2: 删除所有现有表（按依赖顺序）
+-- Step 1: 删除所有现有表（按依赖顺序，包括 alembic_version）
 DROP TABLE IF EXISTS inbox_item_tags CASCADE;
 DROP TABLE IF EXISTS inbox_items CASCADE;
 DROP TABLE IF EXISTS tags CASCADE;
@@ -89,11 +86,9 @@ DROP TABLE IF EXISTS document_chunks CASCADE;
 DROP TABLE IF EXISTS canvases CASCADE;
 DROP TABLE IF EXISTS documents CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
-
--- Step 3: 删除 alembic_version 表本身
 DROP TABLE IF EXISTS alembic_version CASCADE;
 
--- Step 4: 确保 pgvector extension 存在
+-- Step 2: 确保 pgvector extension 存在
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 完成！现在可以运行 alembic upgrade head
@@ -103,3 +98,5 @@ CREATE EXTENSION IF NOT EXISTS vector;
 - **BREAKING CHANGE**: 现有数据库需要完全重建，所有数据将丢失
 - 新部署只需运行 `alembic upgrade head` 一次
 - 代码更简洁，无历史包袱
+- Affected specs: database
+- Affected code: `models.py`, `alembic/versions/`, `document_selector.py`, `document_processor.py`
