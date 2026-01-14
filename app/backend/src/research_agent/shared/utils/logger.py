@@ -116,7 +116,7 @@ def setup_logger(name: Optional[str] = None) -> logging.Logger:
                 loki_handler.setLevel(getattr(logging, settings.log_level.upper()))
                 loki_handler.setFormatter(formatter)
                 logger.addHandler(loki_handler)
-                logger.info(
+                logger.debug(
                     f"✅ Loki handler initialized with timeout protection: {settings.loki_url}"
                 )
             except ImportError:

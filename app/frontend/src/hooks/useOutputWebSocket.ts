@@ -8,7 +8,13 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { getWebSocketUrl, OutputWebSocketEvent, MindmapNode, MindmapEdge, MindmapData } from '@/lib/api';
+import {
+  getAuthenticatedWebSocketUrl,
+  OutputWebSocketEvent,
+  MindmapNode,
+  MindmapEdge,
+  MindmapData,
+} from '@/lib/api';
 import { parseMindmapFromMarkdown } from '@/lib/mindmap-parser';
 
 export interface UseOutputWebSocketOptions {
@@ -19,7 +25,11 @@ export interface UseOutputWebSocketOptions {
   onEdgeAdded?: (edgeId: string, edgeData: MindmapEdge) => void;
   onProgress?: (progress: number, message?: string) => void;
   onGenerationStarted?: (outputType: string) => void;
-  onGenerationComplete?: (outputId?: string, message?: string, nodeData?: Record<string, unknown>) => void;
+  onGenerationComplete?: (
+    outputId?: string,
+    message?: string,
+    nodeData?: Record<string, unknown>
+  ) => void;
   /** Called when mindmap generation completes with markdown content (new batch mode) */
   onMindmapComplete?: (mindmapData: MindmapData, documentId?: string) => void;
   onGenerationError?: (error: string) => void;
@@ -50,7 +60,10 @@ export function useOutputWebSocket(
 
   // Store callbacks in refs to avoid reconnection on callback changes
   const callbacksRef = useRef(options);
-  callbacksRef.current = options;
+
+  useEffect(() => {
+    callbacksRef.current = options;
+  });
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -68,17 +81,21 @@ export function useOutputWebSocket(
     }
   }, []);
 
+  // Use a ref for the connect function to allow recursive calls
+  const connectRef = useRef<(() => Promise<void>) | null>(null);
+
   // Connect to WebSocket
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!projectId || !enabled) return;
 
     cleanup();
 
     // Build URL with optional task_id query param
-    let wsUrl = `${getWebSocketUrl()}/ws/projects/${projectId}/outputs`;
+    let basePath = `/ws/projects/${projectId}/outputs`;
     if (taskId) {
-      wsUrl += `?task_id=${taskId}`;
+      basePath += `?task_id=${taskId}`;
     }
+    const wsUrl = await getAuthenticatedWebSocketUrl(basePath);
     console.log('[Output WS] Connecting to:', wsUrl);
 
     setConnectionStatus('connecting');
@@ -126,32 +143,53 @@ export function useOutputWebSocket(
 
             case 'node_added':
               if (data.nodeId && data.nodeData) {
-                callbacks.onNodeAdded?.(data.nodeId, data.nodeData as MindmapNode);
+                callbacks.onNodeAdded?.(
+                  data.nodeId,
+                  data.nodeData as MindmapNode
+                );
               }
               break;
 
             case 'edge_added':
               if (data.edgeId && data.edgeData) {
-                callbacks.onEdgeAdded?.(data.edgeId, data.edgeData as MindmapEdge);
+                callbacks.onEdgeAdded?.(
+                  data.edgeId,
+                  data.edgeData as MindmapEdge
+                );
               }
               break;
 
             case 'level_complete':
-              if (data.currentLevel !== undefined && data.totalLevels !== undefined) {
-                callbacks.onLevelComplete?.(data.currentLevel, data.totalLevels);
+              if (
+                data.currentLevel !== undefined &&
+                data.totalLevels !== undefined
+              ) {
+                callbacks.onLevelComplete?.(
+                  data.currentLevel,
+                  data.totalLevels
+                );
               }
               break;
 
             case 'generation_complete':
               // Check for markdown content (mindmap batch generation)
               if (data.markdownContent) {
-                console.log('[Output WS] Received mindmap markdown content, length:', data.markdownContent.length);
+                console.log(
+                  '[Output WS] Received mindmap markdown content, length:',
+                  data.markdownContent.length
+                );
                 console.log('[Output WS] Document ID:', data.documentId);
                 const mindmapData = parseMindmapFromMarkdown(
                   data.markdownContent,
                   data.documentId
                 );
-                console.log('[Output WS] Parsed mindmap:', mindmapData.nodes.length, 'nodes,', mindmapData.edges.length, 'edges');
+                console.log(
+                  '[Output WS] Parsed mindmap:',
+                  mindmapData.nodes.length,
+                  'nodes,',
+                  mindmapData.edges.length,
+                  'edges'
+                );
                 callbacks.onMindmapComplete?.(mindmapData, data.documentId);
               }
               // Also call general complete handler (for article/action_list results)
@@ -163,7 +201,9 @@ export function useOutputWebSocket(
               break;
 
             case 'generation_error':
-              callbacks.onGenerationError?.(data.errorMessage || 'Unknown error');
+              callbacks.onGenerationError?.(
+                data.errorMessage || 'Unknown error'
+              );
               break;
           }
         } catch (e) {
@@ -186,7 +226,9 @@ export function useOutputWebSocket(
         if (enabled && event.code !== 1000) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[Output WS] Attempting to reconnect...');
-            connect();
+            if (connectRef.current) {
+              connectRef.current();
+            }
           }, 5000);
         }
       };
@@ -196,6 +238,11 @@ export function useOutputWebSocket(
       callbacksRef.current.onConnectionStatusChange?.('error');
     }
   }, [projectId, taskId, enabled, cleanup]);
+
+  // Update ref when connect changes
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Reconnect function
   const reconnect = useCallback(() => {
@@ -214,13 +261,14 @@ export function useOutputWebSocket(
   // Connect on mount and when projectId/taskId changes
   useEffect(() => {
     if (enabled && projectId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       connect();
     }
 
     return () => {
       cleanup();
     };
-  }, [projectId, taskId, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, taskId, enabled, connect, cleanup]);
 
   return {
     isConnected: connectionStatus === 'connected',
@@ -231,10 +279,3 @@ export function useOutputWebSocket(
 }
 
 export default useOutputWebSocket;
-
-
-
-
-
-
-

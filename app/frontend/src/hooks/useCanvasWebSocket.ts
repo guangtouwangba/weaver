@@ -2,24 +2,45 @@
 
 /**
  * Custom hook for Canvas WebSocket connection
- * 
+ *
  * Provides real-time updates for:
  * - Multi-client canvas synchronization
  * - Node/edge update notifications
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { getWebSocketUrl, CanvasWebSocketEvent, CanvasNode, CanvasEdge, CanvasSection } from '@/lib/api';
+import {
+  getAuthenticatedWebSocketUrl,
+  CanvasWebSocketEvent,
+  CanvasNode,
+  CanvasEdge,
+  CanvasSection,
+} from '@/lib/api';
 
 export interface UseCanvasWebSocketOptions {
   projectId: string;
   enabled?: boolean;
-  onNodeAdded?: (nodeId: string, nodeData: Partial<CanvasNode>, messageIds?: string[]) => void;
+  onNodeAdded?: (
+    nodeId: string,
+    nodeData: Partial<CanvasNode>,
+    messageIds?: string[]
+  ) => void;
   onNodeUpdated?: (nodeId: string, nodeData: Partial<CanvasNode>) => void;
   onNodeDeleted?: (nodeId: string) => void;
-  onEdgeAdded?: (edgeId: string, sourceId: string, targetId: string, edgeData?: Partial<CanvasEdge>) => void;
-  onBatchUpdate?: (nodes: CanvasNode[], edges: CanvasEdge[], sections?: CanvasSection[]) => void;
-  onConnectionStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
+  onEdgeAdded?: (
+    edgeId: string,
+    sourceId: string,
+    targetId: string,
+    edgeData?: Partial<CanvasEdge>
+  ) => void;
+  onBatchUpdate?: (
+    nodes: CanvasNode[],
+    edges: CanvasEdge[],
+    sections?: CanvasSection[]
+  ) => void;
+  onConnectionStatusChange?: (
+    status: 'connecting' | 'connected' | 'disconnected' | 'error'
+  ) => void;
 }
 
 export interface UseCanvasWebSocketReturn {
@@ -32,19 +53,21 @@ export interface UseCanvasWebSocketReturn {
 export function useCanvasWebSocket(
   options: UseCanvasWebSocketOptions
 ): UseCanvasWebSocketReturn {
-  const {
-    projectId,
-    enabled = true,
-  } = options;
+  const { projectId, enabled = true } = options;
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
-  
+  const [connectionStatus, setConnectionStatus] = useState<
+    'connecting' | 'connected' | 'disconnected' | 'error'
+  >('disconnected');
+
   // Store callbacks in refs to avoid reconnection on callback changes
   const callbacksRef = useRef(options);
-  callbacksRef.current = options;
+
+  useEffect(() => {
+    callbacksRef.current = options;
+  });
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -62,13 +85,18 @@ export function useCanvasWebSocket(
     }
   }, []);
 
+  // Use a ref for the connect function to allow recursive calls in onclose
+  const connectRef = useRef<(() => Promise<void>) | null>(null);
+
   // Connect to WebSocket - only depends on projectId and enabled
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!projectId || !enabled) return;
 
     cleanup();
 
-    const wsUrl = `${getWebSocketUrl()}/ws/projects/${projectId}/canvas`;
+    const wsUrl = await getAuthenticatedWebSocketUrl(
+      `/ws/projects/${projectId}/canvas`
+    );
     console.log('[Canvas WS] Connecting to:', wsUrl);
 
     setConnectionStatus('connecting');
@@ -108,7 +136,11 @@ export function useCanvasWebSocket(
           switch (data.type) {
             case 'node_added':
               if (data.node_id && data.node_data) {
-                callbacks.onNodeAdded?.(data.node_id, data.node_data, data.message_ids);
+                callbacks.onNodeAdded?.(
+                  data.node_id,
+                  data.node_data,
+                  data.message_ids
+                );
               }
               break;
 
@@ -125,11 +157,21 @@ export function useCanvasWebSocket(
               break;
 
             case 'edge_added':
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
               if (data.edge_id && data.source_id && data.target_id) {
                 callbacks.onEdgeAdded?.(
-                  data.edge_id, 
-                  data.source_id, 
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  // @ts-ignore
+                  data.edge_id,
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  // @ts-ignore
+                  data.source_id,
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  // @ts-ignore
                   data.target_id,
+                  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                  // @ts-ignore
                   data.edge_data
                 );
               }
@@ -166,7 +208,9 @@ export function useCanvasWebSocket(
         if (enabled && event.code !== 1000) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[Canvas WS] Attempting to reconnect...');
-            connect();
+            if (connectRef.current) {
+              connectRef.current();
+            }
           }, 5000);
         }
       };
@@ -176,6 +220,11 @@ export function useCanvasWebSocket(
       callbacksRef.current.onConnectionStatusChange?.('error');
     }
   }, [projectId, enabled, cleanup]);
+
+  // Update ref when connect changes
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Reconnect function
   const reconnect = useCallback(() => {
@@ -194,13 +243,14 @@ export function useCanvasWebSocket(
   // Connect on mount and when projectId changes
   useEffect(() => {
     if (enabled && projectId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       connect();
     }
 
     return () => {
       cleanup();
     };
-  }, [projectId, enabled]);
+  }, [projectId, enabled, connect, cleanup]);
 
   return {
     isConnected: connectionStatus === 'connected',

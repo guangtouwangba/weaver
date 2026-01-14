@@ -14,8 +14,13 @@ from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
-from research_agent.domain.agents.base_agent import OutputEvent, OutputEventType
-from research_agent.domain.entities.output import MindmapEdge, MindmapNode, SourceRef
+from research_agent.domain.entities.output import (
+    MindmapEdge,
+    MindmapNode,
+    OutputEvent,
+    OutputEventType,
+    SourceRef,
+)
 from research_agent.infrastructure.llm.base import ChatMessage, LLMService
 from research_agent.infrastructure.llm.prompts import PromptLoader
 from research_agent.shared.utils.logger import logger

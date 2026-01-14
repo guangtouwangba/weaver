@@ -10,8 +10,8 @@ from uuid import UUID
 
 from research_agent.shared.utils.rag_trace import RAGTrace
 
-from .models import StreamResult
-from .stream_message import SourceRef, StreamEvent, StreamingRefInjector
+from .models import StreamResult, SourceRef, StreamEvent, StreamingRefInjector
+# from .stream_message import SourceRef, StreamEvent, StreamingRefInjector
 
 
 class StreamEventProcessor:

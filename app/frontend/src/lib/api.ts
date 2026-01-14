@@ -636,11 +636,40 @@ export const chatApi = {
     step?: string; // For status events: rewriting, memory, analyzing, retrieving, ranking, generating
     message?: string; // Human-readable status message
   }> {
+    // Get auth token for the request
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    let token: string | null = null;
+    if (_getAuthToken) {
+      try {
+        token = await _getAuthToken();
+      } catch (error) {
+        console.warn('[API] Failed to get auth token for chat stream:', error);
+      }
+    } else {
+      // Fallback: directly get session from Supabase if token getter not set yet
+      try {
+        const { getSession, isAuthConfigured } = await import('@/lib/supabase');
+        if (isAuthConfigured()) {
+          const session = await getSession();
+          token = session?.access_token || null;
+        }
+      } catch (error) {
+        console.warn('[API] Failed to get session for chat stream:', error);
+      }
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(
       `${getApiUrl()}/api/v1/projects/${projectId}/chat/stream`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(message),
       }
     );
@@ -1594,3 +1623,43 @@ export const urlApi = {
     throw new Error('URL extraction timed out');
   },
 };
+
+/**
+ * Get WebSocket URL with auth token as query parameter.
+ * WebSocket connections cannot use HTTP headers, so we pass token via query param.
+ *
+ * @param basePath - The WebSocket path (e.g., '/ws/projects/xxx/canvas')
+ * @returns Full WebSocket URL with token if available
+ */
+export async function getAuthenticatedWebSocketUrl(
+  basePath: string
+): Promise<string> {
+  const baseUrl = `${getWebSocketUrl()}${basePath}`;
+
+  let token: string | null = null;
+  if (_getAuthToken) {
+    try {
+      token = await _getAuthToken();
+    } catch (error) {
+      console.warn('[API] Failed to get auth token for WebSocket:', error);
+    }
+  } else {
+    // Fallback: directly get session from Supabase if token getter not set yet
+    try {
+      const { getSession, isAuthConfigured } = await import('@/lib/supabase');
+      if (isAuthConfigured()) {
+        const session = await getSession();
+        token = session?.access_token || null;
+      }
+    } catch (error) {
+      console.warn('[API] Failed to get session for WebSocket:', error);
+    }
+  }
+
+  if (token) {
+    const separator = basePath.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
+  }
+
+  return baseUrl;
+}

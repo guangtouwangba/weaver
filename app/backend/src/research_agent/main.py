@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     global _background_worker
 
     # Startup
-    logger.info("Starting Research Agent RAG API...")
+    logger.debug("Starting Research Agent RAG API...")
 
     # Debug: Check API key configuration
     openrouter_key = settings.openrouter_api_key
@@ -63,17 +63,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         masked = (
             openrouter_key[:10] + "..." + openrouter_key[-4:] if len(openrouter_key) > 14 else "***"
         )
-        logger.info(f"OpenRouter API Key: {masked}")
-        logger.info(f"LLM Model: {settings.llm_model}")
-        logger.info(f"Embedding Model: {settings.embedding_model}")
+        logger.debug(f"OpenRouter API Key: {masked}")
+        logger.debug(f"LLM Model: {settings.llm_model}")
+        logger.debug(f"Embedding Model: {settings.embedding_model}")
     else:
         logger.warning("⚠️  OPENROUTER_API_KEY not set!")
         logger.warning("   Get one at: https://openrouter.ai/keys")
 
     # Log RAG mode configuration
-    logger.info("=" * 60)
-    logger.info("RAG Mode Configuration:")
-    logger.info(f"  Mode: {settings.rag_mode}")
+    logger.debug("=" * 60)
+    logger.debug("RAG Mode Configuration:")
+    logger.debug(f"  Mode: {settings.rag_mode}")
     if settings.rag_mode in ("long_context", "auto"):
         from research_agent.infrastructure.llm.model_config import (
             calculate_available_tokens,
@@ -84,29 +84,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         available_tokens = calculate_available_tokens(
             settings.llm_model, settings.long_context_safety_ratio
         )
-        logger.info("  Long Context Settings:")
-        logger.info(
+        logger.debug("  Long Context Settings:")
+        logger.debug(
             f"    - Safety Ratio: {settings.long_context_safety_ratio} ({settings.long_context_safety_ratio * 100}% of context window)"
         )
-        logger.info(f"    - Min Tokens: {settings.long_context_min_tokens:,}")
-        logger.info(f"    - Model Context Window: {context_window:,} tokens")
-        logger.info(f"    - Available Tokens: {available_tokens:,} tokens")
-        logger.info(
+        logger.debug(f"    - Min Tokens: {settings.long_context_min_tokens:,}")
+        logger.debug(f"    - Model Context Window: {context_window:,} tokens")
+        logger.debug(f"    - Available Tokens: {available_tokens:,} tokens")
+        logger.debug(
             f"    - Citation Grounding: {'✅ Enabled' if settings.enable_citation_grounding else '❌ Disabled'}"
         )
-        logger.info(f"    - Citation Format: {settings.citation_format}")
-    logger.info("=" * 60)
+        logger.debug(f"    - Citation Format: {settings.citation_format}")
+    logger.debug("=" * 60)
 
     # Log URL extraction settings
     if settings.disable_ssrf_check:
-        logger.warning("⚠️  SSRF Check DISABLED - only use in development!")
+        logger.debug("⚠️  SSRF Check DISABLED - only use in development!")
     else:
-        logger.info("🔒 SSRF Check enabled (production mode)")
+        logger.debug("🔒 SSRF Check enabled (production mode)")
 
     # Initialize database - will not raise on failure, app will start anyway
     try:
         await init_db()
-        logger.info("Database initialization completed")
+        logger.debug("Database initialization completed")
     except Exception as e:
         logger.warning(f"⚠️  Database initialization warning: {e}")
         logger.warning(
@@ -121,10 +121,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 get_qdrant_client,
             )
 
-            logger.info("Initializing Qdrant vector store...")
+            logger.debug("Initializing Qdrant vector store...")
             client = await get_qdrant_client()
             await ensure_collection_exists(client, settings.qdrant_collection_name)
-            logger.info(f"✅ Qdrant ready (collection: {settings.qdrant_collection_name})")
+            logger.debug(f"✅ Qdrant ready (collection: {settings.qdrant_collection_name})")
         except Exception as e:
             logger.error(f"❌ Qdrant initialization failed: {e}")
             logger.warning("   RAG functionality may not work until Qdrant is available")
@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.error(f"❌ Background worker crashed: {e}", exc_info=True)
 
         worker_task.add_done_callback(worker_error_handler)
-        logger.info("✅ Background worker task created and started")
+        logger.debug("✅ Background worker task created and started")
     except Exception as e:
         logger.error(f"❌ Failed to start background worker: {e}", exc_info=True)
 

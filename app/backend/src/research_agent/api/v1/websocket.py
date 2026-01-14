@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from research_agent.api.auth.websocket_auth import verify_project_access, verify_websocket_token
 from research_agent.infrastructure.websocket.canvas_notification_service import (
     canvas_notification_service,
 )
@@ -22,6 +23,7 @@ router = APIRouter()
 async def project_documents_websocket(
     websocket: WebSocket,
     project_id: str,
+    token: Optional[str] = None,
 ) -> None:
     """
     WebSocket endpoint for receiving document status updates for a project.
@@ -43,6 +45,12 @@ async def project_documents_websocket(
     }
     ```
     """
+    try:
+        user_id, is_anonymous = await verify_websocket_token(websocket, token)
+        await verify_project_access(project_id, user_id, is_anonymous)
+    except Exception:
+        return  # Connection was rejected
+
     await document_notification_service.connect(websocket, project_id)
 
     try:
@@ -68,6 +76,7 @@ async def document_status_websocket(
     websocket: WebSocket,
     project_id: str,
     document_id: str,
+    token: Optional[str] = None,
 ) -> None:
     """
     WebSocket endpoint for receiving status updates for a specific document.
@@ -88,6 +97,12 @@ async def document_status_websocket(
     }
     ```
     """
+    try:
+        user_id, is_anonymous = await verify_websocket_token(websocket, token)
+        await verify_project_access(project_id, user_id, is_anonymous)
+    except Exception:
+        return
+
     await document_notification_service.connect(websocket, project_id, document_id)
 
     try:
@@ -112,6 +127,7 @@ async def document_status_websocket(
 async def project_canvas_websocket(
     websocket: WebSocket,
     project_id: str,
+    token: Optional[str] = None,
 ) -> None:
     """
     WebSocket endpoint for receiving Canvas real-time updates.
@@ -133,6 +149,12 @@ async def project_canvas_websocket(
     Client can send:
     - "ping": Server responds with "pong" (keep-alive)
     """
+    try:
+        user_id, is_anonymous = await verify_websocket_token(websocket, token)
+        await verify_project_access(project_id, user_id, is_anonymous)
+    except Exception:
+        return
+
     await canvas_notification_service.connect(websocket, project_id)
 
     try:
@@ -158,6 +180,7 @@ async def project_outputs_websocket(
     websocket: WebSocket,
     project_id: str,
     task_id: Optional[str] = None,
+    token: Optional[str] = None,
 ) -> None:
     """
     WebSocket endpoint for receiving output generation updates.
@@ -196,6 +219,12 @@ async def project_outputs_websocket(
     Client can send:
     - "ping": Server responds with "pong" (keep-alive)
     """
+    try:
+        user_id, is_anonymous = await verify_websocket_token(websocket, token)
+        await verify_project_access(project_id, user_id, is_anonymous)
+    except Exception:
+        return
+
     await output_notification_service.connect(websocket, project_id, task_id)
 
     try:

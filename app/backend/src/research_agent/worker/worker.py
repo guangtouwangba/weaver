@@ -59,13 +59,13 @@ class BackgroundWorker:
 
         env_settings = get_settings()
 
-        logger.info("🚀 Background worker started")
-        logger.info(f"   Environment: {env_settings.environment}")
-        logger.info(
+        logger.debug("🚀 Background worker started")
+        logger.debug(f"   Environment: {env_settings.environment}")
+        logger.debug(
             f"   Poll interval: {self._poll_interval}s, Max concurrent: {self._max_concurrent_tasks}"
         )
-        logger.info(f"   Registered task types: {self._dispatcher.get_registered_types()}")
-        logger.info(
+        logger.debug(f"   Registered task types: {self._dispatcher.get_registered_types()}")
+        logger.debug(
             f"   ⚠️  Worker will ONLY process tasks from environment '{env_settings.environment}'"
         )
 

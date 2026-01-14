@@ -195,6 +195,9 @@ class Settings(BaseSettings):
     # json_mode: Structured JSON output (more stable, less streaming-friendly)
     citation_match_threshold: int = 85  # Fuzzy match threshold (0-100) for Quote-to-Coordinate
 
+    # RAG Agent Refactor (Experimental)
+    rag_agent_enabled: bool = False  # Enable new LangGraph-based RAG Agent
+
     # Redis Configuration (for ARQ task queue)
     redis_url: str = ""  # redis://localhost:6379 or rediss://...@upstash.io:6379
 

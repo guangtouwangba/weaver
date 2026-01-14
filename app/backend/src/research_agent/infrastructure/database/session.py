@@ -335,11 +335,11 @@ async def init_db() -> None:
 
     for attempt in range(1, max_retries + 1):
         try:
-            logger.info(f"Attempting database connection (attempt {attempt}/{max_retries})...")
+            logger.debug(f"Attempting database connection (attempt {attempt}/{max_retries})...")
             async with asyncio.timeout(connection_timeout):
                 async with engine.begin() as conn:
                     await conn.run_sync(lambda _: None)
-            logger.info("✅ Database connected successfully")
+            logger.debug("✅ Database connected successfully")
             return
         except asyncio.TimeoutError:
             logger.warning(f"⚠️  Database connection timeout on attempt {attempt}/{max_retries}")

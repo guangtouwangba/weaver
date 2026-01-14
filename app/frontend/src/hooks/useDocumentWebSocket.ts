@@ -8,7 +8,10 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { getWebSocketUrl, DocumentWebSocketEvent } from '@/lib/api';
+import {
+  getAuthenticatedWebSocketUrl,
+  DocumentWebSocketEvent,
+} from '@/lib/api';
 
 export interface UseDocumentWebSocketOptions {
   projectId: string;
@@ -40,7 +43,10 @@ export function useDocumentWebSocket(
 
   // Store callbacks in refs to avoid reconnection on callback changes
   const callbacksRef = useRef(options);
-  callbacksRef.current = options;
+
+  useEffect(() => {
+    callbacksRef.current = options;
+  });
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -58,13 +64,18 @@ export function useDocumentWebSocket(
     }
   }, []);
 
+  // Use a ref for the connect function to allow recursive calls
+  const connectRef = useRef<(() => Promise<void>) | null>(null);
+
   // Connect to WebSocket - only depends on projectId and enabled
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!projectId || !enabled) return;
 
     cleanup();
 
-    const wsUrl = `${getWebSocketUrl()}/ws/projects/${projectId}/documents`;
+    const wsUrl = await getAuthenticatedWebSocketUrl(
+      `/ws/projects/${projectId}/documents`
+    );
     console.log('[Document WS] Connecting to:', wsUrl);
 
     setConnectionStatus('connecting');
@@ -124,7 +135,9 @@ export function useDocumentWebSocket(
         if (enabled && event.code !== 1000) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[Document WS] Attempting to reconnect...');
-            connect();
+            if (connectRef.current) {
+              connectRef.current();
+            }
           }, 5000);
         }
       };
@@ -134,6 +147,11 @@ export function useDocumentWebSocket(
       callbacksRef.current.onConnectionStatusChange?.('error');
     }
   }, [projectId, enabled, cleanup]);
+
+  // Update ref when connect changes
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Reconnect function
   const reconnect = useCallback(() => {
@@ -153,13 +171,14 @@ export function useDocumentWebSocket(
   // Only reconnect when projectId or enabled changes, NOT when callbacks change
   useEffect(() => {
     if (enabled && projectId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       connect();
     }
 
     return () => {
       cleanup();
     };
-  }, [projectId, enabled]); // Removed connect and cleanup from deps - they are stable
+  }, [projectId, enabled, connect, cleanup]); // Removed connect and cleanup from deps - they are stable
 
   return {
     isConnected: connectionStatus === 'connected',
@@ -170,21 +189,3 @@ export function useDocumentWebSocket(
 }
 
 export default useDocumentWebSocket;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

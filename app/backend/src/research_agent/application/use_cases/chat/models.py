@@ -2,6 +2,89 @@
 
 from dataclasses import dataclass, field
 from typing import Any
+from uuid import UUID
+import re
+
+
+@dataclass
+class SourceRef:
+    """Source reference."""
+
+    document_id: UUID
+    page_number: int
+    snippet: str
+    similarity: float
+
+
+class StreamingRefInjector:
+    def __init__(self, default_video_source_id: str | None):
+        self.default_video_source_id = default_video_source_id
+        self.buffer = ""
+
+    _time_pattern = re.compile(r"\[(?:TIME:)?(\d{1,2}:\d{2}(?::\d{2})?)\]")
+
+    def process_token(self, token: str) -> str:
+        self.buffer += token
+        safe_text, remaining = self._split_safe(self.buffer)
+        self.buffer = remaining
+        return self._transform(safe_text)
+
+    def flush(self) -> str:
+        out = self._transform(self.buffer)
+        self.buffer = ""
+        return out
+
+    def _split_safe(self, text: str) -> tuple[str, str]:
+        last_open = text.rfind("[")
+        if last_open == -1:
+            return text, ""
+
+        last_close = text.rfind("]")
+        if last_close < last_open:
+            return text[:last_open], text[last_open:]
+
+        return text, ""
+
+    def _time_str_to_seconds(self, time_str: str) -> int:
+        try:
+            parts = list(map(int, time_str.split(":")))
+            if len(parts) == 3:
+                return parts[0] * 3600 + parts[1] * 60 + parts[2]
+            if len(parts) == 2:
+                return parts[0] * 60 + parts[1]
+            return 0
+        except ValueError:
+            return 0
+
+    def _transform(self, text: str) -> str:
+        if not text:
+            return ""
+
+        def repl(match: re.Match[str]) -> str:
+            ts = match.group(1)
+            if not self.default_video_source_id:
+                # If no video context is active, just return the timestamp text
+                return ts
+
+            seconds = self._time_str_to_seconds(ts)
+            # Format: [MM:SS](video-source://<id>?t=<seconds>)
+            return f"[{ts}](video-source://{self.default_video_source_id}?t={seconds})"
+
+        return self._time_pattern.sub(repl, text)
+
+
+@dataclass
+class StreamEvent:
+    """Streaming event."""
+
+    type: str  # "token" | "sources" | "done" | "error" | "citations" | "status"
+    content: str | None = None
+    sources: list[SourceRef] | None = None
+    citations: list[dict[str, Any]] | None = None  # Citations from long context mode
+    step: str | None = (
+        None  # For status events: rewriting, memory, analyzing, retrieving, ranking, generating
+    )
+    message: str | None = None  # Human-readable status message
 
 
 @dataclass

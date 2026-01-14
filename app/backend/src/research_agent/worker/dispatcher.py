@@ -24,7 +24,7 @@ class TaskDispatcher:
             handler_class: The class that handles this task type
         """
         self._handlers[task_type.value] = handler_class
-        logger.info(f"Registered handler {handler_class.__name__} for task type {task_type.value}")
+        logger.debug(f"Registered handler {handler_class.__name__} for task type {task_type.value}")
 
     async def dispatch(self, task: Task, session: AsyncSession) -> None:
         """
