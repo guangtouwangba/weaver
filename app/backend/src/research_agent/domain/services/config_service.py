@@ -340,9 +340,11 @@ class AsyncConfigurationService:
         """
         try:
             # Get all effective settings (global + project)
+            # NOTE: include_defaults=False to avoid overriding env config with SETTING_METADATA defaults
             settings = await self._settings_service.get_all_settings(
                 project_id=project_id,
                 include_encrypted=False,  # Don't include masked API keys
+                include_defaults=False,  # Don't include SETTING_METADATA defaults
             )
 
             # Overlay user settings if user_id is provided
@@ -350,6 +352,7 @@ class AsyncConfigurationService:
                 user_settings = await self._settings_service.get_all_user_settings(
                     user_id=user_id,
                     include_encrypted=False,
+                    include_defaults=False,  # Don't include SETTING_METADATA defaults
                 )
                 settings.update(user_settings)
 

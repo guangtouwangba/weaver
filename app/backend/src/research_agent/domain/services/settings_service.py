@@ -435,11 +435,11 @@ class SettingsService:
                     value = None
             return value
 
-        # Return default if defined
-        metadata = SETTING_METADATA.get(key)
-        if metadata and "default" in metadata:
-            return metadata["default"]
-
+        # NOTE: Do NOT return SETTING_METADATA defaults here!
+        # This method should return None when no DB setting exists,
+        # allowing callers to fall back to environment variables.
+        # SETTING_METADATA defaults are only used by get_all_settings()
+        # for UI display purposes.
         return None
 
     async def get_all_settings(
@@ -447,6 +447,7 @@ class SettingsService:
         project_id: Optional[UUID] = None,
         category: Optional[str] = None,
         include_encrypted: bool = False,
+        include_defaults: bool = True,
     ) -> Dict[str, Any]:
         """
         Get all effective settings as a dictionary.
@@ -455,6 +456,8 @@ class SettingsService:
             project_id: Optional project for project-specific settings
             category: Optional category filter
             include_encrypted: Whether to include (masked) encrypted values
+            include_defaults: Whether to include SETTING_METADATA defaults for missing keys
+                             Set to False when you want to overlay DB settings on env config
 
         Returns:
             Dictionary of key -> value
@@ -471,11 +474,12 @@ class SettingsService:
             else:
                 result[s.key] = s.value
 
-        # Add defaults for missing settings
-        for key, metadata in SETTING_METADATA.items():
-            if key not in result and "default" in metadata:
-                if category is None or metadata.get("category") == category:
-                    result[key] = metadata["default"]
+        # Add defaults for missing settings (only if requested)
+        if include_defaults:
+            for key, metadata in SETTING_METADATA.items():
+                if key not in result and "default" in metadata:
+                    if category is None or metadata.get("category") == category:
+                        result[key] = metadata["default"]
 
         return result
 
@@ -533,6 +537,7 @@ class SettingsService:
         user_id: UUID,
         category: Optional[str] = None,
         include_encrypted: bool = False,
+        include_defaults: bool = True,
     ) -> Dict[str, Any]:
         """
         Get all settings for a user as a dictionary.
@@ -541,6 +546,8 @@ class SettingsService:
             user_id: User UUID
             category: Optional category filter
             include_encrypted: Whether to include (masked) encrypted values
+            include_defaults: Whether to include SETTING_METADATA defaults for missing keys
+                             Set to False when you want to overlay DB settings on env config
 
         Returns:
             Dictionary of key -> value
@@ -555,11 +562,12 @@ class SettingsService:
             else:
                 result[s.key] = s.value
 
-        # Add defaults for missing settings
-        for key, metadata in SETTING_METADATA.items():
-            if key not in result and "default" in metadata:
-                if category is None or metadata.get("category") == category:
-                    result[key] = metadata["default"]
+        # Add defaults for missing settings (only if requested)
+        if include_defaults:
+            for key, metadata in SETTING_METADATA.items():
+                if key not in result and "default" in metadata:
+                    if category is None or metadata.get("category") == category:
+                        result[key] = metadata["default"]
 
         return result
 

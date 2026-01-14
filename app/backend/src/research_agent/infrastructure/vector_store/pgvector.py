@@ -65,12 +65,16 @@ class PgVectorStore(VectorStore):
         if user_id:
             where_clause += " AND user_id = :user_id"
             params["user_id"] = user_id
+        else:
+            logger.warning(
+                "[VectorStore] Search called without user_id - results may include other users' data"
+            )
 
         # Debug logging for search parameters
         debug_params = params.copy()
         debug_params["embedding"] = "..."  # Truncate for logging
         logger.info(
-            f"[VectorStore] Search Prams: project_id={project_id}, document_id={document_id}, user_id={user_id}, limit={limit}"
+            f"[VectorStore] Search Params: project_id={project_id}, document_id={document_id}, user_id={user_id}, limit={limit}"
         )
 
         if document_id:

@@ -150,8 +150,16 @@ class QdrantVectorStore(VectorStore):
                 )
             )
 
+        if user_id:
+            must_conditions.append(
+                FieldCondition(
+                    key="user_id",
+                    match=MatchValue(value=user_id),
+                )
+            )
+
         logger.info(
-            f"[Qdrant] Search: project_id={project_id}, document_id={document_id}, limit={limit}"
+            f"[Qdrant] Search: project_id={project_id}, document_id={document_id}, user_id={user_id}, limit={limit}"
         )
 
         try:
@@ -222,6 +230,7 @@ class QdrantVectorStore(VectorStore):
             project_id=project_id,
             limit=limit,
             document_id=document_id,
+            user_id=user_id,
         )
 
     async def upsert(
@@ -306,6 +315,7 @@ class QdrantVectorStore(VectorStore):
         content: str,
         embedding: List[float],
         metadata: Dict[str, Any],
+        user_id: str | None = None,
     ) -> None:
         """Upsert a resource chunk with unified payload schema.
 
@@ -318,6 +328,7 @@ class QdrantVectorStore(VectorStore):
             content: Text content of the chunk
             embedding: Vector embedding
             metadata: Type-specific metadata (title, platform, timestamps, etc.)
+            user_id: Optional user ID for data isolation
         """
         client = await self._get_client()
 
@@ -337,6 +348,8 @@ class QdrantVectorStore(VectorStore):
             "end_time": metadata.get("end_time"),
             # Legacy compatibility
             "document_id": str(resource_id),
+            # User isolation
+            "user_id": user_id,
         }
 
         point = PointStruct(

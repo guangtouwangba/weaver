@@ -21,7 +21,7 @@ from research_agent.shared.utils.logger import logger
 
 class QdrantChunkRepository(ChunkRepository):
     """Qdrant + PostgreSQL hybrid chunk repository.
-    
+
     - Embeddings stored in Qdrant for fast vector search
     - Metadata stored in PostgreSQL for relational queries
     - PostgreSQL embedding column set to None to save space
@@ -70,6 +70,7 @@ class QdrantChunkRepository(ChunkRepository):
                         content=chunk.content,
                         embedding=chunk.embedding,
                         metadata=chunk.metadata,
+                        user_id=chunk.user_id,
                     )
                     qdrant_count += 1
                 except Exception as e:
@@ -153,7 +154,9 @@ class QdrantChunkRepository(ChunkRepository):
             resource_id=resource_id,
         )
 
-    def _to_model(self, entity: ResourceChunk, include_embedding: bool = True) -> ResourceChunkModel:
+    def _to_model(
+        self, entity: ResourceChunk, include_embedding: bool = True
+    ) -> ResourceChunkModel:
         """Convert ResourceChunk entity to ORM model."""
         return ResourceChunkModel(
             id=entity.id,

@@ -583,15 +583,42 @@ export const documentsApi = {
 
     // Build headers with auth token (don't set Content-Type, let browser handle multipart boundary)
     const headers: Record<string, string> = {};
+
+    // Try to get auth token - with fallback for hot-reload scenarios where setter wasn't called
+    let token: string | null = null;
     if (_getAuthToken) {
       try {
-        const token = await _getAuthToken();
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
+        token = await _getAuthToken();
+        console.log(
+          '[API Upload] Token from getter:',
+          token ? `${token.substring(0, 20)}...` : 'null'
+        );
       } catch (error) {
-        console.warn('[API] Failed to get auth token for upload:', error);
+        console.warn('[API] Failed to get auth token from getter:', error);
       }
+    }
+
+    // Fallback: try direct supabase import if getter failed or wasn't set
+    if (!token) {
+      try {
+        const { getSession } = await import('./supabase');
+        const session = await getSession();
+        token = session?.access_token || null;
+        console.log(
+          '[API Upload] Token from direct supabase:',
+          token ? `${token.substring(0, 20)}...` : 'null'
+        );
+      } catch (error) {
+        console.warn('[API Upload] Fallback token retrieval failed:', error);
+      }
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      console.warn(
+        '[API Upload] No auth token available - request will be unauthenticated'
+      );
     }
 
     const response = await fetch(

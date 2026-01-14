@@ -83,7 +83,7 @@ class StreamMessageUseCase:
         session: AsyncSession,
         embedding_service: EmbeddingService,
         api_key: str,
-        model: str = "openai/gpt-4o-mini",
+        model: str = "google/gemini-2.5-flash",
     ):
         self._session = session
         self._embedding_service = embedding_service

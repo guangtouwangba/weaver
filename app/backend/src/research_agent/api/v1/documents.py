@@ -348,6 +348,7 @@ async def confirm_upload(
                 "document_id": str(document_id),
                 "project_id": str(project_id),
                 "file_path": request.file_path,
+                "user_id": user.user_id,  # Pass user ID for settings lookup
             },
             priority=0,
         )

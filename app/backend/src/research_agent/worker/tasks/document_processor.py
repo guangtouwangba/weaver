@@ -53,10 +53,19 @@ class DocumentProcessorTask(BaseTask):
             document_id: UUID of the document to process
             project_id: UUID of the project
             file_path: Path to the file (local or Supabase Storage)
+            user_id: Optional user ID for settings lookup
         """
         document_id = UUID(payload["document_id"])
         project_id = UUID(payload["project_id"])
         file_path = payload["file_path"]
+        user_id_str = payload.get("user_id")  # May be None for legacy tasks
+
+        # Parse user_id early for use throughout the task
+        default_user_id = UUID("00000000-0000-0000-0000-000000000001")
+        try:
+            task_user_id = UUID(user_id_str) if user_id_str else default_user_id
+        except ValueError:
+            task_user_id = default_user_id
 
         logger.info(
             f"🚀 Starting document processing - document_id={document_id}, "
@@ -109,7 +118,7 @@ class DocumentProcessorTask(BaseTask):
                 file_extension = Path(local_path).suffix.lower()
 
                 # Get document_processing_mode from user/project settings
-                processing_mode = await self._get_processing_mode(project_id)
+                processing_mode = await self._get_processing_mode(project_id, task_user_id)
                 logger.info(
                     f"📋 Document processing mode: {processing_mode} for mime_type={mime_type}"
                 )
@@ -156,8 +165,6 @@ class DocumentProcessorTask(BaseTask):
                     SQLAlchemySettingsRepository,
                 )
 
-                default_user_id = UUID("00000000-0000-0000-0000-000000000001")
-
                 # ✅ Retry logic for settings query (connection may have timed out during PDF parsing)
                 max_retries = 3
                 for attempt in range(1, max_retries + 1):
@@ -169,7 +176,7 @@ class DocumentProcessorTask(BaseTask):
                             # Get rag_mode
                             db_rag_mode = await settings_service.get_setting(
                                 "rag_mode",
-                                user_id=default_user_id,
+                                user_id=task_user_id,
                                 project_id=project_id,
                             )
                             if db_rag_mode:
@@ -178,7 +185,7 @@ class DocumentProcessorTask(BaseTask):
                             # Get fast_upload_mode
                             db_fast_upload = await settings_service.get_setting(
                                 "fast_upload_mode",
-                                user_id=default_user_id,
+                                user_id=task_user_id,
                                 project_id=project_id,
                             )
                             if db_fast_upload is not None:
@@ -187,14 +194,14 @@ class DocumentProcessorTask(BaseTask):
                             # Get long_context_safety_ratio
                             db_safety_ratio = await settings_service.get_setting(
                                 "long_context_safety_ratio",
-                                user_id=default_user_id,
+                                user_id=task_user_id,
                                 project_id=project_id,
                             )
                             if db_safety_ratio is not None:
                                 user_safety_ratio = float(db_safety_ratio)
 
                             logger.info(
-                                f"📋 User settings: rag_mode={user_rag_mode}, "
+                                f"📋 User settings (user_id={task_user_id}): rag_mode={user_rag_mode}, "
                                 f"fast_upload_mode={user_fast_upload_mode}, "
                                 f"safety_ratio={user_safety_ratio}"
                             )
@@ -714,7 +721,7 @@ class DocumentProcessorTask(BaseTask):
             logger.error(f"Summary generation failed: {e}")
             raise
 
-    async def _get_processing_mode(self, project_id: UUID) -> str:
+    async def _get_processing_mode(self, project_id: UUID, user_id: UUID | None = None) -> str:
         """
         Get the document processing mode from user/project settings.
 
@@ -722,6 +729,7 @@ class DocumentProcessorTask(BaseTask):
 
         Args:
             project_id: Project UUID to check for project-level override
+            user_id: Optional user UUID for user-level settings
 
         Returns:
             Processing mode: "fast", "standard", or "quality"
@@ -732,6 +740,7 @@ class DocumentProcessorTask(BaseTask):
         )
 
         default_user_id = UUID("00000000-0000-0000-0000-000000000001")
+        effective_user_id = user_id or default_user_id
         default_mode = "standard"
 
         try:
@@ -742,7 +751,7 @@ class DocumentProcessorTask(BaseTask):
                 # Get document_processing_mode with priority resolution
                 mode = await settings_service.get_setting(
                     "document_processing_mode",
-                    user_id=default_user_id,
+                    user_id=effective_user_id,
                     project_id=project_id,
                 )
 
