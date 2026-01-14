@@ -27,6 +27,7 @@ class GetHistoryInput:
 
     project_id: UUID
     limit: int = 50
+    user_id: Optional[str] = None
 
 
 @dataclass
@@ -47,6 +48,7 @@ class GetHistoryUseCase:
         messages = await self._chat_repo.get_history(
             project_id=input.project_id,
             limit=input.limit,
+            user_id=input.user_id,
         )
 
         return GetHistoryOutput(

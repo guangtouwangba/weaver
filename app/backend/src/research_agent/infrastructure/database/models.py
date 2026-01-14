@@ -68,6 +68,8 @@ class DocumentModel(Base):
     project_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -115,10 +117,10 @@ class DocumentModel(Base):
 
 class ResourceChunkModel(Base):
     """Unified resource chunk ORM model for all resource types.
-    
+
     This model stores chunks from any resource type (document, video, audio,
     web page, note) with consistent schema for unified retrieval.
-    
+
     Attributes:
         resource_id: Parent resource ID (document, url_content, etc.)
         resource_type: Type of resource (document, video, audio, web_page, note)
@@ -131,12 +133,19 @@ class ResourceChunkModel(Base):
     resource_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     resource_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
-    chunk_metadata: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, server_default="{}", nullable=False)
+    chunk_metadata: Mapped[Dict[str, Any]] = mapped_column(
+        "metadata", JSONB, server_default="{}", nullable=False
+    )
     content_tsvector: Mapped[Optional[Any]] = mapped_column(TSVECTOR, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -152,6 +161,8 @@ class HighlightModel(Base):
     document_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -186,6 +197,8 @@ class CommentModel(Base):
     document_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     parent_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("comments.id", ondelete="CASCADE"), nullable=True
     )  # For threaded replies
@@ -227,6 +240,8 @@ class CanvasModel(Base):
         nullable=False,
         unique=True,
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     data: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
@@ -246,8 +261,13 @@ class ChatMessageModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # 'user' or 'ai'
     content: Mapped[str] = mapped_column(Text, nullable=False)
     sources: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSONB, nullable=True)
@@ -276,6 +296,8 @@ class ChatMemoryModel(Base):
         nullable=False,
         index=True,
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     # The content stores the formatted Q&A pair: "User: <question>\nAssistant: <answer>"
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # Vector embedding for semantic search (1536 dimensions for OpenAI embeddings)
@@ -309,6 +331,8 @@ class ChatSummaryModel(Base):
         unique=True,  # One summary per project
         index=True,
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     # The summarized content of older conversation turns
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     # Number of messages that have been summarized
@@ -548,6 +572,8 @@ class OutputModel(Base):
         nullable=False,
         index=True,
     )
+    # User ownership for multi-tenant isolation
+    user_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     # Output type: 'mindmap', 'summary', 'custom', etc.
     output_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     # Source document IDs that this output was generated from

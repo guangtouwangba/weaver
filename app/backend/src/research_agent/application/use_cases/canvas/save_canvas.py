@@ -3,7 +3,7 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from research_agent.domain.entities.canvas import Canvas
@@ -18,7 +18,9 @@ class SaveCanvasInput:
     """Input for save canvas use case."""
 
     project_id: UUID
-    data: Dict[str, Any]
+    project_id: UUID
+    data: dict[str, Any]
+    user_id: str | None = None
 
 
 @dataclass
@@ -49,11 +51,15 @@ class SaveCanvasUseCase:
             raise NotFoundError("Project", str(input.project_id))
 
         # Get existing canvas to preserve version
-        existing_canvas = await self._canvas_repo.find_by_project(input.project_id)
+        existing_canvas = await self._canvas_repo.find_by_project(
+            project_id=input.project_id, user_id=input.user_id
+        )
         current_version = existing_canvas.version if existing_canvas else 0
 
         # Create canvas from data
-        canvas = Canvas.from_dict(input.data, input.project_id)
+        canvas = Canvas.from_dict(
+            data=input.data, project_id=input.project_id, user_id=input.user_id
+        )
         if existing_canvas:
             canvas.version = existing_canvas.version
 

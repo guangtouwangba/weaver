@@ -26,6 +26,7 @@ class VectorStore(ABC):
         project_id: UUID,
         limit: int = 5,
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> list[SearchResult]:
         """Search for similar chunks.
 
@@ -34,6 +35,7 @@ class VectorStore(ABC):
             project_id: Project UUID to filter by
             limit: Maximum number of results to return
             document_id: Optional document UUID to filter by
+            user_id: Optional user ID for data isolation (reserved for future use)
 
         Returns:
             List of SearchResult sorted by similarity
@@ -50,6 +52,7 @@ class VectorStore(ABC):
         keyword_weight: float = 0.3,
         k: int = 20,
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> list[SearchResult]:
         """Hybrid search combining vector similarity and keyword matching.
 
@@ -65,6 +68,7 @@ class VectorStore(ABC):
             keyword_weight: Weight for keyword search (0-1)
             k: Number of results to retrieve from each method before fusion
             document_id: Optional document UUID to filter by
+            user_id: Optional user ID for data isolation (reserved for future use)
 
         Returns:
             List of SearchResult sorted by fused score
@@ -75,4 +79,5 @@ class VectorStore(ABC):
             project_id=project_id,
             limit=limit,
             document_id=document_id,
+            user_id=user_id,
         )

@@ -17,7 +17,7 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def save(self, document: Document) -> Document:
+    async def save(self, document: Document, user_id: Optional[str] = None) -> Document:
         """Save a document."""
         # Check if exists
         existing = await self._session.get(DocumentModel, document.id)
@@ -37,8 +37,11 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
             existing.parsing_metadata = document.parsing_metadata
             existing.thumbnail_path = document.thumbnail_path
             existing.thumbnail_status = document.thumbnail_status
+            if user_id:
+                existing.user_id = user_id
         else:
             # Create new
+            document.user_id = user_id  # Set in entity
             model = self._to_model(document)
             self._session.add(model)
 
@@ -50,13 +53,16 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
         model = await self._session.get(DocumentModel, document_id)
         return self._to_entity(model) if model else None
 
-    async def find_by_project(self, project_id: UUID) -> List[Document]:
+    async def find_by_project(
+        self, project_id: UUID, user_id: Optional[str] = None
+    ) -> List[Document]:
         """Find all documents for a project."""
-        result = await self._session.execute(
-            select(DocumentModel)
-            .where(DocumentModel.project_id == project_id)
-            .order_by(DocumentModel.created_at.desc())
-        )
+        query = select(DocumentModel).where(DocumentModel.project_id == project_id)
+        if user_id:
+            query = query.where(DocumentModel.user_id == user_id)
+        query = query.order_by(DocumentModel.created_at.desc())
+
+        result = await self._session.execute(query)
         models = result.scalars().all()
         return [self._to_entity(m) for m in models]
 
@@ -74,6 +80,7 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
         return DocumentModel(
             id=entity.id,
             project_id=entity.project_id,
+            user_id=entity.user_id,
             filename=entity.filename,
             original_filename=entity.original_filename,
             file_path=entity.file_path,
@@ -95,6 +102,7 @@ class SQLAlchemyDocumentRepository(DocumentRepository):
         return Document(
             id=model.id,
             project_id=model.project_id,
+            user_id=model.user_id,
             filename=model.filename,
             original_filename=model.original_filename,
             file_path=model.file_path,

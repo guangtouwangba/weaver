@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from research_agent.domain.repositories.canvas_repo import CanvasRepository
@@ -16,7 +16,8 @@ class UpdateCanvasNodeInput:
 
     project_id: UUID
     node_id: str
-    node_data: Dict[str, Any]
+    node_data: dict[str, Any]
+    user_id: str | None = None
 
 
 @dataclass
@@ -47,7 +48,9 @@ class UpdateCanvasNodeUseCase:
             raise NotFoundError("Project", str(input.project_id))
 
         # Get canvas with current version
-        canvas = await self._canvas_repo.find_by_project(input.project_id)
+        canvas = await self._canvas_repo.find_by_project(
+            project_id=input.project_id, user_id=input.user_id
+        )
         if not canvas:
             raise NotFoundError("Canvas", f"for project {input.project_id}")
 
@@ -98,12 +101,12 @@ class UpdateCanvasNodeUseCase:
             canvas = await self._canvas_repo.find_by_project(input.project_id)
             if not canvas:
                 raise NotFoundError("Canvas", f"for project {input.project_id}")
-            
+
             # Check if node still exists
             node = canvas.find_node(input.node_id)
             if not node:
                 raise NotFoundError("Node", input.node_id)
-            
+
             # Re-apply updates
             canvas.update_node(input.node_id, **update_kwargs)
             saved_canvas = await self._canvas_repo.save_with_version(
@@ -115,4 +118,3 @@ class UpdateCanvasNodeUseCase:
             updated_at=saved_canvas.updated_at,
             version=saved_canvas.version,
         )
-

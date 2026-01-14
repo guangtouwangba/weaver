@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -27,7 +27,8 @@ class ChatMessage:
     project_id: UUID
     role: str  # 'user' or 'ai'
     content: str
-    sources: Optional[List[Dict[str, Any]]] = None
-    context_refs: Optional[Dict[str, Any]] = None  # {url_ids: [], node_ids: [], nodes: []}
+    user_id: str | None = None
+    sources: list[dict[str, Any]] | None = None
+    context_refs: dict[str, Any] | None = None  # {url_ids: [], node_ids: [], nodes: []}
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=datetime.utcnow)

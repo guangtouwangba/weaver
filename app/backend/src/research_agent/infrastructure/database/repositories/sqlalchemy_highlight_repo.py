@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of HighlightRepository."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -22,8 +21,9 @@ class SQLAlchemyHighlightRepository:
         start_offset: int,
         end_offset: int,
         color: str,
-        note: Optional[str] = None,
-        rects: Optional[dict] = None,
+        note: str | None = None,
+        rects: dict | None = None,
+        user_id: str | None = None,
     ) -> HighlightModel:
         """Create a new highlight."""
         highlight = HighlightModel(
@@ -34,29 +34,33 @@ class SQLAlchemyHighlightRepository:
             color=color,
             note=note,
             rects=rects,
+            user_id=user_id,
         )
         self._session.add(highlight)
         await self._session.flush()
         await self._session.refresh(highlight)
         return highlight
 
-    async def find_by_id(self, highlight_id: UUID) -> Optional[HighlightModel]:
+    async def find_by_id(self, highlight_id: UUID) -> HighlightModel | None:
         """Find highlight by ID."""
         return await self._session.get(HighlightModel, highlight_id)
 
-    async def find_by_document(self, document_id: UUID) -> List[HighlightModel]:
+    async def find_by_document(
+        self, document_id: UUID, user_id: str | None = None
+    ) -> list[HighlightModel]:
         """Find all highlights for a document."""
-        result = await self._session.execute(
-            select(HighlightModel).where(HighlightModel.document_id == document_id)
-        )
+        query = select(HighlightModel).where(HighlightModel.document_id == document_id)
+        if user_id:
+            query = query.where(HighlightModel.user_id == user_id)
+        result = await self._session.execute(query)
         return list(result.scalars().all())
 
     async def update(
         self,
         highlight_id: UUID,
-        color: Optional[str] = None,
-        note: Optional[str] = None,
-    ) -> Optional[HighlightModel]:
+        color: str | None = None,
+        note: str | None = None,
+    ) -> HighlightModel | None:
         """Update a highlight."""
         highlight = await self.find_by_id(highlight_id)
         if not highlight:
@@ -80,4 +84,3 @@ class SQLAlchemyHighlightRepository:
         await self._session.delete(highlight)
         await self._session.flush()
         return True
-

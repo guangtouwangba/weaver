@@ -91,6 +91,7 @@ class OutputGenerationService:
         title: str | None,
         options: dict[str, Any],
         session: AsyncSession,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Start a new output generation task.
@@ -102,6 +103,7 @@ class OutputGenerationService:
             title: Optional title
             options: Generation options
             session: Database session
+            user_id: Optional user ID for data isolation
 
         Returns:
             Dict with task_id and output_id
@@ -133,6 +135,7 @@ class OutputGenerationService:
         output = Output(
             id=output_id,
             project_id=project_id,
+            user_id=user_id,
             output_type=OutputType(output_type),
             source_ids=source_ids,
             status=OutputStatus.GENERATING,
@@ -174,6 +177,194 @@ class OutputGenerationService:
             "task_id": task_id,
             "output_id": output_id,
         }
+
+    async def list_outputs(
+        self,
+        project_id: UUID,
+        output_type: str | None,
+        limit: int,
+        offset: int,
+        session: AsyncSession,
+        user_id: str | None = None,
+    ) -> tuple[list[Output], int]:
+        """List outputs with filtering."""
+        repo = SQLAlchemyOutputRepository(session)
+        return await repo.find_by_project(
+            project_id=project_id,
+            output_type=output_type,
+            limit=limit,
+            offset=offset,
+            user_id=user_id,
+        )
+
+    async def get_output(
+        self,
+        project_id: UUID,
+        output_id: UUID,
+        session: AsyncSession,
+        user_id: str | None = None,
+    ) -> Output | None:
+        """Get output by ID."""
+        repo = SQLAlchemyOutputRepository(session)
+        output = await repo.find_by_id(output_id)
+
+        # Verify project and user ownership
+        if not output or output.project_id != project_id:
+            return None
+
+        if user_id and output.user_id and output.user_id != user_id:
+            return None
+
+        return output
+
+    async def update_output(
+        self,
+        project_id: UUID,
+        output_id: UUID,
+        title: str | None,
+        data: dict[str, Any] | None,
+        session: AsyncSession,
+        user_id: str | None = None,
+    ) -> Output | None:
+        """Update output."""
+        repo = SQLAlchemyOutputRepository(session)
+        output = await repo.find_by_id(output_id)
+
+        if not output or output.project_id != project_id:
+            return None
+
+        if user_id and output.user_id and output.user_id != user_id:
+            return None
+
+        if title is not None:
+            output.title = title
+        if data is not None:
+            output.data = data
+
+        return await repo.update(output)
+
+    async def delete_output(
+        self,
+        project_id: UUID,
+        output_id: UUID,
+        session: AsyncSession,
+        user_id: str | None = None,
+    ) -> bool:
+        """Delete output."""
+        repo = SQLAlchemyOutputRepository(session)
+        output = await repo.find_by_id(output_id)
+
+        if not output or output.project_id != project_id:
+            return False
+
+        if user_id and output.user_id and output.user_id != user_id:
+            return False
+
+        return await repo.delete(output_id)
+
+    async def start_expand_node(
+        self,
+        project_id: UUID,
+        output_id: UUID,
+        node_id: str,
+        node_data: dict[str, Any],
+        existing_children: list[dict[str, Any]],
+        session: AsyncSession,
+        user_id: str | None = None,
+    ) -> str:
+        """Start expanding a node."""
+        # Get output to verify existence
+        output = await self.get_output(project_id, output_id, session, user_id)
+        if not output:
+            raise ValueError(f"Output not found: {output_id}")
+
+        task_id = str(uuid4())
+        project_id_str = str(project_id)
+
+        # Create task info
+        task_info = TaskInfo(
+            task_id=task_id,
+            project_id=project_id_str,
+            output_id=output_id,
+            output_type="expand_node",
+        )
+
+        async with self._lock:
+            self._active_tasks[task_id] = task_info
+
+        # Start async task
+        asyncio_task = asyncio.create_task(
+            self._run_expand_node(
+                task_info=task_info,
+                node_id=node_id,
+                node_data=node_data,
+                existing_children=existing_children,
+            )
+        )
+        task_info.asyncio_task = asyncio_task
+
+        return task_id
+
+    async def start_synthesize_nodes(
+        self,
+        project_id: UUID,
+        output_id: UUID,
+        node_ids: list[str],
+        node_data: list[dict[str, Any]],
+        session: AsyncSession,
+        mode: str = "group",
+        user_id: str | None = None,
+    ) -> str:
+        """Start synthesizing nodes."""
+        # Get output to verify existence
+        output = await self.get_output(project_id, output_id, session, user_id)
+        if not output:
+            raise ValueError(f"Output not found: {output_id}")
+
+        task_id = str(uuid4())
+        project_id_str = str(project_id)
+
+        # Create task info
+        task_info = TaskInfo(
+            task_id=task_id,
+            project_id=project_id_str,
+            output_id=output_id,
+            output_type="synthesize_nodes",
+        )
+
+        async with self._lock:
+            self._active_tasks[task_id] = task_info
+
+        # Start async task
+        asyncio_task = asyncio.create_task(
+            self._run_synthesize_nodes(
+                task_info=task_info,
+                node_ids=node_ids,
+                node_data=node_data,
+                mode=mode,
+            )
+        )
+        task_info.asyncio_task = asyncio_task
+
+        return task_id
+
+    async def cancel_task(
+        self,
+        project_id: str,
+        task_id: str,
+    ) -> bool:
+        """Cancel a running task."""
+        async with self._lock:
+            task_info = self._active_tasks.get(task_id)
+
+            if not task_info or task_info.project_id != project_id:
+                return False
+
+            if task_info.asyncio_task and not task_info.asyncio_task.done():
+                task_info.asyncio_task.cancel()
+                task_info.status = "cancelled"
+
+            return True
 
     async def _run_generation(
         self,
@@ -880,7 +1071,11 @@ class OutputGenerationService:
                     # Group chunks by page number (from metadata)
                     pages: dict[int, list[str]] = {}
                     for chunk in chunks:
-                        page_num = chunk.chunk_metadata.get("page_number", 1) if chunk.chunk_metadata else 1
+                        page_num = (
+                            chunk.chunk_metadata.get("page_number", 1)
+                            if chunk.chunk_metadata
+                            else 1
+                        )
                         if page_num not in pages:
                             pages[page_num] = []
                         pages[page_num].append(chunk.content)
@@ -915,149 +1110,7 @@ class OutputGenerationService:
             logger.warning(f"[OutputService] Failed to load page-annotated content: {e}")
             return fallback_content
 
-    async def list_outputs(
-        self,
-        project_id: UUID,
-        output_type: str | None,
-        limit: int,
-        offset: int,
-        session: AsyncSession,
-    ) -> tuple[list[Output], int]:
-        """List outputs for a project."""
-        output_repo = SQLAlchemyOutputRepository(session)
-        return await output_repo.find_by_project(
-            project_id=project_id,
-            output_type=output_type,
-            limit=limit,
-            offset=offset,
-        )
-
-    async def get_output(
-        self,
-        project_id: UUID,
-        output_id: UUID,
-        session: AsyncSession,
-    ) -> Output | None:
-        """Get a specific output."""
-        output_repo = SQLAlchemyOutputRepository(session)
-        output = await output_repo.find_by_id(output_id)
-
-        # Verify project ownership
-        if output and output.project_id != project_id:
-            return None
-
-        return output
-
-    async def delete_output(
-        self,
-        project_id: UUID,
-        output_id: UUID,
-        session: AsyncSession,
-    ) -> bool:
-        """Delete an output."""
-        output_repo = SQLAlchemyOutputRepository(session)
-        output = await output_repo.find_by_id(output_id)
-
-        # Verify project ownership
-        if not output or output.project_id != project_id:
-            return False
-
-        return await output_repo.delete(output_id)
-
-    async def update_output(
-        self,
-        project_id: UUID,
-        output_id: UUID,
-        title: str | None,
-        data: dict[str, Any | None],
-        session: AsyncSession,
-    ) -> Output | None:
-        """
-        Update an existing output's title and/or data.
-
-        Args:
-            project_id: Project ID (for ownership verification)
-            output_id: Output ID to update
-            title: New title (if provided)
-            data: New data blob (if provided)
-            session: Database session
-
-        Returns:
-            Updated Output or None if not found / not authorized
-        """
-        output_repo = SQLAlchemyOutputRepository(session)
-        output = await output_repo.find_by_id(output_id)
-
-        # Verify project ownership
-        if not output or output.project_id != project_id:
-            return None
-
-        # Build update dict
-        update_data: dict[str, Any] = {}
-        if title is not None:
-            update_data["title"] = title
-        if data is not None:
-            update_data["data"] = data
-
-        if not update_data:
-            return output  # Nothing to update
-
-        updated = await output_repo.update(output_id, update_data)
-        return updated
-
-    async def start_expand_node(
-        self,
-        project_id: UUID,
-        output_id: UUID,
-        node_id: str,
-        node_data: dict[str, Any],
-        existing_children: list[dict[str, Any]],
-        session: AsyncSession,
-    ) -> str:
-        """
-        Start expanding a node with additional children.
-
-        Returns task_id for tracking via WebSocket.
-        """
-        task_id = str(uuid4())
-        project_id_str = str(project_id)
-
-        # Verify output exists
-        output_repo = SQLAlchemyOutputRepository(session)
-        output = await output_repo.find_by_id(output_id)
-        if not output or output.project_id != project_id:
-            raise ValueError("Output not found")
-
-        # Get document content for context
-        document_content = await self._load_document_content(output.source_ids, session)
-
-        # Create task info
-        task_info = TaskInfo(
-            task_id=task_id,
-            project_id=project_id_str,
-            output_id=output_id,
-            output_type="expand",
-        )
-
-        async with self._lock:
-            self._active_tasks[task_id] = task_info
-
-        # Start async task
-        asyncio_task = asyncio.create_task(
-            self._run_expand(
-                task_info=task_info,
-                output=output,
-                node_id=node_id,
-                node_data=node_data,
-                existing_children=existing_children,
-                document_content=document_content,
-            )
-        )
-        task_info.asyncio_task = asyncio_task
-
-        return task_id
-
-    async def _run_expand(
+    async def _run_expand_node(
         self,
         task_info: TaskInfo,
         output: Output,
@@ -1131,120 +1184,9 @@ class OutputGenerationService:
                 self._active_tasks.pop(task_id, None)
             output_notification_service.cleanup_task(task_id)
 
-    async def cancel_task(
-        self,
-        project_id: str,
-        task_id: str,
-    ) -> bool:
-        """
-        Cancel an ongoing task.
-
-        Args:
-            project_id: Project ID
-            task_id: Task ID to cancel
-
-        Returns:
-            True if task was cancelled, False if not found
-        """
-        async with self._lock:
-            task_info = self._active_tasks.get(task_id)
-
-            if not task_info:
-                return False
-
-            # Verify project ownership
-            if task_info.project_id != project_id:
-                return False
-
-            # Cancel the asyncio task
-            if task_info.asyncio_task and not task_info.asyncio_task.done():
-                task_info.asyncio_task.cancel()
-
-            # Remove from active tasks
-            self._active_tasks.pop(task_id, None)
-
-        logger.info(f"[OutputService] Task cancelled: {task_id}")
-        return True
-
     def get_active_task_count(self, project_id: str) -> int:
         """Get number of active tasks for a project."""
         return sum(1 for t in self._active_tasks.values() if t.project_id == project_id)
-
-    async def start_synthesize_nodes(
-        self,
-        project_id: UUID,
-        output_id: UUID,
-        node_ids: list[str],
-        session: AsyncSession,
-        mode: str = "connect",
-        node_data: list[dict[str, Any | None]] = None,
-    ) -> str:
-        """
-        Start synthesizing multiple nodes into a consolidated insight.
-
-        Args:
-            project_id: Project ID
-            output_id: Output ID (for context)
-            node_ids: List of node IDs to synthesize
-            session: Database session
-            mode: Synthesis mode (connect, inspire, debate)
-            node_data: Optional list of node content dicts (for canvas synthesis)
-
-        Returns:
-            task_id for tracking via WebSocket
-        """
-
-        task_id = str(uuid4())
-        project_id_str = str(project_id)
-
-        # Verify output exists
-        output_repo = SQLAlchemyOutputRepository(session)
-        output = await output_repo.find_by_id(output_id)
-        if not output or output.project_id != project_id:
-            raise ValueError("Output not found")
-
-        # Extract node contents - prefer direct node_data if provided
-        if node_data:
-            # Direct canvas node content
-            node_contents = []
-            for nd in node_data:
-                title = nd.get("title", "")
-                content = nd.get("content", "")
-                combined = f"{title}\n{content}".strip()
-                if combined:
-                    node_contents.append(combined)
-        else:
-            # Fall back to extracting from output's data (mindmap nodes)
-            node_contents = self._extract_node_contents(output, node_ids)
-
-        if len(node_contents) < 2:
-            raise ValueError("At least 2 valid nodes required for synthesis")
-
-        # Create task info
-        task_info = TaskInfo(
-            task_id=task_id,
-            project_id=project_id_str,
-            output_id=output_id,
-            output_type="synthesis",
-            # Store mode in task info if needed, or pass directly
-        )
-
-        async with self._lock:
-            self._active_tasks[task_id] = task_info
-
-        # Start async task
-        asyncio_task = asyncio.create_task(
-            self._run_synthesize(
-                task_info=task_info,
-                output=output,
-                node_ids=node_ids,
-                node_contents=node_contents,
-                mode=mode,
-            )
-        )
-        task_info.asyncio_task = asyncio_task
-
-        return task_id
 
     def _extract_node_contents(
         self,
@@ -1270,7 +1212,7 @@ class OutputGenerationService:
 
         return contents
 
-    async def _run_synthesize(
+    async def _run_synthesize_nodes(
         self,
         task_info: TaskInfo,
         output: Output,

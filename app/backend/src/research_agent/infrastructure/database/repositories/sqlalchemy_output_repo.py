@@ -21,6 +21,7 @@ class SQLAlchemyOutputRepository:
         model = OutputModel(
             id=output.id,
             project_id=output.project_id,
+            user_id=output.user_id,
             output_type=output.output_type.value,
             source_ids=output.source_ids,
             status=output.status.value,
@@ -45,6 +46,7 @@ class SQLAlchemyOutputRepository:
         output_type: Optional[str] = None,
         limit: int = 20,
         offset: int = 0,
+        user_id: Optional[str] = None,
     ) -> Tuple[List[Output], int]:
         """
         Find outputs by project ID with optional filtering.
@@ -58,6 +60,10 @@ class SQLAlchemyOutputRepository:
         # Apply type filter if specified
         if output_type:
             query = query.where(OutputModel.output_type == output_type)
+
+        # Apply user filter if specified
+        if user_id:
+            query = query.where(OutputModel.user_id == user_id)
 
         # Get total count
         count_query = select(func.count()).select_from(query.subquery())
@@ -83,6 +89,8 @@ class SQLAlchemyOutputRepository:
         model.title = output.title
         model.data = output.data
         model.error_message = output.error_message
+        if output.user_id:
+            model.user_id = output.user_id
 
         await self._session.commit()
         await self._session.refresh(model)
@@ -105,6 +113,7 @@ class SQLAlchemyOutputRepository:
         return Output(
             id=model.id,
             project_id=model.project_id,
+            user_id=model.user_id,
             output_type=OutputType(model.output_type),
             source_ids=list(model.source_ids) if model.source_ids else [],
             status=OutputStatus(model.status),

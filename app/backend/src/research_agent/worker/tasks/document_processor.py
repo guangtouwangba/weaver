@@ -2,15 +2,13 @@
 
 import asyncio
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from research_agent.config import get_settings
-
-settings = get_settings()
 from research_agent.domain.entities.document import DocumentStatus
 from research_agent.domain.services.chunking_service import ChunkingService
 from research_agent.infrastructure.database.models import DocumentModel
@@ -26,6 +24,8 @@ from research_agent.infrastructure.websocket.notification_service import (
 )
 from research_agent.shared.utils.logger import logger
 from research_agent.worker.tasks.base import BaseTask
+
+settings = get_settings()
 
 
 class DocumentProcessorTask(BaseTask):
@@ -45,7 +45,7 @@ class DocumentProcessorTask(BaseTask):
     def task_type(self) -> str:
         return "process_document"
 
-    async def execute(self, payload: Dict[str, Any], session: AsyncSession) -> None:
+    async def execute(self, payload: dict[str, Any], session: AsyncSession) -> None:
         """
         Process a document through the full pipeline.
 
@@ -151,14 +151,12 @@ class DocumentProcessorTask(BaseTask):
             user_safety_ratio = settings.long_context_safety_ratio  # Default to env setting
             user_fast_upload_mode = True  # Default to True for fast processing
             try:
-                from uuid import UUID as UUIDType
-
                 from research_agent.domain.services.settings_service import SettingsService
                 from research_agent.infrastructure.database.repositories.sqlalchemy_settings_repo import (
                     SQLAlchemySettingsRepository,
                 )
 
-                DEFAULT_USER_ID = UUIDType("00000000-0000-0000-0000-000000000001")
+                default_user_id = UUID("00000000-0000-0000-0000-000000000001")
 
                 # ✅ Retry logic for settings query (connection may have timed out during PDF parsing)
                 max_retries = 3
@@ -171,7 +169,7 @@ class DocumentProcessorTask(BaseTask):
                             # Get rag_mode
                             db_rag_mode = await settings_service.get_setting(
                                 "rag_mode",
-                                user_id=DEFAULT_USER_ID,
+                                user_id=default_user_id,
                                 project_id=project_id,
                             )
                             if db_rag_mode:
@@ -180,7 +178,7 @@ class DocumentProcessorTask(BaseTask):
                             # Get fast_upload_mode
                             db_fast_upload = await settings_service.get_setting(
                                 "fast_upload_mode",
-                                user_id=DEFAULT_USER_ID,
+                                user_id=default_user_id,
                                 project_id=project_id,
                             )
                             if db_fast_upload is not None:
@@ -189,7 +187,7 @@ class DocumentProcessorTask(BaseTask):
                             # Get long_context_safety_ratio
                             db_safety_ratio = await settings_service.get_setting(
                                 "long_context_safety_ratio",
-                                user_id=DEFAULT_USER_ID,
+                                user_id=default_user_id,
                                 project_id=project_id,
                             )
                             if db_safety_ratio is not None:
@@ -304,7 +302,6 @@ class DocumentProcessorTask(BaseTask):
 
             try:
                 # Parallel execution: page_map calculation, summary generation, and chunking
-                import asyncio
 
                 page_map, summary, chunk_data = await asyncio.gather(
                     calculate_page_map(),
@@ -394,8 +391,8 @@ class DocumentProcessorTask(BaseTask):
                 if user_rag_mode == "long_context" and user_fast_upload_mode:
                     should_skip_embedding = True
                     skip_reason = (
-                        f"Fast upload mode: skipping embeddings in long_context mode "
-                        f"(embeddings can be generated on-demand if needed)"
+                        "Fast upload mode: skipping embeddings in long_context mode "
+                        "(embeddings can be generated on-demand if needed)"
                     )
                 elif user_rag_mode == "long_context":
                     # Check if document fits in context and we have full_content
@@ -616,15 +613,15 @@ class DocumentProcessorTask(BaseTask):
         self,
         document_id: UUID,
         project_id: UUID,
-        chunk_data: List[Dict[str, Any]],
-        embeddings: Optional[List[List[float]]] = None,
+        chunk_data: list[dict[str, Any]],
+        embeddings: list[list[float]] | None = None,
     ) -> None:
         """
         Save chunks to database using ChunkRepository.
 
         This method uses the chunk repository factory to ensure chunks are saved
         to the correct storage backend (PostgreSQL or Qdrant) based on configuration.
-        
+
         Now uses ResourceChunk entity for unified storage across all resource types.
         """
         from uuid import uuid4
@@ -639,13 +636,14 @@ class DocumentProcessorTask(BaseTask):
         total_chunks = len(chunk_data)
         saved_count = 0
 
-        # Get document title for metadata
+        # Get document title and user_id for metadata
         async with get_async_session() as title_session:
             doc_result = await title_session.execute(
                 select(DocumentModel).where(DocumentModel.id == document_id)
             )
             doc = doc_result.scalar_one_or_none()
             doc_title = doc.original_filename if doc else "Untitled"
+            user_id = doc.user_id if doc else None
 
         for i in range(0, total_chunks, batch_size):
             batch_end = min(i + batch_size, total_chunks)
@@ -678,6 +676,7 @@ class DocumentProcessorTask(BaseTask):
                         resource_id=document_id,
                         resource_type=ResourceType.DOCUMENT,
                         project_id=project_id,
+                        user_id=user_id,
                         chunk_index=chunk["chunk_index"],
                         content=chunk["content"],
                         metadata=metadata,
@@ -727,14 +726,12 @@ class DocumentProcessorTask(BaseTask):
         Returns:
             Processing mode: "fast", "standard", or "quality"
         """
-        from uuid import UUID as UUIDType
-
         from research_agent.domain.services.settings_service import SettingsService
         from research_agent.infrastructure.database.repositories.sqlalchemy_settings_repo import (
             SQLAlchemySettingsRepository,
         )
 
-        DEFAULT_USER_ID = UUIDType("00000000-0000-0000-0000-000000000001")
+        default_user_id = UUID("00000000-0000-0000-0000-000000000001")
         default_mode = "standard"
 
         try:
@@ -745,7 +742,7 @@ class DocumentProcessorTask(BaseTask):
                 # Get document_processing_mode with priority resolution
                 mode = await settings_service.get_setting(
                     "document_processing_mode",
-                    user_id=DEFAULT_USER_ID,
+                    user_id=default_user_id,
                     project_id=project_id,
                 )
 

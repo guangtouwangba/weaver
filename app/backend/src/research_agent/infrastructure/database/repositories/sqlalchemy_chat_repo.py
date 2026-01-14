@@ -21,6 +21,7 @@ class SQLAlchemyChatRepository:
         model = ChatMessageModel(
             id=message.id,
             project_id=message.project_id,
+            user_id=message.user_id,
             role=message.role,
             content=message.content,
             sources=message.sources,
@@ -34,6 +35,7 @@ class SQLAlchemyChatRepository:
         self,
         project_id: UUID,
         limit: int = 50,
+        user_id: str | None = None,
     ) -> List[ChatMessage]:
         """
         Get chat history for a project.
@@ -41,24 +43,29 @@ class SQLAlchemyChatRepository:
         Args:
             project_id: The project ID
             limit: Maximum number of messages to return
+            user_id: Optional user ID for isolation
 
         Returns:
             List of ChatMessage entities, ordered by created_at ascending
         """
-        stmt = (
+        query = (
             select(ChatMessageModel)
             .where(ChatMessageModel.project_id == project_id)
             .order_by(ChatMessageModel.created_at.asc())
             .limit(limit)
         )
 
-        result = await self._session.execute(stmt)
+        if user_id:
+            query = query.where(ChatMessageModel.user_id == user_id)
+
+        result = await self._session.execute(query)
         models = result.scalars().all()
 
         return [
             ChatMessage(
                 id=m.id,
                 project_id=m.project_id,
+                user_id=m.user_id,
                 role=m.role,
                 content=m.content,
                 sources=m.sources,
@@ -68,7 +75,7 @@ class SQLAlchemyChatRepository:
             for m in models
         ]
 
-    async def clear_history(self, project_id: UUID) -> int:
+    async def clear_history(self, project_id: UUID, user_id: str | None = None) -> int:
         """
         Clear all chat messages for a project.
 
@@ -77,7 +84,10 @@ class SQLAlchemyChatRepository:
         """
         from sqlalchemy import delete
 
-        stmt = delete(ChatMessageModel).where(ChatMessageModel.project_id == project_id)
-        result = await self._session.execute(stmt)
+        query = delete(ChatMessageModel).where(ChatMessageModel.project_id == project_id)
+        if user_id:
+            query = query.where(ChatMessageModel.user_id == user_id)
+
+        result = await self._session.execute(query)
         await self._session.commit()
         return result.rowcount

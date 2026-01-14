@@ -28,6 +28,7 @@ class ListDocumentsInput:
     """Input for list documents use case."""
 
     project_id: UUID
+    user_id: Optional[str] = None
 
 
 @dataclass
@@ -46,7 +47,9 @@ class ListDocumentsUseCase:
 
     async def execute(self, input: ListDocumentsInput) -> ListDocumentsOutput:
         """Execute the use case."""
-        documents = await self._document_repo.find_by_project(input.project_id)
+        documents = await self._document_repo.find_by_project(
+            project_id=input.project_id, user_id=input.user_id
+        )
 
         items = [
             DocumentItem(

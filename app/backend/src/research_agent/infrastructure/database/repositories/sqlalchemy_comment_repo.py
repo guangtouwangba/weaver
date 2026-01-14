@@ -1,6 +1,5 @@
 """SQLAlchemy repository for comments."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -22,24 +21,29 @@ class SQLAlchemyCommentRepository:
         await self.session.refresh(comment)
         return comment
 
-    async def find_by_id(self, comment_id: UUID) -> Optional[CommentModel]:
+    async def find_by_id(self, comment_id: UUID) -> CommentModel | None:
         """Find a comment by ID."""
         result = await self.session.execute(
             select(CommentModel).where(CommentModel.id == comment_id)
         )
         return result.scalar_one_or_none()
 
-    async def list_by_document(self, document_id: UUID) -> List[CommentModel]:
+    async def list_by_document(
+        self, document_id: UUID, user_id: str | None = None
+    ) -> list[CommentModel]:
         """List all top-level comments for a document (excluding replies)."""
-        result = await self.session.execute(
+        query = (
             select(CommentModel)
             .where(CommentModel.document_id == document_id)
             .where(CommentModel.parent_id.is_(None))
             .order_by(CommentModel.created_at.desc())
         )
+        if user_id:
+            query = query.where(CommentModel.user_id == user_id)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
-    async def list_replies(self, parent_id: UUID) -> List[CommentModel]:
+    async def list_replies(self, parent_id: UUID) -> list[CommentModel]:
         """List all replies to a comment."""
         result = await self.session.execute(
             select(CommentModel)
@@ -48,11 +52,12 @@ class SQLAlchemyCommentRepository:
         )
         return list(result.scalars().all())
 
-    async def count_by_document(self, document_id: UUID) -> int:
+    async def count_by_document(self, document_id: UUID, user_id: str | None = None) -> int:
         """Count total comments for a document."""
-        result = await self.session.execute(
-            select(CommentModel).where(CommentModel.document_id == document_id)
-        )
+        query = select(CommentModel).where(CommentModel.document_id == document_id)
+        if user_id:
+            query = query.where(CommentModel.user_id == user_id)
+        result = await self.session.execute(query)
         return len(result.scalars().all())
 
     async def update(self, comment: CommentModel) -> CommentModel:

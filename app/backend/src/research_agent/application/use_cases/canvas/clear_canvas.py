@@ -8,7 +8,6 @@ Uses an async-friendly approach with generation IDs:
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from research_agent.domain.entities.canvas import Canvas
@@ -24,8 +23,9 @@ class ClearCanvasInput:
     """Input for clear canvas use case."""
 
     project_id: UUID
-    view_type: Optional[str] = None  # 'free' | 'thinking' | None (clear all)
+    view_type: str | None = None  # 'free' | 'thinking' | None (clear all)
     schedule_cleanup: bool = True  # Whether to schedule async cleanup task
+    user_id: str | None = None
 
 
 @dataclass
@@ -36,9 +36,9 @@ class ClearCanvasOutput:
     updated_at: datetime
     version: int
     generation: int  # Current generation after clear
-    cleared_view: Optional[str] = None  # Which view was cleared
+    cleared_view: str | None = None  # Which view was cleared
     pending_cleanup: int = 0  # Number of items pending cleanup
-    cleanup_task_id: Optional[str] = None  # Background task ID if scheduled
+    cleanup_task_id: str | None = None  # Background task ID if scheduled
 
 
 class ClearCanvasUseCase:
@@ -59,7 +59,7 @@ class ClearCanvasUseCase:
         self,
         canvas_repo: CanvasRepository,
         project_repo: ProjectRepository,
-        task_queue_service: Optional[TaskQueueService] = None,
+        task_queue_service: TaskQueueService | None = None,
     ):
         self._canvas_repo = canvas_repo
         self._project_repo = project_repo
@@ -73,7 +73,9 @@ class ClearCanvasUseCase:
             raise NotFoundError("Project", str(input.project_id))
 
         # Get existing canvas or create empty one
-        canvas = await self._canvas_repo.find_by_project(input.project_id)
+        canvas = await self._canvas_repo.find_by_project(
+            project_id=input.project_id, user_id=input.user_id
+        )
         cleanup_task_id = None
 
         if canvas:

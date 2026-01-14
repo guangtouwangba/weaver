@@ -60,6 +60,7 @@ class Document:
 
     id: UUID = field(default_factory=uuid4)
     project_id: Optional[UUID] = None
+    user_id: Optional[str] = None
     filename: str = ""
     original_filename: str = ""
     file_path: str = ""

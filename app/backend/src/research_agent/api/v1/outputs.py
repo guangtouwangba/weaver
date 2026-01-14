@@ -83,6 +83,7 @@ async def generate_output(
             title=request.title,
             options=request.options or {},
             session=session,
+            user_id=user.user_id,
         )
 
         return GenerateOutputResponse(
@@ -129,6 +130,7 @@ async def list_outputs(
         limit=limit,
         offset=offset,
         session=session,
+        user_id=user.user_id,
     )
 
     return OutputListResponse(
@@ -169,6 +171,7 @@ async def get_output(
         project_id=project_id,
         output_id=output_id,
         session=session,
+        user_id=user.user_id,
     )
 
     if not output:
@@ -206,6 +209,7 @@ async def delete_output(
         project_id=project_id,
         output_id=output_id,
         session=session,
+        user_id=user.user_id,
     )
 
     if not success:
@@ -237,6 +241,7 @@ async def update_output(
         title=request.title,
         data=request.data,
         session=session,
+        user_id=user.user_id,
     )
 
     if not updated:
@@ -292,6 +297,7 @@ async def expand_node(
             node_data=request.node_data,
             existing_children=request.existing_children,
             session=session,
+            user_id=user.user_id,
         )
 
         return NodeActionResponse(task_id=task_id, action="expand")
@@ -336,6 +342,7 @@ async def synthesize_nodes(
             node_data=request.node_data,
             session=session,
             mode=request.mode,
+            user_id=user.user_id,
         )
 
         return NodeActionResponse(task_id=task_id, action="synthesize")

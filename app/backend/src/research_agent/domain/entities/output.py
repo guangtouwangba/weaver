@@ -431,6 +431,7 @@ class Output:
 
     id: UUID = field(default_factory=uuid4)
     project_id: Optional[UUID] = None
+    user_id: Optional[str] = None
     output_type: OutputType = OutputType.MINDMAP
     source_ids: List[UUID] = field(default_factory=list)
     status: OutputStatus = OutputStatus.GENERATING

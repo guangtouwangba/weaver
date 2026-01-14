@@ -88,6 +88,7 @@ class Canvas:
 
     id: UUID = field(default_factory=uuid4)
     project_id: Optional[UUID] = None
+    user_id: Optional[str] = None
     nodes: List[CanvasNode] = field(default_factory=list)
     edges: List[CanvasEdge] = field(default_factory=list)
     sections: List[CanvasSection] = field(default_factory=list)
@@ -405,7 +406,9 @@ class Canvas:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], project_id: UUID) -> "Canvas":
+    def from_dict(
+        cls, data: Dict[str, Any], project_id: UUID, user_id: Optional[str] = None
+    ) -> "Canvas":
         """Create canvas from dictionary."""
         current_generation = data.get("currentGeneration", 1)
 
@@ -500,6 +503,7 @@ class Canvas:
 
         return cls(
             project_id=project_id,
+            user_id=user_id,
             nodes=nodes,
             edges=edges,
             sections=sections,
@@ -509,10 +513,11 @@ class Canvas:
         )
 
     @classmethod
-    def create_empty(cls, project_id: UUID) -> "Canvas":
+    def create_empty(cls, project_id: UUID, user_id: Optional[str] = None) -> "Canvas":
         """Create an empty canvas for a project."""
         return cls(
             project_id=project_id,
+            user_id=user_id,
             nodes=[],
             edges=[],
             sections=[],

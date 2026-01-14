@@ -118,6 +118,7 @@ class QdrantVectorStore(VectorStore):
         project_id: UUID,
         limit: int = 5,
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> list[SearchResult]:
         """Search for similar chunks using Qdrant.
 
@@ -126,6 +127,7 @@ class QdrantVectorStore(VectorStore):
             project_id: Project UUID to filter by
             limit: Maximum number of results to return
             document_id: Optional document UUID to filter by
+            user_id: Optional user ID for data isolation (reserved for future use)
 
         Returns:
             List of SearchResult sorted by similarity
@@ -191,6 +193,7 @@ class QdrantVectorStore(VectorStore):
         keyword_weight: float = 0.3,
         k: int = 20,
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> list[SearchResult]:
         """Hybrid search combining vector similarity and keyword matching.
 
@@ -206,6 +209,7 @@ class QdrantVectorStore(VectorStore):
             keyword_weight: Weight for keyword search (currently unused)
             k: Number of results to retrieve (currently unused)
             document_id: Optional document UUID to filter by
+            user_id: Optional user ID for data isolation (reserved for future use)
 
         Returns:
             List of SearchResult sorted by similarity
@@ -413,7 +417,7 @@ class QdrantVectorStore(VectorStore):
             search_results = []
             for point in results.points:
                 payload = point.payload or {}
-                
+
                 # Determine resource type
                 rt_str = payload.get("resource_type", "document")
                 try:
@@ -436,7 +440,9 @@ class QdrantVectorStore(VectorStore):
                 search_results.append(
                     ChunkSearchResult(
                         chunk_id=UUID(payload.get("chunk_id", str(point.id))),
-                        resource_id=UUID(payload.get("resource_id", payload.get("document_id", ""))),
+                        resource_id=UUID(
+                            payload.get("resource_id", payload.get("document_id", ""))
+                        ),
                         resource_type=rt,
                         content=payload.get("content", ""),
                         similarity=point.score,

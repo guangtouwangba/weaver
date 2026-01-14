@@ -81,6 +81,7 @@ class MemoryService:
         question: str,
         answer: str,
         metadata: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
     ) -> None:
         """
         Store a Q&A interaction as a memory for future retrieval.
@@ -90,6 +91,7 @@ class MemoryService:
             question: User's question
             answer: AI's answer
             metadata: Optional metadata (topic, entities, etc.)
+            user_id: Optional user ID for data isolation
         """
         # Format the content
         content = f"User: {question}\nAssistant: {answer}"
@@ -109,6 +111,7 @@ class MemoryService:
                 content=content,
                 embedding=embedding,
                 metadata=metadata,
+                user_id=user_id,
             )
             logger.info(f"[Memory] Stored memory for project {project_id}")
         except Exception as e:
@@ -120,6 +123,7 @@ class MemoryService:
         query: str,
         limit: int = DEFAULT_MEMORY_SEARCH_LIMIT,
         min_similarity: float = DEFAULT_MEMORY_MIN_SIMILARITY,
+        user_id: Optional[str] = None,
     ) -> List[MemorySearchResult]:
         """
         Retrieve memories relevant to the current query.
@@ -129,6 +133,7 @@ class MemoryService:
             query: Current user query
             limit: Maximum number of memories to retrieve
             min_similarity: Minimum similarity threshold
+            user_id: Optional user ID for data isolation
 
         Returns:
             List of relevant memories sorted by similarity
@@ -143,6 +148,7 @@ class MemoryService:
                 query_embedding=query_embedding,
                 limit=limit,
                 min_similarity=min_similarity,
+                user_id=user_id,
             )
 
             logger.info(
@@ -158,17 +164,18 @@ class MemoryService:
     # Short-Term Working Memory
     # ==========================================================================
 
-    async def get_session_summary(self, project_id: UUID) -> str:
+    async def get_session_summary(self, project_id: UUID, user_id: Optional[str] = None) -> str:
         """
         Get the current session summary for a project.
 
         Args:
             project_id: Project UUID
+            user_id: Optional user ID for data isolation
 
         Returns:
             Session summary string (empty if none exists)
         """
-        summary_model = await self._memory_repo.get_session_summary(project_id)
+        summary_model = await self._memory_repo.get_session_summary(project_id, user_id)
         return summary_model.summary if summary_model else ""
 
     async def should_summarize(
@@ -176,6 +183,7 @@ class MemoryService:
         project_id: UUID,
         current_message_count: int,
         threshold: int = 10,
+        user_id: Optional[str] = None,
     ) -> bool:
         """
         Determine if the conversation should be summarized.
@@ -184,11 +192,12 @@ class MemoryService:
             project_id: Project UUID
             current_message_count: Current number of messages in history
             threshold: Number of messages that triggers summarization
+            user_id: Optional user ID for data isolation
 
         Returns:
             True if summarization is needed
         """
-        summary_model = await self._memory_repo.get_session_summary(project_id)
+        summary_model = await self._memory_repo.get_session_summary(project_id, user_id)
         summarized_count = summary_model.summarized_message_count if summary_model else 0
 
         # Summarize if we have more than threshold messages beyond what's been summarized
@@ -200,6 +209,7 @@ class MemoryService:
         project_id: UUID,
         messages: List[tuple[str, str]],
         keep_recent: int = 3,
+        user_id: Optional[str] = None,
     ) -> str:
         """
         Summarize older conversation history.
@@ -208,6 +218,7 @@ class MemoryService:
             project_id: Project UUID
             messages: List of (human, ai) message tuples
             keep_recent: Number of recent messages to keep unsummarized
+            user_id: Optional user ID for data isolation
 
         Returns:
             Updated session summary
@@ -221,7 +232,7 @@ class MemoryService:
             return ""
 
         # Get existing summary
-        existing_summary = await self.get_session_summary(project_id)
+        existing_summary = await self.get_session_summary(project_id, user_id)
 
         # Messages to summarize (excluding recent ones)
         messages_to_summarize = messages[:-keep_recent] if keep_recent > 0 else messages
@@ -249,6 +260,7 @@ class MemoryService:
                 project_id=project_id,
                 summary=summary,
                 summarized_message_count=total_summarized,
+                user_id=user_id,
             )
 
             logger.info(
@@ -271,6 +283,7 @@ class MemoryService:
         chat_history: List[tuple[str, str]],
         recent_history_count: int = 3,
         memory_search_limit: int = DEFAULT_MEMORY_SEARCH_LIMIT,
+        user_id: Optional[str] = None,
     ) -> MemoryContext:
         """
         Assemble complete memory context for RAG generation.
@@ -286,12 +299,13 @@ class MemoryService:
             chat_history: Full chat history as (human, ai) tuples
             recent_history_count: Number of recent turns to include directly
             memory_search_limit: Max memories to retrieve
+            user_id: Optional user ID for data isolation
 
         Returns:
             MemoryContext with all assembled context
         """
         # Get session summary
-        session_summary = await self.get_session_summary(project_id)
+        session_summary = await self.get_session_summary(project_id, user_id)
 
         # Get recent history (last N turns)
         recent_history = chat_history[-recent_history_count:] if chat_history else []
@@ -301,6 +315,7 @@ class MemoryService:
             project_id=project_id,
             query=query,
             limit=memory_search_limit,
+            user_id=user_id,
         )
 
         return MemoryContext(

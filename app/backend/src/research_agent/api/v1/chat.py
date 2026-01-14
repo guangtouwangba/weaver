@@ -35,6 +35,20 @@ router = APIRouter()
 DEFAULT_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
+def _safe_parse_uuid(user_id_str: str | None) -> UUID:
+    """Safely parse a user ID string to UUID, returning DEFAULT_USER_ID on failure.
+
+    The user ID may be a non-UUID string like "dev-user-bypass" or "anon-xxx"
+    from the auth system, so we need to handle parsing failures gracefully.
+    """
+    if not user_id_str:
+        return DEFAULT_USER_ID
+    try:
+        return UUID(user_id_str)
+    except ValueError:
+        return DEFAULT_USER_ID
+
+
 # =============================================================================
 # Chat Message Endpoints
 # =============================================================================
@@ -51,6 +65,7 @@ async def stream_message(
     """Send a chat message and get streaming RAG response (SSE) using LangGraph."""
     # Verify project ownership
     await verify_project_ownership(project_id, user.user_id, session)
+    user_id_str = user.user_id if user else None
 
     from research_agent.config import get_settings
     from research_agent.domain.services.config_service import AsyncConfigurationService
@@ -72,7 +87,7 @@ async def stream_message(
     # Get configuration from database (User > Project > Global DB > Env)
     config_service = AsyncConfigurationService(session)
     rag_config = await config_service.get_config_async(
-        user_id=DEFAULT_USER_ID,
+        user_id=_safe_parse_uuid(user_id_str),
         project_id=project_id,
     )
 
@@ -112,6 +127,7 @@ async def stream_message(
                 project_id=project_id,
                 message=request.message,
                 document_id=request.document_id,
+                user_id=user_id_str,
                 top_k=rag_config.retrieval.top_k,
                 use_hybrid_search=rag_config.retrieval.use_hybrid_search,
                 use_intent_classification=rag_config.intent_classification.enabled,

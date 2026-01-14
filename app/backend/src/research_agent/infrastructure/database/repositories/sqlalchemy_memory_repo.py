@@ -44,6 +44,7 @@ class SQLAlchemyMemoryRepository:
         content: str,
         embedding: List[float],
         metadata: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
     ) -> ChatMemoryModel:
         """
         Add a new memory (Q&A pair) to the episodic memory store.
@@ -53,6 +54,7 @@ class SQLAlchemyMemoryRepository:
             content: The formatted Q&A pair (e.g., "User: <q>\nAssistant: <a>")
             embedding: Vector embedding for semantic search
             metadata: Optional metadata (topic, entities, etc.)
+            user_id: Optional user ID for data isolation
 
         Returns:
             The created ChatMemoryModel
@@ -62,6 +64,7 @@ class SQLAlchemyMemoryRepository:
             content=content,
             embedding=embedding,
             memory_metadata=metadata or {},
+            user_id=user_id,
         )
         self._session.add(memory)
         await self._session.commit()
@@ -76,6 +79,7 @@ class SQLAlchemyMemoryRepository:
         query_embedding: List[float],
         limit: int = 5,
         min_similarity: float = 0.5,
+        user_id: Optional[str] = None,
     ) -> List[MemorySearchResult]:
         """
         Search for similar memories using vector similarity.
@@ -85,6 +89,7 @@ class SQLAlchemyMemoryRepository:
             query_embedding: Query vector for similarity search
             limit: Maximum number of results
             min_similarity: Minimum similarity threshold (0-1, cosine)
+            user_id: Optional user ID for data isolation
 
         Returns:
             List of MemorySearchResult sorted by similarity (descending)
@@ -92,8 +97,9 @@ class SQLAlchemyMemoryRepository:
         # Use cosine similarity: 1 - cosine_distance
         # pgvector uses <=> for cosine distance
         # Note: Use CAST() instead of :: to avoid conflict with SQLAlchemy named parameters
-        query = text(
-            """
+
+        # Base query
+        query_str = """
             SELECT
                 id,
                 content,
@@ -104,20 +110,23 @@ class SQLAlchemyMemoryRepository:
             WHERE project_id = :project_id
                 AND embedding IS NOT NULL
                 AND 1 - (embedding <=> CAST(:query_embedding AS vector)) >= :min_similarity
-            ORDER BY embedding <=> CAST(:query_embedding AS vector)
-            LIMIT :limit
-            """
-        )
+        """
 
-        result = await self._session.execute(
-            query,
-            {
-                "project_id": str(project_id),
-                "query_embedding": str(query_embedding),
-                "limit": limit,
-                "min_similarity": min_similarity,
-            },
-        )
+        params = {
+            "project_id": str(project_id),
+            "query_embedding": str(query_embedding),
+            "limit": limit,
+            "min_similarity": min_similarity,
+        }
+
+        # Add user_id filter if provided
+        if user_id:
+            query_str += " AND (user_id = :user_id OR user_id IS NULL)"
+            params["user_id"] = user_id
+
+        query_str += " ORDER BY embedding <=> CAST(:query_embedding AS vector) LIMIT :limit"
+
+        result = await self._session.execute(text(query_str), params)
         rows = result.fetchall()
 
         memories = [
@@ -141,6 +150,7 @@ class SQLAlchemyMemoryRepository:
         self,
         project_id: UUID,
         limit: int = 10,
+        user_id: Optional[str] = None,
     ) -> List[ChatMemoryModel]:
         """
         Get the most recent memories for a project.
@@ -148,6 +158,7 @@ class SQLAlchemyMemoryRepository:
         Args:
             project_id: Project UUID
             limit: Maximum number of results
+            user_id: Optional user ID for data isolation
 
         Returns:
             List of ChatMemoryModel sorted by created_at (descending)
@@ -158,21 +169,36 @@ class SQLAlchemyMemoryRepository:
             .order_by(ChatMemoryModel.created_at.desc())
             .limit(limit)
         )
+
+        if user_id:
+            stmt = stmt.where(
+                (ChatMemoryModel.user_id == user_id) | (ChatMemoryModel.user_id.is_(None))
+            )
+
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def delete_memories_for_project(self, project_id: UUID) -> int:
+    async def delete_memories_for_project(
+        self, project_id: UUID, user_id: Optional[str] = None
+    ) -> int:
         """
         Delete all memories for a project.
 
         Args:
             project_id: Project UUID
+            user_id: Optional user ID for data isolation
 
         Returns:
             Number of deleted memories
         """
-        stmt = text("DELETE FROM chat_memories WHERE project_id = :project_id")
-        result = await self._session.execute(stmt, {"project_id": str(project_id)})
+        query_str = "DELETE FROM chat_memories WHERE project_id = :project_id"
+        params = {"project_id": str(project_id)}
+
+        if user_id:
+            query_str += " AND (user_id = :user_id OR user_id IS NULL)"
+            params["user_id"] = user_id
+
+        result = await self._session.execute(text(query_str), params)
         await self._session.commit()
         return result.rowcount
 
@@ -180,17 +206,25 @@ class SQLAlchemyMemoryRepository:
     # Short-Term Working Memory (ChatSummaryModel)
     # ==========================================================================
 
-    async def get_session_summary(self, project_id: UUID) -> Optional[ChatSummaryModel]:
+    async def get_session_summary(
+        self, project_id: UUID, user_id: Optional[str] = None
+    ) -> Optional[ChatSummaryModel]:
         """
         Get the session summary for a project.
 
         Args:
             project_id: Project UUID
+            user_id: Optional user ID for data isolation
 
         Returns:
             ChatSummaryModel or None if not exists
         """
         stmt = select(ChatSummaryModel).where(ChatSummaryModel.project_id == project_id)
+        if user_id:
+            stmt = stmt.where(
+                (ChatSummaryModel.user_id == user_id) | (ChatSummaryModel.user_id.is_(None))
+            )
+
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -199,6 +233,7 @@ class SQLAlchemyMemoryRepository:
         project_id: UUID,
         summary: str,
         summarized_message_count: int,
+        user_id: Optional[str] = None,
     ) -> ChatSummaryModel:
         """
         Update or create the session summary for a project.
@@ -207,11 +242,12 @@ class SQLAlchemyMemoryRepository:
             project_id: Project UUID
             summary: The summarized conversation content
             summarized_message_count: Number of messages that have been summarized
+            user_id: Optional user ID for data isolation
 
         Returns:
             The updated/created ChatSummaryModel
         """
-        existing = await self.get_session_summary(project_id)
+        existing = await self.get_session_summary(project_id, user_id)
 
         if existing:
             existing.summary = summary
@@ -225,6 +261,7 @@ class SQLAlchemyMemoryRepository:
                 project_id=project_id,
                 summary=summary,
                 summarized_message_count=summarized_message_count,
+                user_id=user_id,
             )
             self._session.add(new_summary)
             await self._session.commit()
@@ -232,17 +269,18 @@ class SQLAlchemyMemoryRepository:
             logger.debug(f"[Memory] Created session summary for project {project_id}")
             return new_summary
 
-    async def clear_session_summary(self, project_id: UUID) -> bool:
+    async def clear_session_summary(self, project_id: UUID, user_id: Optional[str] = None) -> bool:
         """
         Clear the session summary for a project.
 
         Args:
             project_id: Project UUID
+            user_id: Optional user ID for data isolation
 
         Returns:
             True if summary was deleted, False if not found
         """
-        existing = await self.get_session_summary(project_id)
+        existing = await self.get_session_summary(project_id, user_id)
         if existing:
             await self._session.delete(existing)
             await self._session.commit()

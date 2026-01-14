@@ -42,6 +42,7 @@ class PgVectorStore(VectorStore):
         project_id: UUID,
         limit: int = 5,
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> List[SearchResult]:
         """
         Search for similar chunks using pgvector.
@@ -61,11 +62,15 @@ class PgVectorStore(VectorStore):
             "limit": limit,
         }
 
+        if user_id:
+            where_clause += " AND user_id = :user_id"
+            params["user_id"] = user_id
+
         # Debug logging for search parameters
         debug_params = params.copy()
         debug_params["embedding"] = "..."  # Truncate for logging
         logger.info(
-            f"[VectorStore] Search Prams: project_id={project_id}, document_id={document_id}, limit={limit}"
+            f"[VectorStore] Search Prams: project_id={project_id}, document_id={document_id}, user_id={user_id}, limit={limit}"
         )
 
         if document_id:
@@ -120,6 +125,7 @@ class PgVectorStore(VectorStore):
         keyword_weight: float = 0.3,
         k: int = 20,  # Retrieve top-k from each method before fusion
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> List[SearchResult]:
         """
         Hybrid search combining vector similarity and full-text search using RRF.
@@ -132,12 +138,13 @@ class PgVectorStore(VectorStore):
             vector_weight: Weight for vector search (0-1)
             keyword_weight: Weight for keyword search (0-1)
             k: Number of results to retrieve from each method before fusion
+            user_id: Optional user ID for isolation
 
         Returns:
             List of SearchResult sorted by RRF score
         """
         logger.info(
-            f"Hybrid search: vector_weight={vector_weight}, keyword_weight={keyword_weight}, k={k}"
+            f"Hybrid search: vector_weight={vector_weight}, keyword_weight={keyword_weight}, k={k}, user_id={user_id}"
         )
 
         # Ensure clean transaction state before parallel searches
@@ -145,8 +152,8 @@ class PgVectorStore(VectorStore):
 
         # Run both searches in parallel
         vector_results, keyword_results = await asyncio.gather(
-            self._vector_search(query_embedding, project_id, k, document_id),
-            self._keyword_search(query_text, project_id, k, document_id),
+            self._vector_search(query_embedding, project_id, k, document_id, user_id),
+            self._keyword_search(query_text, project_id, k, document_id, user_id),
         )
 
         # Apply Reciprocal Rank Fusion (RRF)
@@ -167,6 +174,7 @@ class PgVectorStore(VectorStore):
         project_id: UUID,
         limit: int,
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> List[Dict[str, Any]]:
         """Vector similarity search returning raw results."""
         embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
@@ -177,6 +185,10 @@ class PgVectorStore(VectorStore):
             "project_id": str(project_id),
             "limit": limit,
         }
+
+        if user_id:
+            where_clause += " AND user_id = :user_id"
+            params["user_id"] = user_id
 
         if document_id:
             where_clause += " AND resource_id = cast(:document_id as uuid)"
@@ -228,6 +240,7 @@ class PgVectorStore(VectorStore):
         project_id: UUID,
         limit: int,
         document_id: UUID | None = None,
+        user_id: str | None = None,
     ) -> List[Dict[str, Any]]:
         """Full-text search using PostgreSQL TSVector."""
         # Sanitize query text for tsquery
@@ -240,6 +253,10 @@ class PgVectorStore(VectorStore):
             "project_id": str(project_id),
             "limit": limit,
         }
+
+        if user_id:
+            where_clause += " AND user_id = :user_id"
+            params["user_id"] = user_id
 
         if document_id:
             where_clause += " AND resource_id = cast(:document_id as uuid)"

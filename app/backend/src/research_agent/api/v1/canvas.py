@@ -68,7 +68,7 @@ async def get_canvas(
     canvas_repo = SQLAlchemyCanvasRepository(session)
     use_case = GetCanvasUseCase(canvas_repo)
 
-    result = await use_case.execute(GetCanvasInput(project_id=project_id))
+    result = await use_case.execute(GetCanvasInput(project_id=project_id, user_id=user.user_id))
 
     data = result.data
     return CanvasDataResponse(
@@ -175,9 +175,12 @@ async def save_canvas(
 
     try:
         result = await use_case.execute(
-            SaveCanvasInput(
-                project_id=project_id,
-                data=canvas_data,
+            result=await use_case.execute(
+                SaveCanvasInput(
+                    project_id=project_id,
+                    data=canvas_data,
+                    user_id=user.user_id,
+                )
             )
         )
 
@@ -224,6 +227,7 @@ async def create_canvas_node(
             CreateCanvasNodeInput(
                 project_id=project_id,
                 node_data=node_data,
+                user_id=user.user_id,
             )
         )
 
@@ -272,6 +276,7 @@ async def update_canvas_node(
                 project_id=project_id,
                 node_id=node_id,
                 node_data=node_data,
+                user_id=user.user_id,
             )
         )
 
@@ -314,6 +319,7 @@ async def delete_canvas_node(
             DeleteCanvasNodeInput(
                 project_id=project_id,
                 node_id=node_id,
+                user_id=user.user_id,
             )
         )
 
@@ -368,7 +374,7 @@ async def clear_canvas(
 
     try:
         result = await use_case.execute(
-            ClearCanvasInput(project_id=project_id, view_type=view_type)
+            ClearCanvasInput(project_id=project_id, view_type=view_type, user_id=user.user_id)
         )
 
         return CanvasSaveResponse(

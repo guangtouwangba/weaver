@@ -22,6 +22,7 @@ Tables removed (not included):
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from pgvector.sqlalchemy import Vector
 
 # revision identifiers, used by Alembic.
 revision = "20260114_000001"
@@ -64,6 +65,7 @@ def upgrade() -> None:
             sa.ForeignKey("projects.id", ondelete="CASCADE"),
             nullable=False,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("filename", sa.String(255), nullable=False),
         sa.Column("original_filename", sa.String(255), nullable=False),
         sa.Column("file_path", sa.String(512), nullable=False),
@@ -102,9 +104,10 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("chunk_index", sa.Integer, nullable=False),
         sa.Column("content", sa.Text, nullable=False),
-        sa.Column("embedding", postgresql.ARRAY(sa.Float), nullable=True),
+        sa.Column("embedding", Vector(1536), nullable=True),
         sa.Column("metadata", postgresql.JSONB, server_default="{}", nullable=False),
         sa.Column("content_tsvector", postgresql.TSVECTOR, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
@@ -144,6 +147,7 @@ def upgrade() -> None:
             nullable=False,
             unique=True,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("data", postgresql.JSONB, nullable=False, server_default="{}"),
         sa.Column("version", sa.Integer, nullable=False, server_default="1"),
         sa.Column(
@@ -166,6 +170,7 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("role", sa.String(20), nullable=False),
         sa.Column("content", sa.Text, nullable=False),
         sa.Column("sources", postgresql.JSONB, nullable=True),
@@ -184,8 +189,9 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("content", sa.Text, nullable=False),
-        sa.Column("embedding", postgresql.ARRAY(sa.Float), nullable=True),
+        sa.Column("embedding", Vector(1536), nullable=True),
         sa.Column("memory_metadata", postgresql.JSONB, nullable=True, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -212,6 +218,7 @@ def upgrade() -> None:
             unique=True,
             index=True,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("summary", sa.Text, nullable=False, server_default=""),
         sa.Column("summarized_message_count", sa.Integer, nullable=False, server_default="0"),
         sa.Column(
@@ -281,6 +288,7 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("output_type", sa.String(50), nullable=False, index=True),
         sa.Column("source_ids", postgresql.ARRAY(postgresql.UUID(as_uuid=True)), nullable=False, server_default="{}"),
         sa.Column("status", sa.String(20), nullable=False, server_default="generating"),
@@ -344,6 +352,7 @@ def upgrade() -> None:
             sa.ForeignKey("documents.id", ondelete="CASCADE"),
             nullable=False,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("page_number", sa.Integer, nullable=False),
         sa.Column("start_offset", sa.Integer, nullable=False),
         sa.Column("end_offset", sa.Integer, nullable=False),
@@ -378,6 +387,7 @@ def upgrade() -> None:
             sa.ForeignKey("comments.id", ondelete="CASCADE"),
             nullable=True,
         ),
+        sa.Column("user_id", sa.String(255), nullable=True, index=True),
         sa.Column("page_number", sa.Integer, nullable=True),
         sa.Column(
             "highlight_id",

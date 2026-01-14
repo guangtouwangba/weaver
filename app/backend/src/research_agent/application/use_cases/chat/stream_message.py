@@ -108,6 +108,7 @@ class StreamMessageInput:
     project_id: UUID
     message: str
     document_id: UUID | None = None
+    user_id: str | None = None  # Optional user ID for data isolation
     top_k: int = field(default_factory=_get_default_top_k)
     use_hybrid_search: bool = False  # Enable hybrid search (vector + keyword)
     use_rewrite: bool = True  # Enable query rewriting with chat history
@@ -184,6 +185,7 @@ class StreamMessageUseCase:
                 "model": self._model,
                 "top_k": input.top_k,
                 "hybrid_search": input.use_hybrid_search,
+                "user_id": input.user_id,
             },
         )
 
@@ -193,6 +195,7 @@ class StreamMessageUseCase:
                 messages = await repo.get_history(
                     project_id=input.project_id,
                     limit=10,
+                    user_id=input.user_id,
                 )
                 trace.log("HISTORY", messages_count=len(messages))
 
@@ -204,6 +207,7 @@ class StreamMessageUseCase:
                     context_node_ids=input.context_node_ids,
                     context_url_ids=input.context_url_ids,
                     chat_messages=messages,
+                    user_id=input.user_id,
                 )
 
                 # Log context stats
@@ -222,6 +226,7 @@ class StreamMessageUseCase:
                         role="user",
                         content=input.message,
                         context_refs=ctx.context_refs_for_user_message.to_dict(),
+                        user_id=input.user_id,
                     )
                 )
 
@@ -245,6 +250,7 @@ class StreamMessageUseCase:
                     k=input.top_k,
                     use_hybrid_search=input.use_hybrid_search,
                     document_id=input.document_id,
+                    user_id=input.user_id,
                 )
 
                 llm = create_langchain_llm(
@@ -280,6 +286,8 @@ class StreamMessageUseCase:
                     active_document_id=str(input.document_id) if input.document_id else None,
                     active_entities=ctx.active_entities,
                     current_focus=ctx.current_focus,
+                    # Note: stream_rag_response signature might need update if we want to pass user_id down
+                    # For now, most isolation is handled by retriever and context_engine
                 ):
                     # Before handling done event, flush remaining content
                     if event.get("type") == "done":
@@ -305,6 +313,7 @@ class StreamMessageUseCase:
                         }
                         if stream_result.active_entities or stream_result.current_focus
                         else None,
+                        user_id=input.user_id,
                     )
                     await repo.save(ai_message)
 
@@ -323,6 +332,7 @@ class StreamMessageUseCase:
                             chunking_strategy="dynamic",
                             retrieval_mode="hybrid" if input.use_hybrid_search else "vector",
                             llm=llm,
+                            user_id=input.user_id,
                         )
                     )
 
@@ -332,6 +342,7 @@ class StreamMessageUseCase:
                             project_id=input.project_id,
                             question=input.message,
                             answer=stream_result.full_response,
+                            user_id=input.user_id,
                         )
                     )
 
@@ -384,6 +395,7 @@ class StreamMessageUseCase:
         chunking_strategy: str,
         retrieval_mode: str,
         llm: Any,
+        user_id: str | None = None,
     ) -> None:
         """
         Auto-evaluate RAG quality in background.
@@ -423,6 +435,7 @@ class StreamMessageUseCase:
                         chunking_strategy=chunking_strategy,
                         retrieval_mode=retrieval_mode,
                         evaluation_type="realtime",
+                        # Note: EvaluationLogger needs update to support user_id if we want to log it
                     )
 
                 logger.info("[Auto-Eval] Evaluation logged successfully")
@@ -438,6 +451,7 @@ class StreamMessageUseCase:
         project_id: UUID,
         question: str,
         answer: str,
+        user_id: str | None = None,
     ) -> None:
         """
         Store Q&A pair as a memory for future semantic retrieval.
@@ -468,6 +482,7 @@ class StreamMessageUseCase:
                         "source": "chat",
                         "model": self._model,
                     },
+                    user_id=user_id,
                 )
 
             logger.info("[Memory] Memory stored successfully")

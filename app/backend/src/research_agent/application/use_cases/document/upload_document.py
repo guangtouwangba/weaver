@@ -68,6 +68,7 @@ class UploadDocumentUseCase:
         # 1. Create document entity
         document = Document(
             project_id=input.project_id,
+            user_id=input.user_id,
             filename=input.filename,
             original_filename=input.filename,  # Store original filename
             file_size=input.file_size,
@@ -130,6 +131,7 @@ class UploadDocumentUseCase:
                 DocumentChunk(
                     document_id=document.id,
                     project_id=input.project_id,
+                    user_id=input.user_id,
                     chunk_index=c["chunk_index"],
                     content=c["content"],
                     page_number=c["page_number"],

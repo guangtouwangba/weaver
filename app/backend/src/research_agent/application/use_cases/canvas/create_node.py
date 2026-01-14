@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID, uuid4
 
 from research_agent.domain.entities.canvas import Canvas, CanvasNode
@@ -16,7 +16,9 @@ class CreateCanvasNodeInput:
     """Input for create canvas node use case."""
 
     project_id: UUID
-    node_data: Dict[str, Any]
+    project_id: UUID
+    node_data: dict[str, Any]
+    user_id: str | None = None
 
 
 @dataclass
@@ -48,13 +50,16 @@ class CreateCanvasNodeUseCase:
             raise NotFoundError("Project", str(input.project_id))
 
         # Get or create canvas
-        canvas = await self._canvas_repo.find_by_project(input.project_id)
+        canvas = await self._canvas_repo.find_by_project(
+            project_id=input.project_id, user_id=input.user_id
+        )
         current_version = canvas.version if canvas else 0
 
         if not canvas:
             # Create empty canvas
             canvas = Canvas(
                 project_id=input.project_id,
+                user_id=input.user_id,
                 nodes=[],
                 edges=[],
                 version=0,

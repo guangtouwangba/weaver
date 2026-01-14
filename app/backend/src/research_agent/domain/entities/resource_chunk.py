@@ -11,10 +11,10 @@ from research_agent.domain.entities.resource import ResourceType
 @dataclass
 class ResourceChunk:
     """Unified chunk entity for all resource types.
-    
+
     This entity represents a text chunk from any resource type (document, video,
     audio, web page, note, etc.) with consistent interface for storage and retrieval.
-    
+
     Attributes:
         id: Unique chunk identifier
         resource_id: Parent resource ID (document, url_content, etc.)
@@ -25,7 +25,7 @@ class ResourceChunk:
         embedding: Vector embedding (optional, may be stored externally)
         metadata: Type-specific metadata (title, platform, page_number, timestamps)
         created_at: Creation timestamp
-    
+
     Metadata fields by resource type:
         - All types: title, platform
         - Document: page_number
@@ -37,6 +37,7 @@ class ResourceChunk:
     resource_id: Optional[UUID] = None
     resource_type: ResourceType = ResourceType.DOCUMENT
     project_id: Optional[UUID] = None
+    user_id: Optional[str] = None
     chunk_index: int = 0
     content: str = ""
     embedding: Optional[List[float]] = None
@@ -80,7 +81,7 @@ class ResourceChunk:
     def to_search_context(self) -> str:
         """Format chunk for use in LLM context with source attribution."""
         source_info = f"[{self.resource_type.value}] {self.title}"
-        
+
         if self.resource_type == ResourceType.DOCUMENT and self.page_number:
             source_info += f" (Page {self.page_number})"
         elif self.resource_type in (ResourceType.VIDEO, ResourceType.AUDIO):
@@ -88,5 +89,5 @@ class ResourceChunk:
                 minutes = int(self.start_time // 60)
                 seconds = int(self.start_time % 60)
                 source_info += f" ({minutes}:{seconds:02d})"
-        
+
         return f"{source_info}\n{self.content}"

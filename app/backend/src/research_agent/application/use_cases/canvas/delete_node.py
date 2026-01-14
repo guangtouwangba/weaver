@@ -15,6 +15,7 @@ class DeleteCanvasNodeInput:
 
     project_id: UUID
     node_id: str
+    user_id: str | None = None
 
 
 @dataclass
@@ -45,7 +46,9 @@ class DeleteCanvasNodeUseCase:
             raise NotFoundError("Project", str(input.project_id))
 
         # Get canvas with current version
-        canvas = await self._canvas_repo.find_by_project(input.project_id)
+        canvas = await self._canvas_repo.find_by_project(
+            project_id=input.project_id, user_id=input.user_id
+        )
         if not canvas:
             raise NotFoundError("Canvas", f"for project {input.project_id}")
 
@@ -69,7 +72,7 @@ class DeleteCanvasNodeUseCase:
             canvas = await self._canvas_repo.find_by_project(input.project_id)
             if not canvas:
                 raise NotFoundError("Canvas", f"for project {input.project_id}")
-            
+
             # Check if node still exists (might have been deleted by another request)
             node = canvas.find_node(input.node_id)
             if node:
@@ -83,4 +86,3 @@ class DeleteCanvasNodeUseCase:
             updated_at=saved_canvas.updated_at,
             version=saved_canvas.version,
         )
-

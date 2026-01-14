@@ -26,6 +26,7 @@ class PGVectorRetriever(BaseRetriever):
     vector_weight: float = 0.7
     keyword_weight: float = 0.3
     document_id: UUID | None = None  # Optional document filter
+    user_id: str | None = None  # Optional user filter
 
     class Config:
         """Pydantic config."""
@@ -63,6 +64,7 @@ class PGVectorRetriever(BaseRetriever):
                 keyword_weight=self.keyword_weight,
                 k=self.k * 4,  # Retrieve 4x more results for fusion
                 document_id=self.document_id,
+                user_id=self.user_id,
             )
         else:
             logger.info("Using vector-only search")
@@ -71,6 +73,7 @@ class PGVectorRetriever(BaseRetriever):
                 project_id=self.project_id,
                 limit=self.k,
                 document_id=self.document_id,
+                user_id=self.user_id,
             )
 
         # Convert to LangChain documents
@@ -97,6 +100,7 @@ def create_pgvector_retriever(
     vector_weight: float = 0.7,
     keyword_weight: float = 0.3,
     document_id: UUID | None = None,
+    user_id: str | None = None,
 ) -> PGVectorRetriever:
     """
     Factory function to create a retriever.
@@ -122,4 +126,5 @@ def create_pgvector_retriever(
         vector_weight=vector_weight,
         keyword_weight=keyword_weight,
         document_id=document_id,
+        user_id=user_id,
     )

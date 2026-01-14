@@ -81,6 +81,7 @@ class ContextEngine:
         context_node_ids: list[str] | None = None,
         context_url_ids: list[str] | None = None,
         chat_messages: list[Any] | None = None,
+        user_id: str | None = None,
     ) -> ResolvedContext:
         """
         Resolve and aggregate all contexts.
@@ -100,6 +101,7 @@ class ContextEngine:
             context_node_ids: List of Canvas node IDs (requires DB query)
             context_url_ids: List of URL content IDs
             chat_messages: List of history messages (used to reconstruct entity state)
+            user_id: Optional user ID for data isolation
 
         Returns:
             ResolvedContext: Object containing all aggregated contexts
@@ -126,6 +128,7 @@ class ContextEngine:
             project_id=project_id,
             context_nodes=context_nodes,
             context_node_ids=context_node_ids,
+            user_id=user_id,
         )
 
         # Step 5: Retrieve URL content
@@ -281,6 +284,7 @@ class ContextEngine:
         project_id: UUID,
         context_nodes: list[dict[str, Any]] | None,
         context_node_ids: list[str] | None,
+        user_id: str | None = None,
     ) -> tuple[str, int]:
         """
         Retrieve text content of Canvas nodes.
@@ -288,6 +292,12 @@ class ContextEngine:
         Priority:
         1. Use directly passed context_nodes (no DB query needed)
         2. Fallback to context_node_ids (requires DB query)
+
+        Args:
+            project_id: Project ID for canvas lookup
+            context_nodes: Directly passed node data
+            context_node_ids: List of node IDs to query
+            user_id: Optional user ID for data isolation (reserved for future use)
 
         Returns:
             tuple: (canvas_context_text, node_count)

@@ -39,6 +39,8 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
                 )
             existing.data = canvas_data
             existing.version = existing.version + 1
+            if canvas.user_id:
+                existing.user_id = canvas.user_id
             canvas.version = existing.version
         else:
             # Create new
@@ -52,6 +54,7 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
             model = CanvasModel(
                 id=canvas.id,
                 project_id=canvas.project_id,
+                user_id=canvas.user_id,
                 data=canvas_data,
                 version=1,
             )
@@ -107,6 +110,8 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
             # Update existing
             existing.data = canvas.to_dict()
             existing.version = existing.version + 1
+            if canvas.user_id:
+                existing.user_id = canvas.user_id
             canvas.version = existing.version
         else:
             # Create new
@@ -119,6 +124,7 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
             model = CanvasModel(
                 id=canvas.id,
                 project_id=canvas.project_id,
+                user_id=canvas.user_id,
                 data=canvas.to_dict(),
                 version=1,
             )
@@ -128,11 +134,15 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
         await self._session.flush()
         return canvas
 
-    async def find_by_project(self, project_id: UUID) -> Optional[Canvas]:
+    async def find_by_project(
+        self, project_id: UUID, user_id: Optional[str] = None
+    ) -> Optional[Canvas]:
         """Find canvas by project ID."""
-        result = await self._session.execute(
-            select(CanvasModel).where(CanvasModel.project_id == project_id)
-        )
+        query = select(CanvasModel).where(CanvasModel.project_id == project_id)
+        if user_id:
+            query = query.where(CanvasModel.user_id == user_id)
+
+        result = await self._session.execute(query)
         model = result.scalar_one_or_none()
 
         if model:
@@ -149,22 +159,24 @@ class SQLAlchemyCanvasRepository(CanvasRepository):
                     f"[Canvas Load] Parsed first node file_metadata: {canvas.nodes[0].file_metadata}"
                 )
             canvas.id = model.id
+            canvas.user_id = model.user_id
             canvas.version = model.version
             canvas.updated_at = model.updated_at
             return canvas
 
         return None
 
-    async def delete_by_project(self, project_id: UUID) -> bool:
+    async def delete_by_project(self, project_id: UUID, user_id: Optional[str] = None) -> bool:
         """Delete canvas for a project."""
-        result = await self._session.execute(
-            select(CanvasModel).where(CanvasModel.project_id == project_id)
-        )
+        query = select(CanvasModel).where(CanvasModel.project_id == project_id)
+        if user_id:
+            query = query.where(CanvasModel.user_id == user_id)
+
+        result = await self._session.execute(query)
         model = result.scalar_one_or_none()
 
         if model:
             await self._session.delete(model)
             await self._session.flush()
             return True
-
         return False

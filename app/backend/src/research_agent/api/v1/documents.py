@@ -3,7 +3,6 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -37,9 +36,6 @@ from research_agent.infrastructure.database.models import DocumentModel
 from research_agent.infrastructure.database.repositories.chunk_repo_factory import (
     get_chunk_repository,
 )
-from research_agent.infrastructure.database.repositories.sqlalchemy_chunk_repo import (
-    SQLAlchemyChunkRepository,
-)
 from research_agent.infrastructure.database.repositories.sqlalchemy_document_repo import (
     SQLAlchemyDocumentRepository,
 )
@@ -72,7 +68,7 @@ class PresignRequest(BaseModel):
     """Request for generating a presigned upload URL."""
 
     filename: str
-    content_type: Optional[str] = "application/pdf"
+    content_type: str | None = "application/pdf"
 
 
 class PresignResponse(BaseModel):
@@ -90,7 +86,7 @@ class ConfirmUploadRequest(BaseModel):
     file_path: str
     filename: str
     file_size: int
-    content_type: Optional[str] = "application/pdf"
+    content_type: str | None = "application/pdf"
 
 
 class HighlightCreateRequest(BaseModel):
@@ -100,8 +96,8 @@ class HighlightCreateRequest(BaseModel):
     start_offset: int = Field(..., alias="startOffset")
     end_offset: int = Field(..., alias="endOffset")
     color: str  # yellow, green, blue, pink
-    note: Optional[str] = None
-    rects: Optional[list[dict[str, float]]] = None
+    note: str | None = None
+    rects: list[dict[str, float]] | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -109,8 +105,8 @@ class HighlightCreateRequest(BaseModel):
 class HighlightUpdateRequest(BaseModel):
     """Request to update a highlight."""
 
-    color: Optional[str] = None
-    note: Optional[str] = None
+    color: str | None = None
+    note: str | None = None
 
 
 class HighlightResponse(BaseModel):
@@ -122,8 +118,8 @@ class HighlightResponse(BaseModel):
     start_offset: int = Field(..., alias="startOffset")
     end_offset: int = Field(..., alias="endOffset")
     color: str
-    note: Optional[str] = None
-    rects: Optional[list[dict[str, float]]] = None
+    note: str | None = None
+    rects: list[dict[str, float]] | None = None
     created_at: str = Field(..., alias="createdAt")
     updated_at: str = Field(..., alias="updatedAt")
 
@@ -133,7 +129,7 @@ class HighlightResponse(BaseModel):
 # ============== Helper Functions ==============
 
 
-def get_supabase_storage() -> Optional[SupabaseStorageService]:
+def get_supabase_storage() -> SupabaseStorageService | None:
     """Get Supabase storage service if configured."""
     if settings.supabase_url and settings.supabase_service_role_key:
         return SupabaseStorageService(
@@ -267,6 +263,7 @@ async def confirm_upload(
     """
     # Verify project ownership
     from research_agent.api.deps import verify_project_ownership
+
     await verify_project_ownership(project_id, user.user_id, session)
 
     storage = get_supabase_storage()
@@ -289,6 +286,7 @@ async def confirm_upload(
         document = DocumentModel(
             id=document_id,
             project_id=project_id,
+            user_id=user.user_id,
             filename=request.filename,
             original_filename=request.filename,
             file_path=request.file_path,
@@ -335,7 +333,7 @@ async def confirm_upload(
                 session.add(document)  # Update record
                 logger.info(f"✅ Thumbnail generated immediately for {document_id}")
             else:
-                logger.warning(f"⚠️ Thumbnail generation returned None")
+                logger.warning("⚠️ Thumbnail generation returned None")
 
         except Exception as e:
             logger.warning(f"⚠️ Immediate thumbnail generation failed: {e}")
@@ -406,7 +404,12 @@ async def list_documents(
     # ... (existing code, ensure user_scoped list if needed, but project is already scoped)
     use_case = ListDocumentsUseCase(document_repo)
 
-    result = await use_case.execute(ListDocumentsInput(project_id=project_id))
+    result = await use_case.execute(
+        ListDocumentsInput(
+            project_id=project_id,
+            user_id=user.user_id if user else None,
+        )
+    )
 
     return DocumentListResponse(
         items=[
@@ -846,7 +849,7 @@ async def list_highlights(
                     status_code=403, detail="Not authorized to access this document"
                 )
 
-    highlights = await highlight_repo.find_by_document(document_id)
+    highlights = await highlight_repo.find_by_document(document_id, user_id=user.user_id)
     return [
         HighlightResponse(
             id=str(h.id),
@@ -913,6 +916,7 @@ async def create_highlight(
             color=request.color,
             note=request.note,
             rects=rects_dict,
+            user_id=user.user_id,
         )
 
         # Extract rects from JSONB format
@@ -1038,9 +1042,9 @@ class CommentCreateRequest(BaseModel):
     """Request model for creating a comment."""
 
     content: str = Field(..., min_length=1)
-    parent_id: Optional[UUID] = None
-    page_number: Optional[int] = None
-    highlight_id: Optional[UUID] = None
+    parent_id: UUID | None = None
+    page_number: int | None = None
+    highlight_id: UUID | None = None
     author_name: str = Field(default="Anonymous", max_length=255)
 
 
@@ -1055,9 +1059,9 @@ class CommentResponse(BaseModel):
 
     id: UUID
     document_id: UUID
-    parent_id: Optional[UUID]
-    page_number: Optional[int]
-    highlight_id: Optional[UUID]
+    parent_id: UUID | None
+    page_number: int | None
+    highlight_id: UUID | None
     content: str
     author_name: str
     created_at: str
@@ -1088,6 +1092,7 @@ async def list_comments(
     document_id: UUID,
     session: AsyncSession = Depends(get_db),
     comment_repo=Depends(get_comment_repo),
+    user: UserContext = Depends(get_optional_user),
 ) -> CommentListResponse:
     """List all top-level comments for a document."""
     # Verify document exists
@@ -1096,8 +1101,8 @@ async def list_comments(
     if not document:
         raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
 
-    comments = await comment_repo.list_by_document(document_id)
-    total = await comment_repo.count_by_document(document_id)
+    comments = await comment_repo.list_by_document(document_id, user_id=user.user_id)
+    total = await comment_repo.count_by_document(document_id, user_id=user.user_id)
 
     response_comments = []
     for c in comments:
@@ -1126,6 +1131,7 @@ async def create_comment(
     request: CommentCreateRequest,
     session: AsyncSession = Depends(get_db),
     comment_repo=Depends(get_comment_repo),
+    user: UserContext = Depends(get_optional_user),
 ) -> CommentResponse:
     """Create a new comment."""
     from uuid import uuid4
@@ -1154,6 +1160,7 @@ async def create_comment(
         highlight_id=request.highlight_id,
         content=request.content,
         author_name=request.author_name,
+        user_id=user.user_id,
     )
 
     created = await comment_repo.create(comment)
