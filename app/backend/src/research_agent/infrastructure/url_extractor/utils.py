@@ -4,6 +4,8 @@ import ipaddress
 import re
 import socket
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+import httpx
+from research_agent.shared.utils.logger import logger
 
 from research_agent.config import get_settings
 
@@ -85,7 +87,7 @@ def validate_url(url: str) -> tuple[bool, str | None]:
     # Check if SSRF protection is disabled (for development/testing)
     settings = get_settings()
     if settings.disable_ssrf_check:
-        print(f"[URL Validation] SSRF check disabled, allowing URL: {url}")
+        logger.warning(f"[URL Validation] SSRF check disabled, allowing URL: {url}")
         return True, None
 
     # SSRF Protection: Check for private IPs
@@ -100,6 +102,9 @@ def validate_url(url: str) -> tuple[bool, str | None]:
 
         # Resolve hostname to IP
         try:
+            # Note: This is blocking. In a high-concurrency async app,
+            # this should ideally be run in an executor if DNS is slow.
+            # But gethostbyname is usually fast enough if cached or local.
             ip_address = socket.gethostbyname(hostname)
         except socket.gaierror:
             return False, f"Could not resolve hostname: {hostname}"
@@ -119,6 +124,88 @@ def validate_url(url: str) -> tuple[bool, str | None]:
         return False, f"URL validation failed: {str(e)}"
 
     return True, None
+
+
+async def safe_fetch_url(url: str) -> str | None:
+    """
+    Safely fetch a URL content, strictly following SSRF protection rules
+    even during redirects.
+
+    Args:
+        url: The URL to fetch.
+
+    Returns:
+        The content as a string, or None if failed.
+    """
+    settings = get_settings()
+    max_redirects = 5
+    current_url = url
+    visited_urls = {url}
+
+    # Common User-Agent to avoid being blocked
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; ResearchAgent/1.0; +http://example.com/bot)"
+    }
+
+    # IMPORTANT: verify=True ensures SSL/TLS certificate verification.
+    # Disabling it is a severe security risk (MITM).
+    async with httpx.AsyncClient(verify=True, follow_redirects=False) as client:
+        for _ in range(max_redirects + 1):
+            # 1. Validate the URL (DNS Check + SSRF Check)
+            # Note: validate_url does DNS resolution which may be blocking.
+            # In highly concurrent scenarios, consider running in an executor.
+            # However, the security check is critical.
+            # TOCTOU Warning: There is still a theoretical race condition (DNS rebinding)
+            # between this check and the subsequent fetch. Fixing this fully requires
+            # advanced socket control which is complex. This check catches the majority
+            # of accidental or simple SSRF attempts (including redirect-based ones).
+            is_valid, error = validate_url(current_url)
+            if not is_valid:
+                logger.warning(f"[SSRF] Blocked access to {current_url}: {error}")
+                return None
+
+            try:
+                # 2. Fetch headers only first (optional, but good for checking redirects efficiently)
+                # For simplicity in handling 301/302/200, we just do a GET but without following redirects automatically.
+                # Note: 'stream=True' could be used to inspect headers before downloading body.
+                response = await client.get(current_url, headers=headers, timeout=settings.url_extraction_timeout)
+
+                # 3. Handle Redirects Manually
+                if response.is_redirect:
+                    location = response.headers.get("Location")
+                    if not location:
+                        break
+
+                    # Resolve relative URLs
+                    next_url = str(httpx.URL(current_url).join(location))
+
+                    if next_url in visited_urls:
+                        logger.warning(f"[SSRF] Circular redirect detected: {next_url}")
+                        return None
+
+                    visited_urls.add(next_url)
+                    current_url = next_url
+                    logger.info(f"[SSRF] Redirecting to: {current_url}")
+                    continue
+
+                # 4. Return content if successful
+                if response.status_code == 200:
+                    # Enforce content length limit
+                    if len(response.content) > settings.url_content_max_length:
+                         logger.warning(f"[SSRF] Content too large: {len(response.content)} > {settings.url_content_max_length}")
+                         return truncate_content(response.text, settings.url_content_max_length)
+
+                    return response.text
+
+                # 5. Handle error status
+                logger.warning(f"[SSRF] Failed to fetch {current_url}, status: {response.status_code}")
+                return None
+
+            except Exception as e:
+                logger.error(f"[SSRF] Error fetching {current_url}: {e}")
+                return None
+
+    return None
 
 
 def detect_platform(url: str) -> tuple[str, str | None]:

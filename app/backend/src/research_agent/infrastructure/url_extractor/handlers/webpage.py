@@ -4,7 +4,7 @@ import asyncio
 from typing import Optional
 
 from research_agent.infrastructure.url_extractor.base import ExtractionResult, URLExtractor
-from research_agent.infrastructure.url_extractor.utils import truncate_content
+from research_agent.infrastructure.url_extractor.utils import truncate_content, safe_fetch_url
 from research_agent.shared.utils.logger import logger
 
 
@@ -26,11 +26,9 @@ class WebPageExtractor(URLExtractor):
 
             logger.info(f"[WebPageExtractor] Extracting content from: {url}")
 
-            # Fetch the page (run in thread to avoid blocking)
-            downloaded = await asyncio.to_thread(
-                trafilatura.fetch_url,
-                url,
-            )
+            # Use safe_fetch_url to prevent SSRF
+            # Note: safe_fetch_url is async, so we await it directly
+            downloaded = await safe_fetch_url(url)
 
             if not downloaded:
                 logger.warning(f"[WebPageExtractor] Failed to download: {url}")
@@ -175,4 +173,3 @@ class WebPageExtractor(URLExtractor):
             return match.group(1).strip()
 
         return None
-
