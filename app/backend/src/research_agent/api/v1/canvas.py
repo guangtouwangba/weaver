@@ -175,12 +175,10 @@ async def save_canvas(
 
     try:
         result = await use_case.execute(
-            result=await use_case.execute(
-                SaveCanvasInput(
-                    project_id=project_id,
-                    data=canvas_data,
-                    user_id=user.user_id,
-                )
+            SaveCanvasInput(
+                project_id=project_id,
+                data=canvas_data,
+                user_id=user.user_id,
             )
         )
 
