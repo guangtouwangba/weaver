@@ -1,6 +1,31 @@
-# Vector Store Capability
+# vector-store Specification
 
-## ADDED Requirements
+## Purpose
+TBD - created by archiving change integrate-qdrant-vector-store. Update Purpose after archive.
+## Requirements
+### Requirement: Vector Store Abstract Interface
+The `VectorStore` abstract base class SHALL define the contract for all vector store implementations.
+
+#### Scenario: Search method signature
+- **WHEN** implementing a vector store
+- **THEN** the `search()` method SHALL accept:
+  - `query_embedding: List[float]`
+  - `project_id: UUID`
+  - `limit: int = 5`
+  - `document_id: UUID | None = None`
+- **AND** return `List[SearchResult]`
+
+#### Scenario: Hybrid search method
+- **WHEN** implementing a vector store that supports hybrid search
+- **THEN** the `hybrid_search()` method SHALL accept:
+  - `query_embedding: List[float]`
+  - `query_text: str`
+  - `project_id: UUID`
+  - `limit: int = 5`
+  - `vector_weight: float = 0.7`
+  - `keyword_weight: float = 0.3`
+  - `document_id: UUID | None = None`
+- **AND** return `List[SearchResult]`
 
 ### Requirement: Vector Store Provider Factory
 The system SHALL provide a factory function to create vector store instances based on configuration.
@@ -85,28 +110,3 @@ The system SHALL provide environment-based configuration for Qdrant connection.
 
 ---
 
-## MODIFIED Requirements
-
-### Requirement: Vector Store Abstract Interface
-The `VectorStore` abstract base class SHALL define the contract for all vector store implementations.
-
-#### Scenario: Search method signature
-- **WHEN** implementing a vector store
-- **THEN** the `search()` method SHALL accept:
-  - `query_embedding: List[float]`
-  - `project_id: UUID`
-  - `limit: int = 5`
-  - `document_id: UUID | None = None`
-- **AND** return `List[SearchResult]`
-
-#### Scenario: Hybrid search method
-- **WHEN** implementing a vector store that supports hybrid search
-- **THEN** the `hybrid_search()` method SHALL accept:
-  - `query_embedding: List[float]`
-  - `query_text: str`
-  - `project_id: UUID`
-  - `limit: int = 5`
-  - `vector_weight: float = 0.7`
-  - `keyword_weight: float = 0.3`
-  - `document_id: UUID | None = None`
-- **AND** return `List[SearchResult]`
