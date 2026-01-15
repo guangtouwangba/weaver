@@ -6,6 +6,7 @@ import {
   Surface,
   IconButton,
   Spinner,
+  Text,
 } from '@/components/ui';
 import { colors, radii, fontSize } from '@/components/ui/tokens';
 import {

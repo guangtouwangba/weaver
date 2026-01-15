@@ -163,6 +163,7 @@ interface MarkdownContentProps {
   citations?: Citation[];
   documents: ProjectDocument[];
   onCitationClick: (citation: Citation) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   playVideo?: (videoId: string, options?: any) => void;
 }
 
@@ -636,6 +637,7 @@ export default function AssistantPanel({ visible, width, onToggle }: AssistantPa
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleInputChange = (e: any) => {
     const value = e.target.value;
     setInput(value);

@@ -2,7 +2,7 @@ import { Button, Surface, Text } from '@/components/ui/primitives';
 import { Menu, MenuItem } from '@/components/ui/composites';
 import { colors } from '@/components/ui/tokens';
 import { PlusCircle, ChevronDown } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export interface ProjectOption {
     id: string;
@@ -26,14 +26,9 @@ export default function InboxActionFooter({
     const [anchorPosition, setAnchorPosition] = useState<{ top: number; left: number } | null>(null);
     const [menuWidth, setMenuWidth] = useState<number>(200);
 
-    // Set default when projects load
-    useEffect(() => {
-        if (projects.length > 0 && !selectedProjectId) {
-            setSelectedProjectId(projects[0].id);
-        }
-    }, [projects, selectedProjectId]);
-
-    const selectedProjectName = projects.find(p => p.id === selectedProjectId)?.name;
+    // Determine effective project ID (user selected or default to first)
+    const activeProjectId = selectedProjectId || projects[0]?.id || '';
+    const selectedProjectName = projects.find(p => p.id === activeProjectId)?.name;
 
     const handleMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -79,7 +74,7 @@ export default function InboxActionFooter({
                                 justifyContent: 'space-between',
                                 borderColor: colors.border.default,
                                 fontWeight: 400,
-                                color: selectedProjectId ? colors.text.primary : colors.text.muted
+                                color: activeProjectId ? colors.text.primary : colors.text.muted
                             }}
                         >
                             {selectedProjectName || (projects.length === 0 ? "No projects available" : "Select Project")}
@@ -97,7 +92,7 @@ export default function InboxActionFooter({
                                     <MenuItem
                                         key={p.id}
                                         onClick={() => handleProjectSelect(p.id)}
-                                        style={{ backgroundColor: p.id === selectedProjectId ? colors.neutral[100] : undefined }}
+                                        style={{ backgroundColor: p.id === activeProjectId ? colors.neutral[100] : undefined }}
                                     >
                                         {p.name}
                                     </MenuItem>
@@ -108,8 +103,8 @@ export default function InboxActionFooter({
 
                     <Button
                         variant="primary"
-                        disabled={disabled || !selectedProjectId}
-                        onClick={() => onAddToProject(selectedProjectId)}
+                        disabled={disabled || !activeProjectId}
+                        onClick={() => onAddToProject(activeProjectId)}
                         style={{
                             backgroundColor: '#F0FDFA', // Teal-50
                             color: colors.primary[600],

@@ -97,6 +97,7 @@ export default function PDFPreviewModal() {
                 const list = await highlightsApi.list(activeDocument.id);
                 const processed = list.map(h => ({
                     ...h,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     rects: h.rects ? h.rects.map((r: any) => new DOMRect(r.left, r.top, r.width, r.height)) : []
                 }));
                 setHighlights(processed);

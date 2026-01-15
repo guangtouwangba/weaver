@@ -46,6 +46,7 @@ export default function CommandPalette({
   maxHeight = 340,
 }: CommandPaletteProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [prevCommandCount, setPrevCommandCount] = useState(0);
 
   const filteredCommands = useMemo(() => {
     const query = input.startsWith('/') ? input.slice(1) : input;
@@ -55,9 +56,10 @@ export default function CommandPalette({
     return filterCommands(query);
   }, [input]);
 
-  useEffect(() => {
+  if (filteredCommands.length !== prevCommandCount) {
+    setPrevCommandCount(filteredCommands.length);
     setSelectedIndex(0);
-  }, [filteredCommands.length]);
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

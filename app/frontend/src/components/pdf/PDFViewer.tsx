@@ -52,9 +52,21 @@ export function PDFViewer({
   highlights: controlledHighlights,
 }: PDFViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(800);
   const [internalHighlights, setInternalHighlights] = useState<Highlight[]>([]);
 
   const highlights = controlledHighlights || internalHighlights;
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const [textSelection, setTextSelection] = useState<TextSelection | null>(null);
 
@@ -290,7 +302,7 @@ export function PDFViewer({
       }
       setErrorMessage('Failed to create highlight');
     }
-  }, [pendingNoteSelection, noteText, documentId, onHighlightCreate]);
+  }, [pendingNoteSelection, noteText, documentId, onHighlightCreate, controlledHighlights]);
 
   const handleCopy = useCallback(() => {
     if (textSelection) {
@@ -333,7 +345,7 @@ export function PDFViewer({
       }
       setErrorMessage('Failed to delete highlight');
     }
-  }, [selectedHighlight, documentId, onHighlightDelete]);
+  }, [selectedHighlight, documentId, onHighlightDelete, controlledHighlights]);
 
   const handleEditHighlight = useCallback(() => {
     if (!selectedHighlight) return;
@@ -363,7 +375,7 @@ export function PDFViewer({
       }
       setErrorMessage('Failed to update note');
     }
-  }, [selectedHighlight, noteText, documentId, onHighlightUpdate]);
+  }, [selectedHighlight, noteText, documentId, onHighlightUpdate, controlledHighlights]);
 
   const handleChangeColor = useCallback(async (color: HighlightColor) => {
     if (!selectedHighlight) return;
@@ -385,14 +397,14 @@ export function PDFViewer({
       }
       setErrorMessage('Failed to update color');
     }
-  }, [selectedHighlight, documentId, onHighlightUpdate]);
+  }, [selectedHighlight, documentId, onHighlightUpdate, controlledHighlights]);
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <PDFViewerWrapper
         fileUrl={fileUrl}
         pageNumber={pageNumber}
-        width={containerRef.current?.clientWidth || 800}
+        width={width}
         onPageChange={onPageChange}
         onDocumentLoad={onDocumentLoad}
         onTextSelect={() => { }}

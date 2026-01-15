@@ -10,6 +10,7 @@ import { projectsApi } from "@/lib/api";
 interface CreateProjectDialogProps {
   open: boolean;
   onClose: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onProjectCreated?: (project: any) => void;
 }
 
@@ -36,7 +37,7 @@ export default function CreateProjectDialog({ open, onClose, onProjectCreated }:
       }
 
       handleClose();
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setError(err.message || 'Failed to create project');
     } finally {
       setCreating(false);

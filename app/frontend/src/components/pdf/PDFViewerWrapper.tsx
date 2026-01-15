@@ -67,6 +67,7 @@ export function PDFViewerWrapper({
       viewer.currentScaleValue = 'page-width'; // Scale to page width by default
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     eventBus.on('pagechanging', (evt: any) => {
       if (evt.pageNumber !== pageNumber) {
         onPageChange(evt.pageNumber);

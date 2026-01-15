@@ -247,10 +247,10 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
 
   // Render tracking
   const renderCountRef = useRef(0);
-  renderCountRef.current++;
 
   // Log render count periodically (every 10 renders during drag)
   useEffect(() => {
+    renderCountRef.current++;
     if (dragState && renderCountRef.current % 10 === 0) {
       console.log(`[Perf] Overlay render count: ${renderCountRef.current}`);
     }
@@ -274,7 +274,7 @@ export default function GenerationOutputsOverlay({ viewport }: GenerationOutputs
 
   // Performance tracking
   const frameCountRef = useRef(0);
-  const lastFrameTimeRef = useRef(performance.now());
+  const lastFrameTimeRef = useRef(0);
   const dragStartTimeRef = useRef(0);
 
   // Handle drag start
