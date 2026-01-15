@@ -86,7 +86,7 @@ export default function DashboardPage() {
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
       setProjects(sortedProjects);
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setError(err.message || 'Failed to load projects');
     } finally {
       setLoading(false);
@@ -135,7 +135,7 @@ export default function DashboardPage() {
       toast.success('Project Deleted', `Project "${projectToDelete.name}" has been removed.`);
       setDeleteDialogOpen(false);
       setProjectToDelete(null);
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       toast.error('Delete Failed', err.message || 'Failed to delete project');
     } finally {
       setDeleting(false);

@@ -333,7 +333,7 @@ export default function InspirationDock() {
                     }}
                     className={`more-action-item ${action.isGenerating ? 'generating' : ''}`}
                     style={{
-                      // @ts-ignore
+                      // @ts-expect-error - Custom CSS variable
                       '--action-bg': `${action.color}11`,
                       '--action-border': `${action.color}33`,
                     }}

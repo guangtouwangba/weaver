@@ -108,6 +108,7 @@ export default function InboxPage() {
         }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleProjectCreated = async (newProject: any) => {
         // Add to project list
         setProjects(prev => [...prev, { id: newProject.id, name: newProject.name }]);

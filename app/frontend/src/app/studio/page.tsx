@@ -63,7 +63,7 @@ export default function StudioIndexPage() {
       setCreateError(null);
       const project = await projectsApi.create(newProjectName, newProjectDescription || undefined);
       router.push(`/studio/${project.id}`);
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setCreateError(err.message || 'Failed to create project');
     } finally {
       setCreating(false);

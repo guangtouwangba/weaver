@@ -185,6 +185,7 @@ function StudioPageContent() {
               onNodesChange={setCanvasNodes}
               onEdgesChange={setCanvasEdges}
               onViewportChange={setCanvasViewport}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onNodeAdd={(node) => addNodeToCanvas(node as any)}
               onOpenImport={() => setIsImportDialogOpen(true)}
               toolMode={interactionMode === 'pan' ? 'hand' : interactionMode}
