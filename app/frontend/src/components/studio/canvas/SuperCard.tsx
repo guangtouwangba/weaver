@@ -9,10 +9,10 @@
  * - TicketCard: For action lists with interactive checkboxes
  */
 
-import React, { useState, useCallback } from 'react';
-import { Group, Rect, Text, Line, Circle } from 'react-konva';
+import React, { useCallback } from 'react';
+import { Group, Rect, Text, Circle } from 'react-konva';
 import Konva from 'konva';
-import { ArticleData, ActionListData, ActionItem, ArticleSection } from '@/lib/api';
+import { ArticleData, ActionListData, ActionItem } from '@/lib/api';
 
 // ============================================================================
 // Shared Types & Constants
@@ -451,4 +451,3 @@ export const SuperCard: React.FC<SuperCardProps> = ({
     />
   );
 };
-

@@ -11,9 +11,9 @@
 import React, { useState, useCallback } from 'react';
 import { Dialog } from '@/components/ui/composites';
 import { Button, Stack, Text, Surface, IconButton } from '@/components/ui';
-import { CloseIcon, EditIcon, DeleteIcon, AddIcon, CheckIcon, SaveIcon } from '@/components/ui/icons';
-import { ArticleData, ActionListData, ActionItem, ArticleSection } from '@/lib/api';
-import { colors, shadows } from '@/components/ui/tokens';
+import { EditIcon, DeleteIcon, AddIcon, CheckIcon, SaveIcon } from '@/components/ui/icons';
+import { ArticleData, ActionListData, ActionItem } from '@/lib/api';
+import { colors } from '@/components/ui/tokens';
 
 // ============================================================================
 // Document Card Modal (Article Viewer/Editor)
@@ -406,4 +406,3 @@ export const TicketCardModal: React.FC<TicketCardModalProps> = ({
     </Dialog>
   );
 };
-

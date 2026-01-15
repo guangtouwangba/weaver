@@ -13,7 +13,7 @@ import React, { useState, useRef, useEffect, memo } from 'react';
 import { Surface, Stack, Text, IconButton, Button, Chip, Modal } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import { CloseIcon, FullscreenIcon, AutoAwesomeIcon, TrendingUpIcon, PeopleIcon, ArrowForwardIcon, ContentCopyIcon, OpenWithIcon, DeleteIcon } from '@/components/ui/icons';
-import { SummaryData, KeyFinding } from '@/lib/api';
+import { SummaryData } from '@/lib/api';
 
 interface SummaryCanvasNodeProps {
   id: string;
@@ -24,7 +24,7 @@ interface SummaryCanvasNodeProps {
   viewport: { x: number; y: number; scale: number };
   onClose: () => void;
   onDragStart?: (e: React.MouseEvent) => void;
-  onDragEnd?: () => void;
+  // onDragEnd?: () => void; // Unused
   /** External drag state control from parent (GenerationOutputsOverlay) */
   isDragging?: boolean;
 }
@@ -38,16 +38,16 @@ function SummaryCanvasNodeInner({
   viewport,
   onClose,
   onDragStart,
-  onDragEnd,
+  // onDragEnd, // Unused
   isDragging = false, // Controlled by parent (GenerationOutputsOverlay)
 }: SummaryCanvasNodeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Performance: track renders
   const renderCountRef = useRef(0);
-  renderCountRef.current++;
 
   useEffect(() => {
+    renderCountRef.current++;
     if (isDragging && renderCountRef.current % 10 === 0) {
       console.log(`[Perf][SummaryNode ${id}] Render count: ${renderCountRef.current}`);
     }

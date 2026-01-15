@@ -221,7 +221,8 @@ export interface Obstacle {
 export function getOrthogonalPath(
   source: AnchorPoint,
   target: AnchorPoint,
-  obstacles: Obstacle[] = []
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _obstacles: Obstacle[] = []
 ): number[] {
   const points: Point[] = [{ x: source.x, y: source.y }];
 

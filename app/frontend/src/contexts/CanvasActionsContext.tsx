@@ -9,7 +9,7 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useCanvasDispatch } from '@/hooks/useCanvasDispatch';
-import { CanvasDispatch, CanvasAction, ActionResult } from '@/lib/canvasActions';
+import { CanvasDispatch } from '@/lib/canvasActions';
 
 interface CanvasActionsContextValue {
   dispatch: CanvasDispatch;
@@ -59,4 +59,3 @@ export function useDispatch(): CanvasDispatch {
   const { dispatch } = useCanvasActionsContext();
   return dispatch;
 }
-

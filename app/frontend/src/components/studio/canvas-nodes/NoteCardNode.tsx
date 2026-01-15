@@ -39,9 +39,9 @@ function NoteCardNodeInner({
 }: NoteCardNodeProps) {
     // Performance tracking
     const renderCountRef = useRef(0);
-    renderCountRef.current++;
 
     useEffect(() => {
+        renderCountRef.current++;
         if (isDragging && renderCountRef.current % 10 === 0) {
             console.log(`[Perf][NoteCardNode ${id}] Render count: ${renderCountRef.current}`);
         }

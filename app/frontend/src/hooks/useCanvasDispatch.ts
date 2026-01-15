@@ -7,7 +7,7 @@
 
 import { useCallback } from 'react';
 import { useStudio, GenerationType } from '@/contexts/StudioContext';
-import { CanvasNode, CanvasEdge, canvasApi, outputsApi } from '@/lib/api';
+import { CanvasNode, CanvasEdge, canvasApi } from '@/lib/api';
 import {
   CanvasAction,
   ActionResult,
@@ -18,7 +18,8 @@ interface UseCanvasDispatchOptions {
   onOpenImport?: () => void;
 }
 
-export function useCanvasDispatch(options: UseCanvasDispatchOptions = {}): {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function useCanvasDispatch(_options: UseCanvasDispatchOptions = {}): {
   dispatch: CanvasDispatch;
   // Selection state (read-only)
   selectedNodeIds: string[];
@@ -34,8 +35,6 @@ export function useCanvasDispatch(options: UseCanvasDispatchOptions = {}): {
     setCanvasViewport,
     addNodeToCanvas,
     startGeneration,
-    documents,
-    selectedDocumentIds,
   } = useStudio();
 
   // Selection state - managed locally since StudioContext doesn't have it
@@ -44,7 +43,7 @@ export function useCanvasDispatch(options: UseCanvasDispatchOptions = {}): {
   const selectedNodeIds: string[] = [];
   const selectedEdgeId: string | null = null;
 
-  const dispatch = useCallback((action: CanvasAction): ActionResult => {
+  const dispatch = useCallback(function dispatchAction(action: CanvasAction): ActionResult {
     try {
       switch (action.type) {
         // ====================================================================
@@ -302,7 +301,7 @@ export function useCanvasDispatch(options: UseCanvasDispatchOptions = {}): {
         case 'batch': {
           const results: ActionResult[] = [];
           for (const subAction of action.payload.actions) {
-            results.push(dispatch(subAction));
+            results.push(dispatchAction(subAction));
           }
           const hasError = results.some(r => !r.success);
           return {
@@ -341,4 +340,3 @@ export function useCanvasDispatch(options: UseCanvasDispatchOptions = {}): {
     selectedEdgeId,
   };
 }
-

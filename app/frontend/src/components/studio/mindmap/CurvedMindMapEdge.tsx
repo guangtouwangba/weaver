@@ -23,7 +23,8 @@ interface CurvedMindMapEdgeProps {
 }
 
 export const CurvedMindMapEdge: React.FC<CurvedMindMapEdgeProps> = ({
-  edge,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  edge: _edge, // Unused but kept for props
   sourceNode,
   targetNode,
   showAnchors = true,
@@ -42,6 +43,30 @@ export const CurvedMindMapEdge: React.FC<CurvedMindMapEdgeProps> = ({
     });
   }, [shouldAnimate]);
 
+  // Calculate connection points unconditionally to satisfy hooks rules,
+  // but use defaults if nodes are missing
+  const sourceWidth = sourceNode?.width || 200;
+  const sourceHeight = sourceNode?.height || 80;
+  const sourceX = (sourceNode?.x || 0) + sourceWidth;
+  const sourceY = (sourceNode?.y || 0) + sourceHeight / 2;
+
+  const targetHeight = targetNode?.height || 80;
+  const targetX = targetNode?.x || 0;
+  const targetY = (targetNode?.y || 0) + targetHeight / 2;
+
+  const horizontalDistance = Math.abs(targetX - sourceX);
+  const controlOffset = Math.max(horizontalDistance * 0.4, 40);
+
+  const bezierPoints = useMemo(() => {
+    return [
+      sourceX, sourceY,                    // Start point
+      sourceX + controlOffset, sourceY,    // Control point 1
+      targetX - controlOffset, targetY,    // Control point 2
+      targetX, targetY,                    // End point
+    ];
+  }, [sourceX, sourceY, targetX, targetY, controlOffset]);
+
+  // Early return after hooks
   if (!sourceNode || !targetNode) return null;
 
   // Get edge color based on source node state
@@ -61,32 +86,6 @@ export const CurvedMindMapEdge: React.FC<CurvedMindMapEdgeProps> = ({
 
   const edgeColor = getEdgeColor();
   const isActiveEdge = sourceNode.status === 'generating' || sourceNode.depth === 0;
-
-  // Calculate connection points
-  // Source: right-center of source node
-  const sourceWidth = sourceNode.width || 200;
-  const sourceHeight = sourceNode.height || 80;
-  const sourceX = sourceNode.x + sourceWidth;
-  const sourceY = sourceNode.y + sourceHeight / 2;
-
-  // Target: left-center of target node
-  const targetHeight = targetNode.height || 80;
-  const targetX = targetNode.x;
-  const targetY = targetNode.y + targetHeight / 2;
-
-  // Calculate Bezier control points for smooth S-curve
-  const horizontalDistance = Math.abs(targetX - sourceX);
-  const controlOffset = Math.max(horizontalDistance * 0.4, 40);
-
-  // Create smooth Bezier curve points
-  const bezierPoints = useMemo(() => {
-    return [
-      sourceX, sourceY,                    // Start point
-      sourceX + controlOffset, sourceY,    // Control point 1
-      targetX - controlOffset, targetY,    // Control point 2
-      targetX, targetY,                    // End point
-    ];
-  }, [sourceX, sourceY, targetX, targetY, controlOffset]);
 
   // Determine if edge should be dashed
   const isDashed = targetNode.status !== 'complete' || sourceNode.status !== 'complete';
@@ -133,11 +132,3 @@ export const CurvedMindMapEdge: React.FC<CurvedMindMapEdgeProps> = ({
 };
 
 export default CurvedMindMapEdge;
-
-
-
-
-
-
-
-

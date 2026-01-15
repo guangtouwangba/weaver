@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { colors, radii } from '../tokens';
+import { colors } from '../tokens';
 
 /**
  * Checkbox Component

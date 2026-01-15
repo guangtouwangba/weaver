@@ -8,7 +8,7 @@
  * 4. Heading hierarchy correctness
  */
 
-import { parseMarkdownToMindmap, ParseResult } from '../mindmap-parser';
+import { parseMarkdownToMindmap } from '../mindmap-parser';
 
 // Test markdown with table (from user's example)
 const MARKDOWN_WITH_TABLE = `- 提取最佳短句、共鸣观点、原创框架

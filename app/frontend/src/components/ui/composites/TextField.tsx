@@ -158,8 +158,6 @@ export const TextField = React.forwardRef<HTMLInputElement | HTMLTextAreaElement
             } as React.CSSProperties,
         };
 
-        const InputComponent = multiline ? 'textarea' : 'input';
-
         return (
             <div
                 className={className}

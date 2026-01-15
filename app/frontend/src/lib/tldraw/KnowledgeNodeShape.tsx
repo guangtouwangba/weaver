@@ -45,8 +45,11 @@ export class KnowledgeNodeUtil extends BaseBoxShapeUtil<KnowledgeNodeShape> {
   static override type = 'knowledge-node' as const
   static override props = knowledgeNodeShapeProps
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   override isAspectRatioLocked = (_shape: KnowledgeNodeShape) => false
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   override canResize = (_shape: KnowledgeNodeShape) => true
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   override canBind = (_shape: KnowledgeNodeShape) => true
 
   getDefaultProps(): KnowledgeNodeShape['props'] {
@@ -206,11 +209,6 @@ export class KnowledgeNodeUtil extends BaseBoxShapeUtil<KnowledgeNodeShape> {
     )
   }
 }
-
-
-
-
-
 
 
 

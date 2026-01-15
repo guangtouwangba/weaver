@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { Surface, Stack, Text, IconButton, Button, Chip, TextField } from '@/components/ui';
+import { Stack, Text, IconButton, Button, Chip, TextField } from '@/components/ui';
 import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   CloseIcon,

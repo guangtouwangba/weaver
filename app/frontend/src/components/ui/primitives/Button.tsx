@@ -112,7 +112,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             startIcon,
             endIcon,
             children,
-            className,
+            className, // Use this if needed, passing to styles or className prop
             style,
             disabled,
             href,
@@ -177,6 +177,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             return (
                 <a
                     href={href}
+                    className={className}
                     style={buttonStyles}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
@@ -184,8 +185,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                     onMouseUp={() => setIsActive(false)}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
-                    onClick={onClick as any}
-                    {...(props as any)}
+                    // Cast onClick to any to satisfy the anchor type requirements as a workaround
+                    // Ideally we would split the props or use a union type
+                    onClick={onClick as React.MouseEventHandler<HTMLAnchorElement>}
+                    {...(props as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
                 >
                     {leftIcon}
                     {children}
@@ -197,6 +200,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         return (
             <button
                 ref={ref}
+                className={className}
                 disabled={isDisabled}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}

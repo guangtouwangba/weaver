@@ -26,14 +26,8 @@ const SparkleIcon: React.FC<{ x: number; y: number; size?: number }> = ({
   x, y, size = 14
 }) => {
   const center = size / 2;
-  const points = [
-    // Vertical line
-    center, 0,
-    center, size,
-    // Horizontal line
-    0, center,
-    size, center,
-  ];
+  // points array was defined but unused
+  // const points = [ ... ]
 
   return (
     <Group x={x} y={y}>
@@ -147,11 +141,3 @@ export const AIInsightBadge: React.FC<AIInsightBadgeProps> = ({
 };
 
 export default AIInsightBadge;
-
-
-
-
-
-
-
-

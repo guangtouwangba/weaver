@@ -20,7 +20,6 @@ import {
   Modal,
   Chip,
   Spinner,
-  Stack,
   Surface,
   Text,
 } from '@/components/ui/primitives';
@@ -51,7 +50,6 @@ import { CurvedMindMapEdge } from './CurvedMindMapEdge';
 import { SourceContextPanel } from './SourceContextPanel';
 import { applyLayout, resolveOverlaps, LayoutType } from './layoutAlgorithms';
 import { useHistory } from '@/hooks/useHistory';
-import { outputsApi } from '@/lib/api';
 
 // ============================================================================
 // Types
@@ -87,35 +85,6 @@ const LOD_THRESHOLDS = {
   LABELS_ONLY: 0.5,
   SIMPLE_SHAPES: 0.3,
 };
-
-// ============================================================================
-// Utility Hooks
-// ============================================================================
-
-function useThrottledCallback<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): T {
-  const lastRun = useRef(Date.now());
-  const rafId = useRef<number | null>(null);
-
-  return useCallback(
-    ((...args) => {
-      const now = Date.now();
-      if (now - lastRun.current >= delay) {
-        lastRun.current = now;
-        callback(...args);
-      } else if (!rafId.current) {
-        rafId.current = requestAnimationFrame(() => {
-          rafId.current = null;
-          lastRun.current = Date.now();
-          callback(...args);
-        });
-      }
-    }) as T,
-    [callback, delay]
-  );
-}
 
 // ============================================================================
 // Toolbar Component
@@ -313,11 +282,28 @@ const NodeEditDialog: React.FC<NodeEditDialogProps> = ({
 }) => {
   const [label, setLabel] = useState(initialLabel);
   const [content, setContent] = useState(initialContent);
+  const [prevOpen, setPrevOpen] = useState(open);
 
-  useEffect(() => {
+  // Sync state with props when dialog opens or initial values change
+  if (open !== prevOpen && open) {
     setLabel(initialLabel);
     setContent(initialContent);
-  }, [initialLabel, initialContent, open]);
+    setPrevOpen(open);
+  } else if (open !== prevOpen) {
+    setPrevOpen(open);
+  }
+
+  // Also sync if initial values change while open
+  // This is a derived state pattern
+  const [prevInitialLabel, setPrevInitialLabel] = useState(initialLabel);
+  const [prevInitialContent, setPrevInitialContent] = useState(initialContent);
+
+  if (open && (initialLabel !== prevInitialLabel || initialContent !== prevInitialContent)) {
+    setLabel(initialLabel);
+    setContent(initialContent);
+    setPrevInitialLabel(initialLabel);
+    setPrevInitialContent(initialContent);
+  }
 
   const handleSave = () => {
     if (label.trim()) {
@@ -375,7 +361,6 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
   initialData,
   title,
   onClose,
-  onSave,
   onOpenSourceRef,
 }) => {
   // State
@@ -387,7 +372,6 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     redo,
     canUndo,
     canRedo,
-    reset: resetData
   } = useHistory<MindmapData>(
     {
       ...initialData,
@@ -523,27 +507,29 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     // If all nodes are positioned and we've done initial layout, skip
     // Unless this is a resize event (handled by dependency change)
     if (!needsLayout && initialLayoutDone.current) {
-      setIsCalculatingLayout(false);
+      // Use setTimeout to avoid synchronous state update warning during render
+      setTimeout(() => setIsCalculatingLayout(false), 0);
       return;
     }
 
     // Defer layout calculation to not block UI
-    setIsCalculatingLayout(true);
-    const timeoutId = setTimeout(() => {
-      const result = applyLayout(
-        data,
-        layoutType,
-        debouncedContainerSize.width || 1200,
-        debouncedContainerSize.height || 800
-      );
+    setTimeout(() => {
+        setIsCalculatingLayout(true);
+        const timeoutId = setTimeout(() => {
+        const result = applyLayout(
+            data,
+            layoutType,
+            debouncedContainerSize.width || 1200,
+            debouncedContainerSize.height || 800
+        );
 
-      setData(prev => ({ ...prev, nodes: result.nodes }));
-      initialLayoutDone.current = true;
-      setIsCalculatingLayout(false);
+        setData(prev => ({ ...prev, nodes: result.nodes }));
+        initialLayoutDone.current = true;
+        setIsCalculatingLayout(false);
+        }, 0);
+        return () => clearTimeout(timeoutId);
     }, 0);
-
-    return () => clearTimeout(timeoutId);
-  }, [debouncedContainerSize.width, debouncedContainerSize.height, data.nodes.length, layoutType]);
+  }, [debouncedContainerSize.width, debouncedContainerSize.height, data.nodes.length, layoutType, data, setData]);
 
   // Node position update
   const handleNodeDragEnd = useCallback(
@@ -662,7 +648,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
       setHasChanges(true);
       setIsCalculatingLayout(false);
     }, 0);
-  }, [data, debouncedContainerSize]);
+  }, [data, debouncedContainerSize, setData]);
 
   // Node selection
   const handleNodeSelect = useCallback((nodeId: string, e?: Konva.KonvaEventObject<MouseEvent>) => {
@@ -824,7 +810,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
       setEditDialogOpen(false);
       setPendingParentId(null);
     },
-    [editMode, pendingParentId, editingNode, data]
+    [editMode, pendingParentId, editingNode, data, setData]
   );
 
   // Export
@@ -944,11 +930,6 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     handleNodeDoubleClick
   ]);
 
-  const selectedNode = useMemo(
-    () => data.nodes.find((n) => n.id === selectedNodeId),
-    [data.nodes, selectedNodeId]
-  );
-
   // Calculate which nodes have children and build node map for efficient lookup
   const { nodesWithChildren, nodeMap } = useMemo(() => {
     const childrenMap = new Map<string, boolean>();
@@ -1034,6 +1015,11 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
     setHasChanges(true);
   }, [data, setData]);
 
+  // Prevent unused variable warning for isDragging if not used yet
+  // But we use setIsDragging
+  // We can just omit isDragging from the destructuring if we don't use it, or use it for cursor style
+  const cursorStyle = isDragging ? 'grabbing' : 'grab';
+
   return (
     <div
       style={{
@@ -1104,6 +1090,7 @@ export const MindMapEditor: React.FC<MindMapEditorProps> = ({
           backgroundColor: '#F8FAFC',
           overflow: 'hidden',
           position: 'relative',
+          cursor: cursorStyle, // Use isDragging state
         }}
       >
         <Stage

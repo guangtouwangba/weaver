@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { colors, radii, fontSize, fontWeight } from '../tokens';
+import Image from 'next/image';
 
 /**
  * Avatar Component
@@ -37,17 +38,18 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
                     fontSize: size ? size * 0.5 : fontSize.md,
                     fontWeight: fontWeight.bold,
                     overflow: 'hidden',
+                    position: 'relative', // Needed for next/image fill
                     ...style,
                 }}
                 {...props}
             >
                 {src ? (
-                    <img 
+                    <Image
                         src={src} 
-                        alt={alt} 
+                        alt={alt || 'Avatar'}
+                        fill
+                        sizes={`${size || 40}px`}
                         style={{ 
-                            width: '100%', 
-                            height: '100%', 
                             objectFit: 'cover' 
                         }} 
                     />
