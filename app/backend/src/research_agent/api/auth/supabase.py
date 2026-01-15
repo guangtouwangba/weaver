@@ -115,7 +115,15 @@ def verify_supabase_jwt(token: str) -> Tuple[bool, Optional[dict], Optional[str]
 
 def _generate_anon_session_id(request: Request) -> str:
     """Generate a deterministic anonymous session ID from request headers."""
-    # Use a combination of headers to create a semi-stable session ID
+    # Check for client-provided anonymous ID (more secure/unique)
+    client_anon_id = request.headers.get("x-anonymous-id")
+    if client_anon_id:
+        # Hash it to ensure uniform format and prevent injection
+        session_hash = hashlib.sha256(client_anon_id.encode()).hexdigest()[:16]
+        return f"anon-{session_hash}"
+
+    # Fallback: Use a combination of headers to create a semi-stable session ID
+    # Note: This is less secure as users with same UA share session
     user_agent = request.headers.get("user-agent", "")
     # For anonymous users, we use a simple hash - not for security, just identification
     session_hash = hashlib.sha256(user_agent.encode()).hexdigest()[:16]

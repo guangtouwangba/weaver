@@ -6,3 +6,11 @@
 2.  Checks if the IP is global (not private, loopback, or link-local).
 3.  Rejects requests to disallowed IPs.
 Note: A robust solution should also handle DNS rebinding (TOCTOU) by validating the IP at the connection level, but pre-validation significantly reduces the attack surface.
+
+## 2026-01-15 - [Insecure Anonymous Session Management]
+**Vulnerability:** Anonymous user sessions were generated solely based on the User-Agent header using `hashlib.sha256(user_agent)`. This caused all users with the same browser configuration (e.g., corporate environments, same browser version) to share the same session and data.
+**Learning:** Relying on `User-Agent` (or even IP + UA) for session identification is insecure due to high collision rates. Client-side generated unique IDs or server-side cookies are necessary.
+**Prevention:** Implemented a hybrid approach:
+1. Frontend generates a unique UUID (v4) and stores it in localStorage.
+2. Frontend sends this UUID in `X-Anonymous-ID` header.
+3. Backend prioritizes `X-Anonymous-ID` for session generation, falling back to User-Agent only for legacy clients.
