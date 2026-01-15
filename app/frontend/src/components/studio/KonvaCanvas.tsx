@@ -5,7 +5,7 @@
  * Replaces DOM-based rendering with HTML5 Canvas for better performance
  */
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
 import { Stage, Layer, Group, Rect, Text, Line, Circle, Image, Path, RegularPolygon } from 'react-konva';
 
 
@@ -1732,7 +1732,7 @@ const SummaryKonvaCard = ({
 };
 
 // Knowledge Node Component
-const KnowledgeNode = ({
+const KnowledgeNode = memo(({
   node,
   isSelected,
   isHighlighted,
@@ -1741,9 +1741,9 @@ const KnowledgeNode = ({
   isConnecting,
   isConnectTarget,
   isActiveThinking,
-  onSelect,
-  onClick,
-  onDoubleClick,
+  onNodeSelect,
+  onNodeClick,
+  onNodeDoubleClick,
   onLinkBack,
   onDragStart,
   onDragMove,
@@ -1765,17 +1765,17 @@ const KnowledgeNode = ({
   isActiveThinking?: boolean;       // Thinking Graph: Is this the active thinking node (fork point)
   isSynthesisSource?: boolean;      // Synthesis: This node is being used as input for synthesis
   isDraggable?: boolean;            // Controls whether the node can be dragged
-  onSelect: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
-  onClick?: () => void;
-  onDoubleClick?: () => void;       // Phase 1: Drill-down
-  onLinkBack?: () => void;          // Phase 1: Navigate to source
-  onDragStart: (e: Konva.KonvaEventObject<DragEvent>) => void;
-  onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
-  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
-  onContextMenu?: (e: Konva.KonvaEventObject<PointerEvent>) => void;
-  onConnectionStart?: () => void;   // Phase 2: Start dragging connection
-  onMouseEnter?: () => void;        // Phase 2: For hover state
-  onMouseLeave?: () => void;        // Phase 2: For hover state
+  onNodeSelect: (nodeId: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
+  onNodeClick?: (node: CanvasNode) => void;
+  onNodeDoubleClick?: (node: CanvasNode) => void;       // Phase 1: Drill-down
+  onLinkBack?: (node: CanvasNode) => void;          // Phase 1: Navigate to source
+  onDragStart: (nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragMove?: (nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragEnd: (nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => void;
+  onContextMenu?: (nodeId: string, e: Konva.KonvaEventObject<PointerEvent>) => void;
+  onConnectionStart?: (nodeId: string) => void;   // Phase 2: Start dragging connection
+  onMouseEnter?: (nodeId: string) => void;        // Phase 2: For hover state
+  onMouseLeave?: (nodeId: string) => void;        // Phase 2: For hover state
 }) => {
 
 
@@ -1819,21 +1819,21 @@ const KnowledgeNode = ({
       opacity={nodeOpacity}
       draggable={isDraggable}
       onClick={(e) => {
-        onSelect(e);
-        onClick?.();
+        onNodeSelect(node.id, e);
+        onNodeClick?.(node);
       }}
       onTap={(e) => {
-        onSelect(e);
-        onClick?.();
+        onNodeSelect(node.id, e);
+        onNodeClick?.(node);
       }}
-      onDblClick={() => onDoubleClick?.()}
-      onDblTap={() => onDoubleClick?.()}
-      onDragStart={onDragStart}
-      onDragMove={onDragMove}
-      onDragEnd={onDragEnd}
-      onContextMenu={onContextMenu}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onDblClick={() => onNodeDoubleClick?.(node)}
+      onDblTap={() => onNodeDoubleClick?.(node)}
+      onDragStart={(e) => onDragStart(node.id, e)}
+      onDragMove={(e) => onDragMove?.(node.id, e)}
+      onDragEnd={(e) => onDragEnd(node.id, e)}
+      onContextMenu={(e) => onContextMenu?.(node.id, e)}
+      onMouseEnter={() => onMouseEnter?.(node.id)}
+      onMouseLeave={() => onMouseLeave?.(node.id)}
     >
       {/* Use specialized cards for different node types */}
       {isSuperArticle ? (
@@ -2023,11 +2023,11 @@ const KnowledgeNode = ({
               y={12}
               onClick={(e) => {
                 e.cancelBubble = true;
-                onLinkBack?.();
+                onLinkBack?.(node);
               }}
               onTap={(e) => {
                 e.cancelBubble = true;
-                onLinkBack?.();
+                onLinkBack?.(node);
               }}
             >
               <Rect
@@ -2136,11 +2136,11 @@ const KnowledgeNode = ({
             y={0}
             onMouseDown={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
             onTouchStart={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
           >
             <Rect
@@ -2161,11 +2161,11 @@ const KnowledgeNode = ({
             y={height}
             onMouseDown={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
             onTouchStart={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
           >
             <Rect
@@ -2186,11 +2186,11 @@ const KnowledgeNode = ({
             y={height / 2}
             onMouseDown={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
             onTouchStart={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
           >
             <Rect
@@ -2211,11 +2211,11 @@ const KnowledgeNode = ({
             y={height / 2}
             onMouseDown={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
             onTouchStart={(e) => {
               e.cancelBubble = true;
-              onConnectionStart?.();
+              onConnectionStart?.(node.id);
             }}
           >
             <Rect
@@ -2291,7 +2291,7 @@ const KnowledgeNode = ({
       )}
     </Group>
   );
-};
+});
 
 
 export default function KonvaCanvas({
@@ -2773,7 +2773,7 @@ export default function KonvaCanvas({
   }, [selectedNodeIds, toolMode, isSpacePressed]);
 
   // Handle Bulk Drag
-  const handleNodeDragStart = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+  const handleNodeDragStart = useCallback((nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => {
     // Prevent drag if in hand mode (though draggable prop should control this)
     if (toolMode === 'hand') {
       e.target.stopDrag();
@@ -2827,9 +2827,9 @@ export default function KonvaCanvas({
       // Selection stays on the moving nodes (original IDs), which is what we want.
     }
 
-  }, [selectedNodeIds, toolMode, nodes, setCrossBoundaryDragNode]);
+  }, [selectedNodeIds, toolMode, nodes, setCrossBoundaryDragNode, onNodesChange]);
 
-  const handleNodeDragMove = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+  const handleNodeDragMove = useCallback((nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     if (!lastDragPosRef.current) return;
 
@@ -2853,7 +2853,7 @@ export default function KonvaCanvas({
     });
   }, [selectedNodeIds]);
 
-  const handleNodeDragEnd = useCallback((nodeId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
+  const handleNodeDragEnd = useCallback((nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true;
     draggedNodeRef.current = null;
     lastDragPosRef.current = null;
@@ -2912,6 +2912,77 @@ export default function KonvaCanvas({
 
     onNodesChange(updatedNodes);
   }, [nodes, selectedNodeIds, onNodesChange, setCrossBoundaryDragNode]);
+
+  const handleNodeClick = useCallback((node: CanvasNode) => {
+    if (node.type === 'thinking_step' || node.type === 'thinking_branch') {
+      setActiveThinkingId(node.id);
+    }
+    onNodeClick?.(node);
+  }, [onNodeClick, setActiveThinkingId]);
+
+  const handleNodeDoubleClick = useCallback((node: CanvasNode) => {
+    const fileType = node.fileMetadata?.fileType;
+    const isVideoType = ['youtube', 'video', 'bilibili', 'douyin'].includes(fileType || '');
+
+    // Handle video types first (YouTube, Bilibili, etc.) - open player modal
+    if (isVideoType) {
+      setYoutubePlayer({ open: true, node });
+    } else if (node.subType === 'source' && node.sourceId) {
+      // Handle other source nodes (web, pdf, etc.)
+      if (fileType === 'web') {
+        // Open web page reader
+        setWebPageReader({ open: true, node });
+      } else {
+        // PDF or other doc
+        onOpenSource?.(node.sourceId, node.sourcePage);
+      }
+    } else if (node.type === 'super_article') {
+      // Open Article Editor for super_article nodes
+      setEditingSuperCardId(node.id);
+      setEditingSuperCardType('article');
+    } else if (node.type === 'super_action_list') {
+      // Open Action List Editor for super_action_list nodes
+      setEditingSuperCardId(node.id);
+      setEditingSuperCardType('action_list');
+    } else if (node.type === 'mindmap') {
+      // Open Mindmap Editor for mindmap nodes
+      setEditingSuperCardId(node.id);
+      setEditingSuperCardType('mindmap');
+    } else if (node.type === 'summary') {
+      // Open Summary Viewer for summary nodes
+      setEditingSuperCardId(node.id);
+      setEditingSuperCardType('summary');
+    } else {
+      setEditingNodeId(node.id);
+    }
+    onNodeDoubleClick?.(node);
+  }, [onNodeDoubleClick, onOpenSource, setEditingNodeId, setEditingSuperCardId, setEditingSuperCardType, setWebPageReader, setYoutubePlayer]);
+
+  const handleNodeLinkBack = useCallback((node: CanvasNode) => {
+    // Phase 1: Navigate to source document
+    if (node.sourceId) {
+      onOpenSource?.(node.sourceId, node.sourcePage);
+    }
+  }, [onOpenSource]);
+
+  const handleNodeContextMenu = useCallback((nodeId: string, e: Konva.KonvaEventObject<PointerEvent>) => {
+    e.evt.preventDefault();
+    e.cancelBubble = true; // Stop propagation to stage
+    setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: nodeId });
+  }, []);
+
+  const handleConnectionStart = useCallback((nodeId: string) => {
+    // Phase 2: Start connection drag
+    setConnectingFromNodeId(nodeId);
+  }, []);
+
+  const handleNodeMouseEnter = useCallback((nodeId: string) => {
+    setHoveredNodeId(nodeId);
+  }, []);
+
+  const handleNodeMouseLeave = useCallback((nodeId: string) => {
+    setHoveredNodeId(null);
+  }, []);
 
   // Handle wheel zoom and pan (with throttling for smooth Mac trackpad scrolling)
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -3303,6 +3374,16 @@ export default function KonvaCanvas({
     },
     [nodes, onNodesChange, mergeTargetNodeId, draggedNodeId]
   );
+
+  const handleCombinedDragMove = useCallback((nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    handleNodeDragMove(nodeId, e);
+    handleNodeDragMoveWithMerge(e);
+  }, [handleNodeDragMove, handleNodeDragMoveWithMerge]);
+
+  const handleCombinedDragEnd = useCallback((nodeId: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    handleNodeDragEnd(nodeId, e);
+    handleNodeDragEndWithMerge(e);
+  }, [handleNodeDragEnd, handleNodeDragEndWithMerge]);
 
   // P1: Edge Reconnection Handlers
   const handleEdgeHandleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>, edgeId: string, type: 'source' | 'target') => {
@@ -4820,77 +4901,17 @@ export default function KonvaCanvas({
                   isActiveThinking={activeThinkingId === node.id}
                   isSynthesisSource={pendingSynthesisResult?.sourceNodeIds?.includes(node.id) ?? false}
                   isDraggable={toolMode === 'select' && !isSpacePressed}
-                  onSelect={(e) => handleNodeSelect(node.id, e)}
-                  onClick={() => {
-                    // Thinking Graph: Set as active thinking node when clicked
-                    if (node.type === 'thinking_step' || node.type === 'thinking_branch') {
-                      setActiveThinkingId(node.id);
-                    }
-                    onNodeClick?.(node);
-                  }}
-                  onDoubleClick={() => {
-                    const fileType = node.fileMetadata?.fileType;
-                    const isVideoType = ['youtube', 'video', 'bilibili', 'douyin'].includes(fileType || '');
-
-                    // Handle video types first (YouTube, Bilibili, etc.) - open player modal
-                    if (isVideoType) {
-                      setYoutubePlayer({ open: true, node });
-                    } else if (node.subType === 'source' && node.sourceId) {
-                      // Handle other source nodes (web, pdf, etc.)
-                      if (fileType === 'web') {
-                        // Open web page reader
-                        setWebPageReader({ open: true, node });
-                      } else {
-                        // PDF or other doc
-                        onOpenSource?.(node.sourceId, node.sourcePage);
-                      }
-                    } else if (node.type === 'super_article') {
-                      // Open Article Editor for super_article nodes
-                      setEditingSuperCardId(node.id);
-                      setEditingSuperCardType('article');
-                    } else if (node.type === 'super_action_list') {
-                      // Open Action List Editor for super_action_list nodes
-                      setEditingSuperCardId(node.id);
-                      setEditingSuperCardType('action_list');
-                    } else if (node.type === 'mindmap') {
-                      // Open Mindmap Editor for mindmap nodes
-                      setEditingSuperCardId(node.id);
-                      setEditingSuperCardType('mindmap');
-                    } else if (node.type === 'summary') {
-                      // Open Summary Viewer for summary nodes
-                      setEditingSuperCardId(node.id);
-                      setEditingSuperCardType('summary');
-                    } else {
-                      setEditingNodeId(node.id);
-                    }
-                    onNodeDoubleClick?.(node);
-                  }}
-                  onLinkBack={() => {
-                    // Phase 1: Navigate to source document
-                    if (node.sourceId) {
-                      onOpenSource?.(node.sourceId, node.sourcePage);
-                    }
-                  }}
-                  onDragStart={handleNodeDragStart(node.id)}
-                  onDragMove={(e) => {
-                    handleNodeDragMove(node.id)(e);
-                    handleNodeDragMoveWithMerge(e);
-                  }}
-                  onDragEnd={(e) => {
-                    handleNodeDragEnd(node.id)(e);
-                    handleNodeDragEndWithMerge(e);
-                  }}
-                  onContextMenu={(e) => {
-                    e.evt.preventDefault();
-                    e.cancelBubble = true; // Stop propagation to stage
-                    setContextMenu({ x: e.evt.clientX, y: e.evt.clientY, nodeId: node.id });
-                  }}
-                  onConnectionStart={() => {
-                    // Phase 2: Start connection drag
-                    setConnectingFromNodeId(node.id);
-                  }}
-                  onMouseEnter={() => setHoveredNodeId(node.id)}
-                  onMouseLeave={() => setHoveredNodeId(null)}
+                  onNodeSelect={handleNodeSelect}
+                  onNodeClick={handleNodeClick}
+                  onNodeDoubleClick={handleNodeDoubleClick}
+                  onLinkBack={handleNodeLinkBack}
+                  onDragStart={handleNodeDragStart}
+                  onDragMove={handleCombinedDragMove}
+                  onDragEnd={handleCombinedDragEnd}
+                  onContextMenu={handleNodeContextMenu}
+                  onConnectionStart={handleConnectionStart}
+                  onMouseEnter={handleNodeMouseEnter}
+                  onMouseLeave={handleNodeMouseLeave}
                 />
               );
             })}
