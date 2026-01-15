@@ -370,6 +370,32 @@ export function setAuthTokenGetter(getter: () => Promise<string | null>): void {
   _getAuthToken = getter;
 }
 
+// Helper to get or create anonymous ID
+function getAnonymousId(): string {
+  if (typeof window === 'undefined') return '';
+
+  const STORAGE_KEY = 'weaver_anon_id';
+  let id = localStorage.getItem(STORAGE_KEY);
+
+  if (!id) {
+    // Generate new ID (UUID v4 if available, otherwise random string)
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      id = crypto.randomUUID();
+    } else {
+      // Fallback for older browsers / non-secure contexts
+      id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (
+        c
+      ) {
+        const r = (Math.random() * 16) | 0,
+          v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    }
+    localStorage.setItem(STORAGE_KEY, id);
+  }
+  return id;
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -379,6 +405,7 @@ async function fetchApi<T>(
   // Get auth token if available
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Anonymous-ID': getAnonymousId(),
     ...(options.headers as Record<string, string>),
   };
 
@@ -582,7 +609,9 @@ export const documentsApi = {
     formData.append('file', file);
 
     // Build headers with auth token (don't set Content-Type, let browser handle multipart boundary)
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      'X-Anonymous-ID': getAnonymousId(),
+    };
 
     // Try to get auth token - with fallback for hot-reload scenarios where setter wasn't called
     let token: string | null = null;
@@ -666,6 +695,7 @@ export const chatApi = {
     // Get auth token for the request
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'X-Anonymous-ID': getAnonymousId(),
     };
 
     let token: string | null = null;
