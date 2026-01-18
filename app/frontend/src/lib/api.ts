@@ -108,6 +108,7 @@ export interface ProjectDocument {
   filename: string;
   file_size: number;
   page_count: number;
+  mime_type?: string;
   status: 'pending' | 'processing' | 'ready' | 'error';
   graph_status?: 'pending' | 'processing' | 'ready' | 'error';
   summary?: string; // Document summary (generated during processing)

@@ -218,11 +218,17 @@ _registry = ParserRegistry()
 
 def _initialize_default_parsers():
     """Register default parsers."""
+    from research_agent.infrastructure.parser.text_parser import TextParser
+
     # Register PyMuPDF for PDF (lightweight, no system deps like libGL)
     _registry.register(PyMuPDFDocumentParser)
     # Register Unstructured for Word/PPT (no [pdf] extra to avoid cv2/libGL)
     _registry.register(UnstructuredParser)
-    logger.info("Default document parsers registered (PyMuPDF for PDF, Unstructured for DOCX/PPTX)")
+    # Register TextParser for plain text files
+    _registry.register(TextParser)
+    logger.info(
+        "Default document parsers registered (PyMuPDF for PDF, Unstructured for DOCX/PPTX, TextParser for TXT)"
+    )
 
 
 # Initialize on module load
@@ -320,13 +326,18 @@ class ParserFactory:
 
         # Step 1: Choose parser based on file type
         # - PDF: Use PyMuPDF (lightweight, no system deps)
-        # - DOCX/PPTX: Use Unstructured
+        # - Other formats: Use registry to find appropriate parser
         if is_pdf:
             default_parser = PyMuPDFDocumentParser()
             logger.debug("[SmartOCR] Using PyMuPDF for PDF")
         else:
-            default_parser = UnstructuredParser()
-            logger.debug("[SmartOCR] Using Unstructured for non-PDF")
+            # Use registry to get the best parser for this file type
+            default_parser = _registry.get_parser(mime_type, extension)
+            if default_parser is None:
+                default_parser = UnstructuredParser()
+                logger.debug("[SmartOCR] No registered parser found, using Unstructured")
+            else:
+                logger.debug(f"[SmartOCR] Using {default_parser.parser_name} for {extension}")
 
         try:
             result = await default_parser.parse(file_path)
@@ -444,7 +455,13 @@ class ParserFactory:
             if is_pdf:
                 parser = PyMuPDFDocumentParser()
             else:
-                parser = UnstructuredParser()
+                # Use registry to get the best parser for this file type
+                parser = _registry.get_parser(mime_type, extension)
+                if parser is None:
+                    parser = UnstructuredParser()
+                    logger.debug("[ParseWithMode] No registered parser, using Unstructured")
+                else:
+                    logger.debug(f"[ParseWithMode] Using {parser.parser_name} for {extension}")
             return await parser.parse(file_path)
 
         # STANDARD MODE: Auto-detect + Gemini OCR fallback
@@ -476,12 +493,19 @@ class ParserFactory:
                         extension=extension,
                     )
             else:
-                # For non-PDF/image formats, use Unstructured (Quality mode doesn't help)
-                logger.info(
-                    f"[ParseWithMode] Quality mode not applicable for extension '{extension}', "
-                    "using Unstructured parser"
-                )
-                parser = UnstructuredParser()
+                # For non-PDF/image formats, use registry to find appropriate parser
+                parser = _registry.get_parser(mime_type, extension)
+                if parser is None:
+                    parser = UnstructuredParser()
+                    logger.info(
+                        f"[ParseWithMode] Quality mode not applicable for extension '{extension}', "
+                        "using Unstructured parser"
+                    )
+                else:
+                    logger.info(
+                        f"[ParseWithMode] Quality mode not applicable for extension '{extension}', "
+                        f"using {parser.parser_name}"
+                    )
                 return await parser.parse(file_path)
 
         # Should not reach here due to validation above

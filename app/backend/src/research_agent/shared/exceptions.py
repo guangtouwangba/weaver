@@ -59,3 +59,9 @@ class PDFProcessingError(ResearchAgentError):
 
     pass
 
+
+class DocumentProcessingError(ResearchAgentError):
+    """Document processing error (for any document type)."""
+
+    pass
+

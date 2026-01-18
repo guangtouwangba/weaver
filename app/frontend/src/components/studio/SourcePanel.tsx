@@ -2,8 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { Surface, Text, IconButton, Button, Tooltip, Collapse, Chip, Progress, Modal } from '@/components/ui';
-import { colors, shadows } from '@/components/ui/tokens';
+import {
+  Surface,
+  Text,
+  IconButton,
+  Button,
+  Tooltip,
+  Collapse,
+  Chip,
+  Progress,
+  Modal,
+  Stack,
+} from '@/components/ui';
+import { colors, radii, shadows } from '@/components/ui/tokens';
 import {
   DescriptionIcon,
   FullscreenIcon,
@@ -24,7 +35,11 @@ import {
 } from '@/components/ui/icons';
 import { useStudio } from '@/contexts/StudioContext';
 import { documentsApi, ProjectDocument, urlApi, UrlContent } from '@/lib/api';
-import { PlatformIcon, detectPlatform, type Platform } from '@/lib/platform-icons';
+import {
+  PlatformIcon,
+  detectPlatform,
+  type Platform,
+} from '@/lib/platform-icons';
 import { useDocumentWebSocket } from '@/hooks/useDocumentWebSocket';
 import ImportSourceDialog from '@/components/dialogs/ImportSourceDialog';
 import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
@@ -32,7 +47,7 @@ import ImportSourceDropzone from '@/components/studio/ImportSourceDropzone';
 // Dynamically import PDFViewer with SSR disabled to avoid "document is not defined" error
 // from pdfjs-dist/web/pdf_viewer which accesses document at module evaluation time
 const PDFViewer = dynamic(
-  () => import('@/components/pdf/PDFViewer').then(mod => mod.PDFViewer),
+  () => import('@/components/pdf/PDFViewer').then((mod) => mod.PDFViewer),
   { ssr: false }
 );
 
@@ -61,8 +76,20 @@ interface PendingUrlExtraction {
   content?: UrlContent;
 }
 
-export default function SourcePanel({ visible, width, onToggle }: SourcePanelProps) {
-  const { projectId, documents, setDocuments, activeDocumentId, setActiveDocumentId, sourceNavigation, addNodeToCanvas } = useStudio();
+export default function SourcePanel({
+  visible,
+  width,
+  onToggle,
+}: SourcePanelProps) {
+  const {
+    projectId,
+    documents,
+    setDocuments,
+    activeDocumentId,
+    setActiveDocumentId,
+    sourceNavigation,
+    addNodeToCanvas,
+  } = useStudio();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [isReaderExpanded, setIsReaderExpanded] = useState(false);
   const [numPages, setNumPages] = useState<number>(0);
@@ -73,7 +100,6 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   // Upload state
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -85,14 +111,16 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   const [deleting, setDeleting] = useState(false);
 
   // URL extraction state
-  const [pendingUrlExtractions, setPendingUrlExtractions] = useState<PendingUrlExtraction[]>([]);
+  const [pendingUrlExtractions, setPendingUrlExtractions] = useState<
+    PendingUrlExtraction[]
+  >([]);
 
   // Vertical Resize State
   const [splitRatio, setSplitRatio] = useState(0.4);
   const [isVerticalDragging, setIsVerticalDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const activeDocument = documents.find(d => d.id === activeDocumentId);
+  const activeDocument = documents.find((d) => d.id === activeDocumentId);
 
   useEffect(() => {
     if (activeDocumentId) {
@@ -113,25 +141,28 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   // WebSocket for real-time document status updates (replaces polling)
   useDocumentWebSocket({
     projectId,
-    enabled: documents.some(d =>
-      d.status === 'pending' ||
-      d.status === 'processing' ||
-      d.graph_status === 'pending' ||
-      d.graph_status === 'processing'
+    enabled: documents.some(
+      (d) =>
+        d.status === 'pending' ||
+        d.status === 'processing' ||
+        d.graph_status === 'pending' ||
+        d.graph_status === 'processing'
     ),
     onDocumentStatusChange: (event) => {
       console.log('[SourcePanel] Document status update:', event);
-      setDocuments(prev => prev.map(doc =>
-        doc.id === event.document_id
-          ? {
-            ...doc,
-            status: event.status,
-            summary: event.summary ?? doc.summary,
-            page_count: event.page_count ?? doc.page_count,
-            graph_status: event.graph_status ?? doc.graph_status,
-          }
-          : doc
-      ));
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === event.document_id
+            ? {
+                ...doc,
+                status: event.status,
+                summary: event.summary ?? doc.summary,
+                page_count: event.page_count ?? doc.page_count,
+                graph_status: event.graph_status ?? doc.graph_status,
+              }
+            : doc
+        )
+      );
     },
   });
 
@@ -142,17 +173,22 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       // Only inject metadata if there is a selection and an active document
       if (selection && selection.toString() && activeDocument) {
         // Check if the selection is inside the PDF viewer to avoid interfering with other drags
-        const isInsidePdf = (e.target as HTMLElement)?.closest('.pdf-viewer-container');
+        const isInsidePdf = (e.target as HTMLElement)?.closest(
+          '.pdf-viewer-container'
+        );
         if (!isInsidePdf) return;
 
         // Use custom drag handler for preview and data
-        const handler = createDragHandler(activeDocument.id, activeDocument.filename);
+        const handler = createDragHandler(
+          activeDocument.id,
+          activeDocument.filename
+        );
 
         // We need to cast e to any or compatible type because DragHandler expects React.DragEvent
         // but the API it uses (dataTransfer) is the same.
         handler.handleDragStart(e as unknown as React.DragEvent, {
           text: selection.toString(),
-          pageNumber: pageNumber
+          pageNumber: pageNumber,
         });
       }
     };
@@ -191,7 +227,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'default';
       document.body.style.userSelect = 'auto';
-    }
+    };
   }, [isVerticalDragging]);
 
   const onDocumentLoadSuccess = (numPages: number) => {
@@ -225,23 +261,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     }
   };
 
-  // Unused but kept for future reference or if needed by parent
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) return;
-
-    const file = e.target.files[0];
-    await handleFileUpload(file);
-
-    // Reset file input
-    e.target.value = '';
-  };
-
   const handleFileUpload = async (file: File) => {
     setUploadFileName(file.name);
     setUploadState('uploading');
     setUploadProgress(0);
-    setUploadError(null);
 
     try {
       // Try presigned URL upload first (Supabase Storage)
@@ -266,10 +289,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         setUploadProgress(0);
         setUploadFileName(null);
       }, 2000);
-
-    } catch (presignError: unknown) {
-      const errorMessage = presignError instanceof Error ? presignError.message : 'Unknown error';
-      console.warn("Presigned URL upload failed, falling back to direct upload:", errorMessage);
+    } catch (error: unknown) {
+      const presignError = error as Error;
+      console.warn(
+        'Presigned URL upload failed, falling back to direct upload:',
+        presignError.message
+      );
 
       // Fallback to direct upload if presigned URL is not available
       try {
@@ -286,16 +311,15 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           setUploadProgress(0);
           setUploadFileName(null);
         }, 2000);
-
-      } catch (fallbackError: unknown) {
-        const fallbackErrorMessage = fallbackError instanceof Error ? fallbackError.message : 'Upload failed';
-        console.error("Upload failed:", fallbackError);
+      } catch (error: unknown) {
+        const fallbackError = error as Error;
+        const fallbackErrorMessage = fallbackError.message || 'Upload failed';
+        console.error('Upload failed:', fallbackError);
         setUploadState('error');
         setUploadError(fallbackErrorMessage);
 
         setTimeout(() => {
           setUploadState('idle');
-          setUploadError(null);
           setUploadFileName(null);
         }, 5000);
       }
@@ -313,59 +337,40 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       platform,
       status: 'extracting',
     };
-    setPendingUrlExtractions(prev => [pendingExtraction, ...prev]);
+    setPendingUrlExtractions((prev) => [pendingExtraction, ...prev]);
 
     try {
       // Start extraction - returns immediately with pending status
       const pendingContent = await urlApi.extract(url);
 
       // Poll for completion in background
-      await urlApi.waitForCompletion(pendingContent.id, {
-        maxAttempts: 120,
-        intervalMs: 1000,
-        onStatusChange: (status) => {
-          // Update title/thumbnail as they become available
-          if (status.title || status.thumbnail_url) {
-            setPendingUrlExtractions(prev =>
-              prev.map(p =>
-                p.id === extractionId
-                  ? { ...p, title: status.title || p.title, thumbnailUrl: status.thumbnail_url || p.thumbnailUrl }
-                  : p
-              )
-            );
-          }
-        },
-      });
-
-      // Update to completed - fetch fresh data if needed, but waitForCompletion returns final state?
-      // Wait, waitForCompletion returns UrlContent.
-      // Ah, the code was: const completedContent = await urlApi.waitForCompletion(...)
-      // But I removed the variable assignment in my previous edit? No, I am editing it now.
-      // Wait, let's check what I wrote above.
-      // "const completedContent = await urlApi.waitForCompletion..."
-      // I should capture it.
-
-      // Let's fix the logic here.
-      const completedContent = await urlApi.waitForCompletion(pendingContent.id, {
-        maxAttempts: 120,
-        intervalMs: 1000,
-        onStatusChange: (status) => {
-             // Update title/thumbnail as they become available
-             if (status.title || status.thumbnail_url) {
-                setPendingUrlExtractions(prev =>
-                  prev.map(p =>
-                    p.id === extractionId
-                      ? { ...p, title: status.title || p.title, thumbnailUrl: status.thumbnail_url || p.thumbnailUrl }
-                      : p
-                  )
-                );
-              }
+      const completedContent = await urlApi.waitForCompletion(
+        pendingContent.id,
+        {
+          maxAttempts: 120,
+          intervalMs: 1000,
+          onStatusChange: (status) => {
+            // Update title/thumbnail as they become available
+            if (status.title || status.thumbnail_url) {
+              setPendingUrlExtractions((prev) =>
+                prev.map((p) =>
+                  p.id === extractionId
+                    ? {
+                        ...p,
+                        title: status.title || p.title,
+                        thumbnailUrl: status.thumbnail_url || p.thumbnailUrl,
+                      }
+                    : p
+                )
+              );
+            }
+          },
         }
-      });
+      );
 
       // Update to completed
-      setPendingUrlExtractions(prev =>
-        prev.map(p =>
+      setPendingUrlExtractions((prev) =>
+        prev.map((p) =>
           p.id === extractionId
             ? {
                 ...p,
@@ -380,13 +385,16 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
     } catch (error) {
       console.error('URL extraction failed:', error);
       // Update to failed
-      setPendingUrlExtractions(prev =>
-        prev.map(p =>
+      setPendingUrlExtractions((prev) =>
+        prev.map((p) =>
           p.id === extractionId
             ? {
                 ...p,
                 status: 'failed',
-                errorMessage: error instanceof Error ? error.message : 'Failed to extract URL',
+                errorMessage:
+                  error instanceof Error
+                    ? error.message
+                    : 'Failed to extract URL',
               }
             : p
         )
@@ -395,16 +403,16 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   };
 
   const handleRemoveUrlExtraction = (id: string) => {
-    setPendingUrlExtractions(prev => prev.filter(p => p.id !== id));
+    setPendingUrlExtractions((prev) => prev.filter((p) => p.id !== id));
   };
 
   // PDF Pagination
   const goToPrevPage = () => {
-    setPageNumber(prev => Math.max(prev - 1, 1));
+    setPageNumber((prev) => Math.max(prev - 1, 1));
   };
 
   const goToNextPage = () => {
-    setPageNumber(prev => Math.min(prev + 1, numPages));
+    setPageNumber((prev) => Math.min(prev + 1, numPages));
   };
 
   // Add web page to canvas
@@ -429,7 +437,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         fileType: 'web',
         sourceUrl: doc.source_url,
         thumbnailUrl: doc.thumbnail_url,
-      }
+      },
     });
   };
 
@@ -447,7 +455,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       await documentsApi.delete(docToDelete.id);
 
       // Remove from local state
-      setDocuments(documents.filter(d => d.id !== docToDelete.id));
+      setDocuments(documents.filter((d) => d.id !== docToDelete.id));
 
       // Clear active document if it was deleted
       if (activeDocumentId === docToDelete.id) {
@@ -457,7 +465,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       setDeleteDialogOpen(false);
       setDocToDelete(null);
     } catch (error) {
-      console.error("Failed to delete document:", error);
+      console.error('Failed to delete document:', error);
     } finally {
       setDeleting(false);
     }
@@ -503,8 +511,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   // Render file card based on view mode
   const renderFileCard = (doc: ProjectDocument) => {
     const isActive = activeDocumentId === doc.id;
-    const isProcessing = doc.status === 'pending' || doc.status === 'processing';
-    const isGraphProcessing = doc.graph_status === 'pending' || doc.graph_status === 'processing';
+    const isProcessing =
+      doc.status === 'pending' || doc.status === 'processing';
+    const isGraphProcessing =
+      doc.graph_status === 'pending' || doc.graph_status === 'processing';
     const isGraphReady = doc.graph_status === 'ready';
     const statusInfo = getStatusInfo(doc.status);
 
@@ -528,10 +538,22 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             opacity: isProcessing ? 0.7 : 1,
           }}
         >
-          <DescriptionIcon size={16} style={{ color: isActive ? colors.primary[500] : colors.neutral[400], marginTop: 4 }} />
+          <DescriptionIcon
+            size={16}
+            style={{
+              color: isActive ? colors.primary[500] : colors.neutral[400],
+              marginTop: 4,
+            }}
+          />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Text variant="bodySmall" weight={isActive ? "500" : "400"} color={isActive ? "primary" : "default"} sx={{ flex: 1 }} className="truncate">
+              <Text
+                variant="bodySmall"
+                weight={isActive ? '500' : '400'}
+                color={isActive ? 'primary' : 'default'}
+                sx={{ flex: 1 }}
+                className="truncate"
+              >
                 {doc.filename}
               </Text>
               {doc.status !== 'ready' && (
@@ -551,7 +573,13 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               {/* Graph Status Icon */}
               {isGraphProcessing && (
                 <Tooltip title="Building knowledge graph...">
-                  <AccountTreeIcon size={14} style={{ color: colors.primary[500], animation: 'spin 3s linear infinite' }} />
+                  <AccountTreeIcon
+                    size={14}
+                    style={{
+                      color: colors.primary[500],
+                      animation: 'spin 3s linear infinite',
+                    }}
+                  />
                 </Tooltip>
               )}
               {isGraphReady && isActive && (
@@ -561,11 +589,17 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Text variant="caption" color="secondary">{formatDate(doc.created_at)}</Text>
+              <Text variant="caption" color="secondary">
+                {formatDate(doc.created_at)}
+              </Text>
               {doc.page_count && doc.page_count > 0 && (
                 <>
-                  <Text variant="caption" color="disabled">•</Text>
-                  <Text variant="caption" color="secondary">{doc.page_count}p</Text>
+                  <Text variant="caption" color="disabled">
+                    •
+                  </Text>
+                  <Text variant="caption" color="secondary">
+                    {doc.page_count}p
+                  </Text>
                 </>
               )}
             </div>
@@ -578,7 +612,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                   height: 2,
                   borderRadius: 4,
                   backgroundColor: colors.neutral[200],
-                  color: statusInfo.color
+                  color: statusInfo.color,
                 }}
               />
             )}
@@ -607,7 +641,11 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
     // Grid Mode
     return (
-      <div key={doc.id} style={{ position: 'relative' }} onClick={() => !isProcessing && setActiveDocumentId(doc.id)}>
+      <div
+        key={doc.id}
+        style={{ position: 'relative' }}
+        onClick={() => !isProcessing && setActiveDocumentId(doc.id)}
+      >
         <Surface
           elevation={0}
           style={{
@@ -620,36 +658,53 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             transition: 'all 0.2s',
             opacity: isProcessing ? 0.7 : 1,
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
           }}
         >
           {/* Thumbnail Area */}
-          <div style={{
-            height: 80,
-            backgroundColor: '#F3F4F6',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            borderBottom: '1px solid',
-            borderColor: colors.border.default
-          }}>
-            {/* PDF Thumbnail Placeholder */}
-            <div style={{
-              width: 40,
-              height: 56,
-              backgroundColor: 'white',
-              boxShadow: shadows.sm,
+          <div
+            style={{
+              height: 80,
+              backgroundColor: '#F3F4F6',
               display: 'flex',
-              flexDirection: 'column',
-              padding: 4,
-              gap: 4,
-              borderRadius: 2
-            }}>
-              <div style={{ width: '80%', height: 3, backgroundColor: '#E5E7EB', borderRadius: 1 }} />
-              <div style={{ width: '100%', height: 2, backgroundColor: '#F3F4F6' }} />
-              <div style={{ width: '100%', height: 2, backgroundColor: '#F3F4F6' }} />
-              <div style={{ width: '60%', height: 2, backgroundColor: '#F3F4F6' }} />
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              borderBottom: '1px solid',
+              borderColor: colors.border.default,
+            }}
+          >
+            {/* PDF Thumbnail Placeholder */}
+            <div
+              style={{
+                width: 40,
+                height: 56,
+                backgroundColor: 'white',
+                boxShadow: shadows.sm,
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 4,
+                gap: 4,
+                borderRadius: 2,
+              }}
+            >
+              <div
+                style={{
+                  width: '80%',
+                  height: 3,
+                  backgroundColor: '#E5E7EB',
+                  borderRadius: 1,
+                }}
+              />
+              <div
+                style={{ width: '100%', height: 2, backgroundColor: '#F3F4F6' }}
+              />
+              <div
+                style={{ width: '100%', height: 2, backgroundColor: '#F3F4F6' }}
+              />
+              <div
+                style={{ width: '60%', height: 2, backgroundColor: '#F3F4F6' }}
+              />
             </div>
 
             {/* Status Badge for Grid View */}
@@ -673,18 +728,26 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
             {/* Graph Status Icon for Grid View */}
             {isGraphProcessing && (
               <Tooltip title="Building knowledge graph...">
-                <div style={{
-                  position: 'absolute',
-                  top: 4,
-                  left: doc.status !== 'ready' ? 'auto' : 4,
-                  right: doc.status !== 'ready' ? 32 : 'auto', // Avoid delete button overlap
-                  backgroundColor: 'rgba(255,255,255,0.8)',
-                  borderRadius: '50%',
-                  padding: 4,
-                  display: 'flex',
-                  boxShadow: shadows.sm
-                }}>
-                  <AccountTreeIcon size={12} style={{ color: colors.primary[500], animation: 'spin 3s linear infinite' }} />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    left: doc.status !== 'ready' ? 'auto' : 4,
+                    right: doc.status !== 'ready' ? 32 : 'auto', // Avoid delete button overlap
+                    backgroundColor: 'rgba(255,255,255,0.8)',
+                    borderRadius: '50%',
+                    padding: 4,
+                    display: 'flex',
+                    boxShadow: shadows.sm,
+                  }}
+                >
+                  <AccountTreeIcon
+                    size={12}
+                    style={{
+                      color: colors.primary[500],
+                      animation: 'spin 3s linear infinite',
+                    }}
+                  />
                 </div>
               </Tooltip>
             )}
@@ -725,23 +788,25 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                   right: 0,
                   height: 3,
                   backgroundColor: colors.neutral[200],
-                  color: statusInfo.color
+                  color: statusInfo.color,
                 }}
               />
             )}
 
             {/* Active Indicator */}
             {isActive && (
-              <div style={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: colors.primary[500],
-                border: '2px solid white'
-              }} />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: colors.primary[500],
+                  border: '2px solid white',
+                }}
+              />
             )}
           </div>
 
@@ -757,15 +822,26 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               {doc.filename}
             </Text>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <DescriptionIcon size={12} style={{ color: colors.neutral[400] }} />
-              <Text variant="caption" color="secondary" style={{ fontSize: 10 }}>
+              <DescriptionIcon
+                size={12}
+                style={{ color: colors.neutral[400] }}
+              />
+              <Text
+                variant="caption"
+                color="secondary"
+                style={{ fontSize: 10 }}
+              >
                 {formatDate(doc.created_at)}
               </Text>
               {doc.page_count && doc.page_count > 0 && (
                 <Chip
                   label={`${doc.page_count}p`}
                   size="sm"
-                  style={{ height: 16, fontSize: 9, backgroundColor: '#F3F4F6' }}
+                  style={{
+                    height: 16,
+                    fontSize: 9,
+                    backgroundColor: '#F3F4F6',
+                  }}
                 />
               )}
             </div>
@@ -777,16 +853,51 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
   if (!visible) {
     return (
-      <div style={{ width: 48, height: '100vh', borderRight: '1px solid', borderColor: colors.border.default, display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: colors.background.paper }}>
-        <div style={{ height: 48, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid', borderColor: colors.border.default, flexShrink: 0 }}>
+      <div
+        style={{
+          width: 48,
+          height: '100vh',
+          borderRight: '1px solid',
+          borderColor: colors.border.default,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          backgroundColor: colors.background.paper,
+        }}
+      >
+        <div
+          style={{
+            height: 48,
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderBottom: '1px solid',
+            borderColor: colors.border.default,
+            flexShrink: 0,
+          }}
+        >
           <Tooltip content="Expand (⌘\)" placement="right">
-            <IconButton onClick={onToggle} size="sm"><MenuOpenIcon size={18} /></IconButton>
+            <IconButton onClick={onToggle} size="sm">
+              <MenuOpenIcon size={18} />
+            </IconButton>
           </Tooltip>
         </div>
         <div style={{ paddingTop: 8, paddingBottom: 8 }}>
           <Tooltip content="Documents" placement="right">
-            <div style={{ padding: 8, borderRadius: 8, backgroundColor: '#EFF6FF', cursor: 'pointer' }} onClick={onToggle}>
-              <FolderOpenIcon size={16} style={{ color: colors.primary[500] }} />
+            <div
+              style={{
+                padding: 8,
+                borderRadius: 8,
+                backgroundColor: '#EFF6FF',
+                cursor: 'pointer',
+              }}
+              onClick={onToggle}
+            >
+              <FolderOpenIcon
+                size={16}
+                style={{ color: colors.primary[500] }}
+              />
             </div>
           </Tooltip>
         </div>
@@ -795,20 +906,86 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
   }
 
   return (
-    <div ref={containerRef} style={{ width, height: '100vh', flexShrink: 1, minWidth: 280, display: 'flex', flexDirection: 'column', borderRight: '1px solid', borderColor: colors.border.default, overflow: 'hidden', backgroundColor: colors.background.paper }}>
+    <div
+      ref={containerRef}
+      style={{
+        width,
+        height: '100vh',
+        flexShrink: 1,
+        minWidth: 280,
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid',
+        borderColor: colors.border.default,
+        overflow: 'hidden',
+        backgroundColor: colors.background.paper,
+      }}
+    >
       {/* Browser Header */}
-      <div style={{ height: isReaderExpanded ? 0 : (activeDocument ? `${splitRatio * 100}%` : '100%'), display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: isVerticalDragging ? 'none' : 'all 0.3s ease' }}>
-        <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          height: isReaderExpanded
+            ? 0
+            : activeDocument
+              ? `${splitRatio * 100}%`
+              : '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          transition: isVerticalDragging ? 'none' : 'all 0.3s ease',
+        }}
+      >
+        <div
+          style={{
+            padding: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <FolderOpenIcon size={16} style={{ color: colors.primary[500] }} />
-            <Text variant="body" weight="bold">Documents</Text>
+            <Text variant="body" weight="bold">
+              Documents
+            </Text>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
-            <div style={{ backgroundColor: '#F3F4F6', borderRadius: 4, padding: 2, display: 'flex' }}>
-              <IconButton size="sm" onClick={() => setViewMode('list')} style={{ padding: 4, backgroundColor: viewMode === 'list' ? '#fff' : 'transparent', borderRadius: 4 }}><ViewListIcon size={12} /></IconButton>
-              <IconButton size="sm" onClick={() => setViewMode('grid')} style={{ padding: 4, backgroundColor: viewMode === 'grid' ? '#fff' : 'transparent', borderRadius: 4 }}><GridViewIcon size={12} /></IconButton>
+            <div
+              style={{
+                backgroundColor: '#F3F4F6',
+                borderRadius: 4,
+                padding: 2,
+                display: 'flex',
+              }}
+            >
+              <IconButton
+                size="sm"
+                onClick={() => setViewMode('list')}
+                style={{
+                  padding: 4,
+                  backgroundColor: viewMode === 'list' ? '#fff' : 'transparent',
+                  borderRadius: 4,
+                }}
+              >
+                <ViewListIcon size={12} />
+              </IconButton>
+              <IconButton
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                style={{
+                  padding: 4,
+                  backgroundColor: viewMode === 'grid' ? '#fff' : 'transparent',
+                  borderRadius: 4,
+                }}
+              >
+                <GridViewIcon size={12} />
+              </IconButton>
             </div>
-            <Tooltip title="Collapse (⌘\)"><IconButton size="sm" onClick={onToggle}><MenuOpenIcon size={14} /></IconButton></Tooltip>
+            <Tooltip title="Collapse (⌘\)">
+              <IconButton size="sm" onClick={onToggle}>
+                <MenuOpenIcon size={14} />
+              </IconButton>
+            </Tooltip>
           </div>
         </div>
 
@@ -824,7 +1001,15 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
           />
         </div>
 
-        <div style={{ flexGrow: 1, overflowY: 'auto', paddingLeft: 16, paddingRight: 16, paddingBottom: 16 }}>
+        <div
+          style={{
+            flexGrow: 1,
+            overflowY: 'auto',
+            paddingLeft: 16,
+            paddingRight: 16,
+            paddingBottom: 16,
+          }}
+        >
           {/* Collapsible FILES Section */}
           <div
             onClick={() => setFilesExpanded(!filesExpanded)}
@@ -842,64 +1027,97 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               size={12}
               style={{
                 transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-                transition: 'transform 0.2s ease'
+                transition: 'transform 0.2s ease',
               }}
             />
-            <Text variant="caption" weight="bold">RECENT UPLOADS</Text>
+            <Text variant="caption" weight="bold">
+              RECENT UPLOADS
+            </Text>
           </div>
 
           <Collapse open={filesExpanded}>
-            <div style={{
-              display: viewMode === 'grid' ? 'grid' : 'block',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-              gap: 12
-            }}>
+            <div
+              style={{
+                display: viewMode === 'grid' ? 'grid' : 'block',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                gap: 12,
+              }}
+            >
               {/* Uploading Card */}
-              {(uploadState === 'uploading' || uploadState === 'processing') && (
-                viewMode === 'list' ? (
-                  <div style={{
-                    display: 'flex',
-                    gap: 12,
-                    padding: 12,
-                    marginBottom: 8,
-                    borderRadius: 8,
-                    backgroundColor: '#F9FAFB',
-                    border: '1px solid',
-                    borderColor: colors.border.default,
-                    alignItems: 'center'
-                  }}>
-                    <div style={{
-                      width: 32,
-                      height: 32,
-                      backgroundColor: colors.neutral[100],
-                      borderRadius: 4,
+              {(uploadState === 'uploading' || uploadState === 'processing') &&
+                (viewMode === 'list' ? (
+                  <div
+                    style={{
                       display: 'flex',
+                      gap: 12,
+                      padding: 12,
+                      marginBottom: 8,
+                      borderRadius: 8,
+                      backgroundColor: '#F9FAFB',
+                      border: '1px solid',
+                      borderColor: colors.border.default,
                       alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        backgroundColor: colors.neutral[100],
+                        borderRadius: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       {uploadState === 'processing' ? (
-                        <AccountTreeIcon size={16} style={{ color: colors.primary[500], animation: 'spin 3s linear infinite' }} />
+                        <AccountTreeIcon
+                          size={16}
+                          style={{
+                            color: colors.primary[500],
+                            animation: 'spin 3s linear infinite',
+                          }}
+                        />
                       ) : (
-                        <CloudUploadIcon size={16} style={{ color: colors.primary[500] }} />
+                        <CloudUploadIcon
+                          size={16}
+                          style={{ color: colors.primary[500] }}
+                        />
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <Text variant="bodySmall" className="truncate" weight="500">
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text
+                          variant="bodySmall"
+                          className="truncate"
+                          weight="500"
+                        >
                           {uploadFileName || 'Uploading...'}
                         </Text>
                         <Text variant="caption" color="secondary">
-                          {uploadState === 'uploading' ? `${Math.round(uploadProgress)}%` : 'Processing...'}
+                          {uploadState === 'uploading'
+                            ? `${Math.round(uploadProgress)}%`
+                            : 'Processing...'}
                         </Text>
                       </div>
                       <Progress
-                        value={uploadState === 'processing' ? undefined : uploadProgress}
+                        value={
+                          uploadState === 'processing'
+                            ? undefined
+                            : uploadProgress
+                        }
                         variant="linear"
                         style={{
                           height: 4,
                           borderRadius: 4,
                           backgroundColor: colors.neutral[200],
-                          color: colors.primary[500]
+                          color: colors.primary[500],
                         }}
                       />
                     </div>
@@ -916,44 +1134,59 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                       borderColor: colors.primary[500],
                       opacity: 0.8,
                       display: 'flex',
-                      flexDirection: 'column'
+                      flexDirection: 'column',
                     }}
                   >
-                    <div style={{
-                      height: 80,
-                      backgroundColor: '#F3F4F6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative'
-                    }}>
-                      <CloudUploadIcon size={24} style={{ color: colors.primary[500] }} />
+                    <div
+                      style={{
+                        height: 80,
+                        backgroundColor: '#F3F4F6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                      }}
+                    >
+                      <CloudUploadIcon
+                        size={24}
+                        style={{ color: colors.primary[500] }}
+                      />
                       <Progress
-                        value={uploadState === 'processing' ? undefined : uploadProgress}
+                        value={
+                          uploadState === 'processing'
+                            ? undefined
+                            : uploadProgress
+                        }
                         variant="linear"
                         style={{
                           position: 'absolute',
                           bottom: 0,
                           left: 0,
                           right: 0,
-                          height: 3
+                          height: 3,
                         }}
                       />
                     </div>
                     <div style={{ padding: 12 }}>
-                      <Text variant="caption" weight="600" className="truncate" style={{ display: 'block' }}>
+                      <Text
+                        variant="caption"
+                        weight="600"
+                        className="truncate"
+                        style={{ display: 'block' }}
+                      >
                         {uploadFileName}
                       </Text>
                       <Text variant="caption" color="secondary">
-                        {uploadState === 'uploading' ? 'Uploading...' : 'Processing...'}
+                        {uploadState === 'uploading'
+                          ? 'Uploading...'
+                          : 'Processing...'}
                       </Text>
                     </div>
                   </Surface>
-                )
-              )}
+                ))}
 
               {/* URL Extraction Cards */}
-              {pendingUrlExtractions.map((extraction) => (
+              {pendingUrlExtractions.map((extraction) =>
                 viewMode === 'list' ? (
                   <div
                     key={extraction.id}
@@ -963,13 +1196,15 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                       padding: 12,
                       marginBottom: 8,
                       borderRadius: 8,
-                      backgroundColor: extraction.status === 'failed' ? '#FEF2F2' : '#F9FAFB',
+                      backgroundColor:
+                        extraction.status === 'failed' ? '#FEF2F2' : '#F9FAFB',
                       border: '1px solid',
-                      borderColor: extraction.status === 'failed' 
-                        ? '#FECACA' 
-                        : extraction.status === 'completed' 
-                        ? colors.success[200] 
-                        : colors.border.default,
+                      borderColor:
+                        extraction.status === 'failed'
+                          ? '#FECACA'
+                          : extraction.status === 'completed'
+                            ? colors.success[200]
+                            : colors.border.default,
                       alignItems: 'center',
                     }}
                   >
@@ -977,11 +1212,12 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                       style={{
                         width: 32,
                         height: 32,
-                        backgroundColor: extraction.status === 'failed' 
-                          ? '#FEE2E2' 
-                          : extraction.status === 'completed'
-                          ? colors.success[50]
-                          : colors.neutral[100],
+                        backgroundColor:
+                          extraction.status === 'failed'
+                            ? '#FEE2E2'
+                            : extraction.status === 'completed'
+                              ? colors.success[50]
+                              : colors.neutral[100],
                         borderRadius: 4,
                         display: 'flex',
                         alignItems: 'center',
@@ -989,23 +1225,38 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                       }}
                     >
                       {extraction.status === 'extracting' ? (
-                        <LinkIcon size={16} style={{ color: colors.primary[500], animation: 'pulse 1.5s ease-in-out infinite' }} />
+                        <LinkIcon
+                          size={16}
+                          style={{
+                            color: colors.primary[500],
+                            animation: 'pulse 1.5s ease-in-out infinite',
+                          }}
+                        />
                       ) : extraction.status === 'failed' ? (
                         <ErrorIcon size={16} style={{ color: '#EF4444' }} />
                       ) : (
-                        <PlatformIcon platform={extraction.platform} size={16} />
+                        <PlatformIcon
+                          platform={extraction.platform}
+                          size={16}
+                        />
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <Text variant="bodySmall" className="truncate" weight="500">
-                        {extraction.title || extraction.url.slice(0, 40) + '...'}
+                      <Text
+                        variant="bodySmall"
+                        className="truncate"
+                        weight="500"
+                      >
+                        {extraction.title ||
+                          extraction.url.slice(0, 40) + '...'}
                       </Text>
                       <Text variant="caption" color="secondary">
-                        {extraction.status === 'extracting' 
-                          ? 'Extracting content...' 
+                        {extraction.status === 'extracting'
+                          ? 'Extracting content...'
                           : extraction.status === 'failed'
-                          ? extraction.errorMessage || 'Failed to extract'
-                          : extraction.platform.charAt(0).toUpperCase() + extraction.platform.slice(1)}
+                            ? extraction.errorMessage || 'Failed to extract'
+                            : extraction.platform.charAt(0).toUpperCase() +
+                              extraction.platform.slice(1)}
                       </Text>
                     </div>
                     {extraction.status !== 'extracting' && (
@@ -1028,13 +1279,17 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                       overflow: 'hidden',
                       borderRadius: 8,
                       border: '1px solid',
-                      borderColor: extraction.status === 'failed'
-                        ? '#FECACA'
-                        : extraction.status === 'completed'
-                        ? colors.success[200]
-                        : colors.primary[300],
+                      borderColor:
+                        extraction.status === 'failed'
+                          ? '#FECACA'
+                          : extraction.status === 'completed'
+                            ? colors.success[200]
+                            : colors.primary[300],
                       opacity: extraction.status === 'extracting' ? 0.8 : 1,
-                      cursor: extraction.status === 'completed' ? 'pointer' : 'default',
+                      cursor:
+                        extraction.status === 'completed'
+                          ? 'pointer'
+                          : 'default',
                     }}
                   >
                     {/* Thumbnail area */}
@@ -1042,43 +1297,59 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                       style={{
                         width: '100%',
                         height: 80,
-                        backgroundColor: extraction.status === 'failed' 
-                          ? '#FEE2E2' 
-                          : colors.neutral[100],
+                        backgroundColor:
+                          extraction.status === 'failed'
+                            ? '#FEE2E2'
+                            : colors.neutral[100],
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundImage: extraction.thumbnailUrl ? `url(${extraction.thumbnailUrl})` : undefined,
+                        backgroundImage: extraction.thumbnailUrl
+                          ? `url(${extraction.thumbnailUrl})`
+                          : undefined,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                       }}
                     >
-                      {!extraction.thumbnailUrl && (
-                        extraction.status === 'extracting' ? (
-                          <LinkIcon size={24} style={{ color: colors.primary[500], animation: 'pulse 1.5s ease-in-out infinite' }} />
+                      {!extraction.thumbnailUrl &&
+                        (extraction.status === 'extracting' ? (
+                          <LinkIcon
+                            size={24}
+                            style={{
+                              color: colors.primary[500],
+                              animation: 'pulse 1.5s ease-in-out infinite',
+                            }}
+                          />
                         ) : extraction.status === 'failed' ? (
                           <ErrorIcon size={24} style={{ color: '#EF4444' }} />
                         ) : (
-                          <PlatformIcon platform={extraction.platform} size={24} />
-                        )
-                      )}
+                          <PlatformIcon
+                            platform={extraction.platform}
+                            size={24}
+                          />
+                        ))}
                     </div>
                     {/* Info area */}
                     <div style={{ padding: 8 }}>
-                      <Text variant="caption" className="truncate" style={{ display: 'block', marginBottom: 2 }}>
-                        {extraction.title || extraction.url.slice(0, 30) + '...'}
+                      <Text
+                        variant="caption"
+                        className="truncate"
+                        style={{ display: 'block', marginBottom: 2 }}
+                      >
+                        {extraction.title ||
+                          extraction.url.slice(0, 30) + '...'}
                       </Text>
                       <Text variant="caption" color="secondary">
-                        {extraction.status === 'extracting' 
-                          ? 'Extracting...' 
+                        {extraction.status === 'extracting'
+                          ? 'Extracting...'
                           : extraction.status === 'failed'
-                          ? 'Failed'
-                          : extraction.platform}
+                            ? 'Failed'
+                            : extraction.platform}
                       </Text>
                     </div>
                   </Surface>
                 )
-              ))}
+              )}
 
               {documents.map(renderFileCard)}
             </div>
@@ -1088,8 +1359,16 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
 
       {/* Document Viewer (PDF or Web Preview) */}
       {activeDocument && (
-        <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderTop: '1px solid', borderColor: colors.border.default }}>
-
+        <div
+          style={{
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            borderTop: '1px solid',
+            borderColor: colors.border.default,
+          }}
+        >
           {/* Viewer Header */}
           <div
             onMouseDown={handleVerticalMouseDown}
@@ -1103,7 +1382,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
               backgroundColor: colors.background.default,
               cursor: 'row-resize',
               borderBottom: '1px solid',
-              borderColor: colors.border.default
+              borderColor: colors.border.default,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1114,11 +1393,19 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                   height: 20,
                   fontSize: 10,
                   fontWeight: 'bold',
-                  backgroundColor: activeDocument.file_type === 'web' ? '#F0FDFA' : '#FEE2E2',
-                  color: activeDocument.file_type === 'web' ? '#0D9488' : '#DC2626'
+                  backgroundColor:
+                    activeDocument.file_type === 'web' ? '#F0FDFA' : '#FEE2E2',
+                  color:
+                    activeDocument.file_type === 'web' ? '#0D9488' : '#DC2626',
                 }}
               />
-              <Text variant="bodySmall" className="truncate" style={{ maxWidth: 150 }}>{activeDocument.filename}</Text>
+              <Text
+                variant="bodySmall"
+                className="truncate"
+                style={{ maxWidth: 150 }}
+              >
+                {activeDocument.filename}
+              </Text>
             </div>
 
             {/* Controls */}
@@ -1133,7 +1420,10 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                   >
                     <ChevronLeftIcon size={16} />
                   </IconButton>
-                  <Text variant="caption" style={{ minWidth: 60, textAlign: 'center' }}>
+                  <Text
+                    variant="caption"
+                    style={{ minWidth: 60, textAlign: 'center' }}
+                  >
                     {pageNumber} / {numPages}
                   </Text>
                   <IconButton
@@ -1147,14 +1437,29 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
                 </>
               )}
 
-              <IconButton size="sm" onClick={() => setIsReaderExpanded(!isReaderExpanded)} style={{ marginLeft: 8 }}>
-                {isReaderExpanded ? <FullscreenExitIcon size={14} /> : <FullscreenIcon size={14} />}
+              <IconButton
+                size="sm"
+                onClick={() => setIsReaderExpanded(!isReaderExpanded)}
+                style={{ marginLeft: 8 }}
+              >
+                {isReaderExpanded ? (
+                  <FullscreenExitIcon size={14} />
+                ) : (
+                  <FullscreenIcon size={14} />
+                )}
               </IconButton>
             </div>
           </div>
 
           {/* Viewer Content */}
-          <div style={{ flexGrow: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              flexGrow: 1,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             {activeDocument.file_type === 'web' ? (
               <WebPagePreviewPanel
                 title={activeDocument.title || activeDocument.filename}
@@ -1178,18 +1483,15 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Modal
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-        size="sm"
-      >
+      <Modal open={deleteDialogOpen} onClose={handleDeleteCancel} size="sm">
         <Modal.Header>
           <Text variant="h6">Delete Document</Text>
         </Modal.Header>
         <Modal.Content>
           <Text variant="body">
-            Are you sure you want to delete <strong>{docToDelete?.filename}</strong>?
-            This will also remove all associated text chunks and embeddings. This action cannot be undone.
+            Are you sure you want to delete{' '}
+            <strong>{docToDelete?.filename}</strong>? This will also remove all
+            associated text chunks and embeddings. This action cannot be undone.
           </Text>
         </Modal.Content>
         <Modal.Footer>
@@ -1216,7 +1518,7 @@ export default function SourcePanel({ visible, width, onToggle }: SourcePanelPro
         onClose={() => setImportDialogOpen(false)}
         onFileSelect={handleFileUpload}
         onUrlImport={handleUrlImport}
-        acceptedFileTypes={['.pdf', '.docx', '.csv', '.jpg', '.jpeg']}
+        acceptedFileTypes={['.pdf', '.docx', '.csv', '.jpg', '.jpeg', '.txt']}
         maxFileSize={25}
       />
     </div>

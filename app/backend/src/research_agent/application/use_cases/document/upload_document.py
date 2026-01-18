@@ -1,5 +1,6 @@
 """Upload document use case."""
 
+import mimetypes
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO, Optional
@@ -12,12 +13,30 @@ from research_agent.domain.entities.resource_chunk import ResourceChunk
 from research_agent.domain.repositories.chunk_repo import ChunkRepository
 from research_agent.domain.repositories.document_repo import DocumentRepository
 from research_agent.domain.services.chunking_service import ChunkingService
-from research_agent.domain.services.thumbnail_service import ThumbnailService
 from research_agent.infrastructure.embedding.base import EmbeddingService
-from research_agent.infrastructure.pdf.base import PDFParser
+from research_agent.infrastructure.parser.factory import ParserFactory
 from research_agent.infrastructure.storage.base import StorageService
-from research_agent.shared.exceptions import PDFProcessingError
+from research_agent.infrastructure.thumbnail import ThumbnailFactory
+from research_agent.shared.exceptions import DocumentProcessingError
 from research_agent.shared.utils.logger import logger
+
+
+def _get_mime_type(filename: str) -> str:
+    """Detect MIME type from filename extension."""
+    mime_type, _ = mimetypes.guess_type(filename)
+    if mime_type:
+        return mime_type
+    # Fallback for common types
+    ext = Path(filename).suffix.lower()
+    mime_map = {
+        ".pdf": "application/pdf",
+        ".txt": "text/plain",
+        ".md": "text/markdown",
+        ".csv": "text/csv",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    }
+    return mime_map.get(ext, "application/octet-stream")
 
 
 @dataclass
@@ -46,26 +65,28 @@ class UploadDocumentOutput:
 
 
 class UploadDocumentUseCase:
-    """Use case for uploading and processing a PDF document."""
+    """Use case for uploading and processing documents (PDF, TXT, etc.)."""
 
     def __init__(
         self,
         document_repo: DocumentRepository,
         chunk_repo: ChunkRepository,
         storage: StorageService,
-        pdf_parser: PDFParser,
         embedding_service: EmbeddingService,
         chunking_service: ChunkingService | None = None,
     ):
         self._document_repo = document_repo
         self._chunk_repo = chunk_repo
         self._storage = storage
-        self._pdf_parser = pdf_parser
         self._embedding_service = embedding_service
         self._chunking_service = chunking_service or ChunkingService()
 
     async def execute(self, input: UploadDocumentInput) -> UploadDocumentOutput:
         """Execute the use case."""
+        # Detect MIME type and file extension from filename
+        mime_type = _get_mime_type(input.filename)
+        file_extension = Path(input.filename).suffix.lower() or ".bin"
+
         # 1. Create document entity
         document = Document(
             project_id=input.project_id,
@@ -73,49 +94,59 @@ class UploadDocumentUseCase:
             filename=input.filename,
             original_filename=input.filename,  # Store original filename
             file_size=input.file_size,
-            mime_type="application/pdf",
+            mime_type=mime_type,
         )
         document.mark_processing()
 
-        # 2. Handle file storage
+        # 2. Handle file storage (preserve original file extension)
         if input.storage_path:
             # File already uploaded to Supabase Storage
             document.file_path = input.storage_path
-            # Save file content locally for PDF processing (temp)
+            # Save file content locally for processing (temp)
             # Use temp path for processing, doesn't need to match storage structure
-            temp_path = f"temp/{input.project_id}/{document.id}.pdf"
+            temp_path = f"temp/{input.project_id}/{document.id}{file_extension}"
             full_path = await self._storage.save(temp_path, input.file_content)
         else:
             # Traditional local storage
-            # Use user-scoped path: {user_id}/projects/{project_id}/{document.id}.pdf
-            file_path = f"{input.user_id}/projects/{input.project_id}/{document.id}.pdf"
+            # Use user-scoped path: {user_id}/projects/{project_id}/{document.id}{ext}
+            file_path = f"{input.user_id}/projects/{input.project_id}/{document.id}{file_extension}"
             full_path = await self._storage.save(file_path, input.file_content)
             document.file_path = full_path
 
-        # Generate thumbnail immediately
-        try:
-            settings = get_settings()
-            output_dir = (Path(settings.upload_dir) / "thumbnails").resolve()
+        # Generate thumbnail immediately (if supported)
+        file_extension = Path(input.filename).suffix.lower()
+        if ThumbnailFactory.is_supported(extension=file_extension):
+            try:
+                settings = get_settings()
+                output_dir = (Path(settings.upload_dir) / "thumbnails").resolve()
 
-            thumbnail_service = ThumbnailService()
-            thumbnail_path = await thumbnail_service.generate_thumbnail(
-                file_path=full_path, document_id=document.id, output_dir=output_dir
-            )
+                result = await ThumbnailFactory.generate(
+                    file_path=full_path,
+                    document_id=document.id,
+                    output_dir=output_dir,
+                    extension=file_extension,
+                )
 
-            if thumbnail_path:
-                document.thumbnail_path = thumbnail_path
-                document.thumbnail_status = "ready"
-                logger.info(f"✅ Thumbnail generated in use case for {document.id}")
-        except Exception as e:
-            logger.warning(f"⚠️ Thumbnail generation failed in use case: {e}")
+                if result.success and result.path:
+                    document.thumbnail_path = result.path
+                    document.thumbnail_status = "ready"
+                    logger.info(f"✅ Thumbnail generated in use case for {document.id}")
+            except Exception as e:
+                logger.warning(f"⚠️ Thumbnail generation failed in use case: {e}")
 
         # Save document (processing status)
         await self._document_repo.save(document)
 
         try:
-            # 3. Extract text from PDF
-            logger.info(f"Extracting text from PDF: {input.filename}")
-            pages = await self._pdf_parser.extract_text(full_path)
+            # 3. Extract text from document using ParserFactory
+            logger.info(f"Extracting text from document: {input.filename} (mime_type={mime_type})")
+            parse_result = await ParserFactory.parse_with_mode(
+                file_path=full_path,
+                mode="standard",  # Auto-detect + OCR fallback for scanned PDFs
+                mime_type=mime_type,
+                extension=file_extension,
+            )
+            pages = parse_result.pages
 
             # 3.1 Store full document content for summary generation and other use cases
             full_text = "\n\n".join([page.content for page in pages if page.content])
@@ -175,4 +206,4 @@ class UploadDocumentUseCase:
             document.mark_error()
             await self._document_repo.save(document)
             logger.error(f"Failed to process document: {e}")
-            raise PDFProcessingError(f"Failed to process document: {e}")
+            raise DocumentProcessingError(f"Failed to process document: {e}")

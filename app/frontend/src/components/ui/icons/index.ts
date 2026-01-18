@@ -2,100 +2,102 @@
 
 /**
  * Icon Abstraction Layer
- * 
+ *
  * Re-exports icons using the uniform createIcon wrapper.
  * Now backed by lucide-react.
  */
 
 import { createIcon } from './Icon';
 import {
-    Plus,
-    PlusCircle,
-    Check,
-    X,
-    Copy,
-    Trash2,
-    Pencil,
-    RefreshCw,
-    Search,
-    Share2,
-    Send,
-    Square,
-    ArrowRight,
-    ArrowUp,
-    ChevronLeft,
-    ChevronRight,
-    ChevronUp,
-    ChevronDown,
-    Menu,
-    Home,
-    Inbox,
-    CloudUpload,
-    FolderPlus,
-    FileText,
-    FolderOpen,
-    FileUp,
-    LayoutDashboard,
-    Minimize2,
-    Download,
-    Circle,
-    Maximize,
-    Minimize,
-    Bell,
-    CheckCircle,
-    Grid,
-    LayoutGrid,
-    HelpCircle,
-    History,
-    Image,
-    Layers,
-    List,
-    Link,
-    Mic,
-    MoreVertical,
-    MoreHorizontal,
-    Move,
-    Users,
-    Brain,
-    Settings,
-    StickyNote,
-    Tag,
-    TrendingUp,
-    Sliders,
-    Cloud,
-    Lock,
-    ExternalLink,
-    GripHorizontal,
-    PanelRightClose,
-    PanelRightOpen,
-    CreditCard,
-    DollarSign,
-    Zap,
-    ParkingSquare,
-    TriangleAlert,
-    CircleAlert,
-    Info,
-    Bot,
-    MessageSquare,
-    Sparkles,
-    ZoomIn,
-    ZoomOut,
-    Workflow,
-    Target,
-    User,
-    Palette,
-    LogOut,
-    Eye,
-    EyeOff,
-    Key,
-    Database,
-    MousePointer2,
-    Hand,
-    Scan,
-    ListChecks,
-    Globe,
-    Youtube,
-    Video,
+  Plus,
+  PlusCircle,
+  Check,
+  X,
+  Copy,
+  Trash2,
+  Pencil,
+  RefreshCw,
+  Search,
+  Share2,
+  Send,
+  Square,
+  ArrowRight,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Menu,
+  Home,
+  Inbox,
+  CloudUpload,
+  FolderPlus,
+  FileText,
+  FolderOpen,
+  FileUp,
+  LayoutDashboard,
+  Minimize2,
+  Download,
+  Circle,
+  Maximize,
+  Minimize,
+  Bell,
+  CheckCircle,
+  Grid,
+  LayoutGrid,
+  HelpCircle,
+  History,
+  Image,
+  Layers,
+  List,
+  Link,
+  Mic,
+  MoreVertical,
+  MoreHorizontal,
+  Move,
+  Users,
+  Brain,
+  Settings,
+  StickyNote,
+  Tag,
+  TrendingUp,
+  Sliders,
+  Cloud,
+  Lock,
+  ExternalLink,
+  GripHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
+  CreditCard,
+  DollarSign,
+  Zap,
+  ParkingSquare,
+  TriangleAlert,
+  CircleAlert,
+  Info,
+  Bot,
+  MessageSquare,
+  Sparkles,
+  ZoomIn,
+  ZoomOut,
+  Workflow,
+  Target,
+  User,
+  Palette,
+  LogOut,
+  Eye,
+  EyeOff,
+  Key,
+  Database,
+  MousePointer2,
+  Hand,
+  Scan,
+  ListChecks,
+  Globe,
+  Youtube,
+  Video,
+  File,
+  Code,
 } from 'lucide-react';
 
 // Action icons
@@ -124,15 +126,25 @@ export const ExpandMoreIcon = createIcon(ChevronDown, 'ExpandMoreIcon');
 export const MenuOpenIcon = createIcon(Menu, 'MenuOpenIcon');
 export const HomeIcon = createIcon(Home, 'HomeIcon');
 export const InboxIcon = createIcon(Inbox, 'InboxIcon');
-export const KeyboardArrowDownIcon = createIcon(ChevronDown, 'KeyboardArrowDownIcon');
+export const KeyboardArrowDownIcon = createIcon(
+  ChevronDown,
+  'KeyboardArrowDownIcon'
+);
 export const LogoutIcon = createIcon(LogOut, 'LogoutIcon');
 
 // File/Folder icons
 export const CloudUploadIcon = createIcon(CloudUpload, 'CloudUploadIcon');
-export const CreateNewFolderIcon = createIcon(FolderPlus, 'CreateNewFolderIcon');
+export const CreateNewFolderIcon = createIcon(
+  FolderPlus,
+  'CreateNewFolderIcon'
+);
 export const DescriptionIcon = createIcon(FileText, 'DescriptionIcon');
 export const FolderOpenIcon = createIcon(FolderOpen, 'FolderOpenIcon');
 export const UploadFileIcon = createIcon(FileUp, 'UploadFileIcon');
+export const FileIcon = createIcon(File, 'FileIcon');
+export const FileTextIcon = createIcon(FileText, 'FileTextIcon');
+export const CodeIcon = createIcon(Code, 'CodeIcon');
+export const ImageIcon = createIcon(Image, 'ImageIcon');
 
 // Layout/View icons
 export const DashboardIcon = createIcon(LayoutDashboard, 'DashboardIcon');
@@ -171,7 +183,10 @@ export const StorageIcon = createIcon(Database, 'StorageIcon');
 export const AccountTreeIcon = createIcon(Workflow, 'AccountTreeIcon');
 export const AttachMoneyIcon = createIcon(DollarSign, 'AttachMoneyIcon');
 export const CreditCardIcon = createIcon(CreditCard, 'CreditCardIcon');
-export const DragIndicatorIcon = createIcon(GripHorizontal, 'DragIndicatorIcon');
+export const DragIndicatorIcon = createIcon(
+  GripHorizontal,
+  'DragIndicatorIcon'
+);
 export const GpsFixedIcon = createIcon(Target, 'GpsFixedIcon');
 export const HistoryIcon = createIcon(History, 'HistoryIcon');
 export const ImageSearchIcon = createIcon(Image, 'ImageSearchIcon');
@@ -192,15 +207,27 @@ export const CloudIcon = createIcon(Cloud, 'CloudIcon');
 export const LockIcon = createIcon(Lock, 'LockIcon');
 export const KeyIcon = createIcon(Key, 'KeyIcon');
 export const ExternalLinkIcon = createIcon(ExternalLink, 'ExternalLinkIcon');
-export const GripHorizontalIcon = createIcon(GripHorizontal, 'GripHorizontalIcon');
-export const PanelRightCloseIcon = createIcon(PanelRightClose, 'PanelRightCloseIcon');
-export const PanelRightOpenIcon = createIcon(PanelRightOpen, 'PanelRightOpenIcon');
+export const GripHorizontalIcon = createIcon(
+  GripHorizontal,
+  'GripHorizontalIcon'
+);
+export const PanelRightCloseIcon = createIcon(
+  PanelRightClose,
+  'PanelRightCloseIcon'
+);
+export const PanelRightOpenIcon = createIcon(
+  PanelRightOpen,
+  'PanelRightOpenIcon'
+);
 
 // Tool icons
 export const MousePointerIcon = createIcon(MousePointer2, 'MousePointerIcon');
 export const HandIcon = createIcon(Hand, 'HandIcon');
 export const ScanIcon = createIcon(Scan, 'ScanIcon');
-export const PlaylistAddCheckIcon = createIcon(ListChecks, 'PlaylistAddCheckIcon');
+export const PlaylistAddCheckIcon = createIcon(
+  ListChecks,
+  'PlaylistAddCheckIcon'
+);
 
 // Platform icons
 export const GlobeIcon = createIcon(Globe, 'GlobeIcon');

@@ -4,7 +4,7 @@
 
 定义项目环境变量配置的规范，确保 env.example 文件与实际代码保持同步。
 
-## REMOVED Requirements
+## ADDED Requirements
 
 ### Requirement: Unused database pool configuration
 
@@ -66,8 +66,6 @@
 **And** SHALL NOT 包含 `RUNTIME_EVALUATION_METRICS` 变量
 **And** SHALL NOT 包含 `RUNTIME_EVALUATION_STORAGE_DIR` 变量
 **And** SHALL NOT 包含 `RUNTIME_EVALUATION_SAVE_RESULTS` 变量
-
-## MODIFIED Requirements
 
 ### Requirement: Synchronized env.example with config.py
 

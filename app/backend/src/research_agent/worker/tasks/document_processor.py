@@ -531,42 +531,49 @@ class DocumentProcessorTask(BaseTask):
                 )
                 raise
 
-            # Step 6: Queue thumbnail generation for PDF documents
-            logger.info(f"🖼️ Step 6: Queuing thumbnail generation - document_id={document_id}")
-            try:
-                from research_agent.domain.entities.task import TaskType
-                from research_agent.worker.service import TaskQueueService
+            # Step 6: Queue thumbnail generation (if supported by ThumbnailFactory)
+            from research_agent.infrastructure.thumbnail import ThumbnailFactory
 
-                async with get_async_session() as thumbnail_session:
-                    # Update document thumbnail status to pending
-                    stmt = (
-                        update(DocumentModel)
-                        .where(DocumentModel.id == document_id)
-                        .values(thumbnail_status="pending")
+            if ThumbnailFactory.is_supported(extension=file_extension):
+                logger.info(f"🖼️ Step 6: Queuing thumbnail generation - document_id={document_id}")
+                try:
+                    from research_agent.domain.entities.task import TaskType
+                    from research_agent.worker.service import TaskQueueService
+
+                    async with get_async_session() as thumbnail_session:
+                        # Update document thumbnail status to pending
+                        stmt = (
+                            update(DocumentModel)
+                            .where(DocumentModel.id == document_id)
+                            .values(thumbnail_status="pending")
+                        )
+                        await thumbnail_session.execute(stmt)
+
+                        # Queue thumbnail generation task
+                        task_service = TaskQueueService(thumbnail_session)
+                        await task_service.push(
+                            task_type=TaskType.GENERATE_THUMBNAIL,
+                            payload={
+                                "document_id": str(document_id),
+                                "project_id": str(project_id),
+                                "file_path": local_path,
+                            },
+                            priority=5,  # Lower priority than document processing
+                        )
+                        await thumbnail_session.commit()
+
+                    logger.info(
+                        f"✅ Step 6 completed: Thumbnail generation queued for {document_id}"
                     )
-                    await thumbnail_session.execute(stmt)
-
-                    # Queue thumbnail generation task
-                    task_service = TaskQueueService(thumbnail_session)
-                    await task_service.push(
-                        task_type=TaskType.GENERATE_THUMBNAIL,
-                        payload={
-                            "document_id": str(document_id),
-                            "project_id": str(project_id),
-                            "file_path": local_path,
-                        },
-                        priority=5,  # Lower priority than document processing
+                except Exception as e:
+                    logger.warning(
+                        f"⚠️ Step 6 failed (non-critical): Thumbnail task queuing error - "
+                        f"document_id={document_id}: {e}",
+                        exc_info=True,
                     )
-                    await thumbnail_session.commit()
-
-                logger.info(f"✅ Step 6 completed: Thumbnail generation queued for {document_id}")
-            except Exception as e:
-                logger.warning(
-                    f"⚠️ Step 6 failed (non-critical): Thumbnail task queuing error - "
-                    f"document_id={document_id}: {e}",
-                    exc_info=True,
-                )
-                # Non-critical failure - document is still READY, just no thumbnail
+                    # Non-critical failure - document is still READY, just no thumbnail
+            else:
+                logger.info(f"⏭️ Step 6 skipped: Thumbnail not supported for {file_extension} files")
 
             logger.info(
                 f"🎉 Document processing completed successfully - document_id={document_id}, "

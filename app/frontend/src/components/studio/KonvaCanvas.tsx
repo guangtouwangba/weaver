@@ -1211,19 +1211,35 @@ const SourcePreviewCard = ({
             cornerRadius={2}
           />
           <Rect width={120} height={150} fill="white" cornerRadius={2} />
-          <URLImage src={thumbUrl} width={120} height={150} cornerRadius={2} />
+          <URLImage
+            x={0}
+            y={0}
+            src={thumbUrl}
+            width={120}
+            height={150}
+            cornerRadius={2}
+          />
         </Group>
       ) : (
-        <Group x={(width - 100) / 2} y={60}>
-          <Rect
+        <Group x={(width - 100) / 2} y={55}>
+          {/* Fallback: Big Icon */}
+          <Text
+            x={0}
+            y={10}
+            text={config.icon}
+            fontSize={80}
             width={100}
-            height={130}
-            fill="white"
-            stroke="#E7E5E4"
-            dash={[4, 4]}
-            cornerRadius={4}
+            align="center"
           />
-          <Text x={10} y={60} text="No Preview" fontSize={12} fill="#A8A29E" />
+          <Text
+            x={0}
+            y={100}
+            width={100}
+            align="center"
+            text={config.label}
+            fontSize={12}
+            fill="#A8A29E"
+          />
         </Group>
       )}
 
@@ -4712,6 +4728,7 @@ export default function KonvaCanvas({
                   viewType: 'free' as const,
                   subType: 'source' as const,
                 };
+                console.log('[KonvaCanvas] Creating Document Node:', nodeData);
                 onNodeAdd(nodeData);
                 handled = true;
               }
@@ -6273,9 +6290,8 @@ export default function KonvaCanvas({
                         (u) => u.id === sourceId
                       );
                       if (urlContent) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const metaData = urlContent.meta_data as
-                          | Record<string, any>
+                          | { video_id?: string; channel_name?: string }
                           | undefined;
                         videoMetadata = {
                           videoId: metaData?.video_id,

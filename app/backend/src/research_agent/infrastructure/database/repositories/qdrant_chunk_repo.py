@@ -56,28 +56,35 @@ class QdrantChunkRepository(ChunkRepository):
         # Ensure Qdrant collection exists
         await self._ensure_collection(vector_size)
 
-        # Write to Qdrant
-        qdrant_count = 0
+        # Write to Qdrant (batch upsert)
+        chunks_data = []
         for chunk in chunks:
             if chunk.embedding:
-                try:
-                    await self._qdrant_store.upsert_resource_chunk(
-                        chunk_id=chunk.id,
-                        resource_id=chunk.resource_id,
-                        resource_type=chunk.resource_type,
-                        project_id=chunk.project_id,
-                        chunk_index=chunk.chunk_index,
-                        content=chunk.content,
-                        embedding=chunk.embedding,
-                        metadata=chunk.metadata,
-                        user_id=chunk.user_id,
-                    )
-                    qdrant_count += 1
-                except Exception as e:
-                    logger.error(f"[QdrantChunkRepo] Failed to upsert chunk {chunk.id}: {e}")
-                    raise
+                chunks_data.append(
+                    {
+                        "chunk_id": chunk.id,
+                        "resource_id": chunk.resource_id,
+                        "resource_type": chunk.resource_type,
+                        "project_id": chunk.project_id,
+                        "chunk_index": chunk.chunk_index,
+                        "content": chunk.content,
+                        "embedding": chunk.embedding,
+                        "metadata": chunk.metadata,
+                        "user_id": chunk.user_id,
+                    }
+                )
 
-        logger.info(f"[QdrantChunkRepo] Saved {qdrant_count} embeddings to Qdrant")
+        if chunks_data:
+            try:
+                await self._qdrant_store.upsert_resource_chunks_batch(
+                    chunks_data=chunks_data,
+                    batch_size=100,  # Optimal batch size for Qdrant
+                )
+            except Exception as e:
+                logger.error(f"[QdrantChunkRepo] Failed to upsert batch: {e}")
+                raise
+
+        logger.info(f"[QdrantChunkRepo] Saved {len(chunks_data)} embeddings to Qdrant")
 
         # Write to PostgreSQL (without embedding to save space)
         models = [self._to_model(chunk, include_embedding=False) for chunk in chunks]

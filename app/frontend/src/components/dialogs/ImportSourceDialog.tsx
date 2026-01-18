@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useRef, DragEvent } from 'react';
-import {
-  Modal,
-  Button,
-} from '@/components/ui/primitives';
+import { Modal, Button } from '@/components/ui/primitives';
 import { TextField } from '@/components/ui/composites';
-import { CloudUploadIcon, FolderOpenIcon, LinkIcon } from '@/components/ui/icons';
+import {
+  CloudUploadIcon,
+  FolderOpenIcon,
+  LinkIcon,
+} from '@/components/ui/icons';
 import { colors } from '@/components/ui/tokens';
 
 interface ImportSourceDialogProps {
@@ -23,7 +24,7 @@ export default function ImportSourceDialog({
   onClose,
   onFileSelect,
   onUrlImport,
-  acceptedFileTypes = ['.pdf', '.docx', '.csv', '.jpg', '.jpeg'],
+  acceptedFileTypes = ['.pdf', '.docx', '.csv', '.jpg', '.jpeg', '.txt'],
   maxFileSize = 25,
 }: ImportSourceDialogProps) {
   const [url, setUrl] = useState('');
@@ -68,7 +69,9 @@ export default function ImportSourceDialog({
     // Validate file type
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!acceptedFileTypes.includes(fileExtension)) {
-      alert(`File type not supported. Accepted types: ${acceptedFileTypes.join(', ')}`);
+      alert(
+        `File type not supported. Accepted types: ${acceptedFileTypes.join(', ')}`
+      );
       return;
     }
 
@@ -107,14 +110,17 @@ export default function ImportSourceDialog({
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      size="md"
-    >
+    <Modal open={open} onClose={handleClose} size="md">
       <Modal.Header>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.2, marginBottom: 4 }}>
+          <span
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              lineHeight: 1.2,
+              marginBottom: 4,
+            }}
+          >
             Import Source
           </span>
           <span style={{ fontSize: 12, color: colors.text.secondary }}>
@@ -132,7 +138,9 @@ export default function ImportSourceDialog({
           onDrop={handleDrop}
           style={{
             border: '2px dashed',
-            borderColor: isDragging ? colors.primary[500] : colors.border.default,
+            borderColor: isDragging
+              ? colors.primary[500]
+              : colors.border.default,
             borderRadius: 8,
             padding: 32,
             textAlign: 'center',
@@ -143,7 +151,14 @@ export default function ImportSourceDialog({
           }}
           onClick={handleBrowseClick}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 16,
+            }}
+          >
             <div
               style={{
                 width: 64,
@@ -177,7 +192,10 @@ export default function ImportSourceDialog({
                 <span> or drag and drop</span>
               </div>
               <div style={{ fontSize: 12, color: colors.text.secondary }}>
-                {acceptedFileTypes.map((ext) => ext.toUpperCase().replace('.', '')).join(', ')} (max {maxFileSize}MB)
+                {acceptedFileTypes
+                  .map((ext) => ext.toUpperCase().replace('.', ''))
+                  .join(', ')}{' '}
+                (max {maxFileSize}MB)
               </div>
             </div>
             <Button
@@ -226,9 +244,7 @@ export default function ImportSourceDialog({
                   handleUrlImport();
                 }
               }}
-              startAdornment={
-                <LinkIcon size={18} color="secondary" />
-              }
+              startAdornment={<LinkIcon size={18} color="secondary" />}
             />
             <Button
               variant="primary"
@@ -242,10 +258,7 @@ export default function ImportSourceDialog({
       </Modal.Content>
 
       <Modal.Footer>
-        <Button
-          variant="ghost"
-          onClick={handleClose}
-        >
+        <Button variant="ghost" onClick={handleClose}>
           Cancel
         </Button>
       </Modal.Footer>

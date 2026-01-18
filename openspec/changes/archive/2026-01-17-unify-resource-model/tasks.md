@@ -4,7 +4,7 @@
 
 - [x] 1.1 Create `ResourceType` enum in `domain/entities/resource.py`
 - [x] 1.2 Create `Resource` dataclass with unified interface
-- [ ] 1.3 Add `to_resource()` method to `Document` entity (deferred - adapters in ResourceResolver are sufficient)
+- [-] 1.3 Add `to_resource()` method to `Document` entity (deferred - adapters in ResourceResolver are sufficient)
 - [x] 1.4 Add type annotations and docstrings
 
 ## 2. Infrastructure Layer
@@ -15,32 +15,32 @@
 - [x] 2.4 Implement `get_content()` convenience method
 - [x] 2.5 Add adapter for `DocumentModel` to `Resource`
 - [x] 2.6 Add adapter for `UrlContentModel` to `Resource`
-- [ ] 2.7 Add unit tests for `ResourceResolver` (deferred to follow-up)
+- [-] 2.7 Add unit tests for `ResourceResolver` (deferred to follow-up)
 
 ## 3. Service Layer Integration
 
 - [x] 3.1 Modify `OutputGenerationService._load_document_content()` to use `ResourceResolver`
-- [ ] 3.2 Accept `resource_ids` parameter alongside existing `document_ids` + `url_content_ids` (Phase 2)
+- [-] 3.2 Accept `resource_ids` parameter alongside existing `document_ids` + `url_content_ids` (Phase 2)
 - [x] 3.3 Update logging to show resource types being loaded
 - [x] 3.4 Ensure backward compatibility with existing API calls
 
 ## 4. Chat Context Integration
 
 - [x] 4.1 Modify `StreamMessageUseCase` to use `ResourceResolver` for context loading
-- [ ] 4.2 Unify `context_document_ids` and `context_url_ids` handling (Phase 2 - API change)
-- [ ] 4.3 Add tests for unified context loading (deferred to follow-up)
+- [-] 4.2 Unify `context_document_ids` and `context_url_ids` handling (Phase 2 - API change)
+- [-] 4.3 Add tests for unified context loading (deferred to follow-up)
 
 ## 5. API Layer (Optional - New Endpoints)
 
-- [ ] 5.1 Add `GET /api/v1/projects/{project_id}/resources` endpoint (Phase 2)
-- [ ] 5.2 Return unified resource list (documents + urls merged) (Phase 2)
-- [ ] 5.3 Add `resource_ids` field to `GenerateOutputRequest` DTO (Phase 2)
+- [-] 5.1 Add `GET /api/v1/projects/{project_id}/resources` endpoint (Phase 2)
+- [-] 5.2 Return unified resource list (documents + urls merged) (Phase 2)
+- [-] 5.3 Add `resource_ids` field to `GenerateOutputRequest` DTO (Phase 2)
 
 ## 6. Documentation
 
 - [x] 6.1 Update CHANGELOG.md with architecture change
 - [x] 6.2 Add inline documentation for new components
-- [ ] 6.3 Update API documentation if endpoints change (Phase 2)
+- [-] 6.3 Update API documentation if endpoints change (Phase 2)
 
 ## Dependencies
 

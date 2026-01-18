@@ -31,7 +31,6 @@ from research_agent.application.use_cases.document.upload_document import (
 from research_agent.config import get_settings
 from research_agent.domain.entities.task import TaskType
 from research_agent.domain.services.chunking_service import ChunkingService
-from research_agent.domain.services.thumbnail_service import ThumbnailService
 from research_agent.infrastructure.database.models import DocumentModel
 from research_agent.infrastructure.database.repositories.chunk_repo_factory import (
     get_chunk_repository,
@@ -49,10 +48,10 @@ from research_agent.infrastructure.database.repositories.sqlalchemy_project_repo
     SQLAlchemyProjectRepository,
 )
 from research_agent.infrastructure.embedding.openrouter import OpenRouterEmbeddingService
-from research_agent.infrastructure.pdf.pymupdf import PyMuPDFParser
 from research_agent.infrastructure.storage.local import LocalStorageService
 from research_agent.infrastructure.storage.supabase_storage import SupabaseStorageService
-from research_agent.shared.exceptions import NotFoundError, PDFProcessingError
+from research_agent.infrastructure.thumbnail import ThumbnailFactory
+from research_agent.shared.exceptions import DocumentProcessingError, NotFoundError
 from research_agent.shared.utils.logger import setup_logger
 from research_agent.worker.service import TaskQueueService
 
@@ -291,54 +290,62 @@ async def confirm_upload(
             original_filename=request.filename,
             file_path=request.file_path,
             file_size=request.file_size,
-            mime_type="application/pdf",
+            mime_type=request.content_type,
             status="pending",
         )
         session.add(document)
         await session.flush()
 
-        # Generate thumbnail synchronously
-        try:
-            local_pdf_path = request.file_path
-            is_temp = False
+        # Generate thumbnail synchronously (if supported by ThumbnailFactory)
+        file_extension = Path(request.filename).suffix.lower()
+        if ThumbnailFactory.is_supported(extension=file_extension):
+            try:
+                local_file_path = request.file_path
+                is_temp = False
 
-            # If file is in Supabase (remote), download it first
-            if "projects/" in request.file_path and storage:
-                logger.info(f"[THUMBNAIL] Downloading remote file: {request.file_path}")
-                content = await storage.download_file(request.file_path)
+                # If file is in Supabase (remote), download it first
+                if "projects/" in request.file_path and storage:
+                    logger.info(f"[THUMBNAIL] Downloading remote file: {request.file_path}")
+                    content = await storage.download_file(request.file_path)
 
-                # Create temp file
-                tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
-                os.write(tmp_fd, content)
-                os.close(tmp_fd)
+                    # Create temp file with correct extension
+                    tmp_fd, tmp_path = tempfile.mkstemp(suffix=file_extension)
+                    os.write(tmp_fd, content)
+                    os.close(tmp_fd)
 
-                local_pdf_path = tmp_path
-                is_temp = True
+                    local_file_path = tmp_path
+                    is_temp = True
 
-            logger.info(f"[THUMBNAIL] Generating from: {local_pdf_path}")
+                logger.info(f"[THUMBNAIL] Generating from: {local_file_path}")
 
-            thumbnail_service = ThumbnailService()
-            output_dir = (Path(settings.upload_dir) / "thumbnails").resolve()
-            thumbnail_path = await thumbnail_service.generate_thumbnail(
-                file_path=local_pdf_path, document_id=document_id, output_dir=output_dir
+                output_dir = (Path(settings.upload_dir) / "thumbnails").resolve()
+                result = await ThumbnailFactory.generate(
+                    file_path=local_file_path,
+                    document_id=document_id,
+                    output_dir=output_dir,
+                    extension=file_extension,
+                )
+
+                # Cleanup temp file
+                if is_temp and os.path.exists(local_file_path):
+                    os.remove(local_file_path)
+
+                if result.success and result.path:
+                    document.thumbnail_path = result.path
+                    document.thumbnail_status = "ready"
+                    session.add(document)  # Update record
+                    logger.info(f"✅ Thumbnail generated immediately for {document_id}")
+                else:
+                    logger.warning(f"⚠️ Thumbnail generation returned: {result.error}")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Immediate thumbnail generation failed: {e}")
+                if "is_temp" in locals() and is_temp and os.path.exists(local_file_path):
+                    os.remove(local_file_path)
+        else:
+            logger.info(
+                f"⏭️ Skipping thumbnail generation for {file_extension} file (not supported)"
             )
-
-            # Cleanup temp file
-            if is_temp and os.path.exists(local_pdf_path):
-                os.remove(local_pdf_path)
-
-            if thumbnail_path:
-                document.thumbnail_path = thumbnail_path
-                document.thumbnail_status = "ready"
-                session.add(document)  # Update record
-                logger.info(f"✅ Thumbnail generated immediately for {document_id}")
-            else:
-                logger.warning("⚠️ Thumbnail generation returned None")
-
-        except Exception as e:
-            logger.warning(f"⚠️ Immediate thumbnail generation failed: {e}")
-            if "is_temp" in locals() and is_temp and os.path.exists(local_pdf_path):
-                os.remove(local_pdf_path)
 
         # Schedule background processing task
         task_service = TaskQueueService(session)
@@ -459,10 +466,12 @@ async def upload_document(
     The new flow supports WebSocket notifications for real-time status updates.
     """
     # Debug logging
-    logger.info(f"[Upload] Received upload request: project_id={project_id}, filename={file.filename}, content_type={file.content_type}")
+    logger.info(
+        f"[Upload] Received upload request: project_id={project_id}, filename={file.filename}, content_type={file.content_type}"
+    )
     logger.info(f"[Upload] User context: user_id={user.user_id}, is_anonymous={user.is_anonymous}")
     logger.info(f"[Upload] Auth bypass enabled: {settings.auth_bypass_enabled}")
-    
+
     # Verify project ownership
     if not settings.auth_bypass_enabled:
         project_repo = SQLAlchemyProjectRepository(session)
@@ -475,8 +484,11 @@ async def upload_document(
             raise HTTPException(status_code=403, detail="Not authorized to access this project")
 
     # Validate file type
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    allowed_extensions = (".pdf", ".txt")
+    if not file.filename or not file.filename.lower().endswith(allowed_extensions):
+        raise HTTPException(
+            status_code=400, detail=f"Only {', '.join(allowed_extensions)} files are supported"
+        )
 
     # Get file size
     file.file.seek(0, 2)  # Seek to end
@@ -487,7 +499,6 @@ async def upload_document(
     document_repo = SQLAlchemyDocumentRepository(session)
     chunk_repo = get_chunk_repository(session)
     storage = LocalStorageService(settings.upload_dir)
-    pdf_parser = PyMuPDFParser()
     chunking_service = ChunkingService()
 
     # Determine user ID for path scoping
@@ -497,7 +508,6 @@ async def upload_document(
         document_repo=document_repo,
         chunk_repo=chunk_repo,
         storage=storage,
-        pdf_parser=pdf_parser,
         embedding_service=embedding_service,
         chunking_service=chunking_service,
     )
@@ -524,7 +534,7 @@ async def upload_document(
             else None,
         )
 
-    except PDFProcessingError as e:
+    except DocumentProcessingError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
 
@@ -627,12 +637,12 @@ async def get_document_file(
         # Also try with upload_dir prefix
         file_path = Path(settings.upload_dir) / document.file_path
         if not file_path.exists():
-            raise HTTPException(status_code=404, detail="PDF file not found on server")
+            raise HTTPException(status_code=404, detail="Document file not found on server")
 
     return FileResponse(
         path=str(file_path),
         filename=document.filename,
-        media_type="application/pdf",
+        media_type=document.mime_type or "application/octet-stream",
     )
 
 

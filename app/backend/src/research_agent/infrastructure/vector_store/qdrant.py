@@ -330,43 +330,83 @@ class QdrantVectorStore(VectorStore):
             metadata: Type-specific metadata (title, platform, timestamps, etc.)
             user_id: Optional user ID for data isolation
         """
-        client = await self._get_client()
-
-        # Build unified payload
-        payload = {
-            "chunk_id": str(chunk_id),
-            "resource_id": str(resource_id),
-            "resource_type": resource_type.value,
-            "project_id": str(project_id),
-            "chunk_index": chunk_index,
-            "content": content,
-            # Metadata fields
-            "title": metadata.get("title", ""),
-            "platform": metadata.get("platform", "local"),
-            "page_number": metadata.get("page_number"),
-            "start_time": metadata.get("start_time"),
-            "end_time": metadata.get("end_time"),
-            # Legacy compatibility
-            "document_id": str(resource_id),
-            # User isolation
-            "user_id": user_id,
-        }
-
-        point = PointStruct(
-            id=str(chunk_id),
-            vector=embedding,
-            payload=payload,
+        await self.upsert_resource_chunks_batch(
+            [
+                {
+                    "chunk_id": chunk_id,
+                    "resource_id": resource_id,
+                    "resource_type": resource_type,
+                    "project_id": project_id,
+                    "chunk_index": chunk_index,
+                    "content": content,
+                    "embedding": embedding,
+                    "metadata": metadata,
+                    "user_id": user_id,
+                }
+            ]
         )
 
-        try:
-            await client.upsert(
-                collection_name=self._collection_name,
-                points=[point],
+    async def upsert_resource_chunks_batch(
+        self,
+        chunks_data: List[Dict[str, Any]],
+        batch_size: int = 100,
+    ) -> None:
+        """Upsert multiple resource chunks in batches.
+
+        Args:
+            chunks_data: List of dictionaries containing chunk data
+            batch_size: Maximum number of points per upsert call
+        """
+        if not chunks_data:
+            return
+
+        client = await self._get_client()
+        points = []
+
+        for data in chunks_data:
+            metadata = data["metadata"]
+
+            # Build unified payload
+            payload = {
+                "chunk_id": str(data["chunk_id"]),
+                "resource_id": str(data["resource_id"]),
+                "resource_type": data["resource_type"].value,
+                "project_id": str(data["project_id"]),
+                "chunk_index": data["chunk_index"],
+                "content": data["content"],
+                # Metadata fields
+                "title": metadata.get("title", ""),
+                "platform": metadata.get("platform", "local"),
+                "page_number": metadata.get("page_number"),
+                "start_time": metadata.get("start_time"),
+                "end_time": metadata.get("end_time"),
+                # Legacy compatibility
+                "document_id": str(data["resource_id"]),
+                # User isolation
+                "user_id": data.get("user_id"),
+            }
+
+            points.append(
+                PointStruct(
+                    id=str(data["chunk_id"]),
+                    vector=data["embedding"],
+                    payload=payload,
+                )
             )
-            logger.debug(f"[Qdrant] Upserted resource chunk: {chunk_id}")
-        except Exception as e:
-            logger.error(f"[Qdrant] Upsert resource chunk failed: {e}")
-            raise
+
+        # Upsert in batches
+        total_points = len(points)
+        for i in range(0, total_points, batch_size):
+            batch = points[i : i + batch_size]
+            try:
+                await client.upsert(
+                    collection_name=self._collection_name,
+                    points=batch,
+                )
+                logger.debug(f"[Qdrant] Upserted batch of {len(batch)} chunks")
+            except Exception as e:
+                logger.error(f"[Qdrant] Batch upsert failed: {e}")
+                raise
 
     async def search_resource_chunks(
         self,
