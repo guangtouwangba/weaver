@@ -46,33 +46,96 @@ const URLImage = ({
   cornerRadius,
 }: URLImageProps) => {
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!src) {
       return;
     }
 
-    // Resolve relative API paths to full URLs
-    let fullSrc = src;
-    if (src.startsWith('/api/')) {
-      // Get base URL from environment or default to localhost
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      fullSrc = `${baseUrl}${src}`;
-    }
+    let isMounted = true;
+    let objectUrl: string | null = null;
 
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    img.src = fullSrc;
-    img.onload = () => {
-      if (img.width > 0 && img.height > 0) {
-        setImage(img);
+    const loadImage = async () => {
+      try {
+        let imageSrc = src;
+
+        // For API paths, use authenticated fetch
+        if (src.startsWith('/api/')) {
+          const baseUrl =
+            process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const fullSrc = `${baseUrl}${src}`;
+
+          // Get auth token
+          let token: string | null = null;
+          try {
+            const { getSession, isAuthConfigured } =
+              await import('@/lib/supabase');
+            if (isAuthConfigured()) {
+              const session = await getSession();
+              token = session?.access_token || null;
+            }
+          } catch (e) {
+            console.warn('[URLImage] Failed to get auth token:', e);
+          }
+
+          // Fetch with auth header
+          const headers: Record<string, string> = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(fullSrc, { headers });
+          if (!response.ok) {
+            console.warn(`[URLImage] Failed to load image: ${response.status}`);
+            return;
+          }
+
+          const blob = await response.blob();
+          objectUrl = URL.createObjectURL(blob);
+          imageSrc = objectUrl;
+
+          if (isMounted) {
+            setBlobUrl(objectUrl);
+          }
+        }
+
+        // Load into Image element
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.src = imageSrc;
+        img.onload = () => {
+          if (isMounted && img.width > 0 && img.height > 0) {
+            setImage(img);
+          }
+        };
+        img.onerror = () => {
+          console.warn('[URLImage] Image load error:', imageSrc);
+        };
+      } catch (error) {
+        console.warn('[URLImage] Error loading image:', error);
       }
     };
-    img.onerror = () => {
-      // Silently fail - the component will simply not render an image
+
+    loadImage();
+
+    // Cleanup: revoke blob URL on unmount
+    return () => {
+      isMounted = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
   }, [src]);
+
+  // Cleanup blob URL when component unmounts or src changes
+  useEffect(() => {
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [blobUrl]);
 
   return image ? (
     <Image
@@ -1199,18 +1262,66 @@ const SourcePreviewCard = ({
       />
 
       {/* Thumbnail */}
-      {thumbUrl ? (
-        <Group x={(width - 120) / 2} y={55}>
+      <Group x={(width - 120) / 2} y={55}>
+        {/* Paper Background & Shadow */}
+        <Rect
+          width={120}
+          height={150}
+          fill="white"
+          stroke="#E7E5E4"
+          strokeWidth={1}
+          cornerRadius={2}
+          shadowColor="black"
+          shadowBlur={12}
+          shadowOpacity={0.15}
+          shadowOffsetY={8}
+        />
+
+        {/* Always render mock content as base layer */}
+        <Group>
+          {/* Mock Header/Title */}
           <Rect
-            x={4}
-            y={4}
-            width={120}
-            height={150}
-            fill="black"
-            opacity={0.1}
+            x={16}
+            y={24}
+            width={40}
+            height={5}
+            fill="#A8A29E"
             cornerRadius={2}
           />
-          <Rect width={120} height={150} fill="white" cornerRadius={2} />
+
+          {/* Mock Text Lines or Real Summary */}
+          {node.fileMetadata?.summary ? (
+            <Text
+              x={16}
+              y={45}
+              width={88}
+              text={node.fileMetadata.summary}
+              fontSize={7}
+              fontFamily="sans-serif"
+              fill="#78716C"
+              lineHeight={1.5}
+              wrap="word"
+              ellipsis={true}
+              height={90}
+              opacity={1}
+            />
+          ) : (
+            [0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <Rect
+                key={i}
+                x={16}
+                y={45 + i * 14}
+                width={88 - (i % 3) * 15 - (i % 2) * 10}
+                height={3}
+                fill="#D6D3D1"
+                cornerRadius={1}
+              />
+            ))
+          )}
+        </Group>
+
+        {/* Overlay thumbnail on top if available (will cover mock content when loaded) */}
+        {thumbUrl && (
           <URLImage
             x={0}
             y={0}
@@ -1219,29 +1330,8 @@ const SourcePreviewCard = ({
             height={150}
             cornerRadius={2}
           />
-        </Group>
-      ) : (
-        <Group x={(width - 100) / 2} y={55}>
-          {/* Fallback: Big Icon */}
-          <Text
-            x={0}
-            y={10}
-            text={config.icon}
-            fontSize={80}
-            width={100}
-            align="center"
-          />
-          <Text
-            x={0}
-            y={100}
-            width={100}
-            align="center"
-            text={config.label}
-            fontSize={12}
-            fill="#A8A29E"
-          />
-        </Group>
-      )}
+        )}
+      </Group>
 
       {/* Footer */}
       <Line
@@ -4712,7 +4802,7 @@ export default function KonvaCanvas({
                   type: 'knowledge',
 
                   title: data.title,
-                  content: '', // Will be populated with summary if available
+                  content: data.summary || '', // Populated with summary
                   x: centeredX,
                   y: centeredY,
                   width: cardWidth,
@@ -4724,6 +4814,7 @@ export default function KonvaCanvas({
                     fileType: data.fileType || 'pdf',
                     pageCount: data.pageCount,
                     thumbnailUrl: data.thumbnailUrl,
+                    summary: data.summary,
                   },
                   viewType: 'free' as const,
                   subType: 'source' as const,

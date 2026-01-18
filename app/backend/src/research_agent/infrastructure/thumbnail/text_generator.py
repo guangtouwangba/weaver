@@ -62,23 +62,47 @@ class TextThumbnailGenerator(ThumbnailGenerator):
                     error=f"File not found: {file_path}",
                 )
 
-            # Read first N lines from file
+            # Read first N lines from file with smart encoding detection
+            lines = []
+            encoding_to_try = ["utf-8"]
+
+            # Try to detect encoding using chardet if available
             try:
-                with open(text_path, encoding="utf-8") as f:
-                    lines = []
-                    for i, line in enumerate(f):
-                        if i >= self.PREVIEW_LINES:
-                            break
-                        # Truncate long lines
-                        lines.append(line.rstrip()[:50])
-            except UnicodeDecodeError:
-                # Fallback to latin-1
-                with open(text_path, encoding="latin-1") as f:
-                    lines = []
-                    for i, line in enumerate(f):
-                        if i >= self.PREVIEW_LINES:
-                            break
-                        lines.append(line.rstrip()[:50])
+                import chardet
+
+                with open(text_path, "rb") as f:
+                    raw_data = f.read(4096)  # Read first 4KB for detection
+                    result = chardet.detect(raw_data)
+                    detected_encoding = result.get("encoding")
+                    if detected_encoding and detected_encoding.lower() != "utf-8":
+                        encoding_to_try.insert(0, detected_encoding)
+                        logger.debug(
+                            f"[TextThumbnail] Detected encoding: {detected_encoding}"
+                        )
+            except ImportError:
+                pass  # chardet not available, continue with default encodings
+
+            # Add common CJK encodings as fallbacks
+            encoding_to_try.extend(["gbk", "gb2312", "gb18030", "latin-1"])
+
+            for encoding in encoding_to_try:
+                try:
+                    with open(text_path, encoding=encoding) as f:
+                        lines = []
+                        for i, line in enumerate(f):
+                            if i >= self.PREVIEW_LINES:
+                                break
+                            # Truncate long lines
+                            lines.append(line.rstrip()[:50])
+                    logger.debug(f"[TextThumbnail] Read file with encoding: {encoding}")
+                    break
+                except (UnicodeDecodeError, LookupError):
+                    continue
+
+            if not lines:
+                logger.warning(
+                    f"[TextThumbnail] Could not decode file with any encoding: {file_path}"
+                )
 
             # Create image
             img = Image.new("RGB", (self.IMAGE_WIDTH, self.IMAGE_HEIGHT), self.BG_COLOR)
@@ -91,14 +115,36 @@ class TextThumbnailGenerator(ThumbnailGenerator):
                 width=1,
             )
 
-            # Try to use a monospace font, fall back to default
-            try:
-                font = ImageFont.truetype("DejaVuSansMono.ttf", self.FONT_SIZE)
-            except OSError:
+            # Try to use a font with CJK (Chinese/Japanese/Korean) support
+            # Priority: CJK-capable fonts first, then monospace, then default
+            font = None
+            cjk_fonts = [
+                # macOS
+                "PingFang SC",
+                "/System/Library/Fonts/PingFang.ttc",
+                "/System/Library/Fonts/STHeiti Light.ttc",
+                # Linux
+                "Noto Sans CJK SC",
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+                "WenQuanYi Micro Hei",
+                # Windows
+                "Microsoft YaHei",
+                "SimHei",
+                # Fallback monospace (may not support CJK)
+                "DejaVuSansMono.ttf",
+                "Courier",
+            ]
+            for font_name in cjk_fonts:
                 try:
-                    font = ImageFont.truetype("Courier", self.FONT_SIZE)
+                    font = ImageFont.truetype(font_name, self.FONT_SIZE)
+                    logger.debug(f"[TextThumbnail] Using font: {font_name}")
+                    break
                 except OSError:
-                    font = ImageFont.load_default()
+                    continue
+            if font is None:
+                font = ImageFont.load_default()
+                logger.warning("[TextThumbnail] Using default font, CJK support may be limited")
 
             # Draw text lines
             y = self.PADDING

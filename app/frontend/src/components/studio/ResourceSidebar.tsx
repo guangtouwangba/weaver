@@ -120,7 +120,6 @@ export default function ResourceSidebar({
   // Delete confirmation state
   const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<string | null>(null);
   const [confirmDeleteUrl, setConfirmDeleteUrl] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // URL extraction state
   const [pendingUrlExtractions, setPendingUrlExtractions] = useState<
@@ -201,7 +200,6 @@ export default function ResourceSidebar({
     e?.stopPropagation();
     // Close dialog immediately
     setConfirmDeleteDoc(null);
-    setIsDeleting(true);
     // Mark as deleting in list
     setDeletingIds((prev) => new Set(prev).add(docId));
 
@@ -214,7 +212,6 @@ export default function ResourceSidebar({
           newSet.delete(docId);
           return newSet;
         });
-        setIsDeleting(false);
       });
   };
 
@@ -297,7 +294,6 @@ export default function ResourceSidebar({
     if (isPersisted) {
       // Close dialog immediately
       setConfirmDeleteUrl(null);
-      setIsDeleting(true);
       // Mark as deleting in list
       setDeletingIds((prev) => new Set(prev).add(id));
 
@@ -310,7 +306,6 @@ export default function ResourceSidebar({
             newSet.delete(id);
             return newSet;
           });
-          setIsDeleting(false);
         });
     } else {
       setPendingUrlExtractions((prev) => prev.filter((p) => p.id !== id));
@@ -857,7 +852,6 @@ export default function ResourceSidebar({
         message={`Are you sure you want to delete "${documents.find((d) => d.id === confirmDeleteDoc)?.filename}"? This action cannot be undone.`}
         confirmLabel="Delete"
         isDanger={true}
-        loading={isDeleting}
       />
 
       {/* Confirm Delete URL Dialog */}
@@ -872,7 +866,6 @@ export default function ResourceSidebar({
         message={`Are you sure you want to remove "${urlContents.find((u) => u.id === confirmDeleteUrl)?.title || 'this link'}"? This action cannot be undone.`}
         confirmLabel="Remove"
         isDanger={true}
-        loading={isDeleting}
       />
 
       <style>{`

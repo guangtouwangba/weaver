@@ -213,6 +213,7 @@ export interface CanvasNode {
     author?: string;
     lastModified?: string;
     thumbnailUrl?: string; // PDF first page thumbnail or video thumbnail
+    summary?: string; // Document summary for text preview
     // Video-specific metadata
     videoId?: string;
     duration?: number;

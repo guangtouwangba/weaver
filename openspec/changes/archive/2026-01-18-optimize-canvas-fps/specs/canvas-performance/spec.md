@@ -48,8 +48,6 @@
 **And** SHALL NOT 触发 React 组件重渲染
 **And** 只在平移结束时 MUST 同步 React 状态
 
-## MODIFIED Requirements
-
 ### Requirement: Wheel throttle configuration
 
 滚轮事件节流配置 MUST 支持更高刷新率。
@@ -58,7 +56,7 @@
 
 **Given** 默认节流配置
 **When** 处理滚轮事件
-**Then** 节流间隔 SHALL 为 8ms 或更低（原为 16ms）
+**Then** 节流间隔 SHALL 为 8ms 或更低
 
 ## Technical Notes
 

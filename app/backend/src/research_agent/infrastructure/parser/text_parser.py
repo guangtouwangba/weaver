@@ -34,25 +34,38 @@ class TextParser(DocumentParser):
         Raises:
             DocumentParsingError: If reading the file fails.
         """
+        # Smart encoding detection for text files
+        encoding_to_try = ["utf-8"]
+
+        # Try to detect encoding using chardet if available
         try:
-            with open(file_path, encoding="utf-8") as f:
-                content = f.read()
-        except UnicodeDecodeError:
-            # Fallback to latin-1 if UTF-8 fails
+            import chardet
+
+            with open(file_path, "rb") as f:
+                raw_data = f.read(8192)  # Read first 8KB for detection
+                result = chardet.detect(raw_data)
+                detected_encoding = result.get("encoding")
+                if detected_encoding and detected_encoding.lower() != "utf-8":
+                    encoding_to_try.insert(0, detected_encoding)
+        except ImportError:
+            pass  # chardet not available, continue with default encodings
+
+        # Add common CJK encodings as fallbacks
+        encoding_to_try.extend(["gbk", "gb2312", "gb18030", "latin-1"])
+
+        content = None
+        for encoding in encoding_to_try:
             try:
-                with open(file_path, encoding="latin-1") as f:
+                with open(file_path, encoding=encoding) as f:
                     content = f.read()
-            except Exception as e:
-                raise DocumentParsingError(
-                    f"Failed to read text file with fallback encoding: {e}",
-                    file_path=file_path,
-                    cause=e,
-                )
-        except Exception as e:
+                break
+            except (UnicodeDecodeError, LookupError):
+                continue
+
+        if content is None:
             raise DocumentParsingError(
-                f"Failed to read text file: {e}",
+                "Failed to read text file: could not decode with any supported encoding",
                 file_path=file_path,
-                cause=e,
             )
 
         page = ParsedPage(

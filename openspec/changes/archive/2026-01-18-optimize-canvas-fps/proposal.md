@@ -20,7 +20,7 @@ Applied
 - 保持现有功能完整性
 - 不降低画布交互体验
 
-## What
+## What Changes
 
 优化 Konva 画布的平移性能，使其能在 120Hz 显示器上流畅运行。
 

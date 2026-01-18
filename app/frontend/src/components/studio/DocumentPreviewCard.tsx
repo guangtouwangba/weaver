@@ -80,6 +80,7 @@ export default function DocumentPreviewCard({
       pageCount: doc.page_count,
       fileType: config.type, // 'pdf', 'text', 'video', etc.
       mimeType: doc.mime_type, // Also pass mime_type if available
+      summary: doc.summary, // Pass summary for text preview
     };
     console.log('[DEBUG] DragStart:', dragData);
     e.dataTransfer.setData('application/json', JSON.stringify(dragData));
